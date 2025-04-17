@@ -13,7 +13,6 @@ func (d Duration) Milliseconds() int64 {
 	return time.Duration(d).Milliseconds()
 }
 
-
 // GetListenersByType returns all listeners of a specific type
 func (c *Config) GetListenersByType(listenerType ListenerType) []Listener {
 	var result []Listener

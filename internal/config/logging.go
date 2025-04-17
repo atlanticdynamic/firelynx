@@ -58,7 +58,12 @@ func (f LogFormat) IsValid() bool {
 // IsValid checks if the LogLevel is valid
 func (l LogLevel) IsValid() bool {
 	switch l {
-	case LogLevelUnspecified, LogLevelDebug, LogLevelInfo, LogLevelWarn, LogLevelError, LogLevelFatal:
+	case LogLevelUnspecified,
+		LogLevelDebug,
+		LogLevelInfo,
+		LogLevelWarn,
+		LogLevelError,
+		LogLevelFatal:
 		return true
 	default:
 		return false
@@ -114,13 +119,13 @@ func LoggingConfigFromProto(pbLog *pb.LogOptions) LoggingConfig {
 // ToProto converts a domain LoggingConfig to a Protocol Buffer LogOptions
 func (lc LoggingConfig) ToProto() *pb.LogOptions {
 	pbLog := &pb.LogOptions{}
-	
+
 	pbFormat := logFormatToProto(lc.Format)
 	pbLevel := logLevelToProto(lc.Level)
-	
+
 	pbLog.Format = &pbFormat
 	pbLog.Level = &pbLevel
-	
+
 	return pbLog
 }
 

@@ -108,13 +108,13 @@ func TestLogFormatFromString(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := LogFormatFromString(tc.input)
-			
+
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			
+
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -140,13 +140,13 @@ func TestLogLevelFromString(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := LogLevelFromString(tc.input)
-			
+
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			
+
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -164,7 +164,7 @@ func TestLoggingConfigFromProto(t *testing.T) {
 			expected: LoggingConfig{},
 		},
 		{
-			name: "Empty",
+			name:  "Empty",
 			input: &pb.LogOptions{},
 			expected: LoggingConfig{
 				Format: LogFormatUnspecified,
@@ -247,13 +247,13 @@ func TestRoundTripConversion(t *testing.T) {
 		Format: LogFormatJSON,
 		Level:  LogLevelWarn,
 	}
-	
+
 	// Convert to proto
 	pbLogOptions := original.ToProto()
-	
+
 	// Convert back to domain model
 	roundTrip := LoggingConfigFromProto(pbLogOptions)
-	
+
 	// Should be the same
 	assert.Equal(t, original, roundTrip)
 }
