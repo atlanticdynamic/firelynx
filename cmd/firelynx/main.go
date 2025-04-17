@@ -44,11 +44,11 @@ func main() {
 						return fmt.Errorf("validation failed: %w", err)
 					}
 
-					fmt.Printf("Configuration file %s is valid\n", configPath)
-					fmt.Printf("Configuration version: %s\n", cfg.Version)
-					fmt.Printf("Number of listeners: %d\n", len(cfg.Listeners))
-					fmt.Printf("Number of endpoints: %d\n", len(cfg.Endpoints))
-					fmt.Printf("Number of apps: %d\n", len(cfg.Apps))
+					// Print validation success message
+					fmt.Printf("Configuration file %s is valid\n\n", configPath)
+					
+					// Print the fancy tree representation of the config
+					fmt.Println(cfg)
 
 					return nil
 				},
