@@ -1,0 +1,144 @@
+edition = "2023";
+
+package firelynx.settings.v1alpha1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
+
+// Server configuration root message
+message ServerConfig {
+  string version = 1 [default = "v1"];
+  LogOptions logging = 2;
+
+  // Core components
+  repeated Listener listeners = 3;
+  repeated Endpoint endpoints = 4;
+  repeated AppDefinition apps = 5;
+}
+
+message LogOptions {
+  LogFormat format = 1 [default = LOG_FORMAT_UNSPECIFIED];
+  LogLevel level = 2 [default = LOG_LEVEL_UNSPECIFIED];
+}
+
+enum LogFormat {
+  LOG_FORMAT_UNSPECIFIED = 0;
+  LOG_FORMAT_TXT = 1;
+  LOG_FORMAT_JSON = 2;
+}
+
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
+  LOG_LEVEL_FATAL = 5;
+}
+
+// Listener configures a protocol/socket layer service (there could be multiple)
+message Listener {
+  string id = 1;
+  string address = 2; // ":8080", "unix:/tmp/sock.sock", etc.
+
+  // Protocol-specific options
+  oneof protocol_options {
+    HttpListenerOptions http = 3;
+    GrpcListenerOptions grpc = 4;
+  }
+}
+
+// HTTP listener specific options
+message HttpListenerOptions {
+  google.protobuf.Duration read_timeout = 1;
+  google.protobuf.Duration write_timeout = 2;
+  google.protobuf.Duration drain_timeout = 3;
+  // bool enable_cors = 4;
+  // repeated string cors_allowed_origins = 5;
+}
+
+// gRPC listener specific options
+message GrpcListenerOptions {
+  google.protobuf.Duration max_connection_idle = 1;
+  google.protobuf.Duration max_connection_age = 2;
+  int32 max_concurrent_streams = 3;
+}
+
+// Endpoint connects listeners to apps
+message Endpoint {
+  string id = 1;
+  repeated string listener_ids = 2;
+  repeated Route routes = 3;
+}
+
+// Route defines a rule for directing traffic from an endpoint to an app
+message Route {
+  string app_id = 1;
+  StaticData static_data = 2;
+
+  // Condition for matching this route
+  oneof condition {
+    string http_path = 3; // Match based on HTTP path prefix
+    string grpc_service = 4; // Match based on gRPC full service name
+  }
+}
+
+// App definitions (reusable across endpoints)
+message AppDefinition {
+  string id = 1;
+
+  oneof app_config {
+    AppScript script = 3;
+    AppCompositeScript composite_script = 4;
+  }
+}
+
+// Individual script application
+message AppScript {
+  StaticData static_data = 2;
+  oneof evaluator {
+    RisorEvaluator risor = 3;
+    StarlarkEvaluator starlark = 4;
+    ExtismEvaluator extism = 5;
+  }
+}
+
+message RisorEvaluator {
+  string code = 1;
+  google.protobuf.Duration timeout = 2;
+}
+
+message StarlarkEvaluator {
+  string code = 1;
+  google.protobuf.Duration timeout = 2;
+}
+
+message ExtismEvaluator {
+  string code = 1;
+  string entrypoint = 2;
+}
+
+// Composite script that combines multiple scripts
+message AppCompositeScript {
+  repeated string script_app_ids = 1; // IDs of script apps to run in sequence
+  StaticData static_data = 2;
+}
+
+message StaticData {
+  map<string, google.protobuf.Value> data = 1;
+  StaticDataMergeMode merge_mode = 2 [default = STATIC_DATA_MERGE_MODE_UNSPECIFIED];
+}
+
+// Defines strategies for merging static data maps from different sources.
+enum StaticDataMergeMode {
+  // Default, behavior might be defined by the consuming system (could default to FIRST or DEEP).
+  STATIC_DATA_MERGE_MODE_UNSPECIFIED = 0;
+
+  // 'last' strategy: Uses the last value found (highest priority source wins). Later static_data completely replaces earlier ones.
+  STATIC_DATA_MERGE_MODE_LAST = 1;
+
+  // 'unique' strategy: If a key exists in multiple sources, the values from the last key will replace earlier keys.
+  STATIC_DATA_MERGE_MODE_UNIQUE = 2;
+}

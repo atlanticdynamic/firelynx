@@ -1,0 +1,48 @@
+// Example MCP tool implemented in Risor
+
+// Access parameters and static config through ctx
+operation := ctx.get("operation", "")
+input := ctx.get("input", "")
+config := ctx.get("config", {})
+
+if operation == "" {
+  return {
+    "isError": true,
+    "content": "Operation is required"
+  }
+}
+
+if operation == "echo" {
+  return {
+    "isError": false,
+    "content": input
+  }
+} else if operation == "reverse" {
+  // Reverse a string
+  chars := strings.split(input, "")
+  reversed := ""
+  
+  for i := len(chars) - 1; i >= 0; i-- {
+    reversed += chars[i]
+  }
+  
+  return {
+    "isError": false,
+    "content": reversed
+  }
+} else if operation == "uppercase" {
+  return {
+    "isError": false,
+    "content": strings.upper(input)
+  }
+} else if operation == "lowercase" {
+  return {
+    "isError": false,
+    "content": strings.lower(input)
+  }
+} else {
+  return {
+    "isError": true,
+    "content": "Unsupported operation: " + operation
+  }
+}
