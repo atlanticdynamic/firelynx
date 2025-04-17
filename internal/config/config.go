@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -8,19 +9,32 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+var (
+	ErrFailedToLoadConfig     = errors.New("failed to load config")
+	ErrFailedToValidateConfig = errors.New("failed to validate config")
+	ErrUnsupportedConfigVer   = errors.New("unsupported config version")
+)
+
 // NewConfig loads configuration from a TOML file
 func NewConfig(filePath string) (*Config, error) {
-	protoConfig, err := loader.LoadProtoFromFile(filePath)
+	// Get loader from file
+	ld, err := loader.NewLoaderFromFilePath(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config from file: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	// Load the config
+	protoConfig, err := ld.LoadProto()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
 
 	// Convert to domain model
 	config := FromProto(protoConfig)
-	
+
 	// Validate the domain config
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
 	}
 
 	return config, nil
@@ -28,17 +42,26 @@ func NewConfig(filePath string) (*Config, error) {
 
 // NewConfigFromBytes loads configuration from TOML bytes
 func NewConfigFromBytes(data []byte) (*Config, error) {
-	protoConfig, err := loader.LoadProtoFromBytes(data)
+	// Create a loader from bytes
+	ld, err := loader.NewLoaderFromBytes(data, func(data []byte) loader.Loader {
+		return loader.NewTomlLoader(data)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config from bytes: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	// Load the config
+	protoConfig, err := ld.LoadProto()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
 
 	// Convert to domain model
 	config := FromProto(protoConfig)
-	
+
 	// Validate the domain config
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
 	}
 
 	return config, nil
@@ -46,17 +69,26 @@ func NewConfigFromBytes(data []byte) (*Config, error) {
 
 // NewConfigFromReader loads configuration from an io.Reader providing TOML data
 func NewConfigFromReader(reader io.Reader) (*Config, error) {
-	protoConfig, err := loader.LoadProtoFromReader(reader)
+	// Create a loader from reader
+	ld, err := loader.NewLoaderFromReader(reader, func(data []byte) loader.Loader {
+		return loader.NewTomlLoader(data)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to load config from reader: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	// Load the config
+	protoConfig, err := ld.LoadProto()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
 
 	// Convert to domain model
 	config := FromProto(protoConfig)
-	
+
 	// Validate the domain config
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
 	}
 
 	return config, nil
@@ -267,7 +299,7 @@ func (c *Config) Validate() error {
 	case "v1":
 		// Supported version
 	default:
-		return fmt.Errorf("unsupported config version: %s", c.Version)
+		return fmt.Errorf("%w: %s", ErrUnsupportedConfigVer, c.Version)
 	}
 
 	// Check all listener IDs are unique

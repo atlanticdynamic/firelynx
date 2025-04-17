@@ -18,9 +18,10 @@ type tomlLoader struct {
 }
 
 // NewTomlLoader creates a new TOML configuration loader
-func NewTomlLoader() *tomlLoader {
+func NewTomlLoader(source []byte) *tomlLoader {
 	return &tomlLoader{
 		protoConfig: &pbSettings.ServerConfig{},
+		source:      source,
 	}
 }
 
@@ -34,7 +35,7 @@ func NewTomlLoader() *tomlLoader {
 //
 // This is due to how the TOML-to-Protocol-Buffer conversion works with the JSON intermediate format.
 func (l *tomlLoader) LoadProto() (*pbSettings.ServerConfig, error) {
-	if l.source == nil || len(l.source) == 0 {
+	if len(l.source) == 0 {
 		return nil, fmt.Errorf("no source data provided to loader")
 	}
 

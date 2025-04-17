@@ -423,43 +423,53 @@ timeout = "5s"
 		assert.Equal(t, "reader_listener", listener.ID, "Expected listener ID 'reader_listener'")
 		assert.Equal(t, ":9090", listener.Address, "Expected listener address ':9090'")
 		assert.Equal(t, ListenerTypeHTTP, listener.Type, "Expected HTTP listener type")
-		
+
 		// Check HTTP options
 		httpOpts, ok := listener.Options.(HTTPListenerOptions)
 		require.True(t, ok, "Listener options should be HTTPListenerOptions")
 		require.NotNil(t, httpOpts.ReadTimeout, "Read timeout should not be nil")
 		assert.Equal(t, int64(45), httpOpts.ReadTimeout.Seconds, "Expected 45 second read timeout")
-		
+
 		// Validate endpoint conversion
 		require.Len(t, config.Endpoints, 1, "Expected 1 endpoint")
 		endpoint := config.Endpoints[0]
 		assert.Equal(t, "reader_endpoint", endpoint.ID, "Expected endpoint ID 'reader_endpoint'")
 		require.Len(t, endpoint.ListenerIDs, 1, "Expected 1 listener ID")
-		assert.Equal(t, "reader_listener", endpoint.ListenerIDs[0], "Expected listener ID reference")
-		
+		assert.Equal(
+			t,
+			"reader_listener",
+			endpoint.ListenerIDs[0],
+			"Expected listener ID reference",
+		)
+
 		// Validate route conversion
 		require.Len(t, endpoint.Routes, 1, "Expected 1 route")
 		route := endpoint.Routes[0]
 		assert.Equal(t, "reader_app", route.AppID, "Expected app ID 'reader_app'")
-		
+
 		// Validate route condition
 		httpCond, ok := route.Condition.(HTTPPathCondition)
 		require.True(t, ok, "Route condition should be HTTPPathCondition")
 		assert.Equal(t, "/test/path", httpCond.Path, "Expected path '/test/path'")
-		
+
 		// Validate app conversion
 		require.Len(t, config.Apps, 1, "Expected 1 app")
 		app := config.Apps[0]
 		assert.Equal(t, "reader_app", app.ID, "Expected app ID 'reader_app'")
-		
+
 		// Validate script app conversion
 		scriptApp, ok := app.Config.(ScriptApp)
 		require.True(t, ok, "App config should be ScriptApp")
-		
+
 		// Validate Risor evaluator
 		risorEval, ok := scriptApp.Evaluator.(RisorEvaluator)
 		require.True(t, ok, "Script evaluator should be RisorEvaluator")
-		assert.Contains(t, risorEval.Code, "function handle(req)", "Code should contain the expected function")
+		assert.Contains(
+			t,
+			risorEval.Code,
+			"function handle(req)",
+			"Code should contain the expected function",
+		)
 		assert.NotNil(t, risorEval.Timeout, "Timeout should not be nil")
 		assert.Equal(t, int64(5), risorEval.Timeout.Seconds, "Expected 5 second timeout")
 	})
@@ -474,7 +484,12 @@ format = "json"
 		config, err := NewConfigFromReader(reader)
 		require.Error(t, err, "Expected error for invalid TOML")
 		assert.Nil(t, config, "Config should be nil on TOML parse error")
-		assert.Contains(t, err.Error(), "failed to load config from reader", "Error should indicate reader loading failure")
+		assert.ErrorIs(
+			t,
+			err,
+			ErrFailedToLoadConfig,
+			"Error should be of type ErrFailedToLoadConfig",
+		)
 	})
 }
 
@@ -503,10 +518,15 @@ write_timeout = "20s"
 	assert.Equal(t, "v1", config.Version, "Expected version 'v1'")
 	assert.Equal(t, LogFormatText, config.Logging.Format, "Expected logging format 'text'")
 	assert.Equal(t, LogLevelDebug, config.Logging.Level, "Expected logging level 'debug'")
-	
+
 	// Check that listeners were properly converted to domain model
 	require.Len(t, config.Listeners, 1, "Expected 1 listener in domain model")
-	assert.Equal(t, "bytes_listener", config.Listeners[0].ID, "Expected listener ID 'bytes_listener'")
+	assert.Equal(
+		t,
+		"bytes_listener",
+		config.Listeners[0].ID,
+		"Expected listener ID 'bytes_listener'",
+	)
 	assert.Equal(t, ":8181", config.Listeners[0].Address, "Expected listener address ':8181'")
 }
 
@@ -530,20 +550,15 @@ level = "debug"
 			"Expected error message to contain information about unsupported version",
 		)
 	})
-	
+
 	t.Run("DomainModelValidation", func(t *testing.T) {
 		// Create a valid config but set an invalid version
 		config := createValidDomainConfig()
 		config.Version = "v999"
-		
+
 		// Validate should fail
 		err := config.Validate()
 		require.Error(t, err, "Expected error for unsupported version")
-		assert.Contains(
-			t,
-			err.Error(),
-			"unsupported config version",
-			"Expected error message to contain information about unsupported version",
-		)
+		assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
 	})
 }
