@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"time"
 )
 
 // Config represents the complete server configuration
@@ -56,9 +55,6 @@ type GRPCListenerOptions struct {
 }
 
 func (g GRPCListenerOptions) Type() ListenerType { return ListenerTypeGRPC }
-
-// Duration wraps time.Duration for configuration purposes
-type Duration time.Duration
 
 // Endpoint represents a routing configuration for incoming requests
 type Endpoint struct {
