@@ -1,12 +1,9 @@
-package config
+package loader
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 	"slices"
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
@@ -14,86 +11,39 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-// Loader handles loading configuration from TOML files
-type Loader struct {
-	protoConfig  *pbSettings.ServerConfig
-	domainConfig *Config
-	isValid      bool
+// tomlLoader implements the Loader interface for TOML files
+type tomlLoader struct {
+	protoConfig *pbSettings.ServerConfig
+	source      []byte
 }
 
-// NewLoader creates a new configuration loader
-func NewLoader() *Loader {
-	return &Loader{
+// NewTomlLoader creates a new TOML configuration loader
+func NewTomlLoader() *tomlLoader {
+	return &tomlLoader{
 		protoConfig: &pbSettings.ServerConfig{},
 	}
 }
 
-// GetConfig returns the domain model configuration
-func (l *Loader) GetConfig() *Config {
-	if !l.isValid || l.protoConfig == nil {
-		return nil
+// LoadProto parses the TOML configuration and returns the Protocol Buffer config
+//
+// Note on TOML format:
+// While the Protocol Buffer definition uses a field named "protocol_options" that contains
+// either "http" or "grpc" fields, in TOML configuration you should use:
+// - [listeners.http] for HTTP listener options (not [listeners.protocol_options.http])
+// - [listeners.grpc] for gRPC listener options (not [listeners.protocol_options.grpc])
+//
+// This is due to how the TOML-to-Protocol-Buffer conversion works with the JSON intermediate format.
+func (l *tomlLoader) LoadProto() (*pbSettings.ServerConfig, error) {
+	if l.source == nil || len(l.source) == 0 {
+		return nil, fmt.Errorf("no source data provided to loader")
 	}
 
-	if l.domainConfig == nil {
-		l.domainConfig = FromProto(l.protoConfig)
-	}
-
-	return l.domainConfig
-}
-
-// GetProtoConfig returns the underlying Protocol Buffer configuration
-// This is provided for backward compatibility and advanced use cases
-func (l *Loader) GetProtoConfig() *pbSettings.ServerConfig {
-	if !l.isValid {
-		return nil
-	}
-	return l.protoConfig
-}
-
-// NewLoaderFromFilePath loads server configuration from a TOML file
-func NewLoaderFromFilePath(filePath string) (*Loader, error) {
-	// Ensure the file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("config file does not exist: %s", filePath)
-	}
-
-	// Check file extension
-	ext := filepath.Ext(filePath)
-	if ext != ".toml" {
-		return nil, fmt.Errorf("unsupported config format: %s, only .toml is supported", ext)
-	}
-
-	// Read the file
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config file: %w", err)
-	}
-
-	// Parse the data
-	return NewLoaderFromBytes(data)
-}
-
-// NewLoaderFromReader loads server configuration from an io.Reader providing TOML data
-func NewLoaderFromReader(reader io.Reader) (*Loader, error) {
-	// Read all data from the reader
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read config data from reader: %w", err)
-	}
-
-	// Parse the data using the existing LoadFromBytes logic
-	return NewLoaderFromBytes(data)
-}
-
-// NewLoaderFromBytes loads server configuration from TOML bytes
-func NewLoaderFromBytes(data []byte) (*Loader, error) {
-	l := NewLoader()
 	// First, extract just the version to check compatibility
 	var versionCheck struct {
 		Version string `toml:"version"`
 	}
 
-	if err := toml.Unmarshal(data, &versionCheck); err != nil {
+	if err := toml.Unmarshal(l.source, &versionCheck); err != nil {
 		return nil, fmt.Errorf("failed to parse version from TOML config: %w", err)
 	}
 
@@ -109,7 +59,7 @@ func NewLoaderFromBytes(data []byte) (*Loader, error) {
 
 	// Parse TOML into a generic map
 	var configMap map[string]any
-	if err := toml.Unmarshal(data, &configMap); err != nil {
+	if err := toml.Unmarshal(l.source, &configMap); err != nil {
 		return nil, fmt.Errorf("failed to parse TOML config: %w", err)
 	}
 
@@ -120,26 +70,38 @@ func NewLoaderFromBytes(data []byte) (*Loader, error) {
 	}
 
 	// Create protobuf message from JSON
-	config := &pbSettings.ServerConfig{}
+	protoCfg := &pbSettings.ServerConfig{}
 	unmarshaler := protojson.UnmarshalOptions{
 		AllowPartial:   true,
 		DiscardUnknown: true,
 	}
 
-	if err := unmarshaler.Unmarshal(jsonData, config); err != nil {
+	if err := unmarshaler.Unmarshal(jsonData, protoCfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	// Post-process the configuration to handle enums correctly
-	if err := l.postProcessConfig(config, configMap); err != nil {
+	if err := l.postProcessConfig(protoCfg, configMap); err != nil {
 		return nil, fmt.Errorf("failed to post-process config: %w", err)
 	}
 
-	return &Loader{protoConfig: config}, nil
+	l.protoConfig = protoCfg
+
+	// Validate the configuration
+	if err := l.validate(); err != nil {
+		return nil, err
+	}
+
+	return l.protoConfig, nil
+}
+
+// GetProtoConfig returns the underlying Protocol Buffer configuration
+func (l *tomlLoader) GetProtoConfig() *pbSettings.ServerConfig {
+	return l.protoConfig
 }
 
 // postProcessConfig handles special conversions after basic unmarshaling
-func (l *Loader) postProcessConfig(
+func (l *tomlLoader) postProcessConfig(
 	config *pbSettings.ServerConfig,
 	configMap map[string]any,
 ) error {
@@ -240,23 +202,10 @@ func (l *Loader) postProcessConfig(
 	return errors.Join(errz...)
 }
 
-// Validate checks the loaded configuration for errors
-func (l *Loader) Validate() error {
-	// First validate the protobuf config
-	if err := validateConfig(l.protoConfig); err != nil {
-		return fmt.Errorf("validation error: %w", err)
-	}
-
-	// Create the domain config
-	l.domainConfig = FromProto(l.protoConfig)
-
-	// Also validate the domain config
-	if err := l.domainConfig.Validate(); err != nil {
-		return fmt.Errorf("domain validation error: %w", err)
-	}
-
-	l.isValid = true
-	return nil
+// validate checks the loaded configuration for errors
+func (l *tomlLoader) validate() error {
+	// Validate the protobuf config
+	return validateConfig(l.protoConfig)
 }
 
 // validateConfig performs detailed validation on the pb ServerConfig object

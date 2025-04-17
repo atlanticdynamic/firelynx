@@ -2,36 +2,64 @@ package config
 
 import (
 	"fmt"
+	"io"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // NewConfig loads configuration from a TOML file
 func NewConfig(filePath string) (*Config, error) {
-	l, err := NewLoaderFromFilePath(filePath)
+	protoConfig, err := loader.LoadProtoFromFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config from file: %w", err)
 	}
 
-	if err := l.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate config: %w", err)
+	// Convert to domain model
+	config := FromProto(protoConfig)
+	
+	// Validate the domain config
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
-	return l.GetConfig(), nil
+	return config, nil
 }
 
 // NewConfigFromBytes loads configuration from TOML bytes
 func NewConfigFromBytes(data []byte) (*Config, error) {
-	l, err := NewLoaderFromBytes(data)
+	protoConfig, err := loader.LoadProtoFromBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config from bytes: %w", err)
 	}
 
-	if err := l.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate config: %w", err)
+	// Convert to domain model
+	config := FromProto(protoConfig)
+	
+	// Validate the domain config
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
-	return l.GetConfig(), nil
+	return config, nil
+}
+
+// NewConfigFromReader loads configuration from an io.Reader providing TOML data
+func NewConfigFromReader(reader io.Reader) (*Config, error) {
+	protoConfig, err := loader.LoadProtoFromReader(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config from reader: %w", err)
+	}
+
+	// Convert to domain model
+	config := FromProto(protoConfig)
+	
+	// Validate the domain config
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
+
+	return config, nil
 }
 
 // Config represents the complete server configuration
@@ -234,6 +262,14 @@ func (c *Config) FindApp(id string) *App {
 
 // Validate performs comprehensive validation of the configuration
 func (c *Config) Validate() error {
+	// Validate version
+	switch c.Version {
+	case "v1":
+		// Supported version
+	default:
+		return fmt.Errorf("unsupported config version: %s", c.Version)
+	}
+
 	// Check all listener IDs are unique
 	listenerIds := make(map[string]bool)
 	for _, listener := range c.Listeners {

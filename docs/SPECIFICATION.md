@@ -4,7 +4,80 @@ This document provides a detailed technical specification for the firelynx appli
 
 ## Configuration Format
 
-firelynx uses a structured configuration format defined in Protocol Buffers. The core configuration components are:
+firelynx uses a structured configuration format defined in Protocol Buffers. The configuration can be written in TOML format and is converted to Protocol Buffers internally.
+
+### TOML Configuration
+
+The TOML configuration format is designed to be human-readable and easy to edit. Here's an example TOML configuration:
+
+```toml
+# Server Configuration
+version = "v1"
+
+# Logging Configuration
+[logging]
+format = "json"  # "json" or "txt"
+level = "info"   # "debug", "info", "warn", "error", or "fatal"
+
+# Listener Configuration
+[[listeners]]
+id = "http_listener"
+address = ":8080"
+
+# HTTP Listener Options
+# IMPORTANT: Use [listeners.http] not [listeners.protocol_options.http]
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+drain_timeout = "30s"
+
+# gRPC Listener (Example)
+[[listeners]]
+id = "grpc_listener"
+address = ":9090"
+
+# gRPC Listener Options
+# IMPORTANT: Use [listeners.grpc] not [listeners.protocol_options.grpc]
+[listeners.grpc]
+max_connection_idle = "5m"
+max_connection_age = "30m"
+max_concurrent_streams = 1000
+
+# Endpoint Configuration
+[[endpoints]]
+id = "api_endpoint"
+listener_ids = ["http_listener"]
+
+[[endpoints.routes]]
+app_id = "sample_app"
+http_path = "/api/v1"
+
+# Application Configuration
+[[apps]]
+id = "sample_app"
+
+[apps.script.risor]
+code = '''
+// Risor script code here
+function handle(req) {
+  return { status: 200, body: "Hello, World!" }
+}
+'''
+timeout = "10s"
+```
+
+#### Important Note on Listener Protocol Options
+
+While the Protocol Buffer definition uses a field named `protocol_options` that contains either `http` or `grpc` fields, in TOML configuration you should use:
+
+- `[listeners.http]` for HTTP listener options (not `[listeners.protocol_options.http]`)
+- `[listeners.grpc]` for gRPC listener options (not `[listeners.protocol_options.grpc]`)
+
+This difference exists due to how the TOML-to-Protocol-Buffer conversion works internally.
+
+### Protocol Buffer Definition
+
+The core configuration components in Protocol Buffers are:
 
 ### Server Configuration
 
