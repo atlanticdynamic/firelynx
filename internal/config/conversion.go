@@ -1,10 +1,7 @@
 package config
 
 import (
-	"time"
-
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -36,15 +33,15 @@ func FromProto(pbConfig *pb.ServerConfig) *Config {
 		if http := pbListener.GetHttp(); http != nil {
 			listener.Type = ListenerTypeHTTP
 			listener.Options = HTTPListenerOptions{
-				ReadTimeout:  Duration(http.GetReadTimeout().AsDuration()),
-				WriteTimeout: Duration(http.GetWriteTimeout().AsDuration()),
-				DrainTimeout: Duration(http.GetDrainTimeout().AsDuration()),
+				ReadTimeout:  http.GetReadTimeout(),
+				WriteTimeout: http.GetWriteTimeout(),
+				DrainTimeout: http.GetDrainTimeout(),
 			}
 		} else if grpc := pbListener.GetGrpc(); grpc != nil {
 			listener.Type = ListenerTypeGRPC
 			listener.Options = GRPCListenerOptions{
-				MaxConnectionIdle:    Duration(grpc.GetMaxConnectionIdle().AsDuration()),
-				MaxConnectionAge:     Duration(grpc.GetMaxConnectionAge().AsDuration()),
+				MaxConnectionIdle:    grpc.GetMaxConnectionIdle(),
+				MaxConnectionAge:     grpc.GetMaxConnectionAge(),
 				MaxConcurrentStreams: int(grpc.GetMaxConcurrentStreams()),
 			}
 		}
@@ -117,12 +114,12 @@ func FromProto(pbConfig *pb.ServerConfig) *Config {
 			if risor := pbScript.GetRisor(); risor != nil {
 				scriptApp.Evaluator = RisorEvaluator{
 					Code:    risor.GetCode(),
-					Timeout: Duration(risor.GetTimeout().AsDuration()),
+					Timeout: risor.GetTimeout(),
 				}
 			} else if starlark := pbScript.GetStarlark(); starlark != nil {
 				scriptApp.Evaluator = StarlarkEvaluator{
 					Code:    starlark.GetCode(),
-					Timeout: Duration(starlark.GetTimeout().AsDuration()),
+					Timeout: starlark.GetTimeout(),
 				}
 			} else if extism := pbScript.GetExtism(); extism != nil {
 				scriptApp.Evaluator = ExtismEvaluator{
@@ -194,17 +191,17 @@ func (c *Config) ToProto() *pb.ServerConfig {
 		case HTTPListenerOptions:
 			pbListener.ProtocolOptions = &pb.Listener_Http{
 				Http: &pb.HttpListenerOptions{
-					ReadTimeout:  durationpb.New(time.Duration(opts.ReadTimeout)),
-					WriteTimeout: durationpb.New(time.Duration(opts.WriteTimeout)),
-					DrainTimeout: durationpb.New(time.Duration(opts.DrainTimeout)),
+					ReadTimeout:  opts.ReadTimeout,
+					WriteTimeout: opts.WriteTimeout,
+					DrainTimeout: opts.DrainTimeout,
 				},
 			}
 		case GRPCListenerOptions:
 			maxStreams := int32(opts.MaxConcurrentStreams)
 			pbListener.ProtocolOptions = &pb.Listener_Grpc{
 				Grpc: &pb.GrpcListenerOptions{
-					MaxConnectionIdle:    durationpb.New(time.Duration(opts.MaxConnectionIdle)),
-					MaxConnectionAge:     durationpb.New(time.Duration(opts.MaxConnectionAge)),
+					MaxConnectionIdle:    opts.MaxConnectionIdle,
+					MaxConnectionAge:     opts.MaxConnectionAge,
 					MaxConcurrentStreams: &maxStreams,
 				},
 			}
@@ -298,14 +295,14 @@ func (c *Config) ToProto() *pb.ServerConfig {
 				pbScript.Evaluator = &pb.AppScript_Risor{
 					Risor: &pb.RisorEvaluator{
 						Code:    &eval.Code,
-						Timeout: durationpb.New(time.Duration(eval.Timeout)),
+						Timeout: eval.Timeout,
 					},
 				}
 			case StarlarkEvaluator:
 				pbScript.Evaluator = &pb.AppScript_Starlark{
 					Starlark: &pb.StarlarkEvaluator{
 						Code:    &eval.Code,
-						Timeout: durationpb.New(time.Duration(eval.Timeout)),
+						Timeout: eval.Timeout,
 					},
 				}
 			case ExtismEvaluator:

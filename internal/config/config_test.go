@@ -5,6 +5,7 @@ import (
 	"time"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestDomainConfig_Helpers(t *testing.T) {
@@ -219,9 +220,9 @@ func createValidDomainConfig() *Config {
 				Address: ":8080",
 				Type:    ListenerTypeHTTP,
 				Options: HTTPListenerOptions{
-					ReadTimeout:  Duration(time.Second * 30),
-					WriteTimeout: Duration(time.Second * 30),
-					DrainTimeout: Duration(time.Second * 30),
+					ReadTimeout:  durationpb.New(time.Second * 30),
+					WriteTimeout: durationpb.New(time.Second * 30),
+					DrainTimeout: durationpb.New(time.Second * 30),
 				},
 			},
 		},

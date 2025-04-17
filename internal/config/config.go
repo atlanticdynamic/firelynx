@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // NewConfig loads configuration from a TOML file
@@ -68,17 +70,17 @@ type ListenerOptions interface {
 
 // HTTPListenerOptions contains HTTP-specific listener configuration
 type HTTPListenerOptions struct {
-	ReadTimeout  Duration
-	WriteTimeout Duration
-	DrainTimeout Duration
+	ReadTimeout  *durationpb.Duration
+	WriteTimeout *durationpb.Duration
+	DrainTimeout *durationpb.Duration
 }
 
 func (h HTTPListenerOptions) Type() ListenerType { return ListenerTypeHTTP }
 
 // GRPCListenerOptions contains gRPC-specific listener configuration
 type GRPCListenerOptions struct {
-	MaxConnectionIdle    Duration
-	MaxConnectionAge     Duration
+	MaxConnectionIdle    *durationpb.Duration
+	MaxConnectionAge     *durationpb.Duration
 	MaxConcurrentStreams int
 }
 
@@ -171,7 +173,7 @@ type ScriptEvaluator interface {
 // RisorEvaluator executes Risor scripts
 type RisorEvaluator struct {
 	Code    string
-	Timeout Duration
+	Timeout *durationpb.Duration
 }
 
 func (r RisorEvaluator) Type() string { return "risor" }
@@ -179,7 +181,7 @@ func (r RisorEvaluator) Type() string { return "risor" }
 // StarlarkEvaluator executes Starlark scripts
 type StarlarkEvaluator struct {
 	Code    string
-	Timeout Duration
+	Timeout *durationpb.Duration
 }
 
 func (s StarlarkEvaluator) Type() string { return "starlark" }
