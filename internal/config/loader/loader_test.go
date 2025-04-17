@@ -46,14 +46,11 @@ level = "info"
 	// Test file not found
 	t.Run("FileNotFound", func(t *testing.T) {
 		nonExistentPath := filepath.Join(tempDir, "nonexistent.toml")
-		_, err := NewLoaderFromFilePath(nonExistentPath)
+		l, err := NewLoaderFromFilePath(nonExistentPath)
+		assert.Nil(t, l, "Loader should be nil for non-existent file")
 		require.Error(t, err, "Expected error for non-existent file")
-		assert.Contains(
-			t,
-			err.Error(),
-			"config file does not exist",
-			"Error should indicate file not found",
-		)
+		assert.ErrorIs(t, err, os.ErrNotExist, "Error should be os.ErrNotExist")
+		assert.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
 	})
 
 	// Test unsupported file extension
@@ -65,12 +62,7 @@ level = "info"
 
 		_, err = NewLoaderFromFilePath(wrongExtPath)
 		require.Error(t, err, "Expected error for unsupported file extension")
-		assert.Contains(
-			t,
-			err.Error(),
-			"unsupported config extension",
-			"Error should indicate unsupported format",
-		)
+		assert.ErrorIs(t, err, ErrUnsupportedExtension, "Error should be ErrUnsupportedExtension")
 	})
 }
 
@@ -131,12 +123,8 @@ address = ":9090"
 			return NewTomlLoader(data)
 		})
 		require.Error(t, err, "Expected error from reader")
-		assert.Contains(
-			t,
-			err.Error(),
-			"failed to read config data from reader",
-			"Error should indicate reader failure",
-		)
+		assert.ErrorIs(t, err, ErrFailedToLoadConfig)
+		assert.ErrorIs(t, err, assert.AnError, "Error should match the mock reader error")
 	})
 }
 
