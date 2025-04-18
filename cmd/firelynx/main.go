@@ -46,7 +46,7 @@ func main() {
 
 					// Print validation success message
 					fmt.Printf("Configuration file %s is valid\n\n", configPath)
-					
+
 					// Print the fancy tree representation of the config
 					fmt.Println(cfg)
 

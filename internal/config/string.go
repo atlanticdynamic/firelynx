@@ -34,7 +34,7 @@ func ConfigTree(cfg *Config) string {
 
 		for _, l := range cfg.Listeners {
 			typeInfo := string(l.Type)
-			listenerNode := tree.New().Root(listenerStyle.Render(fmt.Sprintf("%s", l.ID)))
+			listenerNode := tree.New().Root(listenerStyle.Render(l.ID))
 
 			// Add address and type
 			listenerNode.Child(fancy.InfoStyle.Render(fmt.Sprintf("Address: %s", l.Address)))
@@ -83,7 +83,7 @@ func ConfigTree(cfg *Config) string {
 		endpointsNode := fancy.BranchNode("Endpoints", fmt.Sprintf("(%d)", len(cfg.Endpoints)))
 
 		for _, e := range cfg.Endpoints {
-			endpointNode := tree.New().Root(endpointStyle.Render(fmt.Sprintf("%s", e.ID)))
+			endpointNode := tree.New().Root(endpointStyle.Render(e.ID))
 
 			// Add listener references
 			if len(e.ListenerIDs) > 0 {
@@ -95,7 +95,8 @@ func ConfigTree(cfg *Config) string {
 
 			// Add routes
 			if len(e.Routes) > 0 {
-				routesNode := tree.New().Root(fancy.ComponentStyle.Render(fmt.Sprintf("Routes (%d)", len(e.Routes))))
+				routesNode := tree.New().
+					Root(fancy.ComponentStyle.Render(fmt.Sprintf("Routes (%d)", len(e.Routes))))
 
 				for i, r := range e.Routes {
 					routeNode := tree.New().Root(routeStyle.Render(fmt.Sprintf("Route %d", i+1)))
@@ -109,7 +110,11 @@ func ConfigTree(cfg *Config) string {
 					if r.Condition != nil {
 						condType := r.Condition.Type()
 						condValue := r.Condition.Value()
-						routeNode.Child(fancy.InfoStyle.Render(fmt.Sprintf("Condition: %s = %s", condType, condValue)))
+						routeNode.Child(
+							fancy.InfoStyle.Render(
+								fmt.Sprintf("Condition: %s = %s", condType, condValue),
+							),
+						)
 					}
 
 					// Add static data if present
@@ -138,7 +143,7 @@ func ConfigTree(cfg *Config) string {
 		appsNode := fancy.BranchNode("Apps", fmt.Sprintf("(%d)", len(cfg.Apps)))
 
 		for _, a := range cfg.Apps {
-			appNode := tree.New().Root(appStyle.Render(fmt.Sprintf("%s", a.ID)))
+			appNode := tree.New().Root(appStyle.Render(a.ID))
 
 			// Add app type and specific configurations
 			switch appConfig := a.Config.(type) {

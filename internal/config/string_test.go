@@ -58,7 +58,7 @@ func TestConfigTree(t *testing.T) {
 
 	// Test the tree rendering
 	tree := ConfigTree(cfg)
-	
+
 	// Basic assertions to make sure the tree contains expected content
 	assert.Contains(t, tree, "Firelynx Config (v1)")
 	assert.Contains(t, tree, "Listeners (1)")
