@@ -1,0 +1,93 @@
+# Sample firelynx configuration file
+version = "v1"
+
+[logging]
+level = "info"
+format = "text"
+
+# Listener definitions
+[[listeners]]
+id = "http_main"
+address = "127.0.0.1:8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+drain_timeout = "30s"
+
+[[listeners]]
+id = "grpc_api"
+address = "127.0.0.1:9090"
+type = "grpc"
+
+[listeners.grpc]
+max_connection_idle = "60s"
+max_connection_age = "300s"
+max_concurrent_streams = 100
+
+# Endpoint definitions
+[[endpoints]]
+id = "web_endpoint"
+listener_ids = ["http_main"]
+
+[[endpoints.routes]]
+app_id = "hello_world"
+http_path = "/hello"
+static_data = { greeting = "Hello, World!" }
+
+[[endpoints.routes]]
+app_id = "echo_script"
+http_path = "/echo"
+
+[[endpoints]]
+id = "api_endpoint"
+listener_ids = ["grpc_api"]
+
+[[endpoints.routes]]
+app_id = "greeter_service"
+grpc_service = "Greeter"
+
+# Application definitions
+[[apps]]
+id = "hello_world"
+
+[apps.config]
+type = "script"
+evaluator = { type = "risor", code = """
+fn handle(req) {
+  greeting := req.static_data.greeting or "Hello"
+  return {
+    "body": greeting + ", World!"
+  }
+}
+""", timeout = "5s" }
+
+static_data = { version = "1.0.0", merge_mode = "unique" }
+
+[[apps]]
+id = "echo_script"
+
+[apps.config]
+type = "script"
+evaluator = { type = "starlark", code = """
+def handle(req):
+  return {
+    "body": "You said: " + req.body
+  }
+""", timeout = "5s" }
+
+[[apps]]
+id = "greeter_service"
+
+[apps.config]
+type = "script"
+evaluator = { type = "extism", code = "...", entrypoint = "handle" }
+
+[[apps]]
+id = "composite_app"
+
+[apps.config]
+type = "composite_script"
+script_app_ids = ["hello_world", "echo_script"]
+static_data = { merge_mode = "last" }
