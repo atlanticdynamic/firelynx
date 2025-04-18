@@ -17,7 +17,7 @@ help: Makefile
 
 ## build: Build the binary
 .PHONY: build
-build: protogen
+build:
 	go build -ldflags "-X main.Version=$(VERSION)" -o bin/$(BINARY_NAME) ./cmd/firelynx
 
 ## install: Install the binary
@@ -32,7 +32,7 @@ protogen:
 
 ## test: Run tests with race detection and coverage
 .PHONY: test
-test: protogen
+test:
 	go test -race -cover $(PACKAGES)
 
 ## lint: Run golangci-lint code quality checks
