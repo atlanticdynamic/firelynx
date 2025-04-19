@@ -180,10 +180,10 @@ Example tests:
 
 ```bash
 # Start server with initial config
-firelynx server --config examples/sample_config.toml --listen :8765
+firelynx server --config examples/advanced_config.toml --listen :8765
 
 # In another terminal, update the config
-firelynx client apply --server :8765 --config examples/sample_config.toml
+firelynx client apply --server :8765 --config examples/advanced_config.toml
 
 # Get the current config
 firelynx client get --server :8765
