@@ -86,7 +86,7 @@ firelynx also supports configuration through environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `firelynx_CONFIG` | Configuration file path | `./config.toml` |
+| `firelynx_CONFIG` | Configuration file path | `./minimal_config.toml` |
 | `firelynx_SERVER` | Server address | `grpc://localhost:8765` |
 | `firelynx_LOG_LEVEL` | Log level | `info` |
 | `firelynx_LOG_FORMAT` | Log format | `text` |
