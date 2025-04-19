@@ -57,8 +57,8 @@ type = "script"
 evaluator = { type = "risor", code = """
 fn handle(req) {
   greeting := req.static_data.greeting or "Hello"
-  return {
-    "body": greeting + ", World!"
+  {
+    body: greeting + ", World!"
   }
 }
 """, timeout = "5s" }
