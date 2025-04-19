@@ -173,40 +173,91 @@ The MCP implementation is based on the [mcp-go](https://github.com/mark3labs/mcp
 
 ## Application Startup Flow
 
-The application uses `urfave/cli` for command-line parsing, `go-supervisor` for service lifecycle management, and `go-fsm` for state tracking:
+The application uses `urfave/cli` for command-line parsing and context-based coordination for component lifecycle management:
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   urfave/cli    │    │ Configuration   │    │ go-fsm          │
-│   Command       │───►│   Loader        │───►│ State Machine   │
+│   urfave/cli    │    │ Configuration   │    │   Context &     │
+│   Command       │───►│   Manager       │───►│   Goroutines    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                                       │
                                                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  go-supervisor  │◄───│  Server Manager │◄───│  Component      │
-│                 │    │                 │    │  Initializer    │
+│  Signal         │────│  Component      │◄───│  Reload         │
+│  Handling       │    │  Coordination   │    │  Channels       │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 1. **CLI Command**: Parses command-line arguments using urfave/cli
-2. **Configuration Loader**: Loads and validates TOML configuration 
-3. **State Machine**: Initializes the FSM for state tracking
-4. **Component Initializer**: Sets up listeners, endpoints, and applications
-5. **Server Manager**: Coordinates server components
-6. **Supervisor**: Manages lifecycle and handles signals
+2. **Configuration Manager**: Loads and manages TOML configuration through gRPC
+3. **Context & Goroutines**: Uses context cancellation for coordinating component lifecycle
+4. **Reload Channels**: Components communicate via channels for configuration updates
+5. **Component Coordination**: Coordinates the initialization and shutdown of components
+6. **Signal Handling**: Captures system signals and initiates graceful shutdown
 
-## Configuration Format
+## Configuration System
+
+### Configuration Format
 
 firelynx uses TOML for human-readable configuration, and Protocol Buffers for in-memory and over-the-wire representation:
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│      TOML       │    │ Config Marshaler│    │ Protocol Buffer │
-│  Config File    │───►│                 │───►│   Objects       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│      TOML       │    │ Config Loader   │    │ Protocol Buffer │    │  Domain Model   │
+│  Config File    │───►│   & Marshaler   │───►│   Objects       │───►│  Configuration  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-The marshaler translates between the TOML format and protocol buffer objects.
+The configuration system follows a domain-driven design approach to abstract away Protocol Buffer implementation details:
+
+1. **Human-Readable Format**: TOML is used for configuration files, providing a clean syntax for humans
+2. **Wire Format**: Protocol Buffers handle serialization for network transmission and storage
+3. **Domain Model**: Clean Go types represent the configuration in application code
+4. **Conversion Layer**: Handles mapping between domain model and Protocol Buffers
+
+### Domain Configuration Model
+
+The configuration domain model provides a clean API for working with configuration:
+
+```go
+// Config represents the complete server configuration
+type Config struct {
+    Version   string
+    Logging   LoggingConfig
+    Listeners []Listener
+    Endpoints []Endpoint
+    Apps      []App
+}
+
+// Listener represents a network listener configuration
+type Listener struct {
+    ID      string
+    Address string
+    Type    ListenerType
+    Options ListenerOptions
+}
+
+// Endpoint represents a routing configuration
+type Endpoint struct {
+    ID          string
+    ListenerIDs []string
+    Routes      []Route
+}
+
+// App represents an application definition
+type App struct {
+    ID     string
+    Config AppConfig
+}
+```
+
+This domain model provides several benefits:
+
+1. **Type Safety**: Strong typing for configuration elements
+2. **Validation**: Domain-specific validation rules
+3. **Maintainability**: Changes to the Protocol Buffer schema don't affect application code
+4. **Idiomatic Go**: The domain model follows Go best practices
+5. **Separation of Concerns**: Serialization logic is kept separate from business logic
 
 ## Script Application Types
 
@@ -257,10 +308,24 @@ Each prompt provides:
 
 ### Configuration Updates
 
-- Configuration client connects to firelynx server via gRPC
-- Client sends new configuration
-- Server validates and applies the configuration
-- Server responds with status of update
+The configuration update flow follows this pattern:
+
+```
+┌────────────────┐    ┌───────────────┐    ┌────────────────┐    ┌────────────────┐
+│                │    │               │    │                │    │                │
+│  TOML Config   │───►│  Domain Model │───►│  Protobuf Obj  │───►│  gRPC Service  │
+│  (on disk)     │    │  (in memory)  │    │  (wire format) │    │  (on server)   │
+│                │    │               │    │                │    │                │
+└────────────────┘    └───────────────┘    └────────────────┘    └────────────────┘
+```
+
+1. Client loads TOML configuration from disk
+2. Client converts TOML to Protocol Buffer format
+3. Client connects to server via gRPC
+4. Client sends configuration update request
+5. Server validates and applies the configuration 
+6. Server sends reload notification to components
+7. Components reload with the new configuration
 
 ## Logging Architecture
 
