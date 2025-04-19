@@ -9,6 +9,15 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+// Configuration version constants
+const (
+	// VersionLatest is the latest supported configuration version
+	VersionLatest = "v1"
+
+	// VersionUnknown is used when a version is not specified
+	VersionUnknown = "unknown"
+)
+
 var (
 	ErrFailedToLoadConfig     = errors.New("failed to load config")
 	ErrFailedToValidateConfig = errors.New("failed to validate config")
@@ -295,8 +304,12 @@ func (c *Config) FindApp(id string) *App {
 // Validate performs comprehensive validation of the configuration
 func (c *Config) Validate() error {
 	// Validate version
+	if c.Version == "" {
+		c.Version = VersionUnknown
+	}
+
 	switch c.Version {
-	case "v1":
+	case VersionLatest:
 		// Supported version
 	default:
 		return fmt.Errorf("%w: %s", ErrUnsupportedConfigVer, c.Version)

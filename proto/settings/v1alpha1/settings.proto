@@ -7,6 +7,35 @@ import "google/protobuf/struct.proto";
 
 option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
+// ConfigService provides the ability to update server configuration
+service ConfigService {
+  // UpdateConfig sends a new configuration to the server
+  rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
+  
+  // GetConfig retrieves the current server configuration
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+}
+
+// Request to update the server configuration
+message UpdateConfigRequest {
+  ServerConfig config = 1;
+}
+
+// Response to an update configuration request
+message UpdateConfigResponse {
+  bool success = 1;
+  string error = 2;
+  ServerConfig config = 3; // Returns the active configuration after update
+}
+
+// Request to get the current server configuration
+message GetConfigRequest {}
+
+// Response to a get configuration request
+message GetConfigResponse {
+  ServerConfig config = 1;
+}
+
 // Server configuration root message
 message ServerConfig {
   string version = 1 [default = "v1"];

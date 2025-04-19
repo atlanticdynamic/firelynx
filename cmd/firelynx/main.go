@@ -16,6 +16,8 @@ func main() {
 		Commands: []*cli.Command{
 			versionCmd,
 			validateCmd,
+			serverCmd,
+			clientCmd,
 		},
 	}
 	if err := app.Run(context.Background(), os.Args); err != nil {

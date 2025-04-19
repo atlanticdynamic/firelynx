@@ -1,0 +1,55 @@
+version = "v1"
+
+[logging]
+level = "info"
+format = "txt"
+
+[[listeners]]
+id = "http_listener"
+address = ":8081"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+drain_timeout = "5s"
+
+[[listeners]]
+id = "grpc_listener"
+address = ":8082"
+
+[listeners.grpc]
+max_connection_idle = "60s"
+max_connection_age = "300s"
+max_concurrent_streams = 100
+
+[[endpoints]]
+id = "api_endpoint"
+listener_ids = ["http_listener"]
+
+[[endpoints.routes]]
+app_id = "hello_app"
+http_path = "/hello"
+
+[[endpoints]]
+id = "grpc_endpoint"
+listener_ids = ["grpc_listener"]
+
+[[endpoints.routes]]
+app_id = "hello_app"
+grpc_service = "example.v1.HelloService"
+
+[[apps]]
+id = "hello_app"
+
+[apps.script]
+[apps.script.risor]
+code = """
+// Simple example script
+print("Hello from Risor script!")
+
+// Return a map with our response
+{
+    message: "Hello, World!"
+}
+"""
+timeout = "5s"
