@@ -31,11 +31,14 @@ make install
 ### Running the Server
 
 ```bash
-# Start with default configuration
-firelynx server start
+# Start the server with empty configuration (awaiting client to apply config)
+firelynx server
 
 # Start with custom configuration file
-firelynx server start --config /path/to/config.toml
+firelynx server --config /path/to/config.toml
+
+# Start with specific listen address
+firelynx server --listen :8765
 ```
 
 ### Configuration

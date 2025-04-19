@@ -1,99 +1,75 @@
 # firelynx Command-Line Interface
 
-firelynx provides a comprehensive command-line interface built with [urfave/cli](https://github.com/urfave/cli) for managing the server and client components. All parameters support configuration through environment variables, or flags.
+firelynx provides a command-line interface built with [urfave/cli](https://github.com/urfave/cli) for managing the server and client components. The CLI supports configuration through flags.
 
-## Server Commands
+## Server Command
 
-### Starting the Server
+The server command starts the firelynx server:
 
 ```bash
-# Start the server with an empty configuration (grpc server awaits initial config)
-firelynx server start
+# Start the server with an empty configuration
+firelynx server
 
-# Start with custom configuration file (toml marshaled into Pbuf, and sent as initial config)
-firelynx server start --config /path/to/config.toml
+# Start with custom configuration file
+firelynx server --config /path/to/config.toml
 
-# Starts with debug logging
-firelynx server start --log-level=debug
-
-# Start with local tcp listener address (also supports file socket path)
-firelynx server start --listen grpc://localhost:8765
+# Start with custom listen address
+firelynx server --listen :8080
 ```
 
-> **Note:** This document describes the intended command-line interface for firelynx using urfave/cli. The implementation in cmd/firelynx/main.go is currently a work-in-progress and may not yet reflect all commands described here.
-
-#### Server Start Options
+### Server Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--config`, `-c`  | Configuration file path | `./config.toml` |
-| `--listen`, `-l`  | Address to listen on | `grpc://localhost:8765` |
-| `--reload_style`  | Configure the reload strategy | `hot` |
-
-### Managing the Server
-
-```bash
-# Check server status
-firelynx status --server grpc://localhost:8765
-
-# Gracefully stop the server
-firelynx stop --server grpc://localhost:8765
-
-# Restart the server
-firelynx restart --server grpc://localhost:8765
-
-# Reload server configuration
-firelynx config load --server grpc://localhost:8765 --config /path/to/new-config.toml
-```
+| `--config`, `-c`  | Path to TOML configuration file | |
+| `--listen`, `-l`  | Address to bind gRPC service | `:8080` |
 
 ## Client Commands
 
-### Configuration Management
+The client commands allow interaction with a running firelynx server:
 
 ```bash
-# Set an environment variable, so that --server isn't needed for each command
-firelynx_SERVER=grpc://localhost:8765
+# Apply configuration to the server
+firelynx client apply --server localhost:8080 --config /path/to/config.toml
 
-# Static validation of a configuration file, sends to server but doesn't load
-firelynx config validate --config /path/to/config.toml
+# Get current configuration from the server
+firelynx client get --server localhost:8080
 
-# Get current server configuration
-firelynx config get
+# Get current configuration and save to file
+firelynx client get --server localhost:8080 --output /path/to/output.toml
 ```
 
-### Resource Management
+### Client Apply Options
 
-The server has three main resource types, which are managed through the client. For the initial version they only support the `get` verb, which lists the configuration.
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--config`, `-c`  | Path to TOML configuration file | (Required) |
+| `--server`, `-s`  | Server address | (Required) |
 
-#### Listener
+### Client Get Options
 
-```bash
-# The client is a simple wrapper around calling the server, so the server address must be set
-firelynx_SERVER=grpc://localhost:8765
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--server`, `-s`  | Server address | (Required) |
+| `--output`, `-o`  | Path to save configuration | (prints to stdout if not specified) |
 
-# List available listeners
-firelynx listeners get
-```
+## Connection Format
 
-#### Endpoint
+The server address can be specified in these formats:
 
-```bash
-# The client is a simple wrapper around calling the server, so the server address must be set
-firelynx_SERVER=grpc://localhost:8765
+1. `host:port` - TCP connection to the specified host and port
+2. `tcp://host:port` - Explicit TCP connection specification
+3. `unix:///path/to/socket` - Unix domain socket (not yet implemented)
 
-# List available endpoints
-firelynx endpoints get
-```
+## Communication Flow
 
-#### App
-
-```bash
-# The client is a simple wrapper around calling the server, so the server address must be set
-firelynx_SERVER=grpc://localhost:8765
-
-# List available apps
-firelynx apps get
-```
+1. Client loads TOML configuration from disk
+2. Client converts TOML to Protocol Buffer format
+3. Client connects to server via gRPC
+4. Client sends configuration update request
+5. Server validates and applies the configuration
+6. Server sends configuration change notification to components
+7. Components reload with the new configuration
 
 ## Global Options
 
@@ -117,74 +93,75 @@ firelynx also supports configuration through environment variables:
 
 ## Command Structure
 
-firelynx follows a Docker-inspired CLI pattern with a single binary that serves dual purposes:
+firelynx provides a single binary with two main command modes:
 
 ### Server Mode
 
-The server mode runs in the foreground (blocking) and manages the script execution environment:
+The server mode runs in the foreground (blocking) and manages the firelynx server:
 
 ```
-firelynx server start [flags] - Start the firelynx server (foreground process)
+firelynx server [flags]
 ```
 
-When running in server mode, the process remains in the foreground until stopped (via CTRL+C or a client command). After the server is started, it listens for incoming connections and manages the lifecycle of the configured components. It prints the server logs to the console, and can be configured to write to a file or other logging backend. The first line it prints after it starts is the environment variable command that can be copied and pasted into another terminal for control.
+When running in server mode, the process remains in the foreground until stopped (via CTRL+C). The server listens for incoming connections, including gRPC configuration updates and MCP protocol requests.
 
 ### Client Mode
 
-Any command that doesn't start with `server start` operates in client mode, connecting to a running server:
+The client mode allows interaction with a running server:
 
 ```
-firelynx
-├── server (client connection to server)
-│   ├── stop       - Stop a running server (client connection to server)
-│   ├── status     - Check server status (client connection to server)
-│   ├── restart    - Restart the server (client connection to server)
-│   └── reload     - Reload server configuration (client connection to server)
-├── config
-│   ├── validate   - Validate configuration file
-│   ├── load       - Load new configuration into the server
-│   └── get        - Retrieve current server configuration
-├── status         - Check server status (shorthand for server status)
-├── listeners
-│   └── get        - List configured listeners
-├── endpoints
-│   └── get        - List configured endpoints
-└── apps
-    └── get        - List configured applications
+firelynx client
+├── apply       - Apply configuration to a running server
+└── get         - Get configuration from a running server
 ```
 
-All client commands accept a `--server` flag to specify which server to connect to, or use the `firelynx_SERVER` environment variable.
+All client commands require a `--server` flag to specify which server to connect to.
 
 ## Server Implementation
 
-The server CLI uses the `go-supervisor` library for lifecycle management and `go-fsm` for state tracking:
+The server implementation uses context-based coordination for component lifecycle management:
 
 ```go
-func runServer(config *ServerConfig) error {
+func runServer(configPath, listenAddr string) error {
     // Initialize logger
-    logger := InitLogger(config.LogFormat, config.LogLevel)
+    logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+        Level: slog.LevelInfo,
+    }))
     
-    // Create state machine using go-fsm
-    machine, err := fsm.New(logger.Handler(), fsm.StatusNew, fsm.TypicalTransitions)
-    if err != nil {
-        return fmt.Errorf("error creating state machine: %w", err)
-    }
+    // Create a context that can be canceled
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
     
-    // Create server components
-    mcpListener := mcp.NewListener(config.Address, logger)
-    configListener := grpc.NewListener(config.ConfigAddress, logger)
+    // Handle signal interrupts
+    signalCh := make(chan os.Signal, 1)
+    signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
+    go func() {
+        sig := <-signalCh
+        logger.Info("Received signal", "signal", sig)
+        cancel()
+    }()
     
-    // Create supervisor with services
-    super, err := supervisor.New(
-        supervisor.WithRunnables(mcpListener, configListener),
-        supervisor.WithLogHandler(logger.Handler()),
-    )
-    if err != nil {
-        return fmt.Errorf("error creating supervisor: %w", err)
-    }
+    // Create the config manager
+    configManager := config_manager.New(config_manager.Config{
+        Logger:     logger.With("component", "config_manager"),
+        ListenAddr: listenAddr,
+        ConfigPath: configPath,
+    })
     
-    // Start all services and handle signals
-    return super.Run()
+    // Create the server core
+    serverCore := core.New(core.Config{
+        Logger:     logger.With("component", "server_core"),
+        ConfigFunc: configManager.GetCurrentConfig,
+    })
+    
+    // Run the components with goroutines
+    go configManager.Run(ctx)
+    go serverCore.Run(ctx)
+    
+    // Wait for context to be canceled
+    <-ctx.Done()
+    
+    return nil
 }
 ```
 
@@ -193,29 +170,43 @@ func runServer(config *ServerConfig) error {
 The client tools communicate with the server via gRPC:
 
 ```go
-func runClientCommand(ctx context.Context, serverAddr string, cmd func(client *Client) error) error {
+func applyConfig(serverAddr, configPath string) error {
+    // Load configuration from file
+    data, err := os.ReadFile(configPath)
+    if err != nil {
+        return fmt.Errorf("failed to read configuration file: %w", err)
+    }
+    
+    // Parse TOML
+    var config pb.ServerConfig
+    if err := toml.Unmarshal(data, &config); err != nil {
+        return fmt.Errorf("failed to parse TOML: %w", err)
+    }
+    
     // Connect to server
-    client, err := NewClient(serverAddr)
+    conn, err := grpc.NewClient(
+        serverAddr,
+        grpc.WithTransportCredentials(insecure.NewCredentials()),
+    )
     if err != nil {
         return fmt.Errorf("failed to connect to server: %w", err)
     }
-    defer client.Close()
+    defer conn.Close()
     
-    // Execute command
-    return cmd(client)
-}
-
-// Example client command
-func getServerStatus(client *Client) error {
-    status, err := client.GetStatus(context.Background())
+    // Create client
+    client := pb.NewConfigServiceClient(conn)
+    
+    // Send update request
+    resp, err := client.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
+        Config: &config,
+    })
     if err != nil {
-        return err
+        return fmt.Errorf("failed to update configuration: %w", err)
     }
     
-    // Print status information
-    fmt.Printf("Server Status: %s\n", status.State)
-    fmt.Printf("Uptime: %s\n", status.Uptime)
-    fmt.Printf("Active Requests: %d\n", status.ActiveRequests)
+    if !resp.Success {
+        return fmt.Errorf("server rejected configuration: %s", resp.Error)
+    }
     
     return nil
 }
