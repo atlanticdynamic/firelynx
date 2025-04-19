@@ -45,9 +45,11 @@ id = "hello_app"
 [apps.script.risor]
 code = """
 // Simple example script
-console.log("Hello from Risor script!")
-return {
-    "message": "Hello, World!"
+print("Hello from Risor script!")
+
+// Return a map with our response
+{
+    message: "Hello, World!"
 }
 """
 timeout = "5s"
