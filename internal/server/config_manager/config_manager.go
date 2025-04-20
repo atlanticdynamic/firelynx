@@ -3,13 +3,14 @@ package config_manager
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"sync"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/robbyt/go-supervisor/supervisor"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ConfigManager implements the configuration management functionality
@@ -163,24 +164,14 @@ func (cm *ConfigManager) UpdateConfig(
 	cm.logger.Info("Received UpdateConfig request")
 
 	if req.Config == nil {
-		success := false
-		errorMessage := "No configuration provided"
-		return &pb.UpdateConfigResponse{
-			Success: &success,
-			Error:   &errorMessage,
-		}, nil
+		return nil, status.Error(codes.InvalidArgument, "No configuration provided")
 	}
 
 	// Validate the configuration by converting to domain model and validating
 	domainConfig := config.NewFromProto(req.Config)
 	if err := domainConfig.Validate(); err != nil {
 		cm.logger.Error("Configuration validation failed", "error", err)
-		success := false
-		errorMessage := fmt.Sprintf("Configuration validation failed: %v", err)
-		return &pb.UpdateConfigResponse{
-			Success: &success,
-			Error:   &errorMessage,
-		}, fmt.Errorf("validation error: %w", err)
+		return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
 	}
 
 	// Update the configuration with the valid config

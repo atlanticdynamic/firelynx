@@ -15,7 +15,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -111,14 +113,12 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	// Call UpdateConfig with invalid config
 	invalidResp, err := cm.UpdateConfig(context.Background(), invalidReq)
 
-	// Expect validation error
+	// Expect validation error as a gRPC InvalidArgument error
 	require.Error(t, err, "Should receive validation error for unsupported version")
-	assert.Contains(t, err.Error(), "validation error")
-	assert.NotNil(t, invalidResp)
-	assert.NotNil(t, invalidResp.Success)
-	assert.False(t, *invalidResp.Success, "Success should be false for invalid config")
-	assert.NotNil(t, invalidResp.Error, "Error message should be provided")
-	assert.Contains(t, *invalidResp.Error, "validation failed")
+	st, ok := status.FromError(err)
+	require.True(t, ok, "error should be a gRPC status error")
+	assert.Equal(t, codes.InvalidArgument, st.Code())
+	assert.Nil(t, invalidResp)
 
 	// Verify that the internal config was NOT updated
 	result := cm.GetCurrentConfig()
@@ -334,13 +334,13 @@ func TestConfigManager_InvalidUpdateConfig(t *testing.T) {
 		Config: nil,
 	})
 
-	// Verify response
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.NotNil(t, resp.Success)
-	assert.False(t, *resp.Success)
-	assert.NotNil(t, resp.Error)
-	assert.Equal(t, "No configuration provided", *resp.Error)
+	// Verify response gets a gRPC InvalidArgument error
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok, "error should be a gRPC status error")
+	assert.Equal(t, codes.InvalidArgument, st.Code())
+	assert.Contains(t, st.Message(), "No configuration provided")
+	assert.Nil(t, resp)
 }
 
 func TestConfigManager_GRPC(t *testing.T) {

@@ -31,14 +31,14 @@ make install
 ### Running the Server
 
 ```bash
-# Start the server with empty configuration (awaiting client to apply config)
-firelynx server
-
-# Start with custom configuration file
+# Start with a configuration file (gRPC config API disabled)
 firelynx server --config /path/to/config.toml
 
-# Start with specific listen address
+# Start with an empty configuration, but enable the gRPC config API
 firelynx server --listen :8765
+
+# Use the agent CLI to interact with the server
+firelynx agent --server localhost:8765
 ```
 
 ### Configuration
