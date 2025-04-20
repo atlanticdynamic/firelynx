@@ -372,7 +372,7 @@ import (
 
 // Example of returning a validation error with InvalidArgument code
 if err := config.Validate(); err != nil {
-    logger.Error("Configuration validation failed", "error", err)
+    logger.Warn("Configuration validation failed", "error", err)
     return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
 }
 ```

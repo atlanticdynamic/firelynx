@@ -37,8 +37,8 @@ firelynx server --config /path/to/config.toml
 # Start with an empty configuration, but enable the gRPC config API
 firelynx server --listen :8765
 
-# Use the agent CLI to interact with the server
-firelynx agent --server localhost:8765
+# Use the client CLI to interact with the server
+firelynx client --server localhost:8765
 ```
 
 ### Configuration
