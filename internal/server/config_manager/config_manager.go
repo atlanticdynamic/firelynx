@@ -5,14 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net"
 	"sync"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 	"github.com/robbyt/go-supervisor/supervisor"
-	"google.golang.org/grpc"
 )
 
 // ConfigManager implements the configuration management functionality
@@ -30,9 +27,11 @@ type ConfigManager struct {
 	configMu sync.RWMutex
 
 	// gRPC related fields
-	grpcServer *grpc.Server
-	listener   net.Listener
+	grpcServer GRPCServer
 	listenAddr string
+
+	// Function to start gRPC server, can be replaced for testing
+	startGRPCServer StartGRPCServerFunc
 
 	// Initial config path
 	configPath string
@@ -51,10 +50,11 @@ type Config struct {
 // New creates a new ConfigManager instance
 func New(cfg Config) *ConfigManager {
 	return &ConfigManager{
-		logger:     cfg.Logger,
-		listenAddr: cfg.ListenAddr,
-		configPath: cfg.ConfigPath,
-		reloadCh:   make(chan struct{}, 1), // Buffer of 1 to avoid blocking
+		logger:          cfg.Logger,
+		listenAddr:      cfg.ListenAddr,
+		configPath:      cfg.ConfigPath,
+		reloadCh:        make(chan struct{}, 1), // Buffer of 1 to avoid blocking
+		startGRPCServer: DefaultStartGRPCServer,
 	}
 }
 
@@ -70,17 +70,28 @@ func (cm *ConfigManager) Run(ctx context.Context) error {
 	}
 	cm.configMu.Unlock()
 
+	// Check if we have either a config path or listen address
+	if cm.configPath == "" && cm.listenAddr == "" {
+		return errors.New("either a config path or a listen address must be provided")
+	}
+
 	// Load initial configuration if path is provided
 	if cm.configPath != "" {
 		if err := cm.loadInitialConfig(); err != nil {
 			cm.logger.Error("Failed to load initial configuration", "error", err)
-			// Continue with the empty config - don't fail
+			// If we don't have a listen address, fail immediately
+			if cm.listenAddr == "" {
+				return err
+			}
+			// Otherwise continue with the empty config
 		}
 	}
 
 	// Start gRPC server if listen address is provided
 	if cm.listenAddr != "" {
-		if err := cm.startGRPCServer(); err != nil {
+		var err error
+		cm.grpcServer, err = cm.startGRPCServer(cm.logger, cm.listenAddr, cm)
+		if err != nil {
 			return err
 		}
 	}
@@ -125,60 +136,22 @@ func (cm *ConfigManager) GetReloadChannel() <-chan struct{} {
 func (cm *ConfigManager) loadInitialConfig() error {
 	cm.logger.Info("Loading initial configuration", "path", cm.configPath)
 
-	// Use the loader package to load the configuration
-	configLoader, err := loader.NewLoaderFromFilePath(cm.configPath)
+	// Use the config package's NewConfig which already handles loading and validation
+	domainConfig, err := config.NewConfig(cm.configPath)
 	if err != nil {
-		return fmt.Errorf("failed to create config loader: %w", err)
+		cm.logger.Error("Failed to load or validate initial configuration", "error", err)
+		return err
 	}
 
-	// Parse the configuration
-	config, err := configLoader.LoadProto()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
+	// Convert to proto and update
+	protoConfig := domainConfig.ToProto()
 
 	// Update the configuration
 	cm.configMu.Lock()
-	cm.config = config
+	cm.config = protoConfig
 	cm.configMu.Unlock()
 
 	cm.logger.Info("Initial configuration loaded successfully")
-	return nil
-}
-
-// startGRPCServer starts the gRPC server for configuration updates
-func (cm *ConfigManager) startGRPCServer() error {
-	cm.logger.Info("Starting gRPC server", "address", cm.listenAddr)
-
-	// Parse the listen address to determine network type (tcp or unix socket)
-	// This is a simplified implementation
-	network := "tcp"
-	address := cm.listenAddr
-
-	// TODO: Parse network and address from listenAddr
-
-	// Create listener
-	lis, err := net.Listen(network, address)
-	if err != nil {
-		return err
-	}
-	cm.listener = lis
-
-	// Create gRPC server
-	cm.grpcServer = grpc.NewServer()
-
-	// Register the ConfigService
-	pb.RegisterConfigServiceServer(cm.grpcServer, cm)
-
-	// Start gRPC server in a separate goroutine
-	go func() {
-		cm.logger.Info("gRPC server listening", "address", cm.listener.Addr())
-		if err := cm.grpcServer.Serve(cm.listener); err != nil &&
-			!errors.Is(err, grpc.ErrServerStopped) {
-			cm.logger.Error("gRPC server error", "error", err)
-		}
-	}()
-
 	return nil
 }
 
@@ -198,9 +171,19 @@ func (cm *ConfigManager) UpdateConfig(
 		}, nil
 	}
 
-	// TODO: Validate configuration
+	// Validate the configuration by converting to domain model and validating
+	domainConfig := config.NewFromProto(req.Config)
+	if err := domainConfig.Validate(); err != nil {
+		cm.logger.Error("Configuration validation failed", "error", err)
+		success := false
+		errorMessage := fmt.Sprintf("Configuration validation failed: %v", err)
+		return &pb.UpdateConfigResponse{
+			Success: &success,
+			Error:   &errorMessage,
+		}, fmt.Errorf("validation error: %w", err)
+	}
 
-	// Update the configuration
+	// Update the configuration with the valid config
 	cm.configMu.Lock()
 	cm.config = req.Config
 	cm.configMu.Unlock()

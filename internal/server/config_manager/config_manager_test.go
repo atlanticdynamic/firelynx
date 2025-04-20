@@ -2,7 +2,6 @@ package config_manager
 
 import (
 	"context"
-	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -13,6 +12,7 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -22,6 +22,16 @@ import (
 // testLogger creates a logger that discards output for testing
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+// MockGRPCServer implements the GRPCServer interface for testing with testify/mock
+type MockGRPCServer struct {
+	mock.Mock
+}
+
+// GracefulStop implements the GRPCServer interface
+func (m *MockGRPCServer) GracefulStop() {
+	m.Called()
 }
 
 // TestConfigManager_New tests the creation of a new ConfigManager
@@ -74,6 +84,7 @@ func TestConfigManager_GetCurrentConfig(t *testing.T) {
 }
 
 func TestConfigManager_UpdateConfig(t *testing.T) {
+	// In this test, we explicitly test the validation behavior
 	// Create a ConfigManager instance
 	cm := New(Config{
 		Logger: testLogger(),
@@ -88,28 +99,58 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	cm.config = initialConfig
 	cm.configMu.Unlock()
 
-	// Create update request with new configuration
+	// Create update request with INVALID configuration (v2 is not supported)
 	newVersion := "v2"
-	newConfig := &pb.ServerConfig{
+	invalidConfig := &pb.ServerConfig{
 		Version: &newVersion,
 	}
-	req := &pb.UpdateConfigRequest{
-		Config: newConfig,
+	invalidReq := &pb.UpdateConfigRequest{
+		Config: invalidConfig,
 	}
 
-	// Call UpdateConfig
-	resp, err := cm.UpdateConfig(context.Background(), req)
+	// Call UpdateConfig with invalid config
+	invalidResp, err := cm.UpdateConfig(context.Background(), invalidReq)
 
-	// Verify response
-	require.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.NotNil(t, resp.Success)
-	assert.True(t, *resp.Success)
-	assert.Equal(t, newConfig, resp.Config)
+	// Expect validation error
+	require.Error(t, err, "Should receive validation error for unsupported version")
+	assert.Contains(t, err.Error(), "validation error")
+	assert.NotNil(t, invalidResp)
+	assert.NotNil(t, invalidResp.Success)
+	assert.False(t, *invalidResp.Success, "Success should be false for invalid config")
+	assert.NotNil(t, invalidResp.Error, "Error message should be provided")
+	assert.Contains(t, *invalidResp.Error, "validation failed")
+
+	// Verify that the internal config was NOT updated
+	result := cm.GetCurrentConfig()
+	assert.Equal(t, initialConfig, result, "Config should not change after failed validation")
+
+	// Now create a valid update request
+	validConfig := &pb.ServerConfig{
+		Version: &version, // Keep v1 which is valid
+		Listeners: []*pb.Listener{
+			{
+				Id:      &[]string{"http_listener"}[0],
+				Address: &[]string{":8080"}[0],
+			},
+		},
+	}
+	validReq := &pb.UpdateConfigRequest{
+		Config: validConfig,
+	}
+
+	// Call UpdateConfig with valid config
+	validResp, err := cm.UpdateConfig(context.Background(), validReq)
+
+	// Should succeed
+	require.NoError(t, err, "Valid config should not cause error")
+	assert.NotNil(t, validResp)
+	assert.NotNil(t, validResp.Success)
+	assert.True(t, *validResp.Success, "Success should be true for valid config")
+	assert.Equal(t, validConfig, validResp.Config)
 
 	// Verify that the internal config was updated
-	result := cm.GetCurrentConfig()
-	assert.Equal(t, newConfig, result)
+	result = cm.GetCurrentConfig()
+	assert.Equal(t, validConfig, result, "Config should be updated after successful validation")
 }
 
 func TestConfigManager_GetConfig(t *testing.T) {
@@ -187,9 +228,10 @@ func bufDialer(listener *bufconn.Listener) func(context.Context, string) (net.Co
 
 // TestConfigManager_Run tests the Run method of ConfigManager
 func TestConfigManager_Run(t *testing.T) {
-	// Create a ConfigManager instance
+	// Create a ConfigManager instance with a listen address
 	cm := New(Config{
-		Logger: testLogger(),
+		Logger:     testLogger(),
+		ListenAddr: "localhost:0", // Use port 0 for automatic port assignment in tests
 	})
 
 	// Create a context that will cancel after a short time
@@ -209,45 +251,25 @@ func TestConfigManager_Run(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestConfigManager_Stop tests the Stop method's behavior
+// TestConfigManager_Stop tests that Stop calls GracefulStop on the GRPC server
 func TestConfigManager_Stop(t *testing.T) {
+	// Create a mock GRPC server
+	mockServer := new(MockGRPCServer)
+	mockServer.On("GracefulStop").Return()
+
 	// Create a ConfigManager instance
 	cm := New(Config{
 		Logger: testLogger(),
 	})
 
-	// Create a context we can cancel from the test
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// Set the grpcServer directly instead of starting it
+	cm.grpcServer = mockServer
 
-	// Run the server in a goroutine and collect the error
-	done := make(chan error, 1)
-	go func() {
-		err := cm.Run(ctx)
-		done <- err
-	}()
-
-	// Wait a bit for the config manager to start
-	time.Sleep(50 * time.Millisecond)
-
-	// Test stop
+	// Call Stop
 	cm.Stop()
 
-	// Cancel the context since Stop doesn't actually cancel it in our test
-	// (in real use with a supervisor, the supervisor would cancel it)
-	cancel()
-
-	// Wait for Run to exit with timeout
-	select {
-	case err := <-done:
-		// We expect context.Canceled since the context will be canceled when
-		// the server is stopped
-		if err != nil && !errors.Is(err, context.Canceled) {
-			t.Errorf("Unexpected error: %v", err)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timed out waiting for ConfigManager.Run to exit")
-	}
+	// Verify that GracefulStop was called on our mock
+	mockServer.AssertCalled(t, "GracefulStop")
 }
 
 // TestConfigManager_RunWithConfigPath tests the Run method with a config path
@@ -373,11 +395,17 @@ func TestConfigManager_GRPC(t *testing.T) {
 	// Compare only the version field, not the entire object
 	assert.Equal(t, *initialConfig.Version, *getResp.Config.Version)
 
-	// Test UpdateConfig
-	newVersion := "v2"
+	// Test UpdateConfig with valid configuration
+	// Use same version (v1) but add listeners to make it different
 	updateReq := &pb.UpdateConfigRequest{
 		Config: &pb.ServerConfig{
-			Version: &newVersion,
+			Version: &version, // Keep using v1 which is valid
+			Listeners: []*pb.Listener{
+				{
+					Id:      &[]string{"http_listener"}[0],
+					Address: &[]string{":8080"}[0],
+				},
+			},
 		},
 	}
 	updateResp, err := client.UpdateConfig(ctx, updateReq)
@@ -387,7 +415,8 @@ func TestConfigManager_GRPC(t *testing.T) {
 	// Test GetConfig again to verify update
 	getResp, err = client.GetConfig(ctx, &pb.GetConfigRequest{})
 	require.NoError(t, err)
-	assert.Equal(t, newVersion, *getResp.Config.Version)
+	assert.Equal(t, version, *getResp.Config.Version)
+	assert.Equal(t, 1, len(getResp.Config.Listeners))
 
 	// Clean up
 	server.Stop()
