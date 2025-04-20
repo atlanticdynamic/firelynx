@@ -25,24 +25,16 @@ var serverCmd = &cli.Command{
 			Usage:   "Address to bind gRPC service (tcp://host:port or a local UNIX socket unix:///path/to/socket)",
 			Aliases: []string{"l"},
 		},
-		&cli.StringFlag{
-			Name:    "log-level",
-			Usage:   "Set logging level (debug, info, warn, error)",
-			Value:   "info",
-			Aliases: []string{"log"},
-		},
 	},
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		configPath := cmd.String("config")
 		listenAddr := cmd.String("listen")
-		logLevel := cmd.String("log-level")
 
 		// Require at least one of --config or --listen
 		if configPath == "" && listenAddr == "" {
 			return cli.Exit("Either --config or --listen flag is required", 1)
 		}
 
-		setupLogger(logLevel)
 		logger := slog.Default()
 
 		configManager := config_manager.New(config_manager.Config{

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/client"
@@ -75,9 +74,7 @@ func clientApplyAction(ctx context.Context, cmd *cli.Command) error {
 		defer cancel()
 	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	logger := slog.Default()
 
 	// Create a loader for the configuration
 	configLoader, err := loader.NewLoaderFromFilePath(configPath)
@@ -103,9 +100,7 @@ func clientGetAction(ctx context.Context, cmd *cli.Command) error {
 	serverAddr := cmd.String("server")
 	outputPath := cmd.String("output")
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	logger := slog.Default()
 
 	firelynxClient := client.New(client.Config{
 		Logger:     logger,
