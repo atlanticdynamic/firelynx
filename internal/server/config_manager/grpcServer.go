@@ -27,7 +27,7 @@ func DefaultStartGRPCServer(
 	listenAddr string,
 	server pb.ConfigServiceServer,
 ) (GRPCServer, error) {
-	logger.Info("Starting gRPC server", "address", listenAddr)
+	logger.Debug("Starting gRPC server", "address", listenAddr)
 
 	// Parse the listen address to determine network type (tcp or unix socket)
 	// This is a simplified implementation

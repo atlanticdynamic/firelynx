@@ -53,7 +53,7 @@ func New(opts ...Option) (*Runner, error) {
 
 // Run implements the Runnable interface and starts the Runner
 func (r *Runner) Run(ctx context.Context) error {
-	r.logger.Info("Starting Runner")
+	r.logger.Debug("Starting Runner")
 	config := r.configCallback()
 	if err := r.processConfig(config); err != nil {
 		return err
@@ -74,16 +74,16 @@ func (r *Runner) Run(ctx context.Context) error {
 func (r *Runner) Stop() {
 	r.reloadLock.Lock()
 	defer r.reloadLock.Unlock()
-	r.logger.Info("Stopping Runner")
+	r.logger.Debug("Stopping Runner")
 	r.cancel()
-	r.logger.Info("Runner stopped")
+	r.logger.Debug("Runner stopped")
 }
 
 // Reload implements the Reloadable interface and reloads the Runner with the latest configuration
 func (r *Runner) Reload() {
 	r.reloadLock.Lock()
 	defer r.reloadLock.Unlock()
-	r.logger.Info("Reloading Runner")
+	r.logger.Debug("Reloading Runner")
 	config := r.configCallback()
 
 	// "process" the updated configuration
@@ -110,7 +110,7 @@ func (r *Runner) processConfig(config *pb.ServerConfig) error {
 	if v := config.Version; v != nil {
 		version = *v
 	}
-	r.logger.Info("Processing configuration", "version", version)
+	r.logger.Debug("Processing configuration", "version", version)
 
 	// For now, just print the configuration settings
 	r.logConfig(config)
@@ -147,7 +147,7 @@ func (r *Runner) logConfig(config *pb.ServerConfig) {
 		apps = len(config.Apps)
 	}
 
-	r.logger.Info("Server configuration",
+	r.logger.Debug("Server configuration",
 		"version", version,
 		"listeners", listeners,
 		"endpoints", endpoints,

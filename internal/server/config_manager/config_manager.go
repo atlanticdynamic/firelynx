@@ -11,6 +11,7 @@ import (
 	"github.com/robbyt/go-supervisor/supervisor"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // ConfigManager implements the configuration management functionality
@@ -61,7 +62,7 @@ func New(cfg Config) *ConfigManager {
 
 // Run implements the Runnable interface and starts the ConfigManager
 func (cm *ConfigManager) Run(ctx context.Context) error {
-	cm.logger.Info("Starting ConfigManager")
+	cm.logger.Debug("Starting ConfigManager")
 
 	// Initialize with at least an empty config
 	cm.configMu.Lock()
@@ -106,7 +107,9 @@ func (cm *ConfigManager) Run(ctx context.Context) error {
 
 // Stop implements the Runnable interface and stops the ConfigManager
 func (cm *ConfigManager) Stop() {
-	cm.logger.Info("Stopping ConfigManager")
+	cm.configMu.Lock()
+	defer cm.configMu.Unlock()
+	cm.logger.Debug("Stopping ConfigManager")
 
 	// Stop gRPC server
 	if cm.grpcServer != nil {
@@ -115,17 +118,26 @@ func (cm *ConfigManager) Stop() {
 	}
 	// When used with the supervisor, the supervisor will cancel the context
 	// passed to Run, which will cause Run to return
+	// TODO: add local context
 }
 
 // GetCurrentConfig returns the current configuration (this is different from the gRPC GetConfig method)
 func (cm *ConfigManager) GetCurrentConfig() *pb.ServerConfig {
 	cm.configMu.RLock()
-	defer cm.configMu.RUnlock()
+	cfg := cm.config
+	cm.configMu.RUnlock()
 
-	// Return a copy of the config to avoid concurrent modification issues
-	// For now, we'll return the actual instance, but in a real implementation
-	// we would create a deep copy of the config
-	return cm.config
+	if cfg == nil {
+		cm.logger.Warn("Current configuration is nil, returning empty config")
+		version := config.VersionLatest
+		cfg = &pb.ServerConfig{
+			Version: &version,
+		}
+	}
+
+	// Return a copy of the config to avoid
+	// concurrent modification issues
+	return proto.Clone(cfg).(*pb.ServerConfig)
 }
 
 // GetReloadChannel returns a channel that will be notified when a reload is triggered
@@ -170,7 +182,7 @@ func (cm *ConfigManager) UpdateConfig(
 	// Validate the configuration by converting to domain model and validating
 	domainConfig := config.NewFromProto(req.Config)
 	if err := domainConfig.Validate(); err != nil {
-		cm.logger.Error("Configuration validation failed", "error", err)
+		cm.logger.Warn("Configuration validation failed", "error", err)
 		return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
 	}
 
@@ -184,7 +196,7 @@ func (cm *ConfigManager) UpdateConfig(
 	case cm.reloadCh <- struct{}{}:
 		cm.logger.Info("Reload notification sent")
 	default:
-		cm.logger.Info("Reload notification channel full, skipping")
+		cm.logger.Warn("Reload notification channel full, skipping")
 	}
 
 	success := true
@@ -200,7 +212,6 @@ func (cm *ConfigManager) GetConfig(
 	req *pb.GetConfigRequest,
 ) (*pb.GetConfigResponse, error) {
 	cm.logger.Info("Received GetConfig request")
-
 	return &pb.GetConfigResponse{
 		Config: cm.GetCurrentConfig(),
 	}, nil
