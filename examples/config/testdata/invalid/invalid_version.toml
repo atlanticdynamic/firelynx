@@ -1,0 +1,38 @@
+version = "v9998"  # Unsupported version
+
+[logging]
+level = "info"
+format = "txt"
+
+[[listeners]]
+id = "http_listener"
+address = ":8081"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+drain_timeout = "5s"
+
+[[endpoints]]
+id = "api_endpoint"
+listener_ids = ["http_listener"]
+
+[[endpoints.routes]]
+app_id = "hello_app"
+http_path = "/hello"
+
+[[apps]]
+id = "hello_app"
+
+[apps.script]
+[apps.script.risor]
+code = """
+// Simple example script
+print("Hello from Risor script!")
+
+// Return a map with our response
+{
+    message: "Hello, World!"
+}
+"""
+timeout = "5s"

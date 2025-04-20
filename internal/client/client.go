@@ -100,7 +100,7 @@ func (c *Client) ApplyConfig(ctx context.Context, configLoader loader.Loader) er
 
 // GetConfig retrieves the current configuration from the server
 func (c *Client) GetConfig(ctx context.Context) (*pb.ServerConfig, error) {
-	c.logger.Info("Getting configuration from server", "server", c.serverAddr)
+	c.logger.Debug("Getting configuration from server", "server", c.serverAddr)
 
 	// Connect to server
 	conn, err := c.connect(ctx)
@@ -182,7 +182,7 @@ func (c *Client) connect(ctx context.Context) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("invalid server address format: %s", c.serverAddr)
 	}
 
-	c.logger.Info("Connecting to server", "address", address)
+	c.logger.Debug("Connecting to server", "address", address)
 	// Using the new recommended API for gRPC client connections
 	return grpc.NewClient(
 		address,
