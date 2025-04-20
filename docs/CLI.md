@@ -64,12 +64,44 @@ The server address can be specified in these formats:
 ## Communication Flow
 
 1. Client loads TOML configuration from disk
-2. Client converts TOML to Protocol Buffer format
-3. Client connects to server via gRPC
-4. Client sends configuration update request
-5. Server validates and applies the configuration
-6. Server sends configuration change notification to components
-7. Components reload with the new configuration
+2. Client performs initial syntax validation
+3. Client converts TOML to Protocol Buffer format
+4. Client connects to server via gRPC
+5. Server performs full semantic validation (structure, references, etc.)
+6. If validation fails, server returns appropriate gRPC error with InvalidArgument code
+7. If validation succeeds, server applies the configuration
+8. Server sends configuration change notification to components
+9. Components reload with the new configuration
+
+### Configuration Validation
+
+firelynx implements validation at two levels:
+
+1. **Client-side validation**: Basic syntax checking and schema validation to catch obvious errors before sending to server
+2. **Server-side validation**: Complete semantic validation including:
+   - Component reference validation (ensuring referenced components exist)
+   - Resource availability validation
+   - Permission and security checks
+   - Component-specific validation rules
+
+### Error Handling
+
+When errors occur during client-server communication:
+
+1. Server returns appropriate gRPC status codes:
+   - `codes.InvalidArgument` for validation errors
+   - `codes.Internal` for server-side errors
+   - `codes.Unavailable` when server can't be reached
+
+2. Client displays these errors with context:
+   ```
+   failed to update configuration: rpc error: code = InvalidArgument desc = validation error: route 0 in endpoint 'api_endpoint' references non-existent app ID: nonexistent_app
+   ```
+
+This approach allows clients to:
+- Provide better error messages to users
+- Implement appropriate retry logic for transient errors
+- Distinguish between client errors (invalid input) and server errors
 
 ## Global Options
 
@@ -170,6 +202,20 @@ func runServer(configPath, listenAddr string) error {
 The client tools communicate with the server via gRPC:
 
 ```go
+// Import statements needed for this example
+import (
+    "context"
+    "fmt"
+    "os"
+    
+    pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+    "github.com/pelletier/go-toml"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/credentials/insecure"
+    "google.golang.org/grpc/status"
+)
+
 func applyConfig(serverAddr, configPath string) error {
     // Load configuration from file
     data, err := os.ReadFile(configPath)
@@ -201,11 +247,22 @@ func applyConfig(serverAddr, configPath string) error {
         Config: &config,
     })
     if err != nil {
+        // Check if this is a gRPC status error
+        if st, ok := status.FromError(err); ok {
+            switch st.Code() {
+            case codes.InvalidArgument:
+                return fmt.Errorf("invalid configuration: %s", st.Message())
+            case codes.Unavailable:
+                return fmt.Errorf("server unavailable: %s", st.Message())
+            default:
+                return fmt.Errorf("failed to update configuration: %w", err)
+            }
+        }
         return fmt.Errorf("failed to update configuration: %w", err)
     }
     
     if !resp.Success {
-        return fmt.Errorf("server rejected configuration: %s", resp.Error)
+        return fmt.Errorf("server rejected configuration: %s", *resp.Error)
     }
     
     return nil
