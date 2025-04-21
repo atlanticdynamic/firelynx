@@ -1,7 +1,9 @@
 # firelynx - Model Context Protocol Server
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/atlanticdynamic/firelynx.svg)](https://pkg.go.dev/github.com/atlanticdynamic/firelynx)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/atlanticdynamic/firelynx)](https://goreportcard.com/report/github.com/atlanticdynamic/firelynx)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=atlanticdynamic_firelynx&metric=coverage)](https://sonarcloud.io/summary/new_code?id=atlanticdynamic_firelynx)
+[![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
 firelynx is a scriptable implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server. It enables AI assistants like Claude to interact with custom tools, prompts, and resources powered by a flexible scripting environment.
 
