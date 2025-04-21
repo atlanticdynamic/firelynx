@@ -2,14 +2,14 @@ module github.com/atlanticdynamic/firelynx
 
 go 1.24.2
 
-require github.com/urfave/cli/v3 v3.1.1
+require github.com/urfave/cli/v3 v3.2.0
 
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/pelletier/go-toml/v2 v2.2.4
-	github.com/robbyt/go-supervisor v0.0.0-20250401031621-3a3386630959
+	github.com/robbyt/go-supervisor v0.0.0-20250419232828-a5aa3fbfe632
 	github.com/stretchr/testify v1.10.0
-	google.golang.org/grpc v1.71.1
+	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
 )
 
