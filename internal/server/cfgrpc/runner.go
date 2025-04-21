@@ -19,7 +19,10 @@ import (
 // It implements the supervisor.Runnable interface for lifecycle management.
 
 // Interface guard: ensure Runner implements supervisor.Runnable
-var _ supervisor.Runnable = (*Runner)(nil)
+var (
+	_ supervisor.Runnable     = (*Runner)(nil)
+	_ supervisor.ReloadSender = (*Runner)(nil)
+)
 
 type Runner struct {
 	pb.UnimplementedConfigServiceServer
@@ -28,7 +31,7 @@ type Runner struct {
 	config   *pb.ServerConfig
 	configMu sync.RWMutex
 
-	// gRPC related fields
+	// gRPC server stuff
 	grpcServer GRPCServer
 	listenAddr string
 
@@ -38,7 +41,7 @@ type Runner struct {
 	// Initial config path
 	configPath string
 
-	// For reload notifications
+	// For triggering a reload when a new config is received
 	reloadCh chan struct{}
 }
 
@@ -46,7 +49,7 @@ type Runner struct {
 func New(opts ...Option) (*Runner, error) {
 	r := &Runner{
 		logger:          slog.Default(),
-		reloadCh:        make(chan struct{}, 1), // Buffer of 1 to avoid blocking
+		reloadCh:        make(chan struct{}, 1),
 		startGRPCServer: DefaultStartGRPCServer,
 	}
 
@@ -64,7 +67,7 @@ func New(opts ...Option) (*Runner, error) {
 }
 
 func (cm *Runner) String() string {
-	return "config_manager.Runner"
+	return "cfgrpc.Runner"
 }
 
 // Run implements the Runnable interface and starts the Runner
@@ -143,9 +146,10 @@ func (r *Runner) GetConfigClone() *pb.ServerConfig {
 	return proto.Clone(cfg).(*pb.ServerConfig)
 }
 
-// GetReloadChannel returns a channel that will be notified when a reload is triggered.
-// TODO: I think this may be wrong, as it does not fit the go-supervisor interfaces
-func (r *Runner) GetReloadChannel() <-chan struct{} {
+// GetReloadTrigger returns a channel that will be notified when a reload is triggered.
+// This implements the supervisor.ReloadSender interface, to trigger a reload when the config is
+// received.
+func (r *Runner) GetReloadTrigger() <-chan struct{} {
 	return r.reloadCh
 }
 

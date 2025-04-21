@@ -38,7 +38,7 @@ var serverCmd = &cli.Command{
 		logger := slog.Default()
 
 		cManager, err := cfgrpc.New(
-			cfgrpc.WithLogger(logger.With("component", "config_manager")),
+			cfgrpc.WithLogger(logger.With("component", "cfgrpc")),
 			cfgrpc.WithListenAddr(listenAddr),
 			cfgrpc.WithConfigPath(configPath),
 		)
@@ -53,21 +53,6 @@ var serverCmd = &cli.Command{
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to create server core: %w", err), 1)
 		}
-
-		// Set up a reload listener
-		// TODO: review - this does not look correct
-		reloadCh := cManager.GetReloadChannel()
-		go func() {
-			for {
-				select {
-				case <-reloadCh:
-					logger.Info("Reload notification received")
-					serverCore.Reload()
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
 
 		// Create a list of runnables to manage, order is important
 		runnables := []supervisor.Runnable{

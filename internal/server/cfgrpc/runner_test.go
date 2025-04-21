@@ -169,7 +169,7 @@ func TestConfigManager_ReloadChannel(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the reload channel
-	reloadCh := r.GetReloadChannel()
+	reloadCh := r.GetReloadTrigger()
 
 	// Create update request with new configuration
 	version := "v1"

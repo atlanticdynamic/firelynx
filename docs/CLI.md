@@ -175,7 +175,7 @@ func runServer(configPath, listenAddr string) error {
     
     // Create the config manager
     configManager := config_manager.New(config_manager.Config{
-        Logger:     logger.With("component", "config_manager"),
+        Logger:     logger.With("component", "cfgrpc"),
         ListenAddr: listenAddr,
         ConfigPath: configPath,
     })
