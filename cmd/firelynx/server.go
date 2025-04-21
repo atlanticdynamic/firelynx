@@ -37,14 +37,18 @@ var serverCmd = &cli.Command{
 
 		logger := slog.Default()
 
-		configManager := cfgrpc.New(cfgrpc.Config{
-			Logger:     logger.With("component", "config_manager"),
-			ListenAddr: listenAddr,
-			ConfigPath: configPath,
-		})
+		cManager, err := cfgrpc.New(
+			cfgrpc.WithLogger(logger.With("component", "config_manager")),
+			cfgrpc.WithListenAddr(listenAddr),
+			cfgrpc.WithConfigPath(configPath),
+		)
+		if err != nil {
+			return cli.Exit(fmt.Errorf("failed to create config manager: %w", err), 1)
+		}
 
 		serverCore, err := core.New(
-			core.WithConfigCallback(configManager.GetConfigClone),
+			core.WithLogger(logger.With("component", "core")),
+			core.WithConfigCallback(cManager.GetConfigClone),
 		)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to create server core: %w", err), 1)
@@ -52,7 +56,7 @@ var serverCmd = &cli.Command{
 
 		// Set up a reload listener
 		// TODO: review - this does not look correct
-		reloadCh := configManager.GetReloadChannel()
+		reloadCh := cManager.GetReloadChannel()
 		go func() {
 			for {
 				select {
@@ -67,7 +71,7 @@ var serverCmd = &cli.Command{
 
 		// Create a list of runnables to manage, order is important
 		runnables := []supervisor.Runnable{
-			configManager,
+			cManager,
 			serverCore,
 		}
 

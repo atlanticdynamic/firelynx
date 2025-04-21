@@ -42,22 +42,25 @@ type Runner struct {
 	reloadCh chan struct{}
 }
 
-// Config for creating a new Runner
-type Config struct {
-	Logger     *slog.Logger
-	ListenAddr string
-	ConfigPath string
-}
-
-// New creates a new Runner instance
-func New(cfg Config) *Runner {
-	return &Runner{
-		logger:          cfg.Logger,
-		listenAddr:      cfg.ListenAddr,
-		configPath:      cfg.ConfigPath,
+// New creates a new Runner instance with the provided options
+func New(opts ...Option) (*Runner, error) {
+	r := &Runner{
+		logger:          slog.Default(),
 		reloadCh:        make(chan struct{}, 1), // Buffer of 1 to avoid blocking
 		startGRPCServer: DefaultStartGRPCServer,
 	}
+
+	// Apply all provided options
+	for _, opt := range opts {
+		opt(r)
+	}
+
+	// Check if we have either a config path or listen address
+	if r.configPath == "" && r.listenAddr == "" {
+		return nil, errors.New("either a config path or a listen address must be provided")
+	}
+
+	return r, nil
 }
 
 func (cm *Runner) String() string {
@@ -65,28 +68,23 @@ func (cm *Runner) String() string {
 }
 
 // Run implements the Runnable interface and starts the Runner
-func (cm *Runner) Run(ctx context.Context) error {
-	cm.logger.Debug("Starting Runner")
+func (r *Runner) Run(ctx context.Context) error {
+	r.logger.Debug("Starting Runner")
 
 	// Initialize with at least an empty config
-	cm.configMu.Lock()
+	r.configMu.Lock()
 	version := config.VersionLatest
-	cm.config = &pb.ServerConfig{
+	r.config = &pb.ServerConfig{
 		Version: &version,
 	}
-	cm.configMu.Unlock()
-
-	// Check if we have either a config path or listen address
-	if cm.configPath == "" && cm.listenAddr == "" {
-		return errors.New("either a config path or a listen address must be provided")
-	}
+	r.configMu.Unlock()
 
 	// Load initial configuration if path is provided
-	if cm.configPath != "" {
-		if err := cm.loadInitialConfig(); err != nil {
-			cm.logger.Error("Failed to load initial configuration", "error", err)
+	if r.configPath != "" {
+		if err := r.loadInitialConfig(); err != nil {
+			r.logger.Error("Failed to load initial configuration", "error", err)
 			// If we don't have a listen address, fail immediately
-			if cm.listenAddr == "" {
+			if r.listenAddr == "" {
 				return err
 			}
 			// Otherwise continue with the empty config
@@ -94,9 +92,9 @@ func (cm *Runner) Run(ctx context.Context) error {
 	}
 
 	// Start gRPC server if listen address is provided
-	if cm.listenAddr != "" {
+	if r.listenAddr != "" {
 		var err error
-		cm.grpcServer, err = cm.startGRPCServer(cm.logger, cm.listenAddr, cm)
+		r.grpcServer, err = r.startGRPCServer(r.logger, r.listenAddr, r)
 		if err != nil {
 			return err
 		}
@@ -104,21 +102,21 @@ func (cm *Runner) Run(ctx context.Context) error {
 
 	// Block until context is done
 	<-ctx.Done()
-	cm.logger.Info("Runner shutting down")
+	r.logger.Info("Runner shutting down")
 
 	return nil
 }
 
 // Stop implements the Runnable interface and stops the Runner
-func (cm *Runner) Stop() {
-	cm.configMu.Lock()
-	defer cm.configMu.Unlock()
-	cm.logger.Debug("Stopping Runner")
+func (r *Runner) Stop() {
+	r.configMu.Lock()
+	defer r.configMu.Unlock()
+	r.logger.Debug("Stopping Runner")
 
 	// Stop gRPC server
-	if cm.grpcServer != nil {
-		cm.grpcServer.GracefulStop()
-		cm.logger.Info("gRPC server stopped")
+	if r.grpcServer != nil {
+		r.grpcServer.GracefulStop()
+		r.logger.Info("gRPC server stopped")
 	}
 	// When used with the supervisor, the supervisor will cancel the context
 	// passed to Run, which will cause Run to return
@@ -127,13 +125,13 @@ func (cm *Runner) Stop() {
 
 // GetConfigClone returns a deep copy of the current configuration, to avoid external modification.
 // (this is different from the gRPC GetConfig method)
-func (cm *Runner) GetConfigClone() *pb.ServerConfig {
-	cm.configMu.RLock()
-	cfg := cm.config
-	cm.configMu.RUnlock()
+func (r *Runner) GetConfigClone() *pb.ServerConfig {
+	r.configMu.RLock()
+	cfg := r.config
+	r.configMu.RUnlock()
 
 	if cfg == nil {
-		cm.logger.Warn("Current configuration is nil, returning empty config")
+		r.logger.Warn("Current configuration is nil, returning empty config")
 		version := config.VersionLatest
 		cfg = &pb.ServerConfig{
 			Version: &version,
@@ -147,18 +145,18 @@ func (cm *Runner) GetConfigClone() *pb.ServerConfig {
 
 // GetReloadChannel returns a channel that will be notified when a reload is triggered.
 // TODO: I think this may be wrong, as it does not fit the go-supervisor interfaces
-func (cm *Runner) GetReloadChannel() <-chan struct{} {
-	return cm.reloadCh
+func (r *Runner) GetReloadChannel() <-chan struct{} {
+	return r.reloadCh
 }
 
 // loadInitialConfig loads the initial configuration from the provided path
-func (cm *Runner) loadInitialConfig() error {
-	cm.logger.Info("Loading initial configuration", "path", cm.configPath)
+func (r *Runner) loadInitialConfig() error {
+	r.logger.Info("Loading initial configuration", "path", r.configPath)
 
 	// Use the config package's NewConfig which already handles loading and validation
-	domainConfig, err := config.NewConfig(cm.configPath)
+	domainConfig, err := config.NewConfig(r.configPath)
 	if err != nil {
-		cm.logger.Error("Failed to load or validate initial configuration", "error", err)
+		r.logger.Error("Failed to load or validate initial configuration", "error", err)
 		return err
 	}
 
@@ -166,20 +164,20 @@ func (cm *Runner) loadInitialConfig() error {
 	protoConfig := domainConfig.ToProto()
 
 	// Update the configuration
-	cm.configMu.Lock()
-	cm.config = protoConfig
-	cm.configMu.Unlock()
+	r.configMu.Lock()
+	r.config = protoConfig
+	r.configMu.Unlock()
 
-	cm.logger.Info("Initial configuration loaded successfully")
+	r.logger.Info("Initial configuration loaded successfully")
 	return nil
 }
 
 // UpdateConfig implements the ConfigService UpdateConfig RPC method
-func (cm *Runner) UpdateConfig(
+func (r *Runner) UpdateConfig(
 	ctx context.Context,
 	req *pb.UpdateConfigRequest,
 ) (*pb.UpdateConfigResponse, error) {
-	cm.logger.Info("Received UpdateConfig request")
+	r.logger.Info("Received UpdateConfig request")
 
 	if req.Config == nil {
 		return nil, status.Error(codes.InvalidArgument, "No configuration provided")
@@ -188,37 +186,37 @@ func (cm *Runner) UpdateConfig(
 	// Validate the configuration by converting to domain model and validating
 	domainConfig := config.NewFromProto(req.Config)
 	if err := domainConfig.Validate(); err != nil {
-		cm.logger.Warn("Configuration validation failed", "error", err)
+		r.logger.Warn("Configuration validation failed", "error", err)
 		return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
 	}
 
 	// Update the configuration with the valid config
-	cm.configMu.Lock()
-	cm.config = req.Config
-	cm.configMu.Unlock()
+	r.configMu.Lock()
+	r.config = req.Config
+	r.configMu.Unlock()
 
 	// Trigger a reload notification
 	select {
-	case cm.reloadCh <- struct{}{}:
-		cm.logger.Info("Reload notification sent")
+	case r.reloadCh <- struct{}{}:
+		r.logger.Info("Reload notification sent")
 	default:
-		cm.logger.Warn("Reload notification channel full, skipping")
+		r.logger.Warn("Reload notification channel full, skipping")
 	}
 
 	success := true
 	return &pb.UpdateConfigResponse{
 		Success: &success,
-		Config:  cm.GetConfigClone(),
+		Config:  r.GetConfigClone(),
 	}, nil
 }
 
 // GetConfig implements the ConfigService GetConfig RPC method
-func (cm *Runner) GetConfig(
+func (r *Runner) GetConfig(
 	ctx context.Context,
 	req *pb.GetConfigRequest,
 ) (*pb.GetConfigResponse, error) {
-	cm.logger.Info("Received GetConfig request")
+	r.logger.Info("Received GetConfig request")
 	return &pb.GetConfigResponse{
-		Config: cm.GetConfigClone(),
+		Config: r.GetConfigClone(),
 	}, nil
 }

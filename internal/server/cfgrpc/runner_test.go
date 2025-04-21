@@ -2,8 +2,6 @@ package cfgrpc
 
 import (
 	"context"
-	"io"
-	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -21,11 +19,6 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
-// testLogger creates a logger that discards output for testing
-func testLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
-}
-
 // MockGRPCServer implements the GRPCServer interface for testing with testify/mock
 type MockGRPCServer struct {
 	mock.Mock
@@ -38,68 +31,62 @@ func (m *MockGRPCServer) GracefulStop() {
 
 // TestConfigManager_New tests the creation of a new ConfigManager
 func TestConfigManager_New(t *testing.T) {
-	// Create a ConfigManager instance with minimal config
-	cm := New(Config{
-		Logger: testLogger(),
+	t.Run("ConfigManager instance with minimal config", func(t *testing.T) {
+		r, err := New(
+			WithListenAddr(":8080"),
+		)
+		require.NoError(t, err)
+		assert.NotNil(t, r)
+		assert.NotNil(t, r.logger)
+		assert.NotNil(t, r.reloadCh)
+		assert.Nil(t, r.config)
+		assert.Equal(t, r.listenAddr, ":8080")
+		assert.Empty(t, r.configPath)
+		assert.NotNil(t, r.startGRPCServer)
 	})
 
-	// Verify basics
-	assert.NotNil(t, cm)
-	assert.NotNil(t, cm.logger)
-	assert.NotNil(t, cm.reloadCh)
-
-	// Create with more complete config
-	cm = New(Config{
-		Logger:     testLogger(),
-		ListenAddr: ":8080",
-		ConfigPath: "test.toml",
+	t.Run("complete config", func(t *testing.T) {
+		r, err := New(
+			WithListenAddr(":8080"),
+			WithConfigPath("test.toml"),
+		)
+		require.NoError(t, err)
+		assert.NotNil(t, r)
+		assert.Equal(t, ":8080", r.listenAddr)
+		assert.Equal(t, "test.toml", r.configPath)
 	})
-
-	// Verify
-	assert.NotNil(t, cm)
-	assert.Equal(t, ":8080", cm.listenAddr)
-	assert.Equal(t, "test.toml", cm.configPath)
 }
 
 func TestConfigManager_GetCurrentConfig(t *testing.T) {
-	// Create a ConfigManager instance
-	cm := New(Config{
-		Logger: testLogger(),
-	})
+	r, err := New(WithListenAddr(":8080"))
+	require.NoError(t, err)
 
-	// Set a test configuration
 	version := "v1"
 	testConfig := &pb.ServerConfig{
 		Version: &version,
 	}
-
-	// Set the configuration
-	cm.configMu.Lock()
-	cm.config = testConfig
-	cm.configMu.Unlock()
-
-	// Get the configuration
-	result := cm.GetConfigClone()
-
-	// Verify the result
+	r.config = testConfig
+	result := r.GetConfigClone()
+	require.NotNil(t, result)
 	assert.Equal(t, testConfig, result)
+
+	// change a value, confirm they're not the same
+	v := "v999"
+	testConfig.Version = &v
+	assert.NotEqual(t, testConfig, result)
 }
 
 func TestConfigManager_UpdateConfig(t *testing.T) {
 	// In this test, we explicitly test the validation behavior
 	// Create a ConfigManager instance
-	cm := New(Config{
-		Logger: testLogger(),
-	})
+	r, err := New(WithListenAddr(":8080"))
+	require.NoError(t, err)
 
-	// Set initial configuration
 	version := "v1"
 	initialConfig := &pb.ServerConfig{
 		Version: &version,
 	}
-	cm.configMu.Lock()
-	cm.config = initialConfig
-	cm.configMu.Unlock()
+	r.config = initialConfig
 
 	// Create update request with INVALID configuration (v2 is not supported)
 	newVersion := "v2"
@@ -111,7 +98,7 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	}
 
 	// Call UpdateConfig with invalid config
-	invalidResp, err := cm.UpdateConfig(context.Background(), invalidReq)
+	invalidResp, err := r.UpdateConfig(context.Background(), invalidReq)
 
 	// Expect validation error as a gRPC InvalidArgument error
 	require.Error(t, err, "Should receive validation error for unsupported version")
@@ -121,7 +108,7 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	assert.Nil(t, invalidResp)
 
 	// Verify that the internal config was NOT updated
-	result := cm.GetConfigClone()
+	result := r.GetConfigClone()
 	assert.Equal(t, initialConfig, result, "Config should not change after failed validation")
 
 	// Now create a valid update request
@@ -139,7 +126,7 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	}
 
 	// Call UpdateConfig with valid config
-	validResp, err := cm.UpdateConfig(context.Background(), validReq)
+	validResp, err := r.UpdateConfig(context.Background(), validReq)
 
 	// Should succeed
 	require.NoError(t, err, "Valid config should not cause error")
@@ -149,27 +136,26 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	assert.Equal(t, validConfig, validResp.Config)
 
 	// Verify that the internal config was updated
-	result = cm.GetConfigClone()
+	result = r.GetConfigClone()
 	assert.Equal(t, validConfig, result, "Config should be updated after successful validation")
 }
 
 func TestConfigManager_GetConfig(t *testing.T) {
 	// Create a ConfigManager instance
-	cm := New(Config{
-		Logger: testLogger(),
-	})
+	r, err := New(WithListenAddr(":8080"))
+	require.NoError(t, err)
 
 	// Set a test configuration
 	version := "v1"
 	testConfig := &pb.ServerConfig{
 		Version: &version,
 	}
-	cm.configMu.Lock()
-	cm.config = testConfig
-	cm.configMu.Unlock()
+	r.configMu.Lock()
+	r.config = testConfig
+	r.configMu.Unlock()
 
 	// Call GetConfig
-	resp, err := cm.GetConfig(context.Background(), &pb.GetConfigRequest{})
+	resp, err := r.GetConfig(context.Background(), &pb.GetConfigRequest{})
 
 	// Verify response
 	require.NoError(t, err)
@@ -179,12 +165,11 @@ func TestConfigManager_GetConfig(t *testing.T) {
 
 func TestConfigManager_ReloadChannel(t *testing.T) {
 	// Create a ConfigManager instance
-	cm := New(Config{
-		Logger: testLogger(),
-	})
+	r, err := New(WithListenAddr(":8080"))
+	require.NoError(t, err)
 
 	// Get the reload channel
-	reloadCh := cm.GetReloadChannel()
+	reloadCh := r.GetReloadChannel()
 
 	// Create update request with new configuration
 	version := "v1"
@@ -202,7 +187,7 @@ func TestConfigManager_ReloadChannel(t *testing.T) {
 	// Setup a goroutine to call UpdateConfig
 	go func() {
 		// We're only testing the notification, not the response
-		resp, err := cm.UpdateConfig(ctx, req)
+		resp, err := r.UpdateConfig(ctx, req)
 		if err != nil {
 			t.Logf("UpdateConfig error (expected in tests): %v", err)
 		}
@@ -229,26 +214,24 @@ func bufDialer(listener *bufconn.Listener) func(context.Context, string) (net.Co
 // TestConfigManager_Run tests the Run method of ConfigManager
 func TestConfigManager_Run(t *testing.T) {
 	// Create a ConfigManager instance with a listen address
-	cm := New(Config{
-		Logger:     testLogger(),
-		ListenAddr: "localhost:0", // Use port 0 for automatic port assignment in tests
-	})
+	r, err := New(
+		WithListenAddr("localhost:0"), // Use port 0 for automatic port assignment in tests
+	)
+	require.NoError(t, err)
 
 	// Create a context that will cancel after a short time
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
 	// Run the ConfigManager in a goroutine
-	errCh := make(chan error)
+	runErr := make(chan error)
 	go func() {
-		errCh <- cm.Run(ctx)
+		runErr <- r.Run(ctx)
 	}()
 
 	// Wait for the context to time out
-	err := <-errCh
-
-	// Should return nil on clean shutdown with supervisor pattern
-	assert.NoError(t, err)
+	chanErr := <-runErr
+	assert.NoError(t, chanErr)
 }
 
 // TestConfigManager_Stop tests that Stop calls GracefulStop on the GRPC server
@@ -258,15 +241,14 @@ func TestConfigManager_Stop(t *testing.T) {
 	mockServer.On("GracefulStop").Return()
 
 	// Create a ConfigManager instance
-	cm := New(Config{
-		Logger: testLogger(),
-	})
+	r, err := New(WithListenAddr(":8080"))
+	require.NoError(t, err)
 
 	// Set the grpcServer directly instead of starting it
-	cm.grpcServer = mockServer
+	r.grpcServer = mockServer
 
 	// Call Stop
-	cm.Stop()
+	r.Stop()
 
 	// Verify that GracefulStop was called on our mock
 	mockServer.AssertCalled(t, "GracefulStop")
@@ -283,26 +265,28 @@ func TestConfigManager_RunWithConfigPath(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a ConfigManager with the config path
-	cm := New(Config{
-		Logger:     testLogger(),
-		ConfigPath: configPath,
-	})
+	r, err := New(
+		WithListenAddr(":8080"),
+		WithConfigPath(configPath),
+	)
+	require.NoError(t, err)
 
 	// Run for a short time
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	err = cm.Run(ctx)
+	err = r.Run(ctx)
 	assert.NoError(t, err) // Should return nil on clean shutdown with supervisor pattern
 }
 
 // TestConfigManager_RunWithListenAddr tests the Run method with a listen address
 func TestConfigManager_RunWithListenAddr(t *testing.T) {
 	// Use a random port to avoid conflicts
-	cm := New(Config{
-		Logger:     testLogger(),
-		ListenAddr: ":0", // Use port 0 to get a random available port
-	})
+	r, err := New(
+		WithListenAddr(":8080"),
+		WithListenAddr(":0"), // Use port 0 to get a random available port
+	)
+	require.NoError(t, err)
 
 	// Run for a short time
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -310,7 +294,7 @@ func TestConfigManager_RunWithListenAddr(t *testing.T) {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- cm.Run(ctx)
+		errCh <- r.Run(ctx)
 	}()
 
 	// Wait for the context to time out
@@ -325,12 +309,11 @@ func TestConfigManager_RunWithListenAddr(t *testing.T) {
 // TestConfigManager_InvalidUpdateConfig tests the UpdateConfig method with invalid input
 func TestConfigManager_InvalidUpdateConfig(t *testing.T) {
 	// Create a ConfigManager instance
-	cm := New(Config{
-		Logger: testLogger(),
-	})
+	r, err := New(WithListenAddr(":8080"))
+	require.NoError(t, err)
 
 	// Call UpdateConfig with nil request
-	resp, err := cm.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
+	resp, err := r.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
 		Config: nil,
 	})
 
@@ -348,23 +331,21 @@ func TestConfigManager_GRPC(t *testing.T) {
 	bufSize := 1024 * 1024
 	listener := bufconn.Listen(bufSize)
 
-	// Create a ConfigManager instance
-	cm := New(Config{
-		Logger: testLogger(),
-	})
+	r, err := New(WithListenAddr(":8080"))
+	require.NoError(t, err)
 
 	// Set initial configuration
 	version := "v1"
 	initialConfig := &pb.ServerConfig{
 		Version: &version,
 	}
-	cm.configMu.Lock()
-	cm.config = initialConfig
-	cm.configMu.Unlock()
+	r.configMu.Lock()
+	r.config = initialConfig
+	r.configMu.Unlock()
 
 	// Create a gRPC server
 	server := grpc.NewServer()
-	pb.RegisterConfigServiceServer(server, cm)
+	pb.RegisterConfigServiceServer(server, r)
 
 	// Serve gRPC in a goroutine
 	go func() {

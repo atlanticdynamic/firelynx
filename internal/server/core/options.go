@@ -22,6 +22,15 @@ func WithLogHandler(handler slog.Handler) Option {
 	}
 }
 
+// WithLogger sets a logger for the Runner instance.
+func WithLogger(logger *slog.Logger) Option {
+	return func(r *Runner) {
+		if logger != nil {
+			r.logger = logger
+		}
+	}
+}
+
 // WithContext sets a custom context for the Runner instance.
 // This allows for more granular control over cancellation and timeouts.
 func WithContext(ctx context.Context) Option {
