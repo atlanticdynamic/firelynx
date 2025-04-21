@@ -126,10 +126,10 @@ func TestSaveConfig(t *testing.T) {
 
 func TestConnect(t *testing.T) {
 	tests := []struct {
-		name       string
-		serverAddr string
-		wantErr    bool
-		errMsg     string
+		name        string
+		serverAddr  string
+		wantErr     bool
+		expectedErr error
 	}{
 		{
 			name:       "valid tcp address with prefix",
@@ -142,16 +142,21 @@ func TestConnect(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name:       "invalid address format",
-			serverAddr: "invalid:::address",
-			wantErr:    true,
-			errMsg:     "invalid server address format",
+			name:        "invalid tcp address format",
+			serverAddr:  "invalid:::address",
+			wantErr:     true,
+			expectedErr: ErrInvalidTCPFormat,
 		},
 		{
-			name:       "unsupported network type",
+			name:       "valid unix socket address",
 			serverAddr: "unix:///tmp/socket",
-			wantErr:    true,
-			errMsg:     "unsupported network type",
+			wantErr:    false,
+		},
+		{
+			name:        "unsupported network type",
+			serverAddr:  "http://localhost:8080",
+			wantErr:     true,
+			expectedErr: ErrUnsupportedNetwork,
 		},
 	}
 
@@ -159,20 +164,24 @@ func TestConnect(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client := New(Config{
 				ServerAddr: tt.serverAddr,
+				// Use a discarded logger to prevent log output during tests
+				Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 			})
 
 			conn, err := client.connect(context.Background())
 			if tt.wantErr {
 				assert.Error(t, err)
-				if err != nil {
-					assert.Contains(t, err.Error(), tt.errMsg)
+				if tt.expectedErr != nil && err != nil {
+					assert.ErrorIs(t, err, tt.expectedErr)
 				}
 				assert.Nil(t, conn)
 			} else {
 				// In a real test, we'd mock the gRPC client
-				// This test may fail when run as a unit test without a server
-				if err == nil {
-					assert.NotNil(t, conn)
+				// This test may fail when run as a unit test without a server,
+				// but our implementation won't actually try to connect until
+				// the client makes an RPC call, so no error here
+				assert.NotNil(t, conn)
+				if conn != nil {
 					if closeErr := conn.Close(); closeErr != nil {
 						t.Logf("Failed to close connection: %v", closeErr)
 					}

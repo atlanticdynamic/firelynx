@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"strings"
 
@@ -14,7 +15,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Client represents a firelynx client
+// Client represents a firelynx client that can send pbufs to a server
 type Client struct {
 	logger     *slog.Logger
 	serverAddr string
@@ -166,26 +167,39 @@ func (c *Client) connect(ctx context.Context) (*grpc.ClientConn, error) {
 	// Parse the address to get the network and address components
 	parts := strings.SplitN(addr, "://", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid server address format: %s", c.serverAddr)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidAddressFormat, c.serverAddr)
 	}
 
 	network := parts[0]
 	address := parts[1]
 
-	// For now, we only support TCP
-	if network != "tcp" {
-		return nil, fmt.Errorf("unsupported network type: %s", network)
-	}
+	// Support for both TCP and Unix socket
+	switch network {
+	case "tcp":
+		// Validate the address format for TCP
+		if strings.Count(address, ":") != 1 || !strings.Contains(address, ":") {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidTCPFormat, c.serverAddr)
+		}
 
-	// Validate the address format
-	if strings.Count(address, ":") != 1 || !strings.Contains(address, ":") {
-		return nil, fmt.Errorf("invalid server address format: %s", c.serverAddr)
-	}
+		c.logger.Debug("Connecting to server via TCP", "address", address)
+		return grpc.NewClient(
+			address,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
 
-	c.logger.Debug("Connecting to server", "address", address)
-	// Using the new recommended API for gRPC client connections
-	return grpc.NewClient(
-		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+	case "unix":
+		c.logger.Debug("Connecting to server via Unix socket", "path", address)
+		return grpc.NewClient(
+			"unix:"+address,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithContextDialer(func(_ context.Context, addr string) (net.Conn, error) {
+				// addr is expected to be in the format "unix:/path/to/socket"
+				socketAddr := strings.TrimPrefix(addr, "unix:")
+				return net.Dial("unix", socketAddr)
+			}),
+		)
+
+	default:
+		return nil, fmt.Errorf("%w: %s", ErrUnsupportedNetwork, network)
+	}
 }
