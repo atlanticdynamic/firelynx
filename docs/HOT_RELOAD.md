@@ -250,7 +250,7 @@ func (m *ConfigManager) StartReload(ctx context.Context, newConfig *config.Serve
     
     // Validate new configuration
     if err := m.validator.ValidateConfig(newConfig); err != nil {
-        logger.Error("Configuration validation failed", "error", err)
+        logger.Warn("Configuration validation failed", "error", err)
         _ = m.fsm.Transition(fsm.StatusError)
         return fmt.Errorf("invalid configuration: %w", err)
     }

@@ -8,14 +8,30 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const flagLogLevel = "log-level"
+
 func main() {
 	app := &cli.Command{
 		Name:    "firelynx",
 		Version: Version,
 		Usage:   "CLI tool for managing resources",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    flagLogLevel,
+				Usage:   "Set logging level (debug, info, warn, error)",
+				Value:   "info",
+				Aliases: []string{"log"},
+				Action: func(ctx context.Context, cmd *cli.Command, v string) error {
+					setupLogger(v)
+					return nil
+				},
+			},
+		},
 		Commands: []*cli.Command{
 			versionCmd,
 			validateCmd,
+			serverCmd,
+			clientCmd,
 		},
 	}
 	if err := app.Run(context.Background(), os.Args); err != nil {

@@ -358,6 +358,37 @@ Errors are reported to users in a clear, actionable format:
 1. **CLI Errors**: Formatted with colors and context
 2. **API Errors**: Structured JSON responses with error details
 3. **MCP Protocol Errors**: Following MCP protocol error format
+4. **gRPC Errors**: Using appropriate gRPC status codes with descriptive messages
+
+### gRPC Error Handling
+
+gRPC errors use appropriate status codes from the `codes` package, ensuring clients can properly interpret error types:
+
+```go
+import (
+    "google.golang.org/grpc/codes"
+    "google.golang.org/grpc/status"
+)
+
+// Example of returning a validation error with InvalidArgument code
+if err := config.Validate(); err != nil {
+    logger.Warn("Configuration validation failed", "error", err)
+    return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
+}
+```
+
+Common gRPC error codes used in firelynx:
+
+| Error Type | gRPC Code | Usage |
+|------------|-----------|-------|
+| Validation Errors | `codes.InvalidArgument` | Configuration validation failures, invalid parameters |
+| Resource Not Found | `codes.NotFound` | Referenced resource doesn't exist |
+| Permission Errors | `codes.PermissionDenied` | Client lacks necessary permissions |
+| Server Errors | `codes.Internal` | Unexpected server-side errors |
+| Server Busy | `codes.ResourceExhausted` | Server is overloaded or out of resources |
+| Unavailable | `codes.Unavailable` | Server is temporarily unavailable |
+
+Client-side validation provides early feedback for syntax issues, while server-side validation provides full semantic validation of configurations before they are applied.
 
 ## Logging Strategy
 
