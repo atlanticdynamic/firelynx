@@ -1,0 +1,33 @@
+{
+  "$id": "firelynx.settings.v1alpha1.Endpoint.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Endpoint connects listeners to apps",
+  "patternProperties": {
+    "^(listenerIds)$": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "listener_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "routes": {
+      "items": {
+        "$ref": "firelynx.settings.v1alpha1.Route.schema.json"
+      },
+      "type": "array"
+    }
+  },
+  "title": "Endpoint",
+  "type": "object"
+}

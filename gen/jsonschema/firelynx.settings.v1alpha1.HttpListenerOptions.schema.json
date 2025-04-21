@@ -1,0 +1,30 @@
+{
+  "$id": "firelynx.settings.v1alpha1.HttpListenerOptions.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "HTTP listener specific options",
+  "patternProperties": {
+    "^(drainTimeout)$": {
+      "$ref": "google.protobuf.Duration.schema.json"
+    },
+    "^(readTimeout)$": {
+      "$ref": "google.protobuf.Duration.schema.json"
+    },
+    "^(writeTimeout)$": {
+      "$ref": "google.protobuf.Duration.schema.json"
+    }
+  },
+  "properties": {
+    "drain_timeout": {
+      "$ref": "google.protobuf.Duration.schema.json"
+    },
+    "read_timeout": {
+      "$ref": "google.protobuf.Duration.schema.json"
+    },
+    "write_timeout": {
+      "$ref": "google.protobuf.Duration.schema.json"
+    }
+  },
+  "title": "Http Listener Options",
+  "type": "object"
+}

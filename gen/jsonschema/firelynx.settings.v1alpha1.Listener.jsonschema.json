@@ -1,0 +1,22 @@
+{
+  "$id": "firelynx.settings.v1alpha1.Listener.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Listener configures a protocol/socket layer service (there could be multiple)",
+  "properties": {
+    "address": {
+      "type": "string"
+    },
+    "grpc": {
+      "$ref": "firelynx.settings.v1alpha1.GrpcListenerOptions.jsonschema.json"
+    },
+    "http": {
+      "$ref": "firelynx.settings.v1alpha1.HttpListenerOptions.jsonschema.json"
+    },
+    "id": {
+      "type": "string"
+    }
+  },
+  "title": "Listener",
+  "type": "object"
+}

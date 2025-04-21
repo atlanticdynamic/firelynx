@@ -1,0 +1,13 @@
+{
+  "$id": "firelynx.settings.v1alpha1.GetConfigResponse.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Response to a get configuration request",
+  "properties": {
+    "config": {
+      "$ref": "firelynx.settings.v1alpha1.ServerConfig.schema.json"
+    }
+  },
+  "title": "Get Config Response",
+  "type": "object"
+}

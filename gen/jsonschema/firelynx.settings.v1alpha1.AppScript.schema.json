@@ -1,0 +1,27 @@
+{
+  "$id": "firelynx.settings.v1alpha1.AppScript.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Individual script application",
+  "patternProperties": {
+    "^(staticData)$": {
+      "$ref": "firelynx.settings.v1alpha1.StaticData.schema.json"
+    }
+  },
+  "properties": {
+    "extism": {
+      "$ref": "firelynx.settings.v1alpha1.ExtismEvaluator.schema.json"
+    },
+    "risor": {
+      "$ref": "firelynx.settings.v1alpha1.RisorEvaluator.schema.json"
+    },
+    "starlark": {
+      "$ref": "firelynx.settings.v1alpha1.StarlarkEvaluator.schema.json"
+    },
+    "static_data": {
+      "$ref": "firelynx.settings.v1alpha1.StaticData.schema.json"
+    }
+  },
+  "title": "App Script",
+  "type": "object"
+}

@@ -1,0 +1,19 @@
+{
+  "$id": "firelynx.settings.v1alpha1.UpdateConfigResponse.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Response to an update configuration request",
+  "properties": {
+    "config": {
+      "$ref": "firelynx.settings.v1alpha1.ServerConfig.jsonschema.json"
+    },
+    "error": {
+      "type": "string"
+    },
+    "success": {
+      "type": "boolean"
+    }
+  },
+  "title": "Update Config Response",
+  "type": "object"
+}
