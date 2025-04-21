@@ -22,10 +22,24 @@ func (c *Config) Validate() error {
 	errz := []error{}
 
 	listenerIds := make(map[string]bool, len(c.Listeners))
+	listenerAddrs := make(map[string]bool, len(c.Listeners))
 	for _, listener := range c.Listeners {
 		if listener.ID == "" {
 			errz = append(errz, fmt.Errorf("listener has an empty ID"))
 			continue
+		}
+
+		addr := listener.Address
+		if addr == "" {
+			errz = append(errz, fmt.Errorf("listener '%s' has an empty address", listener.ID))
+			continue
+		}
+		if listenerAddrs[addr] {
+			// We found a duplicate address, add error and continue checking other listeners
+			errz = append(errz, fmt.Errorf("duplicate listener address: %s", addr))
+		} else {
+			// Record this address to check for future duplicates
+			listenerAddrs[addr] = true
 		}
 
 		id := listener.ID
