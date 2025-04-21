@@ -1,4 +1,4 @@
-package config_manager
+package cfgrpc
 
 import (
 	"context"
@@ -14,14 +14,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ConfigManager implements the configuration management functionality
+// Runner implements the configuration management functionality
 // and serves as a gRPC server for configuration updates.
 // It implements the supervisor.Runnable interface for lifecycle management.
 
-// Interface guard: ensure ConfigManager implements supervisor.Runnable
-var _ supervisor.Runnable = (*ConfigManager)(nil)
+// Interface guard: ensure Runner implements supervisor.Runnable
+var _ supervisor.Runnable = (*Runner)(nil)
 
-type ConfigManager struct {
+type Runner struct {
 	pb.UnimplementedConfigServiceServer
 
 	logger   *slog.Logger
@@ -42,16 +42,16 @@ type ConfigManager struct {
 	reloadCh chan struct{}
 }
 
-// Config for creating a new ConfigManager
+// Config for creating a new Runner
 type Config struct {
 	Logger     *slog.Logger
 	ListenAddr string
 	ConfigPath string
 }
 
-// New creates a new ConfigManager instance
-func New(cfg Config) *ConfigManager {
-	return &ConfigManager{
+// New creates a new Runner instance
+func New(cfg Config) *Runner {
+	return &Runner{
 		logger:          cfg.Logger,
 		listenAddr:      cfg.ListenAddr,
 		configPath:      cfg.ConfigPath,
@@ -60,9 +60,13 @@ func New(cfg Config) *ConfigManager {
 	}
 }
 
-// Run implements the Runnable interface and starts the ConfigManager
-func (cm *ConfigManager) Run(ctx context.Context) error {
-	cm.logger.Debug("Starting ConfigManager")
+func (cm *Runner) String() string {
+	return "config_manager.Runner"
+}
+
+// Run implements the Runnable interface and starts the Runner
+func (cm *Runner) Run(ctx context.Context) error {
+	cm.logger.Debug("Starting Runner")
 
 	// Initialize with at least an empty config
 	cm.configMu.Lock()
@@ -100,16 +104,16 @@ func (cm *ConfigManager) Run(ctx context.Context) error {
 
 	// Block until context is done
 	<-ctx.Done()
-	cm.logger.Info("ConfigManager shutting down")
+	cm.logger.Info("Runner shutting down")
 
 	return nil
 }
 
-// Stop implements the Runnable interface and stops the ConfigManager
-func (cm *ConfigManager) Stop() {
+// Stop implements the Runnable interface and stops the Runner
+func (cm *Runner) Stop() {
 	cm.configMu.Lock()
 	defer cm.configMu.Unlock()
-	cm.logger.Debug("Stopping ConfigManager")
+	cm.logger.Debug("Stopping Runner")
 
 	// Stop gRPC server
 	if cm.grpcServer != nil {
@@ -121,8 +125,9 @@ func (cm *ConfigManager) Stop() {
 	// TODO: add local context
 }
 
-// GetCurrentConfig returns the current configuration (this is different from the gRPC GetConfig method)
-func (cm *ConfigManager) GetCurrentConfig() *pb.ServerConfig {
+// GetConfigClone returns a deep copy of the current configuration, to avoid external modification.
+// (this is different from the gRPC GetConfig method)
+func (cm *Runner) GetConfigClone() *pb.ServerConfig {
 	cm.configMu.RLock()
 	cfg := cm.config
 	cm.configMu.RUnlock()
@@ -140,13 +145,14 @@ func (cm *ConfigManager) GetCurrentConfig() *pb.ServerConfig {
 	return proto.Clone(cfg).(*pb.ServerConfig)
 }
 
-// GetReloadChannel returns a channel that will be notified when a reload is triggered
-func (cm *ConfigManager) GetReloadChannel() <-chan struct{} {
+// GetReloadChannel returns a channel that will be notified when a reload is triggered.
+// TODO: I think this may be wrong, as it does not fit the go-supervisor interfaces
+func (cm *Runner) GetReloadChannel() <-chan struct{} {
 	return cm.reloadCh
 }
 
 // loadInitialConfig loads the initial configuration from the provided path
-func (cm *ConfigManager) loadInitialConfig() error {
+func (cm *Runner) loadInitialConfig() error {
 	cm.logger.Info("Loading initial configuration", "path", cm.configPath)
 
 	// Use the config package's NewConfig which already handles loading and validation
@@ -169,7 +175,7 @@ func (cm *ConfigManager) loadInitialConfig() error {
 }
 
 // UpdateConfig implements the ConfigService UpdateConfig RPC method
-func (cm *ConfigManager) UpdateConfig(
+func (cm *Runner) UpdateConfig(
 	ctx context.Context,
 	req *pb.UpdateConfigRequest,
 ) (*pb.UpdateConfigResponse, error) {
@@ -202,17 +208,17 @@ func (cm *ConfigManager) UpdateConfig(
 	success := true
 	return &pb.UpdateConfigResponse{
 		Success: &success,
-		Config:  cm.GetCurrentConfig(),
+		Config:  cm.GetConfigClone(),
 	}, nil
 }
 
 // GetConfig implements the ConfigService GetConfig RPC method
-func (cm *ConfigManager) GetConfig(
+func (cm *Runner) GetConfig(
 	ctx context.Context,
 	req *pb.GetConfigRequest,
 ) (*pb.GetConfigResponse, error) {
 	cm.logger.Info("Received GetConfig request")
 	return &pb.GetConfigResponse{
-		Config: cm.GetCurrentConfig(),
+		Config: cm.GetConfigClone(),
 	}, nil
 }

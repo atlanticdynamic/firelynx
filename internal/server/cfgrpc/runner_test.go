@@ -1,4 +1,4 @@
-package config_manager
+package cfgrpc
 
 import (
 	"context"
@@ -79,7 +79,7 @@ func TestConfigManager_GetCurrentConfig(t *testing.T) {
 	cm.configMu.Unlock()
 
 	// Get the configuration
-	result := cm.GetCurrentConfig()
+	result := cm.GetConfigClone()
 
 	// Verify the result
 	assert.Equal(t, testConfig, result)
@@ -121,7 +121,7 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	assert.Nil(t, invalidResp)
 
 	// Verify that the internal config was NOT updated
-	result := cm.GetCurrentConfig()
+	result := cm.GetConfigClone()
 	assert.Equal(t, initialConfig, result, "Config should not change after failed validation")
 
 	// Now create a valid update request
@@ -149,7 +149,7 @@ func TestConfigManager_UpdateConfig(t *testing.T) {
 	assert.Equal(t, validConfig, validResp.Config)
 
 	// Verify that the internal config was updated
-	result = cm.GetCurrentConfig()
+	result = cm.GetConfigClone()
 	assert.Equal(t, validConfig, result, "Config should be updated after successful validation")
 }
 

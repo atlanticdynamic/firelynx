@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/atlanticdynamic/firelynx/internal/server/config_manager"
+	"github.com/atlanticdynamic/firelynx/internal/server/cfgrpc"
 	"github.com/atlanticdynamic/firelynx/internal/server/core"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"github.com/urfave/cli/v3"
@@ -37,14 +37,14 @@ var serverCmd = &cli.Command{
 
 		logger := slog.Default()
 
-		configManager := config_manager.New(config_manager.Config{
+		configManager := cfgrpc.New(cfgrpc.Config{
 			Logger:     logger.With("component", "config_manager"),
 			ListenAddr: listenAddr,
 			ConfigPath: configPath,
 		})
 
 		serverCore, err := core.New(
-			core.WithConfigCallback(configManager.GetCurrentConfig),
+			core.WithConfigCallback(configManager.GetConfigClone),
 		)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to create server core: %w", err), 1)

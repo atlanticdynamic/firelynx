@@ -51,6 +51,10 @@ func New(opts ...Option) (*Runner, error) {
 	return r, nil
 }
 
+func (r *Runner) String() string {
+	return "core.Runner"
+}
+
 // Run implements the Runnable interface and starts the Runner
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting Runner")
