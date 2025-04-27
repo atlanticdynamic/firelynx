@@ -211,7 +211,7 @@ func staticDataMergeModeToProto(mode StaticDataMergeMode) pb.StaticDataMergeMode
 // It handles the conversion of different app config types like ScriptApp and CompositeScriptApp.
 func appFromProto(pbApp *pb.AppDefinition) (App, error) {
 	if pbApp == nil {
-		return App{}, fmt.Errorf("nil protobuf app definition")
+		return App{}, fmt.Errorf("%w: nil protobuf app definition", ErrFailedToConvertConfig)
 	}
 
 	app := App{
@@ -233,29 +233,40 @@ func appFromProto(pbApp *pb.AppDefinition) (App, error) {
 			)
 		}
 
-		// Convert evaluator
+		// Convert evaluator using early returns for cleaner code
 		if risor := pbScript.GetRisor(); risor != nil {
 			scriptApp.Evaluator = RisorEvaluator{
 				Code:    risor.GetCode(),
 				Timeout: risor.GetTimeout(),
 			}
-		} else if starlark := pbScript.GetStarlark(); starlark != nil {
+			app.Config = scriptApp
+			return app, nil
+		}
+
+		if starlark := pbScript.GetStarlark(); starlark != nil {
 			scriptApp.Evaluator = StarlarkEvaluator{
 				Code:    starlark.GetCode(),
 				Timeout: starlark.GetTimeout(),
 			}
-		} else if extism := pbScript.GetExtism(); extism != nil {
+			app.Config = scriptApp
+			return app, nil
+		}
+
+		if extism := pbScript.GetExtism(); extism != nil {
 			scriptApp.Evaluator = ExtismEvaluator{
 				Code:       extism.GetCode(),
 				Entrypoint: extism.GetEntrypoint(),
 			}
-		} else {
-			// Optional: Return an error if no evaluator is defined for a script app
-			// return App{}, fmt.Errorf("script app '%s' has no evaluator defined", app.ID)
+			app.Config = scriptApp
+			return app, nil
 		}
 
-		app.Config = scriptApp
-	} else if pbComposite := pbApp.GetCompositeScript(); pbComposite != nil {
+		return App{}, fmt.Errorf(
+			"%w: script app '%s' has no evaluator defined",
+			ErrFailedToConvertConfig, app.ID)
+	}
+
+	if pbComposite := pbApp.GetCompositeScript(); pbComposite != nil {
 		compositeApp := CompositeScriptApp{
 			ScriptAppIDs: pbComposite.GetScriptAppIds(),
 		}
@@ -272,23 +283,14 @@ func appFromProto(pbApp *pb.AppDefinition) (App, error) {
 		}
 
 		app.Config = compositeApp
-	} else {
-		// Optional: Handle cases where the app definition might be empty or have an unknown type
-		// return App{}, fmt.Errorf("app definition '%s' has an unknown or empty config type", app.ID)
+		return app, nil
 	}
 
-	return app, nil
+	// If we got here, no valid app config was found
+	return App{}, fmt.Errorf(
+		"%w: app definition '%s' has an unknown or empty config type",
+		ErrFailedToConvertConfig, app.ID)
 }
-
-// Helper function to safely get string value from a string pointer
-func getStringValue(ptr *string) string {
-	if ptr == nil {
-		return ""
-	}
-	return *ptr
-}
-
-// Use the implementation from util.go instead
 
 // protoMergeModeToStaticDataMergeMode converts protocol buffer merge mode to domain model merge mode
 func protoMergeModeToStaticDataMergeMode(mode pb.StaticDataMergeMode) StaticDataMergeMode {
@@ -302,8 +304,8 @@ func protoMergeModeToStaticDataMergeMode(mode pb.StaticDataMergeMode) StaticData
 	}
 }
 
-// convertProtoValueToInterface converts a protobuf structpb.Value to a Go interface{}
-func convertProtoValueToInterface(v *structpb.Value) interface{} {
+// convertProtoValueToInterface converts a protobuf structpb.Value to a Go any
+func convertProtoValueToInterface(v *structpb.Value) any {
 	if v == nil {
 		return nil
 	}
@@ -319,14 +321,14 @@ func convertProtoValueToInterface(v *structpb.Value) interface{} {
 		return v.GetBoolValue()
 	case *structpb.Value_ListValue:
 		list := v.GetListValue().GetValues()
-		result := make([]interface{}, len(list))
+		result := make([]any, len(list))
 		for i, item := range list {
 			result[i] = convertProtoValueToInterface(item)
 		}
 		return result
 	case *structpb.Value_StructValue:
 		m := v.GetStructValue().GetFields()
-		result := make(map[string]interface{})
+		result := make(map[string]any)
 		for k, v := range m {
 			result[k] = convertProtoValueToInterface(v)
 		}
@@ -334,4 +336,12 @@ func convertProtoValueToInterface(v *structpb.Value) interface{} {
 	default:
 		return nil
 	}
+}
+
+// Helper function to safely get string value from a string pointer
+func getStringValue(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
 }
