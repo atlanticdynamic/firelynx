@@ -3,60 +3,67 @@
 version = "v1"
 
 [logging]
-format = "text"
 level = "debug"
+format = "text"
 
-# HTTP listener on port 8080
 [[listeners]]
-id = "http_main"
+id = "http-default"
 address = ":8080"
 
 [listeners.http]
 read_timeout = "5s"
 write_timeout = "10s"
 
-# Echo endpoint configuration
 [[endpoints]]
-id = "echo_endpoint"
-listener_ids = ["http_main"]
+id = "ep-default"
+listener_ids = ["http-default"]
 
 [[endpoints.routes]]
-app_id = "echo"
-http_path = "/echo"
-
-[endpoints.routes.static_data.data]
-source = "example config"
-version = "1.0"
-
-# Test endpoint with multiple paths
-[[endpoints]]
-id = "test_endpoint"
-listener_ids = ["http_main"]
+app_id = "app-hello"
+http_path = "/hello"
 
 [[endpoints.routes]]
-app_id = "echo"
-http_path = "/api/"
+app_id = "app-static"
+http_path = "/static"
 
-[endpoints.routes.static_data.data]
-api_version = "v1"
-
-# App definitions
 [[apps]]
-id = "echo"
+id = "app-hello"
 
+[apps.script]
+[apps.script.risor]
+code = """
+	import "http"
+	import "json"
+
+	func handler(req http.Request) http.Response {
+		return http.Response{
+			StatusCode: 200,
+			Body: "Hello, World!",
+		}
+	}
+
+	export default: handler
+"""
+
+# Add the missing app-static reference that was causing the validation error
+[[apps]]
+id = "app-static"
+
+[apps.script]
 [apps.script.static_data]
-description = "Simple echo application for testing"
+data = { message = "Static app content" }
 
 [apps.script.risor]
-code = '''
-function handle_request(ctx, req) {
-  return {
-    status: 200,
-    body: "Hello from Firelynx Echo Server!",
-    headers: {
-      "Content-Type": "text/plain"
-    }
-  }
-}
-'''
-timeout = "1s"
+code = """
+	import "http"
+	import "json"
+
+	func handler(req http.Request) http.Response {
+		return http.Response{
+			StatusCode: 200,
+			Body: req.static_data.message,
+		}
+	}
+
+	export default: handler
+"""

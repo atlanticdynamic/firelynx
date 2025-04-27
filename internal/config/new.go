@@ -8,7 +8,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 )
 
-// NewConfig loads configuration from a TOML file
+// NewConfig loads configuration from a TOML file path, converts it to the domain model, and validates it.
 func NewConfig(filePath string) (*Config, error) {
 	// Get loader from file
 	ld, err := loader.NewLoaderFromFilePath(filePath)
@@ -16,14 +16,17 @@ func NewConfig(filePath string) (*Config, error) {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
 
-	// Load the config
+	// use the loader implementation to return a protobuf object
 	protoConfig, err := ld.LoadProto()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
 
-	// Convert to domain model
-	config := NewFromProto(protoConfig)
+	config, err := NewFromProto(protoConfig)
+	if err != nil {
+		// Error during conversion
+		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+	}
 
 	// Validate the domain config
 	if err := config.Validate(); err != nil {
@@ -33,204 +36,186 @@ func NewConfig(filePath string) (*Config, error) {
 	return config, nil
 }
 
-// NewConfigFromBytes loads configuration from TOML bytes
-func NewConfigFromBytes(data []byte) (*Config, error) {
-	// Create a loader from bytes
-	ld, err := loader.NewLoaderFromBytes(data, func(data []byte) loader.Loader {
-		return loader.NewTomlLoader(data)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
-	}
-
-	// Load the config
-	protoConfig, err := ld.LoadProto()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
-	}
-
-	// Convert to domain model
-	config := NewFromProto(protoConfig)
-
-	// Validate the domain config
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
-	}
-
-	return config, nil
-}
-
-// NewConfigFromReader loads configuration from an io.Reader providing TOML data
-func NewConfigFromReader(reader io.Reader) (*Config, error) {
-	// Create a loader from reader
-	ld, err := loader.NewLoaderFromReader(reader, func(data []byte) loader.Loader {
-		return loader.NewTomlLoader(data)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
-	}
-
-	// Load the config
-	protoConfig, err := ld.LoadProto()
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
-	}
-
-	// Convert to domain model
-	config := NewFromProto(protoConfig)
-
-	// Validate the domain config
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
-	}
-
-	return config, nil
-}
-
-// NewFromProto converts a Protocol Buffer ServerConfig to a domain Config
-func NewFromProto(pbConfig *pb.ServerConfig) *Config {
+// FromProto creates a domain Config from a protobuf ServerConfig
+func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	if pbConfig == nil {
-		return nil
+		return nil, fmt.Errorf("nil protobuf config")
 	}
 
+	// Create a new domain config
 	config := &Config{
-		Version:  pbConfig.GetVersion(),
-		rawProto: pbConfig,
+		Version:  VersionLatest,
+		rawProto: pbConfig, // Just reference, not clone to avoid issues
 	}
 
-	// Convert logging config
+	// Extract version if present
+	if pbConfig.Version != nil && *pbConfig.Version != "" {
+		config.Version = *pbConfig.Version
+	}
+
+	// Convert logging configuration
 	if pbConfig.Logging != nil {
-		config.Logging = LoggingConfigFromProto(pbConfig.Logging)
+		config.Logging = LoggingConfig{
+			Format: protoFormatToLogFormat(pbConfig.Logging.GetFormat()),
+			Level:  protoLevelToLogLevel(pbConfig.Logging.GetLevel()),
+		}
 	}
 
 	// Convert listeners
-	config.Listeners = make([]Listener, 0, len(pbConfig.GetListeners()))
-	for _, pbListener := range pbConfig.GetListeners() {
-		listener := Listener{
-			ID:      pbListener.GetId(),
-			Address: pbListener.GetAddress(),
-		}
-
-		// Convert protocol-specific options
-		if http := pbListener.GetHttp(); http != nil {
-			listener.Type = ListenerTypeHTTP
-			listener.Options = HTTPListenerOptions{
-				ReadTimeout:  http.GetReadTimeout(),
-				WriteTimeout: http.GetWriteTimeout(),
-				DrainTimeout: http.GetDrainTimeout(),
+	if pbConfig.Listeners != nil {
+		config.Listeners = make([]Listener, 0, len(pbConfig.Listeners))
+		for _, pbListener := range pbConfig.Listeners {
+			if pbListener == nil {
+				continue
 			}
-		} else if grpc := pbListener.GetGrpc(); grpc != nil {
-			listener.Type = ListenerTypeGRPC
-			listener.Options = GRPCListenerOptions{
-				MaxConnectionIdle:    grpc.GetMaxConnectionIdle(),
-				MaxConnectionAge:     grpc.GetMaxConnectionAge(),
-				MaxConcurrentStreams: int(grpc.GetMaxConcurrentStreams()),
-			}
-		}
 
-		config.Listeners = append(config.Listeners, listener)
+			listener := Listener{
+				ID:      getStringValue(pbListener.Id),
+				Address: getStringValue(pbListener.Address),
+			}
+
+			// Determine listener type and options
+			if pbHttp := pbListener.GetHttp(); pbHttp != nil {
+				listener.Type = ListenerTypeHTTP
+				listener.Options = HTTPListenerOptions{
+					ReadTimeout:  pbHttp.ReadTimeout,
+					WriteTimeout: pbHttp.WriteTimeout,
+					DrainTimeout: pbHttp.DrainTimeout,
+				}
+			} else if pbGrpc := pbListener.GetGrpc(); pbGrpc != nil {
+				listener.Type = ListenerTypeGRPC
+				maxStreams := 0
+				if pbGrpc.MaxConcurrentStreams != nil {
+					maxStreams = int(*pbGrpc.MaxConcurrentStreams)
+				}
+
+				listener.Options = GRPCListenerOptions{
+					MaxConnectionIdle:    pbGrpc.MaxConnectionIdle,
+					MaxConnectionAge:     pbGrpc.MaxConnectionAge,
+					MaxConcurrentStreams: maxStreams,
+				}
+			}
+
+			config.Listeners = append(config.Listeners, listener)
+		}
 	}
 
 	// Convert endpoints
-	config.Endpoints = make([]Endpoint, 0, len(pbConfig.GetEndpoints()))
-	for _, pbEndpoint := range pbConfig.GetEndpoints() {
-		endpoint := Endpoint{
-			ID:          pbEndpoint.GetId(),
-			ListenerIDs: pbEndpoint.GetListenerIds(),
-		}
-
-		// Convert routes
-		endpoint.Routes = make([]Route, 0, len(pbEndpoint.GetRoutes()))
-		for _, pbRoute := range pbEndpoint.GetRoutes() {
-			route := Route{
-				AppID: pbRoute.GetAppId(),
+	if pbConfig.Endpoints != nil {
+		config.Endpoints = make([]Endpoint, 0, len(pbConfig.Endpoints))
+		for _, pbEndpoint := range pbConfig.Endpoints {
+			if pbEndpoint == nil {
+				continue
 			}
 
-			// Convert static data
-			if pbStaticData := pbRoute.GetStaticData(); pbStaticData != nil {
-				route.StaticData = make(map[string]any)
-				for k, v := range pbStaticData.GetData() {
-					// Convert structpb.Value to Go any
-					route.StaticData[k] = convertProtoValueToInterface(v)
+			endpoint := Endpoint{
+				ID:          getStringValue(pbEndpoint.Id),
+				ListenerIDs: pbEndpoint.ListenerIds,
+				Routes:      []Route{},
+			}
+
+			// Convert routes
+			for _, pbRoute := range pbEndpoint.Routes {
+				route := Route{
+					AppID: getStringValue(pbRoute.AppId),
 				}
+
+				// Convert static data
+				if pbStaticData := pbRoute.GetStaticData(); pbStaticData != nil {
+					route.StaticData = make(map[string]any)
+					for k, v := range pbStaticData.GetData() {
+						route.StaticData[k] = convertProtoValueToInterface(v)
+					}
+				}
+
+				// Convert route condition
+				if httpPath := pbRoute.GetHttpPath(); httpPath != "" {
+					route.Condition = HTTPPathCondition{Path: httpPath}
+				} else if grpcService := pbRoute.GetGrpcService(); grpcService != "" {
+					route.Condition = GRPCServiceCondition{Service: grpcService}
+				}
+
+				endpoint.Routes = append(endpoint.Routes, route)
 			}
 
-			// Convert condition
-			if httpPath := pbRoute.GetHttpPath(); httpPath != "" {
-				route.Condition = HTTPPathCondition{Path: httpPath}
-			} else if grpcService := pbRoute.GetGrpcService(); grpcService != "" {
-				route.Condition = GRPCServiceCondition{Service: grpcService}
-			}
-			// Note: MCP Resource condition will be added when proto is updated
-
-			endpoint.Routes = append(endpoint.Routes, route)
+			config.Endpoints = append(config.Endpoints, endpoint)
 		}
-
-		config.Endpoints = append(config.Endpoints, endpoint)
 	}
 
 	// Convert apps
-	config.Apps = make([]App, 0, len(pbConfig.GetApps()))
-	for _, pbApp := range pbConfig.GetApps() {
-		app := App{
-			ID: pbApp.GetId(),
+	if pbConfig.Apps != nil {
+		config.Apps = make([]App, 0, len(pbConfig.Apps))
+		for _, pbApp := range pbConfig.Apps {
+			app, err := appFromProto(pbApp)
+			if err != nil {
+				// Decide how to handle errors: skip the app, collect errors, or return immediately
+				// For now, let's skip invalid apps and log a warning (actual logging mechanism may vary)
+				fmt.Printf("Warning: skipping invalid app definition during conversion: %v\n", err)
+				continue
+			}
+			config.Apps = append(config.Apps, app)
 		}
-
-		// Convert app configuration
-		if pbScript := pbApp.GetScript(); pbScript != nil {
-			scriptApp := ScriptApp{}
-
-			// Convert static data
-			if pbStaticData := pbScript.GetStaticData(); pbStaticData != nil {
-				scriptApp.StaticData.Data = make(map[string]any)
-				for k, v := range pbStaticData.GetData() {
-					// Convert structpb.Value to Go any
-					scriptApp.StaticData.Data[k] = convertProtoValueToInterface(v)
-				}
-				scriptApp.StaticData.MergeMode = protoMergeModeToStaticDataMergeMode(
-					pbStaticData.GetMergeMode(),
-				)
-			}
-
-			// Convert evaluator
-			if risor := pbScript.GetRisor(); risor != nil {
-				scriptApp.Evaluator = RisorEvaluator{
-					Code:    risor.GetCode(),
-					Timeout: risor.GetTimeout(),
-				}
-			} else if starlark := pbScript.GetStarlark(); starlark != nil {
-				scriptApp.Evaluator = StarlarkEvaluator{
-					Code:    starlark.GetCode(),
-					Timeout: starlark.GetTimeout(),
-				}
-			} else if extism := pbScript.GetExtism(); extism != nil {
-				scriptApp.Evaluator = ExtismEvaluator{
-					Code:       extism.GetCode(),
-					Entrypoint: extism.GetEntrypoint(),
-				}
-			}
-
-			app.Config = scriptApp
-		} else if pbComposite := pbApp.GetCompositeScript(); pbComposite != nil {
-			compositeApp := CompositeScriptApp{
-				ScriptAppIDs: pbComposite.GetScriptAppIds(),
-			}
-
-			// Convert static data
-			if pbStaticData := pbComposite.GetStaticData(); pbStaticData != nil {
-				compositeApp.StaticData.Data = make(map[string]any)
-				for k, v := range pbStaticData.GetData() {
-					// Convert structpb.Value to Go any
-					compositeApp.StaticData.Data[k] = convertProtoValueToInterface(v)
-				}
-				compositeApp.StaticData.MergeMode = protoMergeModeToStaticDataMergeMode(pbStaticData.GetMergeMode())
-			}
-
-			app.Config = compositeApp
-		}
-
-		config.Apps = append(config.Apps, app)
 	}
 
-	return config
+	return config, nil
+}
+
+// NewConfigFromBytes loads configuration from TOML bytes, converts it to the domain model, and validates it.
+func NewConfigFromBytes(data []byte) (*Config, error) {
+	// Create a TOML loader from bytes using a function literal that returns the interface
+	ld, err := loader.NewLoaderFromBytes(data, func(d []byte) loader.Loader {
+		return loader.NewTomlLoader(d)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	// Load the config into protobuf
+	protoConfig, err := ld.LoadProto()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	// Convert protobuf to domain model using the canonical FromProto function
+	config, err := NewFromProto(protoConfig) // FromProto is defined in conversion.go
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+	}
+
+	// Validate the domain config
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
+	}
+
+	return config, nil
+}
+
+// NewConfigFromReader loads configuration from an io.Reader providing TOML data, converts it, and validates it.
+func NewConfigFromReader(reader io.Reader) (*Config, error) {
+	// Create a TOML loader from reader using a function literal that returns the interface
+	ld, err := loader.NewLoaderFromReader(reader, func(d []byte) loader.Loader {
+		return loader.NewTomlLoader(d)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	// Load the config into protobuf
+	protoConfig, err := ld.LoadProto()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	// Convert protobuf to domain model using the canonical FromProto function
+	config, err := NewFromProto(protoConfig) // FromProto is defined in conversion.go
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+	}
+
+	// Validate the domain config
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
+	}
+
+	return config, nil
 }

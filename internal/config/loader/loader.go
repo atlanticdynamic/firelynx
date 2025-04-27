@@ -23,7 +23,7 @@ type Loader interface {
 	// LoadProto parses configuration and returns the Protocol Buffer config
 	LoadProto() (*pbSettings.ServerConfig, error)
 	// GetProtoConfig returns the underlying Protocol Buffer configuration
-	GetProtoConfig() *pbSettings.ServerConfig
+	GetProtoConfig() *pbSettings.ServerConfig // TODO: add memoization to LoadProto and remove this
 }
 
 // NewLoaderFromBytes creates a new Loader with the provided bytes

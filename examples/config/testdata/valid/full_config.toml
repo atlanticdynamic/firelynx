@@ -1,0 +1,118 @@
+version = "v1"
+
+[logging]
+level = "debug"
+format = "text"
+
+[[listeners]]
+id = "http-default"
+address = ":8080"
+
+[listeners.http]
+read_timeout = "5s"
+write_timeout = "10s"
+drain_timeout = "30s"
+
+[[listeners]]
+id = "grpc-internal"
+address = ":50051"
+
+[listeners.grpc]
+max_connection_idle = "1h"
+max_connection_age = "24h"
+max_concurrent_streams = 100
+
+[[endpoints]]
+id = "ep-public"
+listener_ids = ["http-default"]
+
+[[endpoints.routes]]
+app_id = "app-risor-hello"
+http_path = "/risor/hello"
+
+[[endpoints.routes]]
+app_id = "app-starlark-greet"
+http_path = "/starlark/greet"
+
+[[endpoints.routes]]
+app_id = "app-composite-order"
+http_path = "/composite/order"
+
+[[endpoints]]
+id = "ep-internal"
+listener_ids = ["grpc-internal"]
+
+[[endpoints.routes]]
+app_id = "app-extism-inventory"
+grpc_service = "inventory.InventoryService"
+
+[[apps]]
+id = "app-risor-hello"
+
+[apps.script]
+
+[apps.script.static_data]
+data = { greeting = "Hello", target = "Risor" }
+merge_mode = "last"
+
+[apps.script.risor]
+code = """
+    import "http"
+    import "json"
+
+    func handler(req http.Request) http.Response {
+        msg = sprintf("%s, %s!", req.static_data.greeting, req.static_data.target)
+        return http.Response{
+            StatusCode: 200,
+            Body: json.marshal({ "message": msg }),
+            Header: {"Content-Type": ["application/json"]},
+        }
+    }
+    export default: handler
+"""
+timeout = "500ms"
+
+[[apps]]
+id = "app-starlark-greet"
+
+[apps.script]
+
+[apps.script.static_data]
+data = { prefix = "Greetings", name = "Starlark User" }
+
+[apps.script.starlark]
+code = """
+load("@stdlib/json", "json")
+load("@stdlib/http", "http")
+
+def handler(req):
+    msg = "%s, %s!" % (req.static_data["prefix"], req.static_data["name"])
+    return http.Response(
+        status_code=200,
+        body=json.marshal({"greeting": msg}),
+        header={"Content-Type": ["application/json"]},
+    )
+
+def main(req):
+    return handler(req)
+"""
+timeout = "1s"
+
+[[apps]]
+id = "app-extism-inventory"
+
+[apps.script]
+
+[apps.script.extism]
+code = """(module)""" # Placeholder WASM
+entrypoint = "handle_grpc"
+
+[[apps]]
+id = "app-composite-order"
+
+[apps.composite_script]
+script_app_ids = ["app-risor-hello", "app-starlark-greet"]
+
+[apps.composite_script.static_data]
+data = { order_id = "ORD123", status = "pending" }
+merge_mode = "unique"

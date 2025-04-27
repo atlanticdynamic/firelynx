@@ -188,7 +188,11 @@ func (r *Runner) UpdateConfig(
 	}
 
 	// Validate the configuration by converting to domain model and validating
-	domainConfig := config.NewFromProto(req.Config)
+	domainConfig, err := config.NewFromProto(req.Config)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "conversion error: %v", err)
+	}
+
 	if err := domainConfig.Validate(); err != nil {
 		r.logger.Warn("Configuration validation failed", "error", err)
 		return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
