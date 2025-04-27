@@ -2,12 +2,13 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http/testutil"
+	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -77,6 +78,8 @@ func TestManager_Run(t *testing.T) {
 		},
 	}
 
+	listenPort := fmt.Sprintf(":%d", testutil.GetRandomPort(t))
+
 	// Create a config callback that returns a valid config
 	configCallback := func() *config.Config {
 		return &config.Config{
@@ -85,7 +88,7 @@ func TestManager_Run(t *testing.T) {
 				{
 					ID:      "test",
 					Type:    config.ListenerTypeHTTP,
-					Address: ":8080",
+					Address: listenPort,
 					Options: config.HTTPListenerOptions{
 						ReadTimeout:  durationpb.New(5 * time.Second),
 						WriteTimeout: durationpb.New(10 * time.Second),
@@ -147,6 +150,8 @@ func TestManager_Reload(t *testing.T) {
 		},
 	}
 
+	listenPort := fmt.Sprintf(":%d", testutil.GetRandomPort(t))
+
 	// Create a config callback that returns a valid config
 	configCallback := func() *config.Config {
 		return &config.Config{
@@ -155,7 +160,7 @@ func TestManager_Reload(t *testing.T) {
 				{
 					ID:      "test",
 					Type:    config.ListenerTypeHTTP,
-					Address: ":8080",
+					Address: listenPort,
 					Options: config.HTTPListenerOptions{
 						ReadTimeout:  durationpb.New(5 * time.Second),
 						WriteTimeout: durationpb.New(10 * time.Second),

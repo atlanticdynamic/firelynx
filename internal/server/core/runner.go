@@ -205,7 +205,11 @@ func (r *Runner) Reload() {
 				// Convert protobuf config to domain config
 				cfg, err := config.NewFromProto(serverConfig)
 				if err != nil {
-					r.logger.Warn("Failed to convert protobuf config to domain config", "error", err)
+					r.logger.Warn(
+						"Failed to convert protobuf config to domain config",
+						"error",
+						err,
+					)
 					return nil
 				}
 				return cfg

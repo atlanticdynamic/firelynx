@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -78,7 +79,7 @@ func TestListener_Run(t *testing.T) {
 	})
 
 	// Get a free port
-	port := GetRandomPort(t)
+	port := testutil.GetRandomPort(t)
 
 	// Create a listener with proper options and the assigned port
 	cfg := &config.Listener{
@@ -140,7 +141,7 @@ func TestListener_UpdateHandler(t *testing.T) {
 	}
 
 	// Get a free port
-	port := GetRandomPort(t)
+	port := testutil.GetRandomPort(t)
 
 	// Create listener with proper options and the assigned port
 	cfg := &config.Listener{
