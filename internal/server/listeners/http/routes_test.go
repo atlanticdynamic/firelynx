@@ -5,7 +5,7 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http/testutil"
+	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
