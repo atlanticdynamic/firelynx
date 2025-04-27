@@ -1,0 +1,62 @@
+# Simple configuration to test HTTP server functionality
+
+version = "v1"
+
+[logging]
+format = "text"
+level = "debug"
+
+# HTTP listener on port 8080
+[[listeners]]
+id = "http_main"
+address = ":8080"
+
+[listeners.http]
+read_timeout = "5s"
+write_timeout = "10s"
+
+# Echo endpoint configuration
+[[endpoints]]
+id = "echo_endpoint"
+listener_ids = ["http_main"]
+
+[[endpoints.routes]]
+app_id = "echo"
+http_path = "/echo"
+
+[endpoints.routes.static_data.data]
+source = "example config"
+version = "1.0"
+
+# Test endpoint with multiple paths
+[[endpoints]]
+id = "test_endpoint"
+listener_ids = ["http_main"]
+
+[[endpoints.routes]]
+app_id = "echo"
+http_path = "/api/"
+
+[endpoints.routes.static_data.data]
+api_version = "v1"
+
+# App definitions
+[[apps]]
+id = "echo"
+
+[apps.script.static_data]
+description = "Simple echo application for testing"
+
+[apps.script.risor]
+code = '''
+function handle_request(ctx, req) {
+  return {
+    status: 200,
+    body: "Hello from Firelynx Echo Server!",
+    headers: {
+      "Content-Type": "text/plain"
+    }
+  }
+}
+'''
+timeout = "1s"

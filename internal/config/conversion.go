@@ -1,211 +1,201 @@
+// Package config provides configuration-related functionality
 package config
 
 import (
+	"fmt"
+
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// ToProto converts a domain Config to a Protocol Buffer ServerConfig
-func (c *Config) ToProto() *pb.ServerConfig {
-	// If we have the original protobuf, use it as a base
-	var pbConfig *pb.ServerConfig
-	if c.rawProto != nil {
-		if existing, ok := c.rawProto.(*pb.ServerConfig); ok {
-			pbConfig = existing
+// FromProto creates a domain Config from a protobuf ServerConfig
+func FromProto(pbConfig *pb.ServerConfig) (*Config, error) {
+	if pbConfig == nil {
+		return nil, fmt.Errorf("nil protobuf config")
+	}
+
+	// Create a new domain config
+	config := &Config{
+		Version:  VersionLatest,
+		rawProto: pbConfig, // Just reference, not clone to avoid issues
+	}
+
+	// Extract version if present
+	if pbConfig.Version != nil && *pbConfig.Version != "" {
+		config.Version = *pbConfig.Version
+	}
+
+	// Convert logging configuration
+	if pbConfig.Logging != nil {
+		config.Logging = LoggingConfig{
+			Format: protoFormatToLogFormat(pbConfig.Logging.GetFormat()),
+			Level:  protoLevelToLogLevel(pbConfig.Logging.GetLevel()),
 		}
 	}
-
-	// If we don't have the original or it's not the right type, create a new one
-	if pbConfig == nil {
-		pbConfig = &pb.ServerConfig{}
-	}
-
-	// Set version
-	version := c.Version
-	pbConfig.Version = &version
-
-	// Convert logging
-	if pbConfig.Logging == nil {
-		pbConfig.Logging = &pb.LogOptions{}
-	}
-	pbConfig.Logging = c.Logging.ToProto()
 
 	// Convert listeners
-	pbConfig.Listeners = make([]*pb.Listener, 0, len(c.Listeners))
-	for _, listener := range c.Listeners {
-		pbListener := &pb.Listener{
-			Id:      &listener.ID,
-			Address: &listener.Address,
-		}
-
-		// Convert protocol-specific options
-		switch opts := listener.Options.(type) {
-		case HTTPListenerOptions:
-			pbListener.ProtocolOptions = &pb.Listener_Http{
-				Http: &pb.HttpListenerOptions{
-					ReadTimeout:  opts.ReadTimeout,
-					WriteTimeout: opts.WriteTimeout,
-					DrainTimeout: opts.DrainTimeout,
-				},
+	if pbConfig.Listeners != nil {
+		config.Listeners = make([]Listener, 0, len(pbConfig.Listeners))
+		for _, pbListener := range pbConfig.Listeners {
+			if pbListener == nil {
+				continue
 			}
-		case GRPCListenerOptions:
-			maxStreams := int32(opts.MaxConcurrentStreams)
-			pbListener.ProtocolOptions = &pb.Listener_Grpc{
-				Grpc: &pb.GrpcListenerOptions{
-					MaxConnectionIdle:    opts.MaxConnectionIdle,
-					MaxConnectionAge:     opts.MaxConnectionAge,
-					MaxConcurrentStreams: &maxStreams,
-				},
-			}
-		}
 
-		pbConfig.Listeners = append(pbConfig.Listeners, pbListener)
+			listener := Listener{
+				ID:      getStringValue(pbListener.Id),
+				Address: getStringValue(pbListener.Address),
+			}
+
+			// Determine listener type and options
+			if pbHttp := pbListener.GetHttp(); pbHttp != nil {
+				listener.Type = ListenerTypeHTTP
+				listener.Options = HTTPListenerOptions{
+					ReadTimeout:  pbHttp.ReadTimeout,
+					WriteTimeout: pbHttp.WriteTimeout,
+					DrainTimeout: pbHttp.DrainTimeout,
+				}
+			} else if pbGrpc := pbListener.GetGrpc(); pbGrpc != nil {
+				listener.Type = ListenerTypeGRPC
+				maxStreams := 0
+				if pbGrpc.MaxConcurrentStreams != nil {
+					maxStreams = int(*pbGrpc.MaxConcurrentStreams)
+				}
+
+				listener.Options = GRPCListenerOptions{
+					MaxConnectionIdle:    pbGrpc.MaxConnectionIdle,
+					MaxConnectionAge:     pbGrpc.MaxConnectionAge,
+					MaxConcurrentStreams: maxStreams,
+				}
+			}
+
+			config.Listeners = append(config.Listeners, listener)
+		}
 	}
 
 	// Convert endpoints
-	pbConfig.Endpoints = make([]*pb.Endpoint, 0, len(c.Endpoints))
-	for _, endpoint := range c.Endpoints {
-		pbEndpoint := &pb.Endpoint{
-			Id:          &endpoint.ID,
-			ListenerIds: endpoint.ListenerIDs,
+	if pbConfig.Endpoints != nil {
+		config.Endpoints = make([]Endpoint, 0, len(pbConfig.Endpoints))
+		for _, pbEndpoint := range pbConfig.Endpoints {
+			if pbEndpoint == nil {
+				continue
+			}
+
+			endpoint := Endpoint{
+				ID:          getStringValue(pbEndpoint.Id),
+				ListenerIDs: pbEndpoint.ListenerIds,
+				Routes:      []Route{},
+			}
+
+			// Convert routes
+			for _, pbRoute := range pbEndpoint.Routes {
+				route := Route{
+					AppID: getStringValue(pbRoute.AppId),
+				}
+
+				// Convert static data
+				if pbStaticData := pbRoute.GetStaticData(); pbStaticData != nil {
+					route.StaticData = make(map[string]any)
+					for k, v := range pbStaticData.GetData() {
+						route.StaticData[k] = convertProtoValueToInterface(v)
+					}
+				}
+
+				// Convert route condition
+				if httpPath := pbRoute.GetHttpPath(); httpPath != "" {
+					route.Condition = HTTPPathCondition{Path: httpPath}
+				} else if grpcService := pbRoute.GetGrpcService(); grpcService != "" {
+					route.Condition = GRPCServiceCondition{Service: grpcService}
+				}
+
+				endpoint.Routes = append(endpoint.Routes, route)
+			}
+
+			config.Endpoints = append(config.Endpoints, endpoint)
 		}
-
-		// Convert routes
-		pbEndpoint.Routes = make([]*pb.Route, 0, len(endpoint.Routes))
-		for _, route := range endpoint.Routes {
-			pbRoute := &pb.Route{
-				AppId: &route.AppID,
-			}
-
-			// Convert static data
-			if len(route.StaticData) > 0 {
-				pbStaticData := &pb.StaticData{
-					Data: make(map[string]*structpb.Value),
-				}
-				for k, v := range route.StaticData {
-					pbValue, err := convertInterfaceToProtoValue(v)
-					if err == nil && pbValue != nil {
-						pbStaticData.Data[k] = pbValue
-					}
-				}
-				pbRoute.StaticData = pbStaticData
-			}
-
-			// Convert condition
-			if condition := route.Condition; condition != nil {
-				switch cond := condition.(type) {
-				case HTTPPathCondition:
-					pbRoute.Condition = &pb.Route_HttpPath{
-						HttpPath: cond.Path,
-					}
-				case GRPCServiceCondition:
-					pbRoute.Condition = &pb.Route_GrpcService{
-						GrpcService: cond.Service,
-					}
-					// Note: MCP Resource condition will be added when proto is updated
-				}
-			}
-
-			pbEndpoint.Routes = append(pbEndpoint.Routes, pbRoute)
-		}
-
-		pbConfig.Endpoints = append(pbConfig.Endpoints, pbEndpoint)
 	}
 
 	// Convert apps
-	pbConfig.Apps = make([]*pb.AppDefinition, 0, len(c.Apps))
-	for _, app := range c.Apps {
-		pbApp := &pb.AppDefinition{
-			Id: &app.ID,
-		}
+	if pbConfig.Apps != nil {
+		config.Apps = make([]App, 0, len(pbConfig.Apps))
+		for _, pbApp := range pbConfig.Apps {
+			if pbApp == nil {
+				continue
+			}
 
-		// Convert app configuration
-		switch config := app.Config.(type) {
-		case ScriptApp:
-			pbScript := &pb.AppScript{}
+			app := App{
+				ID: getStringValue(pbApp.Id),
+			}
 
-			// Convert static data
-			if len(config.StaticData.Data) > 0 {
-				pbStaticData := &pb.StaticData{
-					Data: make(map[string]*structpb.Value),
+			// Convert app configuration
+			if pbScript := pbApp.GetScript(); pbScript != nil {
+				scriptApp := ScriptApp{}
+
+				// Convert static data
+				if pbStaticData := pbScript.GetStaticData(); pbStaticData != nil {
+					scriptApp.StaticData.Data = make(map[string]any)
+					for k, v := range pbStaticData.GetData() {
+						scriptApp.StaticData.Data[k] = convertProtoValueToInterface(v)
+					}
+					scriptApp.StaticData.MergeMode = protoMergeModeToStaticDataMergeMode(
+						pbStaticData.GetMergeMode(),
+					)
 				}
-				for k, v := range config.StaticData.Data {
-					pbValue, err := convertInterfaceToProtoValue(v)
-					if err == nil && pbValue != nil {
-						pbStaticData.Data[k] = pbValue
+
+				// Convert evaluator
+				if risor := pbScript.GetRisor(); risor != nil {
+					scriptApp.Evaluator = RisorEvaluator{
+						Code:    risor.GetCode(),
+						Timeout: risor.GetTimeout(),
+					}
+				} else if starlark := pbScript.GetStarlark(); starlark != nil {
+					scriptApp.Evaluator = StarlarkEvaluator{
+						Code:    starlark.GetCode(),
+						Timeout: starlark.GetTimeout(),
+					}
+				} else if extism := pbScript.GetExtism(); extism != nil {
+					scriptApp.Evaluator = ExtismEvaluator{
+						Code:       extism.GetCode(),
+						Entrypoint: extism.GetEntrypoint(),
 					}
 				}
 
-				mergeMode := staticDataMergeModeToProto(config.StaticData.MergeMode)
-				pbStaticData.MergeMode = &mergeMode
-				pbScript.StaticData = pbStaticData
-			}
-
-			// Convert evaluator
-			switch eval := config.Evaluator.(type) {
-			case RisorEvaluator:
-				pbScript.Evaluator = &pb.AppScript_Risor{
-					Risor: &pb.RisorEvaluator{
-						Code:    &eval.Code,
-						Timeout: eval.Timeout,
-					},
+				app.Config = scriptApp
+			} else if pbComposite := pbApp.GetCompositeScript(); pbComposite != nil {
+				compositeApp := CompositeScriptApp{
+					ScriptAppIDs: pbComposite.GetScriptAppIds(),
 				}
-			case StarlarkEvaluator:
-				pbScript.Evaluator = &pb.AppScript_Starlark{
-					Starlark: &pb.StarlarkEvaluator{
-						Code:    &eval.Code,
-						Timeout: eval.Timeout,
-					},
-				}
-			case ExtismEvaluator:
-				pbScript.Evaluator = &pb.AppScript_Extism{
-					Extism: &pb.ExtismEvaluator{
-						Code:       &eval.Code,
-						Entrypoint: &eval.Entrypoint,
-					},
-				}
-			}
 
-			pbApp.AppConfig = &pb.AppDefinition_Script{
-				Script: pbScript,
-			}
-
-		case CompositeScriptApp:
-			pbComposite := &pb.AppCompositeScript{
-				ScriptAppIds: config.ScriptAppIDs,
-			}
-
-			// Convert static data
-			if len(config.StaticData.Data) > 0 {
-				pbStaticData := &pb.StaticData{
-					Data: make(map[string]*structpb.Value),
-				}
-				for k, v := range config.StaticData.Data {
-					pbValue, err := convertInterfaceToProtoValue(v)
-					if err == nil && pbValue != nil {
-						pbStaticData.Data[k] = pbValue
+				// Convert static data
+				if pbStaticData := pbComposite.GetStaticData(); pbStaticData != nil {
+					compositeApp.StaticData.Data = make(map[string]any)
+					for k, v := range pbStaticData.GetData() {
+						compositeApp.StaticData.Data[k] = convertProtoValueToInterface(v)
 					}
+					compositeApp.StaticData.MergeMode = protoMergeModeToStaticDataMergeMode(
+						pbStaticData.GetMergeMode(),
+					)
 				}
 
-				mergeMode := staticDataMergeModeToProto(config.StaticData.MergeMode)
-				pbStaticData.MergeMode = &mergeMode
-				pbComposite.StaticData = pbStaticData
+				app.Config = compositeApp
 			}
 
-			pbApp.AppConfig = &pb.AppDefinition_CompositeScript{
-				CompositeScript: pbComposite,
-			}
+			config.Apps = append(config.Apps, app)
 		}
-
-		pbConfig.Apps = append(pbConfig.Apps, pbApp)
 	}
 
-	return pbConfig
+	return config, nil
 }
 
-// Helper functions for conversion
+// Helper function to safely get string value from a string pointer
+func getStringValue(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
+}
 
-// Convert protobuf enums to domain enums
+// Use the implementation from util.go instead
+
+// protoMergeModeToStaticDataMergeMode converts protocol buffer merge mode to domain model merge mode
 func protoMergeModeToStaticDataMergeMode(mode pb.StaticDataMergeMode) StaticDataMergeMode {
 	switch mode {
 	case pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST:
@@ -215,52 +205,4 @@ func protoMergeModeToStaticDataMergeMode(mode pb.StaticDataMergeMode) StaticData
 	default:
 		return StaticDataMergeModeUnspecified
 	}
-}
-
-func staticDataMergeModeToProto(mode StaticDataMergeMode) pb.StaticDataMergeMode {
-	switch mode {
-	case StaticDataMergeModeLast:
-		return pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST
-	case StaticDataMergeModeUnique:
-		return pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE
-	default:
-		return pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED
-	}
-}
-
-// Helper functions for converting between structpb.Value and any
-func convertProtoValueToInterface(v *structpb.Value) any {
-	if v == nil {
-		return nil
-	}
-
-	switch v.GetKind().(type) {
-	case *structpb.Value_NullValue:
-		return nil
-	case *structpb.Value_NumberValue:
-		return v.GetNumberValue()
-	case *structpb.Value_StringValue:
-		return v.GetStringValue()
-	case *structpb.Value_BoolValue:
-		return v.GetBoolValue()
-	case *structpb.Value_StructValue:
-		result := make(map[string]any)
-		for k, sv := range v.GetStructValue().GetFields() {
-			result[k] = convertProtoValueToInterface(sv)
-		}
-		return result
-	case *structpb.Value_ListValue:
-		list := v.GetListValue().GetValues()
-		result := make([]any, len(list))
-		for i, lv := range list {
-			result[i] = convertProtoValueToInterface(lv)
-		}
-		return result
-	default:
-		return nil
-	}
-}
-
-func convertInterfaceToProtoValue(v any) (*structpb.Value, error) {
-	return structpb.NewValue(v)
 }
