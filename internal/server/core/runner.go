@@ -78,7 +78,11 @@ func New(opts ...Option) (*Runner, error) {
 			"apps_count", len(pbConfig.GetApps()))
 
 		// Convert protobuf config to domain config
-		domainConfig := config.NewFromProto(pbConfig)
+		domainConfig, err := config.NewFromProto(pbConfig)
+		if err != nil {
+			r.logger.Warn("Failed to convert protobuf config to domain config", "error", err)
+			return nil
+		}
 
 		r.logger.Debug("Domain config conversion result",
 			"listeners_count", len(domainConfig.Listeners),
@@ -199,7 +203,12 @@ func (r *Runner) Reload() {
 				}
 
 				// Convert protobuf config to domain config
-				return config.NewFromProto(serverConfig)
+				cfg, err := config.NewFromProto(serverConfig)
+				if err != nil {
+					r.logger.Warn("Failed to convert protobuf config to domain config", "error", err)
+					return nil
+				}
+				return cfg
 			}
 
 			// Initialize a new HTTP manager

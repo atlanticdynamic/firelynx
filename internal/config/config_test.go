@@ -5,6 +5,7 @@ import (
 	"time"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -119,7 +120,8 @@ func TestDomainModelConversion(t *testing.T) {
 	pbConfig := domainConfig.ToProto()
 
 	// Convert back to domain model
-	roundTripConfig := NewFromProto(pbConfig)
+	roundTripConfig, err := NewFromProto(pbConfig)
+	require.NoError(t, err, "Failed to convert protobuf to domain model")
 
 	// Check that the round-trip conversion preserves data
 	if roundTripConfig.Version != domainConfig.Version {
