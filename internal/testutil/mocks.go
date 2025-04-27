@@ -12,7 +12,7 @@ type MockApp struct {
 	AppID        string
 	HandleCalled bool
 	LastRequest  *http.Request
-	LastData     map[string]interface{}
+	LastData     map[string]any
 	ReturnError  error
 }
 
@@ -24,7 +24,7 @@ func (m *MockApp) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	staticData map[string]interface{},
+	staticData map[string]any,
 ) error {
 	m.HandleCalled = true
 	m.LastRequest = r

@@ -30,10 +30,10 @@ func (a *EchoApp) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	staticData map[string]interface{},
+	staticData map[string]any,
 ) error {
 	// Create a response object with request details
-	response := map[string]interface{}{
+	response := map[string]any{
 		"app_id":      a.id,
 		"method":      r.Method,
 		"path":        r.URL.Path,

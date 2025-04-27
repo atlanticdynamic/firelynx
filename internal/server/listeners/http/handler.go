@@ -21,7 +21,7 @@ type AppHandler struct {
 type Route struct {
 	Path       string
 	AppID      string
-	StaticData map[string]interface{}
+	StaticData map[string]any
 }
 
 // NewAppHandler creates a new AppHandler with the given app registry and routes

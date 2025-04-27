@@ -12,7 +12,7 @@ type App interface {
 	ID() string
 
 	// HandleHTTP processes HTTP requests
-	HandleHTTP(context.Context, http.ResponseWriter, *http.Request, map[string]interface{}) error
+	HandleHTTP(context.Context, http.ResponseWriter, *http.Request, map[string]any) error
 }
 
 // Registry maintains a collection of applications
