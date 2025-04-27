@@ -9,13 +9,55 @@ import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-func TestServerCore_New(t *testing.T) {
+// Helper function to create a basic test configuration with HTTP listeners
+func createTestConfig() *pb.ServerConfig {
 	version := "v1"
-	testConfig := &pb.ServerConfig{
-		Version: &version,
+	id := "test-listener"
+	address := "localhost:8080"
+
+	// Create a test HTTP listener config
+	testListener := &pb.Listener{
+		Id:      &id,
+		Address: &address,
+		ProtocolOptions: &pb.Listener_Http{
+			Http: &pb.HttpListenerOptions{
+				ReadTimeout:  durationpb.New(5 * time.Second),
+				WriteTimeout: durationpb.New(10 * time.Second),
+				DrainTimeout: durationpb.New(30 * time.Second),
+			},
+		},
 	}
+
+	// Create a test endpoint that references the listener
+	endpointId := "test-endpoint"
+	appId := "echo" // This matches the echo app registered in Runner.New()
+	path := "/echo"
+
+	testEndpoint := &pb.Endpoint{
+		Id:          &endpointId,
+		ListenerIds: []string{id},
+		Routes: []*pb.Route{
+			{
+				AppId: &appId,
+				Condition: &pb.Route_HttpPath{
+					HttpPath: path,
+				},
+			},
+		},
+	}
+
+	return &pb.ServerConfig{
+		Version:   &version,
+		Listeners: []*pb.Listener{testListener},
+		Endpoints: []*pb.Endpoint{testEndpoint},
+	}
+}
+
+func TestServerCore_New(t *testing.T) {
+	testConfig := createTestConfig()
 	configFunc := func() *pb.ServerConfig {
 		return testConfig
 	}
@@ -36,10 +78,7 @@ func TestServerCore_New(t *testing.T) {
 // TestServerCore_Run tests that the Run method properly returns an error when
 // the context is canceled.
 func TestServerCore_Run(t *testing.T) {
-	version := "v1"
-	testConfig := &pb.ServerConfig{
-		Version: &version,
-	}
+	testConfig := createTestConfig()
 	configFunc := func() *pb.ServerConfig {
 		return testConfig
 	}
@@ -62,11 +101,7 @@ func TestServerCore_Run(t *testing.T) {
 }
 
 func TestServerCore_Reload(t *testing.T) {
-	version := "v1"
-	testConfig := &pb.ServerConfig{
-		Version: &version,
-	}
-	currentConfig := testConfig
+	currentConfig := createTestConfig()
 	configFunc := func() *pb.ServerConfig {
 		return currentConfig
 	}
@@ -89,9 +124,8 @@ func TestServerCore_Reload(t *testing.T) {
 
 	// Update the config
 	newVersion := "v2"
-	newConfig := &pb.ServerConfig{
-		Version: &newVersion,
-	}
+	newConfig := createTestConfig()
+	newConfig.Version = &newVersion
 	currentConfig = newConfig
 
 	// Call Reload (no error to check with new supervisor-compatible interface)
@@ -106,10 +140,7 @@ func TestServerCore_Reload(t *testing.T) {
 // TestServerCore_Stop tests that calling Stop properly signals the Run method
 // to terminate and that the server shuts down in a timely manner.
 func TestServerCore_Stop(t *testing.T) {
-	version := "v1"
-	testConfig := &pb.ServerConfig{
-		Version: &version,
-	}
+	testConfig := createTestConfig()
 	configFunc := func() *pb.ServerConfig {
 		return testConfig
 	}
