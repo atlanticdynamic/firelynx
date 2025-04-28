@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -265,8 +266,9 @@ func TestConfigManager_RunWithConfigPath(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a ConfigManager with the config path
+	l := testutil.GetRandomListeningPort(t)
 	r, err := New(
-		WithListenAddr(":8080"),
+		WithListenAddr(l),
 		WithConfigPath(configPath),
 	)
 	require.NoError(t, err)

@@ -78,7 +78,7 @@ func TestManager_Run(t *testing.T) {
 		},
 	}
 
-	listenPort := fmt.Sprintf(":%d", testutil.GetRandomPort(t))
+	listenPort := testutil.GetRandomListeningPort(t)
 
 	// Create a config callback that returns a valid config
 	configCallback := func() *config.Config {
