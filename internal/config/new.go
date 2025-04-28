@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -144,6 +145,7 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	}
 
 	// Convert apps
+	appErrz := make([]error, 0, len(pbConfig.Apps))
 	if pbConfig.Apps != nil {
 		config.Apps = make([]App, 0, len(pbConfig.Apps))
 		for _, pbApp := range pbConfig.Apps {
@@ -151,14 +153,17 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 			if err != nil {
 				// Decide how to handle errors: skip the app, collect errors, or return immediately
 				// For now, let's skip invalid apps and log a warning (actual logging mechanism may vary)
-				fmt.Printf("Warning: skipping invalid app definition during conversion: %v\n", err)
+				appErrz = append(
+					appErrz,
+					fmt.Errorf("failed to convert app %s: %w", pbApp.GetId(), err),
+				)
 				continue
 			}
 			config.Apps = append(config.Apps, app)
 		}
 	}
 
-	return config, nil
+	return config, errors.Join(appErrz...)
 }
 
 // NewConfigFromBytes loads configuration from TOML bytes, converts it to the domain model, and validates it.
