@@ -1,32 +1,32 @@
-// Package apps provides implementations of application handlers
-package apps
+package echo
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 )
 
-// EchoApp is a simple application that echoes request information
-type EchoApp struct {
+// App is a simple application that echoes request information
+type App struct {
 	id string
 }
 
-// NewEchoApp creates a new EchoApp
-func NewEchoApp(id string) *EchoApp {
-	return &EchoApp{
+// New creates a new EchoApp
+func New(id string) *App {
+	return &App{
 		id: id,
 	}
 }
 
 // ID returns the unique identifier of the application
-func (a *EchoApp) ID() string {
+func (a *App) ID() string {
 	return a.id
 }
 
 // HandleHTTP processes HTTP requests by echoing back request details
-func (a *EchoApp) HandleHTTP(
+func (a *App) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
@@ -56,8 +56,6 @@ func (a *EchoApp) HandleHTTP(
 // headerToMap converts http.Header to a map for JSON serialization
 func headerToMap(header http.Header) map[string][]string {
 	result := make(map[string][]string)
-	for name, values := range header {
-		result[name] = values
-	}
+	maps.Copy(result, header)
 	return result
 }

@@ -1,4 +1,4 @@
-package apps
+package mocks
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 func TestMockApp(t *testing.T) {
 	// Create a mock app with preset ID
-	mockApp := NewMockApp("test-app")
+	mockApp := New("test-app")
 
 	// Verify ID is set correctly
 	assert.Equal(t, "test-app", mockApp.ID())

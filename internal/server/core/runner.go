@@ -12,6 +12,8 @@ import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/registry"
 	httpserver "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
@@ -34,9 +36,9 @@ type Runner struct {
 
 	ctx         context.Context
 	cancel      context.CancelFunc
-	logger      *slog.Logger
-	appRegistry *apps.SimpleRegistry
+	appRegistry apps.Registry
 	httpManager *httpserver.Manager
+	logger      *slog.Logger
 }
 
 // New creates a new Runner instance
@@ -56,10 +58,10 @@ func New(opts ...Option) (*Runner, error) {
 	}
 
 	// Initialize the app registry
-	r.appRegistry = apps.NewSimpleRegistry()
+	r.appRegistry = registry.New()
 
 	// Register a sample echo app for testing
-	echoApp := apps.NewEchoApp("echo")
+	echoApp := echo.New("echo")
 	if err := r.appRegistry.RegisterApp(echoApp); err != nil {
 		return nil, fmt.Errorf("failed to register echo app: %w", err)
 	}
