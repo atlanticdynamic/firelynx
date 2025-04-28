@@ -83,9 +83,10 @@ message Listener {
 message HttpListenerOptions {
   google.protobuf.Duration read_timeout = 1;
   google.protobuf.Duration write_timeout = 2;
-  google.protobuf.Duration drain_timeout = 3;
-  // bool enable_cors = 4;
-  // repeated string cors_allowed_origins = 5;
+  google.protobuf.Duration idle_timeout = 3;
+  google.protobuf.Duration drain_timeout = 4;
+  // bool enable_cors = 5;
+  // repeated string cors_allowed_origins = 6;
 }
 
 // gRPC listener specific options

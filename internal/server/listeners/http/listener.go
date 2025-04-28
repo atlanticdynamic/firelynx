@@ -71,16 +71,20 @@ func FromConfig(
 	}
 
 	// Convert options to appropriate HTTP server settings
-	readTimeout := DefaultReadTimeout
-	writeTimeout := DefaultWriteTimeout
-	idleTimeout := DefaultIdleTimeout
 
+	readTimeout := DefaultReadTimeout
 	if httpOptions.ReadTimeout != nil && httpOptions.ReadTimeout.AsDuration() > 0 {
 		readTimeout = httpOptions.ReadTimeout.AsDuration()
 	}
 
+	writeTimeout := DefaultWriteTimeout
 	if httpOptions.WriteTimeout != nil && httpOptions.WriteTimeout.AsDuration() > 0 {
 		writeTimeout = httpOptions.WriteTimeout.AsDuration()
+	}
+
+	idleTimeout := DefaultIdleTimeout
+	if httpOptions.IdleTimeout != nil && httpOptions.IdleTimeout.AsDuration() > 0 {
+		idleTimeout = httpOptions.IdleTimeout.AsDuration()
 	}
 
 	// Create HTTP server with provided options

@@ -7,6 +7,9 @@
     "^(drain_timeout)$": {
       "$ref": "google.protobuf.Duration.jsonschema.json"
     },
+    "^(idle_timeout)$": {
+      "$ref": "google.protobuf.Duration.jsonschema.json"
+    },
     "^(read_timeout)$": {
       "$ref": "google.protobuf.Duration.jsonschema.json"
     },
@@ -16,6 +19,9 @@
   },
   "properties": {
     "drainTimeout": {
+      "$ref": "google.protobuf.Duration.jsonschema.json"
+    },
+    "idleTimeout": {
       "$ref": "google.protobuf.Duration.jsonschema.json"
     },
     "readTimeout": {

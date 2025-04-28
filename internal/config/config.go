@@ -52,6 +52,7 @@ type HTTPListenerOptions struct {
 	ReadTimeout  *durationpb.Duration
 	WriteTimeout *durationpb.Duration
 	DrainTimeout *durationpb.Duration
+	IdleTimeout  *durationpb.Duration
 }
 
 func (h HTTPListenerOptions) Type() ListenerType { return ListenerTypeHTTP }

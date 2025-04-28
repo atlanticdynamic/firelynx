@@ -80,6 +80,7 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 				listener.Options = HTTPListenerOptions{
 					ReadTimeout:  pbHttp.ReadTimeout,
 					WriteTimeout: pbHttp.WriteTimeout,
+					IdleTimeout:  pbHttp.IdleTimeout,
 					DrainTimeout: pbHttp.DrainTimeout,
 				}
 			} else if pbGrpc := pbListener.GetGrpc(); pbGrpc != nil {
