@@ -117,7 +117,11 @@ func TestSimpleRegistry_Concurrency(t *testing.T) {
 					if j >= 2 {
 						unregisterID := fmt.Sprintf("app-%d-%d", routineID, (j-2)%10)
 						err = registry.UnregisterApp(unregisterID)
-						assert.NoError(t, err, "UnregisterApp should not error under concurrent access")
+						assert.NoError(
+							t,
+							err,
+							"UnregisterApp should not error under concurrent access",
+						)
 					}
 				}
 			}
@@ -130,5 +134,10 @@ func TestSimpleRegistry_Concurrency(t *testing.T) {
 
 	// Verify that the registry has the expected number of apps
 	expectedAppCount := numGoroutines * numOperationsPerGoroutine / 10
-	assert.LessOrEqual(t, len(registry.apps), expectedAppCount, "Registry should have fewer or equal apps than expected")
+	assert.LessOrEqual(
+		t,
+		len(registry.apps),
+		expectedAppCount,
+		"Registry should have fewer or equal apps than expected",
+	)
 }

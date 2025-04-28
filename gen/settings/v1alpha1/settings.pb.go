@@ -618,7 +618,8 @@ type HttpListenerOptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ReadTimeout   *durationpb.Duration   `protobuf:"bytes,1,opt,name=read_timeout,json=readTimeout" json:"read_timeout,omitempty"`
 	WriteTimeout  *durationpb.Duration   `protobuf:"bytes,2,opt,name=write_timeout,json=writeTimeout" json:"write_timeout,omitempty"`
-	DrainTimeout  *durationpb.Duration   `protobuf:"bytes,3,opt,name=drain_timeout,json=drainTimeout" json:"drain_timeout,omitempty"`
+	IdleTimeout   *durationpb.Duration   `protobuf:"bytes,3,opt,name=idle_timeout,json=idleTimeout" json:"idle_timeout,omitempty"`
+	DrainTimeout  *durationpb.Duration   `protobuf:"bytes,4,opt,name=drain_timeout,json=drainTimeout" json:"drain_timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -663,6 +664,13 @@ func (x *HttpListenerOptions) GetReadTimeout() *durationpb.Duration {
 func (x *HttpListenerOptions) GetWriteTimeout() *durationpb.Duration {
 	if x != nil {
 		return x.WriteTimeout
+	}
+	return nil
+}
+
+func (x *HttpListenerOptions) GetIdleTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.IdleTimeout
 	}
 	return nil
 }
@@ -1390,11 +1398,12 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\x12E\n" +
 	"\x04http\x18\x03 \x01(\v2/.firelynx.settings.v1alpha1.HttpListenerOptionsH\x00R\x04http\x12E\n" +
 	"\x04grpc\x18\x04 \x01(\v2/.firelynx.settings.v1alpha1.GrpcListenerOptionsH\x00R\x04grpcB\x12\n" +
-	"\x10protocol_options\"\xd3\x01\n" +
+	"\x10protocol_options\"\x91\x02\n" +
 	"\x13HttpListenerOptions\x12<\n" +
 	"\fread_timeout\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vreadTimeout\x12>\n" +
-	"\rwrite_timeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\fwriteTimeout\x12>\n" +
-	"\rdrain_timeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\fdrainTimeout\"\xdf\x01\n" +
+	"\rwrite_timeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\fwriteTimeout\x12<\n" +
+	"\fidle_timeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\vidleTimeout\x12>\n" +
+	"\rdrain_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fdrainTimeout\"\xdf\x01\n" +
 	"\x13GrpcListenerOptions\x12I\n" +
 	"\x13max_connection_idle\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x11maxConnectionIdle\x12G\n" +
 	"\x12max_connection_age\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x10maxConnectionAge\x124\n" +
@@ -1519,32 +1528,33 @@ var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
 	11, // 10: firelynx.settings.v1alpha1.Listener.grpc:type_name -> firelynx.settings.v1alpha1.GrpcListenerOptions
 	22, // 11: firelynx.settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
 	22, // 12: firelynx.settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
-	22, // 13: firelynx.settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
-	22, // 14: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
-	22, // 15: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
-	13, // 16: firelynx.settings.v1alpha1.Endpoint.routes:type_name -> firelynx.settings.v1alpha1.Route
-	20, // 17: firelynx.settings.v1alpha1.Route.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
-	15, // 18: firelynx.settings.v1alpha1.AppDefinition.script:type_name -> firelynx.settings.v1alpha1.AppScript
-	19, // 19: firelynx.settings.v1alpha1.AppDefinition.composite_script:type_name -> firelynx.settings.v1alpha1.AppCompositeScript
-	20, // 20: firelynx.settings.v1alpha1.AppScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
-	16, // 21: firelynx.settings.v1alpha1.AppScript.risor:type_name -> firelynx.settings.v1alpha1.RisorEvaluator
-	17, // 22: firelynx.settings.v1alpha1.AppScript.starlark:type_name -> firelynx.settings.v1alpha1.StarlarkEvaluator
-	18, // 23: firelynx.settings.v1alpha1.AppScript.extism:type_name -> firelynx.settings.v1alpha1.ExtismEvaluator
-	22, // 24: firelynx.settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
-	22, // 25: firelynx.settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
-	20, // 26: firelynx.settings.v1alpha1.AppCompositeScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
-	21, // 27: firelynx.settings.v1alpha1.StaticData.data:type_name -> firelynx.settings.v1alpha1.StaticData.DataEntry
-	2,  // 28: firelynx.settings.v1alpha1.StaticData.merge_mode:type_name -> firelynx.settings.v1alpha1.StaticDataMergeMode
-	23, // 29: firelynx.settings.v1alpha1.StaticData.DataEntry.value:type_name -> google.protobuf.Value
-	3,  // 30: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:input_type -> firelynx.settings.v1alpha1.UpdateConfigRequest
-	5,  // 31: firelynx.settings.v1alpha1.ConfigService.GetConfig:input_type -> firelynx.settings.v1alpha1.GetConfigRequest
-	4,  // 32: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:output_type -> firelynx.settings.v1alpha1.UpdateConfigResponse
-	6,  // 33: firelynx.settings.v1alpha1.ConfigService.GetConfig:output_type -> firelynx.settings.v1alpha1.GetConfigResponse
-	32, // [32:34] is the sub-list for method output_type
-	30, // [30:32] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	22, // 13: firelynx.settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
+	22, // 14: firelynx.settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
+	22, // 15: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
+	22, // 16: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
+	13, // 17: firelynx.settings.v1alpha1.Endpoint.routes:type_name -> firelynx.settings.v1alpha1.Route
+	20, // 18: firelynx.settings.v1alpha1.Route.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
+	15, // 19: firelynx.settings.v1alpha1.AppDefinition.script:type_name -> firelynx.settings.v1alpha1.AppScript
+	19, // 20: firelynx.settings.v1alpha1.AppDefinition.composite_script:type_name -> firelynx.settings.v1alpha1.AppCompositeScript
+	20, // 21: firelynx.settings.v1alpha1.AppScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
+	16, // 22: firelynx.settings.v1alpha1.AppScript.risor:type_name -> firelynx.settings.v1alpha1.RisorEvaluator
+	17, // 23: firelynx.settings.v1alpha1.AppScript.starlark:type_name -> firelynx.settings.v1alpha1.StarlarkEvaluator
+	18, // 24: firelynx.settings.v1alpha1.AppScript.extism:type_name -> firelynx.settings.v1alpha1.ExtismEvaluator
+	22, // 25: firelynx.settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
+	22, // 26: firelynx.settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
+	20, // 27: firelynx.settings.v1alpha1.AppCompositeScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
+	21, // 28: firelynx.settings.v1alpha1.StaticData.data:type_name -> firelynx.settings.v1alpha1.StaticData.DataEntry
+	2,  // 29: firelynx.settings.v1alpha1.StaticData.merge_mode:type_name -> firelynx.settings.v1alpha1.StaticDataMergeMode
+	23, // 30: firelynx.settings.v1alpha1.StaticData.DataEntry.value:type_name -> google.protobuf.Value
+	3,  // 31: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:input_type -> firelynx.settings.v1alpha1.UpdateConfigRequest
+	5,  // 32: firelynx.settings.v1alpha1.ConfigService.GetConfig:input_type -> firelynx.settings.v1alpha1.GetConfigRequest
+	4,  // 33: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:output_type -> firelynx.settings.v1alpha1.UpdateConfigResponse
+	6,  // 34: firelynx.settings.v1alpha1.ConfigService.GetConfig:output_type -> firelynx.settings.v1alpha1.GetConfigResponse
+	33, // [33:35] is the sub-list for method output_type
+	31, // [31:33] is the sub-list for method input_type
+	31, // [31:31] is the sub-list for extension type_name
+	31, // [31:31] is the sub-list for extension extendee
+	0,  // [0:31] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_settings_proto_init() }
