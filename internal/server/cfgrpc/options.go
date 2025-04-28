@@ -12,7 +12,7 @@ type Option func(*Runner)
 func WithLogHandler(handler slog.Handler) Option {
 	return func(r *Runner) {
 		if handler != nil {
-			r.logger = slog.New(handler)
+			r.logger = slog.New(handler).WithGroup("cfgrpc.Runner")
 		}
 	}
 }

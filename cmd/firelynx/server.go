@@ -39,7 +39,7 @@ var serverCmd = &cli.Command{
 		logHandler := logger.Handler()
 
 		cManager, err := cfgrpc.New(
-			cfgrpc.WithLogHandler(logHandler.WithGroup("cfgrpc")),
+			cfgrpc.WithLogHandler(logHandler),
 			cfgrpc.WithListenAddr(listenAddr),
 			cfgrpc.WithConfigPath(configPath),
 		)
@@ -48,7 +48,7 @@ var serverCmd = &cli.Command{
 		}
 
 		serverCore, err := core.New(
-			core.WithLogHandler(logHandler.WithGroup("core")),
+			core.WithLogHandler(logHandler),
 			core.WithConfigCallback(cManager.GetConfigClone),
 		)
 		if err != nil {
@@ -61,7 +61,7 @@ var serverCmd = &cli.Command{
 			serverCore,
 		}
 		super, err := supervisor.New(
-			supervisor.WithLogHandler(logHandler.WithGroup("supervisor")),
+			supervisor.WithLogHandler(logHandler),
 			supervisor.WithRunnables(runnables...),
 			supervisor.WithContext(ctx),
 		)
