@@ -208,6 +208,7 @@ func (r *Runner) UpdateConfig(
 	case r.reloadCh <- struct{}{}:
 		r.logger.Info("Reload notification sent")
 	default:
+		// TODO: consider removing the default case to provide back pressure instead of dropping reload triggers
 		r.logger.Warn("Reload notification channel full, skipping")
 	}
 

@@ -1,35 +1,12 @@
 // Package apps provides interfaces and registry for application handlers
 package apps
 
-import (
-	"context"
-	"net/http"
-)
-
-// App is the interface that all application handlers must implement
-type App interface {
-	// ID returns the unique identifier of the application
-	ID() string
-
-	// HandleHTTP processes HTTP requests
-	HandleHTTP(context.Context, http.ResponseWriter, *http.Request, map[string]any) error
-}
-
-// Registry maintains a collection of applications
-type Registry interface {
-	// GetApp retrieves an application by ID
-	GetApp(id string) (App, bool)
-
-	// RegisterApp adds or replaces an application in the registry
-	RegisterApp(app App) error
-
-	// UnregisterApp removes an application from the registry
-	UnregisterApp(id string) error
-}
+import "sync"
 
 // SimpleRegistry is a basic implementation of the Registry interface
 type SimpleRegistry struct {
-	apps map[string]App
+	apps  map[string]App
+	mutex sync.RWMutex
 }
 
 // NewSimpleRegistry creates a new SimpleRegistry
@@ -41,18 +18,24 @@ func NewSimpleRegistry() *SimpleRegistry {
 
 // GetApp retrieves an application by ID
 func (r *SimpleRegistry) GetApp(id string) (App, bool) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	app, ok := r.apps[id]
 	return app, ok
 }
 
 // RegisterApp adds or replaces an application in the registry
 func (r *SimpleRegistry) RegisterApp(app App) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	r.apps[app.ID()] = app
 	return nil
 }
 
 // UnregisterApp removes an application from the registry
 func (r *SimpleRegistry) UnregisterApp(id string) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 	delete(r.apps, id)
 	return nil
 }
