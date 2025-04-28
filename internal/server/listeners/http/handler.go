@@ -13,8 +13,8 @@ import (
 // AppHandler is a http.Handler that dispatches requests to the appropriate app handler
 type AppHandler struct {
 	registry apps.Registry
-	logger   *slog.Logger
 	routes   []Route
+	logger   *slog.Logger
 }
 
 // Route represents a mapping from a path pattern to an app
@@ -32,7 +32,7 @@ func NewAppHandler(registry apps.Registry, routes []Route, logger *slog.Logger) 
 
 	return &AppHandler{
 		registry: registry,
-		logger:   logger.With("component", "http.AppHandler"),
+		logger:   logger.WithGroup("http.AppHandler"),
 		routes:   routes,
 	}
 }
@@ -40,8 +40,9 @@ func NewAppHandler(registry apps.Registry, routes []Route, logger *slog.Logger) 
 // ServeHTTP implements the http.Handler interface
 func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
+	logger := h.logger.With("path", path)
 
-	h.logger.Debug("Handling request", "method", r.Method, "path", path)
+	logger.DebugContext(r.Context(), "Handling request", "method", r.Method)
 
 	// Find matching route
 	var matchedRoute *Route
@@ -55,28 +56,27 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if matchedRoute == nil {
-		h.logger.Warn("No route found", "path", path)
+		h.logger.WarnContext(r.Context(), "No route found")
 		http.NotFound(w, r)
 		return
 	}
 
-	h.logger.Debug("Route matched", "path", matchedRoute.Path, "appID", matchedRoute.AppID)
+	logger = logger.With("matchedRoute", matchedRoute.Path, "appID", matchedRoute.AppID)
+	logger.DebugContext(r.Context(), "Route matched")
 
 	// Get the app from registry
 	app, found := h.registry.GetApp(matchedRoute.AppID)
 	if !found {
-		h.logger.Error("App not found", "appID", matchedRoute.AppID)
-		http.Error(
-			w,
+		logger.ErrorContext(r.Context(), "App not found")
+		http.Error(w,
 			fmt.Sprintf("Application %s not configured", matchedRoute.AppID),
-			http.StatusInternalServerError,
-		)
+			http.StatusInternalServerError)
 		return
 	}
 
 	// Handle the request with the app
 	if err := app.HandleHTTP(r.Context(), w, r, matchedRoute.StaticData); err != nil {
-		h.logger.Error("App handler error", "appID", matchedRoute.AppID, "error", err)
+		logger.ErrorContext(r.Context(), "App handler error")
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
