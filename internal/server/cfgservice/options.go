@@ -1,5 +1,4 @@
-// filepath: /Users/rterhaar/Dropbox/research/golang/firelynx/internal/server/cfgrpc/options.go
-package cfgrpc
+package cfgservice
 
 import (
 	"log/slog"
@@ -40,12 +39,12 @@ func WithConfigPath(path string) Option {
 	}
 }
 
-// WithGRPCServerStarter sets a custom function to start the gRPC server.
-// This is primarily used for testing.
-func WithGRPCServerStarter(starter StartGRPCServerFunc) Option {
+// WithGRPCServer sets a custom GRPCServer instance for testing.
+// This allows providing a mock implementation of the GRPCServer interface.
+func WithGRPCServer(server GRPCServer) Option {
 	return func(r *Runner) {
-		if starter != nil {
-			r.startGRPCServer = starter
+		if server != nil {
+			r.grpcServer = server
 		}
 	}
 }

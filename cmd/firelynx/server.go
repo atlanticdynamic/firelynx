@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/atlanticdynamic/firelynx/internal/server/cfgrpc"
+	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice"
 	"github.com/atlanticdynamic/firelynx/internal/server/core"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"github.com/urfave/cli/v3"
@@ -38,10 +38,10 @@ var serverCmd = &cli.Command{
 		logger := slog.Default()
 		logHandler := logger.Handler()
 
-		cManager, err := cfgrpc.New(
-			cfgrpc.WithLogHandler(logHandler),
-			cfgrpc.WithListenAddr(listenAddr),
-			cfgrpc.WithConfigPath(configPath),
+		cManager, err := cfgservice.New(
+			cfgservice.WithLogHandler(logHandler),
+			cfgservice.WithListenAddr(listenAddr),
+			cfgservice.WithConfigPath(configPath),
 		)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to create config manager: %w", err), 1)

@@ -1,4 +1,8 @@
-package cfgrpc
+// Runner manages configuration state and serves a gRPC API for clients to retrieve
+// and update the configuration. It integrates with the supervisor package for
+// lifecycle management, and implements the ReloadSender interface to allow
+// subscribers to detect configuration changes.
+package cfgservice
 
 import (
 	"context"
@@ -8,15 +12,12 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice/server"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
-
-// Runner implements the configuration management functionality
-// and serves as a gRPC server for configuration updates.
-// It implements the supervisor.Runnable interface for lifecycle management.
 
 // Interface guard: ensure Runner implements supervisor.Runnable
 var (
@@ -35,9 +36,6 @@ type Runner struct {
 	grpcServer GRPCServer
 	listenAddr string
 
-	// Function to start gRPC server, can be replaced for testing
-	startGRPCServer StartGRPCServerFunc
-
 	// Initial config path
 	configPath string
 
@@ -45,12 +43,11 @@ type Runner struct {
 	reloadCh chan struct{}
 }
 
-// New creates a new Runner instance with the provided options
+// New creates a new Runner instance with the provided functional options.
 func New(opts ...Option) (*Runner, error) {
 	r := &Runner{
-		logger:          slog.Default(),
-		reloadCh:        make(chan struct{}, 1),
-		startGRPCServer: DefaultStartGRPCServer,
+		logger:   slog.Default(),
+		reloadCh: make(chan struct{}, 1),
 	}
 
 	// Apply all provided options
@@ -66,11 +63,15 @@ func New(opts ...Option) (*Runner, error) {
 	return r, nil
 }
 
-func (cm *Runner) String() string {
+func (r *Runner) String() string {
 	return "cfgrpc.Runner"
 }
 
-// Run implements the Runnable interface and starts the Runner
+// Run starts the configuration service and blocks until the context is canceled.
+// It first initializes with an empty configuration, attempts to load from disk
+// if a config path was provided, and finally starts the gRPC server if a listen
+// address was configured. This ordering ensures we have a valid configuration
+// before accepting client connections.
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting Runner")
 
@@ -97,8 +98,13 @@ func (r *Runner) Run(ctx context.Context) error {
 	// Start gRPC server if listen address is provided
 	if r.listenAddr != "" {
 		var err error
-		r.grpcServer, err = r.startGRPCServer(r.logger, r.listenAddr, r)
+		r.grpcServer, err = server.NewGRPCManager(r.logger, r.listenAddr, r)
 		if err != nil {
+			return err
+		}
+
+		// Start the server with the current context
+		if err = r.grpcServer.Start(ctx); err != nil {
 			return err
 		}
 	}
@@ -110,7 +116,9 @@ func (r *Runner) Run(ctx context.Context) error {
 	return nil
 }
 
-// Stop implements the Runnable interface and stops the Runner
+// Stop gracefully shuts down the gRPC server if one is running.
+// A lock is held during the entire shutdown to prevent concurrent modifications
+// to the configuration while the server is shutting down.
 func (r *Runner) Stop() {
 	r.configMu.Lock()
 	defer r.configMu.Unlock()
@@ -126,8 +134,11 @@ func (r *Runner) Stop() {
 	// TODO: add local context
 }
 
-// GetConfigClone returns a deep copy of the current configuration, to avoid external modification.
-// (this is different from the gRPC GetConfig method)
+// GetConfigClone returns a deep copy of the current configuration.
+// We use a deep copy rather than returning the original to prevent callers
+// from modifying the internal state of the Runner. This maintains encapsulation
+// and thread safety. If the config is nil, a minimal valid config is returned
+// rather than nil to simplify client code.
 func (r *Runner) GetConfigClone() *pb.ServerConfig {
 	r.configMu.RLock()
 	cfg := r.config
@@ -146,14 +157,14 @@ func (r *Runner) GetConfigClone() *pb.ServerConfig {
 	return proto.Clone(cfg).(*pb.ServerConfig)
 }
 
-// GetReloadTrigger returns a channel that will be notified when a reload is triggered.
-// This implements the supervisor.ReloadSender interface, to trigger a reload when the config is
-// received.
+// GetReloadTrigger implements the supervisor.ReloadSender interface.
+// It exposes a channel that receives notifications whenever the configuration
+// is updated, allowing systems to react to configuration changes without polling.
 func (r *Runner) GetReloadTrigger() <-chan struct{} {
 	return r.reloadCh
 }
 
-// loadInitialConfig loads the initial configuration from the provided path
+// loadInitialConfig attempts to load configuration from disk at startup.
 func (r *Runner) loadInitialConfig() error {
 	r.logger.Info("Loading initial configuration", "path", r.configPath)
 
@@ -176,7 +187,8 @@ func (r *Runner) loadInitialConfig() error {
 	return nil
 }
 
-// UpdateConfig implements the ConfigService UpdateConfig RPC method
+// UpdateConfig handles requests to update the configuration via gRPC.
+// It performs validation in domain model space before accepting the update.
 func (r *Runner) UpdateConfig(
 	ctx context.Context,
 	req *pb.UpdateConfigRequest,
@@ -219,7 +231,8 @@ func (r *Runner) UpdateConfig(
 	}, nil
 }
 
-// GetConfig implements the ConfigService GetConfig RPC method
+// GetConfig responds to gRPC requests for the current configuration.
+// It returns a deep copy to prevent clients from modifying the server's state.
 func (r *Runner) GetConfig(
 	ctx context.Context,
 	req *pb.GetConfigRequest,
