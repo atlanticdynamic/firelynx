@@ -28,7 +28,7 @@ func TestSimpleRegistry_GetApp(t *testing.T) {
 	assert.Nil(t, app, "App should be nil")
 
 	// Add an app and test getting it
-	testApp := mocks.New("test-app")
+	testApp := mocks.NewMockApp("test-app")
 	registry.apps["test-app"] = testApp
 
 	app, exists = registry.GetApp("test-app")
@@ -40,7 +40,7 @@ func TestSimpleRegistry_RegisterApp(t *testing.T) {
 	registry := New()
 
 	// Register a new app
-	testApp := mocks.New("test-app")
+	testApp := mocks.NewMockApp("test-app")
 	err := registry.RegisterApp(testApp)
 	require.NoError(t, err, "RegisterApp should not return an error")
 
@@ -51,7 +51,7 @@ func TestSimpleRegistry_RegisterApp(t *testing.T) {
 	assert.Equal(t, testApp, app, "Registered app should match the stored app")
 
 	// Register a different app with the same ID
-	replacementApp := mocks.New("test-app")
+	replacementApp := mocks.NewMockApp("test-app")
 	err = registry.RegisterApp(replacementApp)
 	require.NoError(t, err, "RegisterApp should not return an error when replacing an app")
 
@@ -67,8 +67,8 @@ func TestSimpleRegistry_UnregisterApp(t *testing.T) {
 	registry := New()
 
 	// Add some apps
-	testApp1 := mocks.New("test-app-1")
-	testApp2 := mocks.New("test-app-2")
+	testApp1 := mocks.NewMockApp("test-app-1")
+	testApp2 := mocks.NewMockApp("test-app-2")
 	registry.apps["test-app-1"] = testApp1
 	registry.apps["test-app-2"] = testApp2
 
@@ -105,7 +105,7 @@ func TestSimpleRegistry_Concurrency(t *testing.T) {
 				appID := fmt.Sprintf("app-%d-%d", routineID, j%10)
 
 				// Register app
-				app := mocks.New(appID)
+				app := mocks.NewMockApp(appID)
 				err := registry.RegisterApp(app)
 				assert.NoError(t, err, "RegisterApp should not error under concurrent access")
 
