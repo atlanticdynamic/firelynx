@@ -1,4 +1,4 @@
-package cfgrpc
+package server
 
 import (
 	"context"
@@ -66,85 +66,105 @@ func TestLoaderInterface(t *testing.T) {
 	var _ loader.Loader = &testLoader{}
 }
 
-// TestDefaultStartGRPCServer_Success tests that the DefaultStartGRPCServer function
-// correctly starts a gRPC server with a valid address
-func TestDefaultStartGRPCServer_Success(t *testing.T) {
+// TestGRPCServer_Success tests that the Server struct properly implements the cfgservice.GRPCServer interface
+// and can be successfully created and started with a valid address
+func TestGRPCServer_Success(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	// Use a random port for testing to avoid conflicts
 	listenAddr := "localhost:0"
 
 	// Create a mock server implementation
-	server := new(testConfigServer)
+	mockConfigServer := new(testConfigServer)
 	version := "v1"
 	response := &pb.GetConfigResponse{
 		Config: &pb.ServerConfig{
 			Version: &version,
 		},
 	}
-	server.On("GetConfig", mock.Anything, mock.Anything).Return(response, nil)
+	mockConfigServer.On("GetConfig", mock.Anything, mock.Anything).Return(response, nil)
 
-	// Start the gRPC server
-	grpcServer, err := DefaultStartGRPCServer(logger, listenAddr, server)
+	// Create the server implementation
+	srv, err := NewGRPCManager(logger, listenAddr, mockConfigServer)
 
-	// Verify the server started successfully
+	// Verify the server was created successfully
 	require.NoError(t, err)
-	require.NotNil(t, grpcServer)
+	require.NotNil(t, srv)
+
+	// No need to verify interface implementation, it's in the same package
+
+	// Start the server
+	ctx := context.Background()
+	err = srv.Start(ctx)
+	require.NoError(t, err)
+
+	// Verify we can get the listen address
+	addr := srv.GetListenAddress()
+	assert.NotEmpty(t, addr)
 
 	// Cleanup at the end of the test
-	defer grpcServer.GracefulStop()
-
-	// The test would need to make a real connection to test further, which
-	// we'll verify in a more comprehensive test below
+	defer srv.GracefulStop()
 }
 
-// TestDefaultStartGRPCServer_InvalidAddress tests that the function returns
-// an error when given an invalid address
-func TestDefaultStartGRPCServer_InvalidAddress(t *testing.T) {
+// TestGRPCServer_InvalidAddress tests that the constructor properly validates addresses
+// and returns an appropriate error when given an invalid address
+func TestGRPCServer_InvalidAddress(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	// Use an invalid address for testing
 	listenAddr := "invalid-address"
 
 	// Create a mock server implementation
-	server := new(testConfigServer)
+	mockConfigServer := new(testConfigServer)
 
 	// This should fail as the address is invalid
-	grpcServer, err := DefaultStartGRPCServer(logger, listenAddr, server)
+	grpcServer, err := NewGRPCManager(logger, listenAddr, mockConfigServer)
 
 	// Verify that we got an error and no server
 	assert.Error(t, err)
 	assert.Nil(t, grpcServer)
 }
 
-// TestDefaultStartGRPCServer_Integration tests that the server actually serves requests
-func TestDefaultStartGRPCServer_Integration(t *testing.T) {
+// TestGRPCServer_Integration tests that the server implementation correctly implements the cfgservice.GRPCServer interface
+// and properly serves requests
+func TestGRPCServer_Integration(t *testing.T) {
 	// Use bufconn for testing with a buffered connection
 	bufSize := 1024 * 1024
 	listener := bufconn.Listen(bufSize)
 
 	// Create a real test server implementation
-	server := new(testConfigServer)
+	mockConfigServer := new(testConfigServer)
 	version := "v1"
 	response := &pb.GetConfigResponse{
 		Config: &pb.ServerConfig{
 			Version: &version,
 		},
 	}
-	server.On("GetConfig", mock.Anything, mock.Anything).Return(response, nil)
+	mockConfigServer.On("GetConfig", mock.Anything, mock.Anything).Return(response, nil)
 
-	// Create gRPC server
-	grpcServer := grpc.NewServer()
+	// Create logger with no output for testing
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	// Register our mock server
-	pb.RegisterConfigServiceServer(grpcServer, server)
+	// Create our Server with a temporary listener address
+	srv, err := NewGRPCManager(logger, "localhost:0", mockConfigServer)
+	require.NoError(t, err)
 
-	// Serve in a goroutine
-	go func() {
-		if err := grpcServer.Serve(listener); err != nil {
-			t.Logf("Server error (expected during shutdown): %v", err)
-		}
-	}()
+	// Close the existing listener
+	if err := srv.listener.Close(); err != nil {
+		t.Logf("Failed to close listener: %v", err)
+	}
+
+	// Directly replace the listener
+	srv.listener = listener
+
+	// Start the server
+	ctx := context.Background()
+	if err := srv.Start(ctx); err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+
+	// Verify the server started successfully on the address
+	assert.NotEmpty(t, srv.GetListenAddress())
 
 	// Create a client using the bufconn dialer
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -180,25 +200,14 @@ func TestDefaultStartGRPCServer_Integration(t *testing.T) {
 	assert.Equal(t, version, *resp.Config.Version)
 
 	// Verify our mock was called
-	server.AssertCalled(t, "GetConfig", mock.Anything, mock.Anything)
+	mockConfigServer.AssertCalled(t, "GetConfig", mock.Anything, mock.Anything)
 
 	// Clean up
-	grpcServer.GracefulStop()
+	srv.GracefulStop()
 }
 
-// TestGRPCServerInterface tests that the grpc.Server implements our GRPCServer interface
-func TestGRPCServerInterface(t *testing.T) {
-	// Create a gRPC server
-	server := grpc.NewServer()
-
-	// Check that it implements our interface
-	var _ GRPCServer = server
-
-	// No actual assertions needed - this will fail to compile if the interface isn't implemented
-	assert.NotNil(t, server, "Server should not be nil")
-}
-
-// TestClientServerCommunication tests the client-server interaction over various network types
+// TestClientServerCommunication tests that the server implementation correctly implements GRPCServer
+// and properly handles client-server interactions over various network types
 func TestClientServerCommunication(t *testing.T) {
 	// Create test cases for different connection types
 	testCases := []struct {
@@ -246,28 +255,40 @@ func TestClientServerCommunication(t *testing.T) {
 			}
 			mockServer.On("UpdateConfig", mock.Anything, mock.Anything).Return(updateResponse, nil)
 
-			// Create and start the server
-			listener := tc.listener()
-			grpcServer := grpc.NewServer()
-			pb.RegisterConfigServiceServer(grpcServer, mockServer)
+			// Create our Server with a temporary listener address
+			logger := slog.Default()
+			srv, err := NewGRPCManager(logger, "localhost:0", mockServer)
+			require.NoError(t, err)
 
-			// Start server in background
-			go func() {
-				if err := grpcServer.Serve(listener); err != nil {
-					t.Logf("Server error (expected during shutdown): %v", err)
-				}
-			}()
+			// Create our test listener
+			testListener := tc.listener()
+
+			// Close the existing listener
+			if err := srv.listener.Close(); err != nil {
+				t.Logf("Failed to close listener: %v", err)
+			}
+
+			// Directly replace the listener
+			srv.listener = testListener
+
+			// Use the server for the rest of the test
+			grpcServer := srv
+
+			// Start the server
+			ctx := context.Background()
+			err = grpcServer.Start(ctx)
+			require.NoError(t, err)
 			defer grpcServer.GracefulStop()
 
 			// Setup client connection
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			// Create the client connection
+			// Create the client connection using our bufconn dialer
 			clientConn, err := grpc.NewClient(
 				tc.dialAddr,
 				grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-					return listener.(*bufconn.Listener).Dial()
+					return testListener.(*bufconn.Listener).Dial()
 				}),
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
