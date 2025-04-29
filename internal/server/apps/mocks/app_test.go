@@ -1,4 +1,4 @@
-package mocks
+package mocks_test
 
 import (
 	"context"
@@ -7,14 +7,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+// Verify that MockApp implements the apps.App interface
+var _ apps.App = (*mocks.MockApp)(nil)
+
 func TestMockApp(t *testing.T) {
 	// Create a mock app with preset ID
-	mockApp := New("test-app")
+	mockApp := mocks.NewMockApp("test-app")
 
 	// Verify ID is set correctly
 	assert.Equal(t, "test-app", mockApp.ID())
@@ -40,7 +45,7 @@ func TestMockApp(t *testing.T) {
 	mockApp.AssertExpectations(t)
 
 	// Test with custom behavior
-	customMock := &MockApp{}
+	customMock := &mocks.MockApp{}
 	customMock.On("ID").Return("custom-id")
 	customMock.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {

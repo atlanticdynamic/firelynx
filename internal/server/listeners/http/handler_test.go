@@ -5,10 +5,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/testutil"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestAppHandler_ServeHTTP(t *testing.T) {
@@ -55,17 +54,27 @@ func TestAppHandler_ServeHTTP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock registry
-			registry := &testutil.MockRegistry{
-				Apps: make(map[string]apps.App),
-			}
+			registry := mocks.NewMockRegistry()
 
-			// Create mock app if needed
-			if tt.appID != "" {
-				app := &testutil.MockApp{
-					AppID:       tt.appID,
-					ReturnError: tt.appError,
+			// Set up expectations for all route app IDs
+			for _, route := range tt.routes {
+				if route.AppID == tt.appID && tt.appID != "" {
+					// This is an app that should exist
+					app := mocks.NewMockApp(tt.appID)
+
+					// Set up app to return the specified error when HandleHTTP is called
+					app.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+						Return(tt.appError)
+
+					// Set up registry to return the app when GetApp is called with the app ID
+					registry.On("GetApp", tt.appID).Return(app, true)
+
+					// Set up registry to register the app successfully
+					registry.On("RegisterApp", app).Return(nil)
+				} else {
+					// This is an app that should not exist or is not used in this test
+					registry.On("GetApp", route.AppID).Return(nil, false).Maybe()
 				}
-				require.NoError(t, registry.RegisterApp(app))
 			}
 
 			// Create handler
@@ -87,9 +96,18 @@ func TestAppHandler_ServeHTTP(t *testing.T) {
 			// Check app was called if expected
 			if tt.appID != "" && tt.expectedStatus == http.StatusOK {
 				app, _ := registry.GetApp(tt.appID)
-				mockApp := app.(*testutil.MockApp)
-				assert.True(t, mockApp.HandleCalled)
-				assert.Equal(t, tt.requestPath, mockApp.LastRequest.URL.Path)
+				mockApp := app.(*mocks.MockApp)
+				// Verify that HandleHTTP was called
+				mockApp.AssertCalled(
+					t,
+					"HandleHTTP",
+					mock.Anything,
+					mock.Anything,
+					mock.MatchedBy(func(r *http.Request) bool {
+						return r.URL.Path == tt.requestPath
+					}),
+					mock.Anything,
+				)
 			}
 		})
 	}
@@ -97,15 +115,17 @@ func TestAppHandler_ServeHTTP(t *testing.T) {
 
 func TestAppHandler_UpdateRoutes(t *testing.T) {
 	// Create mock registry
-	registry := &testutil.MockRegistry{
-		Apps: make(map[string]apps.App),
-	}
+	registry := mocks.NewMockRegistry()
 
 	// Create initial routes
 	initialRoutes := []Route{
 		{Path: "/test1", AppID: "app1"},
 		{Path: "/test2", AppID: "app2"},
 	}
+
+	// Set up expectations for initial routes - apps not found
+	registry.On("GetApp", "app1").Return(nil, false)
+	registry.On("GetApp", "app2").Return(nil, false)
 
 	// Create handler
 	handler := NewAppHandler(registry, initialRoutes, nil)
@@ -122,6 +142,10 @@ func TestAppHandler_UpdateRoutes(t *testing.T) {
 		{Path: "/test4", AppID: "app4"},
 	}
 	handler.UpdateRoutes(newRoutes)
+
+	// Set up expectations for new routes - apps not found
+	registry.On("GetApp", "app3").Return(nil, false)
+	registry.On("GetApp", "app4").Return(nil, false)
 
 	// Create test request for new route
 	req2 := httptest.NewRequest(http.MethodGet, "/test3", nil)

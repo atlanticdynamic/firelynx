@@ -8,6 +8,7 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func TestNewManager(t *testing.T) {
 	}{
 		{
 			name:     "valid manager",
-			registry: &testutil.MockRegistry{Apps: make(map[string]apps.App)},
+			registry: mocks.NewMockRegistry(),
 			configCallback: func() *config.Config {
 				return &config.Config{
 					Version: "v1",
@@ -49,7 +50,7 @@ func TestNewManager(t *testing.T) {
 		},
 		{
 			name:     "nil config callback",
-			registry: &testutil.MockRegistry{Apps: make(map[string]apps.App)},
+			registry: mocks.NewMockRegistry(),
 			configCallback: func() *config.Config {
 				return nil
 			},
@@ -72,11 +73,11 @@ func TestNewManager(t *testing.T) {
 
 func TestManager_Run(t *testing.T) {
 	// Create a registry with a test app
-	registry := &testutil.MockRegistry{
-		Apps: map[string]apps.App{
-			"test-app": &testutil.MockApp{AppID: "test-app"},
-		},
-	}
+	registry := mocks.NewMockRegistry()
+	// Set up the registry to return the test app
+	app := mocks.NewMockApp("test-app")
+	registry.On("GetApp", "test-app").Return(app, true)
+	// Old code with map is now handled by the mock setup above
 
 	listenPort := testutil.GetRandomListeningPort(t)
 
@@ -144,11 +145,10 @@ func TestManager_Run(t *testing.T) {
 
 func TestManager_Reload(t *testing.T) {
 	// Create a registry with a test app
-	registry := &testutil.MockRegistry{
-		Apps: map[string]apps.App{
-			"test-app": &testutil.MockApp{AppID: "test-app"},
-		},
-	}
+	registry := mocks.NewMockRegistry()
+	// Set up the registry to return the test app
+	app := mocks.NewMockApp("test-app")
+	registry.On("GetApp", "test-app").Return(app, true)
 
 	listenPort := fmt.Sprintf(":%d", testutil.GetRandomPort(t))
 

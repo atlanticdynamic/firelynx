@@ -4,8 +4,7 @@ import (
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/testutil"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -95,9 +94,7 @@ func TestRouteMapper_MapEndpoint(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock registry
-			registry := &testutil.MockRegistry{
-				Apps: make(map[string]apps.App),
-			}
+			registry := mocks.NewMockRegistry()
 
 			// Create route mapper
 			mapper := NewRouteMapper(registry, nil)
@@ -233,9 +230,7 @@ func TestRouteMapper_MapEndpointsForListener(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock registry
-			registry := &testutil.MockRegistry{
-				Apps: make(map[string]apps.App),
-			}
+			registry := mocks.NewMockRegistry()
 
 			// Create route mapper
 			mapper := NewRouteMapper(registry, nil)
