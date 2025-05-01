@@ -57,7 +57,7 @@ var serverCmd = &cli.Command{
 		}
 
 		// Create a composite runner for HTTP listeners using the core's config callback
-		listenersRunner, err := composite.NewRunner(serverCore.GetListenersConfigCallback())
+		listenersRunner, err := composite.NewRunner(serverCore.GetHTTPListenersConfigCallback())
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to create listeners runner: %w", err), 1)
 		}
