@@ -7,25 +7,25 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 )
 
-// RouteMapper maps configuration endpoints to HTTP routes
-type RouteMapper struct {
+// routeMapper maps configuration endpoints to HTTP routes
+type routeMapper struct {
 	registry apps.Registry
 	logger   *slog.Logger
 }
 
 // NewRouteMapper creates a new RouteMapper
-func NewRouteMapper(registry apps.Registry, logger *slog.Logger) *RouteMapper {
+func NewRouteMapper(registry apps.Registry, logger *slog.Logger) *routeMapper {
 	if logger == nil {
 		logger = slog.Default().With("component", "http.RouteMapper")
 	}
-	return &RouteMapper{
+	return &routeMapper{
 		registry: registry,
 		logger:   logger,
 	}
 }
 
 // MapEndpoint maps a configuration endpoint to HTTP routes
-func (m *RouteMapper) MapEndpoint(endpoint *config.Endpoint) []Route {
+func (m *routeMapper) MapEndpoint(endpoint *config.Endpoint) []Route {
 	if endpoint == nil {
 		return []Route{}
 	}
@@ -54,7 +54,7 @@ func (m *RouteMapper) MapEndpoint(endpoint *config.Endpoint) []Route {
 }
 
 // MapEndpointsForListener maps all endpoints for a listener to HTTP routes
-func (m *RouteMapper) MapEndpointsForListener(cfg *config.Config, listenerID string) []Route {
+func (m *routeMapper) MapEndpointsForListener(cfg *config.Config, listenerID string) []Route {
 	if cfg == nil {
 		return []Route{}
 	}

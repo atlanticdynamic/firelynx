@@ -62,15 +62,13 @@ func TestServerCore_New(t *testing.T) {
 		return testConfig
 	}
 
-	r, err := New(
-		WithConfigCallback(configFunc),
-	)
+	r, err := New(configFunc)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 
 	assert.NotNil(t, r.configCallback)
-	assert.NotNil(t, r.ctx)
-	assert.NotNil(t, r.cancel)
+	assert.NotNil(t, r.parentCtx)
+	assert.NotNil(t, r.parentCancel)
 	assert.NotNil(t, r.logger)
 	assert.Equal(t, r.configCallback(), testConfig)
 }
@@ -83,9 +81,7 @@ func TestServerCore_Run(t *testing.T) {
 		return testConfig
 	}
 
-	r, err := New(
-		WithConfigCallback(configFunc),
-	)
+	r, err := New(configFunc)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 
@@ -106,9 +102,7 @@ func TestServerCore_Reload(t *testing.T) {
 		return currentConfig
 	}
 
-	r, err := New(
-		WithConfigCallback(configFunc),
-	)
+	r, err := New(configFunc)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 
@@ -145,9 +139,7 @@ func TestServerCore_Stop(t *testing.T) {
 		return testConfig
 	}
 
-	r, err := New(
-		WithConfigCallback(configFunc),
-	)
+	r, err := New(configFunc)
 	require.NoError(t, err)
 	assert.NotNil(t, r)
 

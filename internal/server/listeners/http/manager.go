@@ -22,7 +22,7 @@ var (
 type Manager struct {
 	logger      *slog.Logger
 	registry    apps.Registry
-	routeMapper *RouteMapper
+	routeMapper *routeMapper
 	runner      *composite.Runner[*Listener]
 }
 

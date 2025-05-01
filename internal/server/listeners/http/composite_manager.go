@@ -20,7 +20,7 @@ import (
 type CompositeManager struct {
 	logger          *slog.Logger
 	registry        apps.Registry
-	routeMapper     *RouteMapper
+	routeMapper     *routeMapper
 	compositeRunner *composite.Runner[*wrapper.HttpServer]
 	mutex           sync.Mutex
 
