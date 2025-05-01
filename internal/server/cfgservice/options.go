@@ -28,14 +28,18 @@ func WithLogger(logger *slog.Logger) Option {
 // WithListenAddr sets the address for the gRPC server to listen on.
 func WithListenAddr(addr string) Option {
 	return func(r *Runner) {
-		r.listenAddr = addr
+		if addr != "" {
+			r.listenAddr = addr
+		}
 	}
 }
 
 // WithConfigPath sets the path to the configuration file.
 func WithConfigPath(path string) Option {
 	return func(r *Runner) {
-		r.configPath = path
+		if path != "" {
+			r.configPath = path
+		}
 	}
 }
 
