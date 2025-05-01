@@ -1,6 +1,7 @@
 package http
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
@@ -95,6 +96,15 @@ func TestRouteMapper_MapEndpoint(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock registry
 			registry := mocks.NewMockRegistry()
+
+			// Set up mock expectations for app IDs in routes
+			// This is the key fix - we need to set up expectations for all HTTP routes
+			for _, route := range tt.endpoint.Routes {
+				// Only setup expectations for HTTP path conditions
+				if _, isHTTP := route.Condition.(config.HTTPPathCondition); isHTTP {
+					registry.On("GetApp", route.AppID).Return(struct{}{}, true)
+				}
+			}
 
 			// Create route mapper
 			mapper := NewRouteMapper(registry, nil)
@@ -231,6 +241,22 @@ func TestRouteMapper_MapEndpointsForListener(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock registry
 			registry := mocks.NewMockRegistry()
+
+			// Set up mock expectations for all app IDs in the endpoints that match the listener ID
+			for _, endpoint := range tt.config.Endpoints {
+				// Only process endpoints for this listener
+				if !slices.Contains(endpoint.ListenerIDs, tt.listenerID) {
+					continue
+				}
+
+				// Set up expectations for all HTTP routes in this endpoint
+				for _, route := range endpoint.Routes {
+					// Only setup expectations for HTTP path conditions
+					if _, isHTTP := route.Condition.(config.HTTPPathCondition); isHTTP {
+						registry.On("GetApp", route.AppID).Return(struct{}{}, true)
+					}
+				}
+			}
 
 			// Create route mapper
 			mapper := NewRouteMapper(registry, nil)

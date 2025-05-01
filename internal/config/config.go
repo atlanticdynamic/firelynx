@@ -25,47 +25,6 @@ type Config struct {
 	rawProto any
 }
 
-// Listener represents a network listener configuration
-type Listener struct {
-	ID      string
-	Address string
-	Type    ListenerType
-	Options ListenerOptions
-}
-
-// ListenerType represents the protocol used by a listener
-type ListenerType string
-
-// Constants for ListenerType
-const (
-	ListenerTypeHTTP ListenerType = "http"
-	ListenerTypeGRPC ListenerType = "grpc"
-)
-
-// ListenerOptions represents protocol-specific options for listeners
-type ListenerOptions interface {
-	Type() ListenerType
-}
-
-// HTTPListenerOptions contains HTTP-specific listener configuration
-type HTTPListenerOptions struct {
-	ReadTimeout  *durationpb.Duration
-	WriteTimeout *durationpb.Duration
-	DrainTimeout *durationpb.Duration
-	IdleTimeout  *durationpb.Duration
-}
-
-func (h HTTPListenerOptions) Type() ListenerType { return ListenerTypeHTTP }
-
-// GRPCListenerOptions contains gRPC-specific listener configuration
-type GRPCListenerOptions struct {
-	MaxConnectionIdle    *durationpb.Duration
-	MaxConnectionAge     *durationpb.Duration
-	MaxConcurrentStreams int
-}
-
-func (g GRPCListenerOptions) Type() ListenerType { return ListenerTypeGRPC }
-
 // Endpoint represents a routing configuration for incoming requests
 type Endpoint struct {
 	ID          string

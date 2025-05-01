@@ -8,60 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
-
-func TestFromConfig(t *testing.T) {
-	tests := []struct {
-		name        string
-		config      *config.Listener
-		handler     http.Handler
-		expectError bool
-	}{
-		{
-			name: "valid HTTP listener",
-			config: &config.Listener{
-				ID:      "test",
-				Type:    config.ListenerTypeHTTP,
-				Address: ":8080",
-				Options: config.HTTPListenerOptions{
-					ReadTimeout:  durationpb.New(5 * time.Second),
-					WriteTimeout: durationpb.New(10 * time.Second),
-				},
-			},
-			handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
-		},
-		{
-			name: "non-HTTP listener",
-			config: &config.Listener{
-				ID:      "test",
-				Type:    "grpc",
-				Address: ":8080",
-			},
-			handler:     http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}),
-			expectError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			l, err := FromConfig(tt.config, tt.handler)
-			if tt.expectError {
-				assert.Error(t, err)
-				assert.Nil(t, l)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, l)
-				assert.Equal(t, tt.config.ID, l.id)
-				assert.Equal(t, tt.config.Address, l.address)
-			}
-		})
-	}
-}
 
 func TestListener_Run(t *testing.T) {
 	// Skip actual HTTP tests in short mode
@@ -81,19 +31,16 @@ func TestListener_Run(t *testing.T) {
 	// Get a free port
 	port := testutil.GetRandomPort(t)
 
-	// Create a listener with proper options and the assigned port
-	cfg := &config.Listener{
-		ID:      "test",
-		Type:    config.ListenerTypeHTTP,
-		Address: fmt.Sprintf("localhost:%d", port),
-		Options: config.HTTPListenerOptions{
-			ReadTimeout:  durationpb.New(5 * time.Second),
-			WriteTimeout: durationpb.New(10 * time.Second),
-			DrainTimeout: durationpb.New(30 * time.Second),
-		},
+	// Create a listener with our ListenerOptions
+	opts := ListenerOptions{
+		ID:           "test",
+		Address:      fmt.Sprintf("localhost:%d", port),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		DrainTimeout: 30 * time.Second,
 	}
 
-	l, err := FromConfig(cfg, handler)
+	l, err := NewListener(handler, opts)
 	require.NoError(t, err)
 
 	// Create a context that we can cancel
@@ -143,16 +90,13 @@ func TestListener_UpdateHandler(t *testing.T) {
 	// Get a free port
 	port := testutil.GetRandomPort(t)
 
-	// Create listener with proper options and the assigned port
-	cfg := &config.Listener{
-		ID:      "test",
-		Type:    config.ListenerTypeHTTP,
-		Address: fmt.Sprintf("localhost:%d", port),
-		Options: config.HTTPListenerOptions{
-			ReadTimeout:  durationpb.New(5 * time.Second),
-			WriteTimeout: durationpb.New(10 * time.Second),
-			DrainTimeout: durationpb.New(30 * time.Second),
-		},
+	// Create listener with our ListenerOptions
+	opts := ListenerOptions{
+		ID:           "test",
+		Address:      fmt.Sprintf("localhost:%d", port),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		DrainTimeout: 30 * time.Second,
 	}
 
 	// Create initial handler
@@ -164,7 +108,7 @@ func TestListener_UpdateHandler(t *testing.T) {
 		}
 	})
 
-	l, err := FromConfig(cfg, initialHandler)
+	l, err := NewListener(initialHandler, opts)
 	require.NoError(t, err)
 
 	// Create a context that we can cancel

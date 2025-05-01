@@ -7,42 +7,52 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 )
 
-// routeMapper maps configuration endpoints to HTTP routes
-type routeMapper struct {
+// Route is an alias to RouteConfig for backward compatibility
+type Route = RouteConfig
+
+// RouteMapper maps configuration endpoints to HTTP routes
+type RouteMapper struct {
 	registry apps.Registry
 	logger   *slog.Logger
 }
 
 // NewRouteMapper creates a new RouteMapper
-func NewRouteMapper(registry apps.Registry, logger *slog.Logger) *routeMapper {
+func NewRouteMapper(registry apps.Registry, logger *slog.Logger) *RouteMapper {
 	if logger == nil {
 		logger = slog.Default().With("component", "http.RouteMapper")
 	}
-	return &routeMapper{
+	return &RouteMapper{
 		registry: registry,
 		logger:   logger,
 	}
 }
 
 // MapEndpoint maps a configuration endpoint to HTTP routes
-func (m *routeMapper) MapEndpoint(endpoint *config.Endpoint) []Route {
+func (m *RouteMapper) MapEndpoint(endpoint *config.Endpoint) []RouteConfig {
 	if endpoint == nil {
-		return []Route{}
+		return []RouteConfig{}
 	}
 
-	var routes []Route
+	var routes []RouteConfig
 
 	// Process each route in the endpoint
 	for _, r := range endpoint.Routes {
-		// Check for HTTP path condition
-		httpCond, ok := r.Condition.(config.HTTPPathCondition)
+		// Skip non-HTTP routes
+		pathCond, ok := r.Condition.(config.HTTPPathCondition)
 		if !ok {
+			m.logger.Debug("Skipping non-HTTP route condition", "endpoint", endpoint.ID)
 			continue
 		}
 
-		// Create route
-		route := Route{
-			Path:       httpCond.Path,
+		// Check if app exists in registry
+		if _, exists := m.registry.GetApp(r.AppID); !exists {
+			m.logger.Warn("Skipping route for unknown app", "endpoint", endpoint.ID, "app", r.AppID)
+			continue
+		}
+
+		// Create a new Route entry
+		route := RouteConfig{
+			Path:       pathCond.Path,
 			AppID:      r.AppID,
 			StaticData: r.StaticData,
 		}
@@ -54,39 +64,60 @@ func (m *routeMapper) MapEndpoint(endpoint *config.Endpoint) []Route {
 }
 
 // MapEndpointsForListener maps all endpoints for a listener to HTTP routes
-func (m *routeMapper) MapEndpointsForListener(cfg *config.Config, listenerID string) []Route {
+// This is an alias for MapRoutesFromDomainConfig for backward compatibility
+func (m *RouteMapper) MapEndpointsForListener(cfg *config.Config, listenerID string) []Route {
+	return m.MapRoutesFromDomainConfig(cfg, listenerID)
+}
+
+// MapRoutesFromDomainConfig maps all endpoints from domain config to HTTP routes for specific listener
+func (m *RouteMapper) MapRoutesFromDomainConfig(
+	cfg *config.Config,
+	listenerID string,
+) []RouteConfig {
+	var allRoutes []RouteConfig
+
+	// Get all endpoints that reference this listener
 	if cfg == nil {
-		return []Route{}
+		m.logger.Warn("Received nil configuration", "listenerID", listenerID)
+		return nil
 	}
 
-	var allRoutes []Route
+	m.logger.Debug(
+		"Mapping endpoints for listener",
+		"listenerID",
+		listenerID,
+		"endpoints",
+		len(cfg.Endpoints),
+	)
 
-	// Find all endpoints for this listener
-	for _, e := range cfg.Endpoints {
-		// Check if this endpoint is for the specified listener
-		hasListener := false
-		for _, id := range e.ListenerIDs {
+	// Filter endpoints for this listener
+	for _, endpoint := range cfg.Endpoints {
+		// Check if this endpoint references the listener
+		includesListener := false
+		for _, id := range endpoint.ListenerIDs {
 			if id == listenerID {
-				hasListener = true
+				includesListener = true
 				break
 			}
 		}
 
-		if !hasListener {
+		if !includesListener {
 			continue
 		}
 
-		// Map the endpoint routes
-		routes := m.MapEndpoint(&e)
+		m.logger.Debug(
+			"Including endpoint for listener",
+			"listenerID",
+			listenerID,
+			"endpointID",
+			endpoint.ID,
+		)
+
+		// Map endpoint to routes
+		routes := m.MapEndpoint(&endpoint)
 		allRoutes = append(allRoutes, routes...)
 	}
 
-	m.logger.Info(
-		"Mapped routes for listener",
-		"listenerID",
-		listenerID,
-		"routeCount",
-		len(allRoutes),
-	)
+	m.logger.Debug("Mapped routes for listener", "listenerID", listenerID, "routes", len(allRoutes))
 	return allRoutes
 }

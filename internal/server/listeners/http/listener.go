@@ -7,25 +7,29 @@ import (
 	"log/slog"
 	"net/http"
 	"time"
-
-	"github.com/atlanticdynamic/firelynx/internal/config"
 )
 
-// Default timeouts for HTTP servers
-const (
-	DefaultReadTimeout  = 5 * time.Second
-	DefaultWriteTimeout = 10 * time.Second
-	DefaultIdleTimeout  = 120 * time.Second
-)
+// ListenerOptions contains configuration for a HTTP server instance
+type ListenerOptions struct {
+	ID           string
+	Address      string
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	IdleTimeout  time.Duration
+	DrainTimeout time.Duration
+}
 
 // Listener represents an HTTP server instance
 type Listener struct {
-	id      string
-	address string
-	handler http.Handler
-	server  *http.Server
-	options config.HTTPListenerOptions
-	logger  *slog.Logger
+	id           string
+	address      string
+	handler      http.Handler
+	server       *http.Server
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+	idleTimeout  time.Duration
+	drainTimeout time.Duration
+	logger       *slog.Logger
 }
 
 // ListenerOption configures a Listener
@@ -38,58 +42,44 @@ func WithListenerLogger(logger *slog.Logger) ListenerOption {
 	}
 }
 
-// FromConfig creates a new Listener from configuration
-func FromConfig(
-	cfg *config.Listener,
+// NewListener creates a new Listener with the given handler and options
+func NewListener(
 	handler http.Handler,
-	opts ...ListenerOption,
+	opts ListenerOptions,
+	listenerOpts ...ListenerOption,
 ) (*Listener, error) {
-	if cfg == nil {
-		return nil, fmt.Errorf("listener config cannot be nil")
-	}
-
-	if cfg.Type != config.ListenerTypeHTTP {
-		return nil, fmt.Errorf(
-			"invalid listener type: %s, expected: %s",
-			cfg.Type,
-			config.ListenerTypeHTTP,
-		)
-	}
-
-	if cfg.ID == "" {
+	if opts.ID == "" {
 		return nil, fmt.Errorf("listener ID cannot be empty")
 	}
 
-	if cfg.Address == "" {
+	if opts.Address == "" {
 		return nil, fmt.Errorf("listener address cannot be empty")
 	}
 
-	// Type assertion for HTTP options
-	httpOptions, ok := cfg.Options.(config.HTTPListenerOptions)
-	if !ok {
-		return nil, fmt.Errorf("invalid listener options type: expected HTTPListenerOptions")
-	}
-
-	// Convert options to appropriate HTTP server settings
-
+	// Use default timeouts if not specified
 	readTimeout := DefaultReadTimeout
-	if httpOptions.ReadTimeout != nil && httpOptions.ReadTimeout.AsDuration() > 0 {
-		readTimeout = httpOptions.ReadTimeout.AsDuration()
+	if opts.ReadTimeout > 0 {
+		readTimeout = opts.ReadTimeout
 	}
 
 	writeTimeout := DefaultWriteTimeout
-	if httpOptions.WriteTimeout != nil && httpOptions.WriteTimeout.AsDuration() > 0 {
-		writeTimeout = httpOptions.WriteTimeout.AsDuration()
+	if opts.WriteTimeout > 0 {
+		writeTimeout = opts.WriteTimeout
 	}
 
 	idleTimeout := DefaultIdleTimeout
-	if httpOptions.IdleTimeout != nil && httpOptions.IdleTimeout.AsDuration() > 0 {
-		idleTimeout = httpOptions.IdleTimeout.AsDuration()
+	if opts.IdleTimeout > 0 {
+		idleTimeout = opts.IdleTimeout
+	}
+
+	drainTimeout := DefaultDrainTimeout
+	if opts.DrainTimeout > 0 {
+		drainTimeout = opts.DrainTimeout
 	}
 
 	// Create HTTP server with provided options
 	server := &http.Server{
-		Addr:         cfg.Address,
+		Addr:         opts.Address,
 		Handler:      handler,
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
@@ -99,17 +89,21 @@ func FromConfig(
 	// Default logger
 	logger := slog.Default()
 
+	// Finish creating the listener instance
 	listener := &Listener{
-		id:      cfg.ID,
-		address: cfg.Address,
-		handler: handler,
-		server:  server,
-		options: httpOptions,
-		logger:  logger,
+		id:           opts.ID,
+		address:      opts.Address,
+		handler:      handler,
+		server:       server,
+		readTimeout:  readTimeout,
+		writeTimeout: writeTimeout,
+		idleTimeout:  idleTimeout,
+		drainTimeout: drainTimeout,
+		logger:       logger,
 	}
 
-	// Apply options
-	for _, opt := range opts {
+	// Apply options to listener
+	for _, opt := range listenerOpts {
 		opt(listener)
 	}
 
@@ -148,32 +142,32 @@ func (l *Listener) Run(ctx context.Context) error {
 
 // shutdown gracefully shuts down the HTTP server with a timeout
 func (l *Listener) shutdown(parentCtx context.Context) error {
-	// Create a timeout for server shutdown based on the drain timeout
-	drainTimeout := 30 * time.Second
-	if l.options.DrainTimeout != nil && l.options.DrainTimeout.AsDuration() > 0 {
-		drainTimeout = l.options.DrainTimeout.AsDuration()
+	l.logger.Debug("Gracefully shutting down HTTP server", "id", l.id, "address", l.address)
+
+	// Create a timeout for graceful shutdown
+	shutdownTimeout := l.drainTimeout
+	if shutdownTimeout <= 0 {
+		shutdownTimeout = DefaultDrainTimeout
 	}
 
-	// Create a context with timeout for server shutdown
-	shutdownCtx, cancel := context.WithTimeout(parentCtx, drainTimeout)
+	shutdownCtx, cancel := context.WithTimeout(parentCtx, shutdownTimeout)
 	defer cancel()
 
-	// Attempt to gracefully shut down the server
+	// Attempt graceful shutdown
 	if err := l.server.Shutdown(shutdownCtx); err != nil {
-		l.logger.Error("Error during HTTP server shutdown", "error", err, "id", l.id)
-		return fmt.Errorf("error shutting down HTTP server: %w", err)
+		l.logger.Error("Failed to gracefully shutdown server", "id", l.id, "error", err)
+		return err
 	}
 
-	l.logger.Info("HTTP listener stopped", "id", l.id)
+	l.logger.Info("HTTP server shutdown complete", "id", l.id)
 	return nil
 }
 
 // Stop terminates the HTTP server
 func (l *Listener) Stop() {
 	l.logger.Info("Stopping HTTP listener", "id", l.id)
-	err := l.shutdown(context.Background())
-	if err != nil {
-		l.logger.Error("Error during HTTP server shutdown", "error", err, "id", l.id)
+	if err := l.shutdown(context.Background()); err != nil {
+		l.logger.Error("Failed to stop HTTP listener", "id", l.id, "error", err)
 	}
 }
 

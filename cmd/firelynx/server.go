@@ -7,7 +7,7 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice"
 	"github.com/atlanticdynamic/firelynx/internal/server/core"
-	"github.com/robbyt/go-supervisor/runnables/composite"
+	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"github.com/urfave/cli/v3"
 )
@@ -56,17 +56,22 @@ var serverCmd = &cli.Command{
 			return cli.Exit(fmt.Errorf("failed to create server core: %w", err), 1)
 		}
 
-		// Create a composite runner for HTTP listeners using the core's config callback
-		listenersRunner, err := composite.NewRunner(serverCore.GetHTTPListenersConfigCallback())
+		// Create an HTTP runner using the core's config callback
+		// The registry is already included in the config returned by GetHTTPConfigCallback
+		cfgCallback := serverCore.GetHTTPConfigCallback()
+		httpRunner, err := http.NewRunner(
+			cfgCallback,
+			http.WithManagerLogger(slog.Default().WithGroup("http.Runner")),
+		)
 		if err != nil {
-			return cli.Exit(fmt.Errorf("failed to create listeners runner: %w", err), 1)
+			return cli.Exit(fmt.Errorf("failed to create HTTP listener runner: %w", err), 1)
 		}
 
 		// Create a list of runnables to manage, order is important
 		runnables := []supervisor.Runnable{
 			cManager,
 			serverCore,
-			listenersRunner, // Add the composite runner for listeners
+			httpRunner, // Add the HTTP runner
 		}
 		super, err := supervisor.New(
 			supervisor.WithLogHandler(logHandler),
