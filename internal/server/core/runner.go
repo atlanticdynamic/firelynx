@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"sync"
 
-	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
@@ -27,7 +26,7 @@ var (
 	_ supervisor.Reloadable = (*Runner)(nil)
 )
 
-type configCallback func() *pb.ServerConfig
+type configCallback func() (*config.Config, error)
 
 // Runner implements the supervisor.Runnable and supervisor.Reloadable interfaces.
 type Runner struct {
@@ -105,36 +104,28 @@ func (r *Runner) Run(ctx context.Context) error {
 
 // Stop implements the Runnable interface and stops the Runner
 func (r *Runner) Stop() {
+	r.logger.Debug("Stopping Runner")
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	r.logger.Debug("Stopping Runner")
 	r.runCancel()
 	r.logger.Debug("Runner stopped")
 }
 
 // boot handles the initialization phase of the Runner by loading the initial configuration
 func (r *Runner) boot() error {
+	r.logger.Debug("Fetching initial configuration")
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	if r.configCallback == nil {
-		return fmt.Errorf("configCallback is nil")
+		return errors.New("config callback is nil")
 	}
 
-	r.logger.Debug("Fetching initial configuration")
-	serverConfig := r.configCallback()
-
-	// Handle case with nil config
-	if serverConfig == nil {
-		r.logger.Debug("No initial configuration provided, starting with empty config")
-		return nil // This is not an error, we can start with no config
-	}
-
-	// Convert the proto config to a domain config for listeners
-	domainConfig, err := config.NewFromProto(serverConfig)
+	// load the initial config from the callback provided by the cfg service
+	domainConfig, err := r.configCallback()
 	if err != nil {
-		return fmt.Errorf("failed to convert protobuf config to domain config: %w", err)
+		return fmt.Errorf("failed to load initial configuration: %w", err)
 	}
 
 	r.currentConfig = domainConfig
@@ -144,41 +135,29 @@ func (r *Runner) boot() error {
 // Reload implements the Reloadable interface and reloads the Runner with the latest configuration
 func (r *Runner) Reload() {
 	r.logger.Debug("Reloading Runner")
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
-	// Use a separate goroutine to handle the reload to avoid blocking
-	go func() {
-		r.mutex.Lock()
-		defer r.mutex.Unlock()
+	// Get latest configuration
+	if r.configCallback == nil {
+		r.logger.Error("Cannot reload: config callback is nil")
+		r.serverErrors <- errors.New("config callback is nil during reload")
+		return
+	}
 
-		// Get latest configuration
-		if r.configCallback == nil {
-			r.logger.Error("Cannot reload: config callback is nil")
-			r.serverErrors <- errors.New("config callback is nil during reload")
-			return
-		}
+	domainConfig, err := r.configCallback()
+	if err != nil {
+		r.serverErrors <- fmt.Errorf("failed to load configuration during reload: %w", err)
+		return
+	}
 
-		serverConfig := r.configCallback()
+	// Simply log when we receive an empty config
+	if domainConfig == nil {
+		r.logger.Warn("Empty configuration received during reload")
+		return
+	}
 
-		// Simply log when we receive an empty config
-		if serverConfig == nil {
-			r.logger.Info("Empty configuration received during reload")
-			// We can set currentConfig to nil to represent an empty configuration
-			r.currentConfig = nil
-			r.logger.Info("Runner reloaded with empty configuration")
-			return
-		}
-
-		// Process the configuration
-		domainConfig, err := config.NewFromProto(serverConfig)
-		if err != nil {
-			r.logger.Error("Failed to convert protobuf config to domain config", "error", err)
-			r.serverErrors <- fmt.Errorf("failed to convert config during reload: %w", err)
-			return
-		}
-
-		// Update the current config - this will be picked up by GetListenersConfigCallback
-		// when the composite runner calls it
-		r.currentConfig = domainConfig
-		r.logger.Info("Runner reloaded successfully")
-	}()
+	// Update the current config - this will be picked up by GetListenersConfigCallback
+	// when the composite runner calls it
+	r.currentConfig = domainConfig
 }

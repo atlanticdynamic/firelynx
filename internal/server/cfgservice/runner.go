@@ -75,6 +75,10 @@ func (r *Runner) String() string {
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting Runner")
 
+	if r.grpcServer != nil {
+		return errors.New("gRPC server is already running")
+	}
+
 	// Initialize with at least an empty config
 	r.configMu.Lock()
 	version := config.VersionLatest
@@ -128,18 +132,19 @@ func (r *Runner) Stop() {
 	if r.grpcServer != nil {
 		r.grpcServer.GracefulStop()
 		r.logger.Info("gRPC server stopped")
+		r.grpcServer = nil
 	}
 	// When used with the supervisor, the supervisor will cancel the context
 	// passed to Run, which will cause Run to return
 	// TODO: add local context
 }
 
-// GetConfigClone returns a deep copy of the current configuration.
+// GetPbConfigClone returns a deep copy of the current pb config object.
 // We use a deep copy rather than returning the original to prevent callers
 // from modifying the internal state of the Runner. This maintains encapsulation
 // and thread safety. If the config is nil, a minimal valid config is returned
 // rather than nil to simplify client code.
-func (r *Runner) GetConfigClone() *pb.ServerConfig {
+func (r *Runner) GetPbConfigClone() *pb.ServerConfig {
 	r.configMu.RLock()
 	cfg := r.config
 	r.configMu.RUnlock()
@@ -155,6 +160,12 @@ func (r *Runner) GetConfigClone() *pb.ServerConfig {
 	// Return a copy of the config to avoid
 	// concurrent modification issues
 	return proto.Clone(cfg).(*pb.ServerConfig)
+}
+
+// GetDomainConfig loads the current pb config, and returns a converted domain config
+func (r *Runner) GetDomainConfig() (*config.Config, error) {
+	pbConfig := r.GetPbConfigClone()
+	return config.NewFromProto(pbConfig)
 }
 
 // GetReloadTrigger implements the supervisor.ReloadSender interface.
@@ -227,7 +238,7 @@ func (r *Runner) UpdateConfig(
 	success := true
 	return &pb.UpdateConfigResponse{
 		Success: &success,
-		Config:  r.GetConfigClone(),
+		Config:  r.GetPbConfigClone(),
 	}, nil
 }
 
@@ -239,6 +250,6 @@ func (r *Runner) GetConfig(
 ) (*pb.GetConfigResponse, error) {
 	r.logger.Info("Received GetConfig request")
 	return &pb.GetConfigResponse{
-		Config: r.GetConfigClone(),
+		Config: r.GetPbConfigClone(),
 	}, nil
 }

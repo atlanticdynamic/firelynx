@@ -60,7 +60,7 @@ func TestGetConfigClone(t *testing.T) {
 		r.configMu.Unlock()
 
 		// Get a clone of the config
-		result := r.GetConfigClone()
+		result := r.GetPbConfigClone()
 		require.NotNil(t, result)
 		assert.Equal(t, testConfig, result)
 
@@ -81,7 +81,7 @@ func TestGetConfigClone(t *testing.T) {
 		r.configMu.Unlock()
 
 		// Get config clone should return a default config, not nil
-		cfg := r.GetConfigClone()
+		cfg := r.GetPbConfigClone()
 		assert.NotNil(t, cfg)
 		assert.NotNil(t, cfg.Version)
 	})
@@ -132,7 +132,7 @@ func TestUpdateConfig(t *testing.T) {
 		assert.Equal(t, validConfig, validResp.Config)
 
 		// Verify that the internal config was updated
-		result := r.GetConfigClone()
+		result := r.GetPbConfigClone()
 		assert.Equal(t, validConfig, result, "Config should be updated after successful validation")
 	})
 
@@ -189,7 +189,7 @@ func TestUpdateConfig(t *testing.T) {
 		assert.Nil(t, invalidResp)
 
 		// Verify that the internal config was NOT updated
-		result := r.GetConfigClone()
+		result := r.GetPbConfigClone()
 		assert.Equal(t, initialConfig, result, "Config should not change after failed validation")
 	})
 
@@ -244,7 +244,7 @@ func TestUpdateConfig(t *testing.T) {
 		resp.Config.Version = &newVersion
 
 		// Get the stored config
-		storedConfig := r.GetConfigClone()
+		storedConfig := r.GetPbConfigClone()
 
 		// Check that it still has the original valid version
 		assert.Equal(
@@ -319,7 +319,7 @@ func TestUpdateConfig(t *testing.T) {
 		}
 
 		// Check if the final config is correctly stored
-		storedConfig := r.GetConfigClone()
+		storedConfig := r.GetPbConfigClone()
 		assert.Equal(t, configs[2].Listeners[0].Id, storedConfig.Listeners[0].Id,
 			"Final config should match the last update")
 	})
