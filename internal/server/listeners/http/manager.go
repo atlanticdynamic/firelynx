@@ -9,6 +9,13 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/robbyt/go-supervisor/runnables/composite"
+	"github.com/robbyt/go-supervisor/supervisor"
+)
+
+// Interface guards: ensure Manager implements these interfaces
+var (
+	_ supervisor.Runnable   = (*Manager)(nil)
+	_ supervisor.Reloadable = (*Manager)(nil)
 )
 
 // Manager handles the lifecycle of multiple HTTP listeners based on configuration changes

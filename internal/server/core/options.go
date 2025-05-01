@@ -5,6 +5,8 @@ import (
 	"log/slog"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/robbyt/go-supervisor/runnables/composite"
+	"github.com/robbyt/go-supervisor/supervisor"
 )
 
 // Option represents a functional option for configuring Runner.
@@ -46,5 +48,13 @@ func WithContext(ctx context.Context) Option {
 func WithConfigCallback(callback func() *pb.ServerConfig) Option {
 	return func(r *Runner) {
 		r.configCallback = callback
+	}
+}
+
+// WithListenersRunner sets an external composite runner for HTTP listeners.
+// This allows the core to reload the listeners when configuration changes.
+func WithListenersRunner(runner *composite.Runner[supervisor.Runnable]) Option {
+	return func(r *Runner) {
+		r.listenersRunner = runner
 	}
 }

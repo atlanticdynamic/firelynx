@@ -15,6 +15,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/registry"
 	httpserver "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
+	"github.com/robbyt/go-supervisor/runnables/composite"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
 
@@ -34,11 +35,13 @@ type Runner struct {
 	configCallback func() *pb.ServerConfig
 	reloadLock     sync.Mutex
 
-	ctx         context.Context
-	cancel      context.CancelFunc
-	appRegistry apps.Registry
-	httpManager *httpserver.Manager
-	logger      *slog.Logger
+	ctx             context.Context
+	cancel          context.CancelFunc
+	appRegistry     apps.Registry
+	httpManager     *httpserver.Manager
+	logger          *slog.Logger
+	listenersRunner *composite.Runner[supervisor.Runnable] // External composite runner for listeners
+	currentConfig   *config.Config                         // Current domain configuration
 }
 
 // New creates a new Runner instance
@@ -176,6 +179,26 @@ func (r *Runner) Stop() {
 	r.logger.Debug("Runner stopped")
 }
 
+// SetListenersRunner sets the external composite runner for HTTP listeners
+func (r *Runner) SetListenersRunner(runner *composite.Runner[supervisor.Runnable]) {
+	r.reloadLock.Lock()
+	defer r.reloadLock.Unlock()
+	r.logger.Info("Setting external listeners runner")
+	r.listenersRunner = runner
+
+	// Initial conversion of config if available
+	if r.configCallback != nil {
+		serverConfig := r.configCallback()
+		if serverConfig != nil {
+			domainConfig, err := config.NewFromProto(serverConfig)
+			if err == nil {
+				r.currentConfig = domainConfig
+				r.logger.Info("Initial config set for listeners")
+			}
+		}
+	}
+}
+
 // Reload implements the Reloadable interface and reloads the Runner with the latest configuration
 func (r *Runner) Reload() {
 	r.reloadLock.Lock()
@@ -189,63 +212,70 @@ func (r *Runner) Reload() {
 		return
 	}
 
-	// If HTTP manager exists, try to reload it
-	if r.httpManager != nil {
-		// Check if HTTP manager is in an error state by getting its child states
-		states := r.httpManager.GetListenerStates()
-		if len(states) == 0 {
-			r.logger.Info("HTTP manager has no listeners, creating a new manager")
+	// Create a domain config for listeners
+	domainConfig, err := config.NewFromProto(serverConfig)
+	if err != nil {
+		r.logger.Error("Failed to convert protobuf config to domain config", "error", err)
+		return
+	}
 
-			// Create a domain config callback
-			domainConfigCallback := func() *config.Config {
-				serverConfig := r.configCallback()
-				if serverConfig == nil {
-					r.logger.Warn("Config callback returned nil protobuf config")
-					return nil
-				}
+	// If using the external composite runner for listeners
+	if r.listenersRunner != nil {
+		r.logger.Info("Updating listeners in composite runner")
 
-				// Convert protobuf config to domain config
-				cfg, err := config.NewFromProto(serverConfig)
+		// Store the current config for future listener creation
+		r.currentConfig = domainConfig
+
+		// Reload the composite runner to apply changes
+		// This will trigger the composite runner to call its config callback
+		// which will now use our updated currentConfig
+		r.listenersRunner.Reload()
+	} else {
+		// Fallback to old HTTP manager approach
+		r.logger.Warn("External listeners runner not set, using HTTP manager")
+
+		// Create a domain config callback
+		domainConfigCallback := func() *config.Config {
+			return domainConfig
+		}
+
+		// If HTTP manager exists, try to reload it
+		if r.httpManager != nil {
+			// Check if HTTP manager is in an error state by getting its child states
+			states := r.httpManager.GetListenerStates()
+			if len(states) == 0 {
+				r.logger.Info("HTTP manager has no listeners, creating a new manager")
+
+				// Initialize a new HTTP manager
+				httpManager, err := httpserver.NewManager(
+					r.appRegistry,
+					domainConfigCallback,
+					httpserver.WithManagerLogger(r.logger.With("component", "http.Manager")),
+				)
 				if err != nil {
-					r.logger.Warn(
-						"Failed to convert protobuf config to domain config",
-						"error",
-						err,
-					)
-					return nil
+					r.logger.Error("Failed to create new HTTP manager", "error", err)
+					return
 				}
-				return cfg
-			}
 
-			// Initialize a new HTTP manager
-			httpManager, err := httpserver.NewManager(
-				r.appRegistry,
-				domainConfigCallback,
-				httpserver.WithManagerLogger(r.logger.With("component", "http.Manager")),
-			)
-			if err != nil {
-				r.logger.Error("Failed to create new HTTP manager", "error", err)
-				return
-			}
+				// Replace the old manager
+				oldManager := r.httpManager
+				r.httpManager = httpManager
 
-			// Replace the old manager
-			oldManager := r.httpManager
-			r.httpManager = httpManager
-
-			// Stop the old manager if it exists
-			if oldManager != nil {
-				oldManager.Stop()
-			}
-
-			// Start the new manager in a goroutine
-			go func() {
-				if err := r.httpManager.Run(r.ctx); err != nil {
-					r.logger.Error("HTTP manager failed", "error", err)
+				// Stop the old manager if it exists
+				if oldManager != nil {
+					oldManager.Stop()
 				}
-			}()
-		} else {
-			// Normal reload
-			r.httpManager.Reload()
+
+				// Start the new manager in a goroutine
+				go func() {
+					if err := r.httpManager.Run(r.ctx); err != nil {
+						r.logger.Error("HTTP manager failed", "error", err)
+					}
+				}()
+			} else {
+				// Normal reload
+				r.httpManager.Reload()
+			}
 		}
 	}
 
