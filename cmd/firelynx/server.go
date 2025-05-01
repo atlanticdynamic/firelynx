@@ -49,7 +49,7 @@ var serverCmd = &cli.Command{
 		}
 
 		serverCore, err := core.New(
-			cManager.GetConfigClone,
+			cManager.GetDomainConfig,
 			core.WithLogHandler(logHandler),
 		)
 		if err != nil {

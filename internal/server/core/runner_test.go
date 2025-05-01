@@ -6,60 +6,52 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Helper function to create a basic test configuration with HTTP listeners
-func createTestConfig() *pb.ServerConfig {
-	version := "v1"
-	id := "test-listener"
-	address := "localhost:8080"
-
-	// Create a test HTTP listener config
-	testListener := &pb.Listener{
-		Id:      &id,
-		Address: &address,
-		ProtocolOptions: &pb.Listener_Http{
-			Http: &pb.HttpListenerOptions{
-				ReadTimeout:  durationpb.New(5 * time.Second),
-				WriteTimeout: durationpb.New(10 * time.Second),
-				DrainTimeout: durationpb.New(30 * time.Second),
+func createTestConfig() *config.Config {
+	// Create a simple domain config for testing
+	cfg := &config.Config{
+		Version: "v1",
+		Listeners: []config.Listener{
+			{
+				ID:      "test-listener",
+				Address: "localhost:8080",
+				Type:    config.ListenerTypeHTTP,
+				Options: &config.HTTPListenerOptions{
+					ReadTimeout:  durationpb.New(5 * time.Second),
+					WriteTimeout: durationpb.New(10 * time.Second),
+					DrainTimeout: durationpb.New(30 * time.Second),
+				},
 			},
 		},
-	}
-
-	// Create a test endpoint that references the listener
-	endpointId := "test-endpoint"
-	appId := "echo" // This matches the echo app registered in Runner.New()
-	path := "/echo"
-
-	testEndpoint := &pb.Endpoint{
-		Id:          &endpointId,
-		ListenerIds: []string{id},
-		Routes: []*pb.Route{
+		Endpoints: []config.Endpoint{
 			{
-				AppId: &appId,
-				Condition: &pb.Route_HttpPath{
-					HttpPath: path,
+				ID:          "test-endpoint",
+				ListenerIDs: []string{"test-listener"},
+				Routes: []config.Route{
+					{
+						AppID: "echo", // This matches the echo app registered in Runner.New()
+						Condition: &config.HTTPPathCondition{
+							Path: "/echo",
+						},
+					},
 				},
 			},
 		},
 	}
 
-	return &pb.ServerConfig{
-		Version:   &version,
-		Listeners: []*pb.Listener{testListener},
-		Endpoints: []*pb.Endpoint{testEndpoint},
-	}
+	return cfg
 }
 
 func TestServerCore_New(t *testing.T) {
 	testConfig := createTestConfig()
-	configFunc := func() *pb.ServerConfig {
-		return testConfig
+	configFunc := func() (*config.Config, error) {
+		return testConfig, nil
 	}
 
 	r, err := New(configFunc)
@@ -70,15 +62,19 @@ func TestServerCore_New(t *testing.T) {
 	assert.NotNil(t, r.parentCtx)
 	assert.NotNil(t, r.parentCancel)
 	assert.NotNil(t, r.logger)
-	assert.Equal(t, r.configCallback(), testConfig)
+
+	// Test that config callback returns expected config
+	actualConfig, err := r.configCallback()
+	require.NoError(t, err)
+	assert.Equal(t, testConfig, actualConfig)
 }
 
 // TestServerCore_Run tests that the Run method properly returns an error when
 // the context is canceled.
 func TestServerCore_Run(t *testing.T) {
 	testConfig := createTestConfig()
-	configFunc := func() *pb.ServerConfig {
-		return testConfig
+	configFunc := func() (*config.Config, error) {
+		return testConfig, nil
 	}
 
 	r, err := New(configFunc)
@@ -98,8 +94,8 @@ func TestServerCore_Run(t *testing.T) {
 
 func TestServerCore_Reload(t *testing.T) {
 	currentConfig := createTestConfig()
-	configFunc := func() *pb.ServerConfig {
-		return currentConfig
+	configFunc := func() (*config.Config, error) {
+		return currentConfig, nil
 	}
 
 	r, err := New(configFunc)
@@ -117,9 +113,8 @@ func TestServerCore_Reload(t *testing.T) {
 	}
 
 	// Update the config
-	newVersion := "v2"
 	newConfig := createTestConfig()
-	newConfig.Version = &newVersion
+	newConfig.Version = "v2"
 	currentConfig = newConfig
 
 	// Call Reload (no error to check with new supervisor-compatible interface)
@@ -135,8 +130,8 @@ func TestServerCore_Reload(t *testing.T) {
 // to terminate and that the server shuts down in a timely manner.
 func TestServerCore_Stop(t *testing.T) {
 	testConfig := createTestConfig()
-	configFunc := func() *pb.ServerConfig {
-		return testConfig
+	configFunc := func() (*config.Config, error) {
+		return testConfig, nil
 	}
 
 	r, err := New(configFunc)

@@ -155,7 +155,7 @@ func TestLoadInitialConfig(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Check that config was loaded
-		cfg := r.GetConfigClone()
+		cfg := r.GetPbConfigClone()
 		assert.NotNil(t, cfg)
 		assert.Equal(t, "v1", *cfg.Version)
 	})
