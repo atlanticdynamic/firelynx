@@ -7,31 +7,35 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	localhttp "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
+	listenerHTTP "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http/wrapper"
 	"github.com/robbyt/go-supervisor/runnables/composite"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
-	"github.com/robbyt/go-supervisor/supervisor"
 )
 
-// GetListenersConfigCallback returns a callback function suitable for creating a composite.Runner
-// that manages HTTP listeners. This callback config is what connects this "core" to the listeners.
-func (r *Runner) GetListenersConfigCallback() func() (*composite.Config[supervisor.Runnable], error) {
-	return func() (*composite.Config[supervisor.Runnable], error) {
+// httpWrapper is a type alias for *wrapper.HttpServer, used for the generic type signature in the
+// callback to ensure this callback is only used for configuring our wrapper implementation.
+type httpWrapper = *wrapper.HttpServer
+
+// GetHTTPListenersConfigCallback returns a callback function suitable for creating a composite.Runner
+// that manages HTTP listeners. This callback config is what connects this "core" to the listeners,
+// it maps the domain config to the actual runnable implementation.
+func (r *Runner) GetHTTPListenersConfigCallback() func() (*composite.Config[httpWrapper], error) {
+	return func() (*composite.Config[httpWrapper], error) {
 		r.mutex.Lock()
 		defer r.mutex.Unlock()
 
 		if r.currentConfig == nil {
 			// Create empty config if none exists yet
 			r.logger.Debug("No configuration available, returning empty listeners config")
-			return composite.NewConfig[supervisor.Runnable]("http-listeners", nil)
+			return composite.NewConfig[httpWrapper]("http-listeners", nil)
 		}
 
 		r.logger.Debug("Building HTTP listeners configuration",
 			"listeners", len(r.currentConfig.Listeners))
 
 		// Map each HTTP listener to a runnable entry
-		var entries []composite.RunnableEntry[supervisor.Runnable]
+		var entries []composite.RunnableEntry[httpWrapper]
 
 		// Create new HTTP servers for each listener in the config
 		for _, l := range r.currentConfig.Listeners {
@@ -41,7 +45,7 @@ func (r *Runner) GetListenersConfigCallback() func() (*composite.Config[supervis
 			}
 
 			// Create a route mapper to map endpoints to routes for this listener
-			routeMapper := localhttp.NewRouteMapper(r.appRegistry, r.logger)
+			routeMapper := listenerHTTP.NewRouteMapper(r.appRegistry, r.logger)
 			localRoutes := routeMapper.MapEndpointsForListener(r.currentConfig, l.ID)
 
 			// Convert routes to the supervisor httpserver Routes format
@@ -57,7 +61,7 @@ func (r *Runner) GetListenersConfigCallback() func() (*composite.Config[supervis
 			}
 
 			// Create a runnable entry
-			entry := composite.RunnableEntry[supervisor.Runnable]{
+			entry := composite.RunnableEntry[httpWrapper]{
 				Runnable: serverWrapper,
 				Config:   nil, // No per-listener config needed for now
 			}
@@ -65,13 +69,13 @@ func (r *Runner) GetListenersConfigCallback() func() (*composite.Config[supervis
 			entries = append(entries, entry)
 		}
 
-		return composite.NewConfig[supervisor.Runnable]("http-listeners", entries)
+		return composite.NewConfig[httpWrapper]("http-listeners", entries)
 	}
 }
 
 // convertRoutesToHttpServer converts from localhttp.Route to suphttp.Route
 func convertRoutesToHttpServer(
-	routes []localhttp.Route,
+	routes []listenerHTTP.Route,
 	listenerID string,
 	registry apps.Registry,
 	logger *slog.Logger,
@@ -79,7 +83,7 @@ func convertRoutesToHttpServer(
 	var httpRoutes []httpserver.Route
 
 	// Create a single app handler that will manage all routes
-	appHandler := localhttp.NewAppHandler(registry, routes, logger)
+	appHandler := listenerHTTP.NewAppHandler(registry, routes, logger)
 
 	// Convert to suphttp.Route objects for each route path
 	for _, route := range routes {
