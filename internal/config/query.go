@@ -1,7 +1,7 @@
 package config
 
-// GetListenersByType returns all listeners of a specific type
-func (c *Config) GetListenersByType(listenerType ListenerType) []Listener {
+// getListenersByType returns all listeners of a specific type
+func (c *Config) getListenersByType(listenerType ListenerType) []Listener {
 	var result []Listener
 	for _, listener := range c.Listeners {
 		if listener.Type == listenerType {
@@ -9,6 +9,16 @@ func (c *Config) GetListenersByType(listenerType ListenerType) []Listener {
 		}
 	}
 	return result
+}
+
+// GetHTTPListeners returns only the listeners of HTTP type
+func (c *Config) GetHTTPListeners() []Listener {
+	return c.getListenersByType(ListenerTypeHTTP)
+}
+
+// GetGRPCListeners returns only the listeners of GRPC type
+func (c *Config) GetGRPCListeners() []Listener {
+	return c.getListenersByType(ListenerTypeGRPC)
 }
 
 // GetAppsByType returns all apps with a specific configuration type

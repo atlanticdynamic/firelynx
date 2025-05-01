@@ -6,31 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConfig_GetListenersByType(t *testing.T) {
-	// Setup test config
-	config := &Config{
-		Listeners: []Listener{
-			{ID: "http1", Type: ListenerTypeHTTP},
-			{ID: "http2", Type: ListenerTypeHTTP},
-			{ID: "grpc1", Type: ListenerTypeGRPC},
-		},
-	}
-
-	// Test HTTP listeners
-	httpListeners := config.GetListenersByType(ListenerTypeHTTP)
-	assert.Len(t, httpListeners, 2)
-	assert.Equal(t, "http1", httpListeners[0].ID)
-	assert.Equal(t, "http2", httpListeners[1].ID)
-
-	// Test gRPC listeners
-	grpcListeners := config.GetListenersByType(ListenerTypeGRPC)
-	assert.Len(t, grpcListeners, 1)
-	assert.Equal(t, "grpc1", grpcListeners[0].ID)
-
-	// Test non-existent type
-	otherListeners := config.GetListenersByType(ListenerType("other"))
-	assert.Empty(t, otherListeners)
-}
+// Tests for Config query methods
 
 func TestConfig_GetAppsByType(t *testing.T) {
 	// Setup test config
@@ -53,9 +29,35 @@ func TestConfig_GetAppsByType(t *testing.T) {
 	assert.Len(t, starlarkApps, 1)
 	assert.Equal(t, "starlark1", starlarkApps[0].ID)
 
+	// Test non-existent app type
+	emptyApps := config.GetAppsByType("other")
+	assert.Empty(t, emptyApps)
+}
+
+func TestConfig_GetListenersByType(t *testing.T) {
+	// Setup test config
+	config := &Config{
+		Listeners: []Listener{
+			{ID: "http1", Type: ListenerTypeHTTP},
+			{ID: "http2", Type: ListenerTypeHTTP},
+			{ID: "grpc1", Type: ListenerTypeGRPC},
+		},
+	}
+
+	// Test HTTP listeners
+	httpListeners := config.getListenersByType(ListenerTypeHTTP)
+	assert.Len(t, httpListeners, 2)
+	assert.Equal(t, "http1", httpListeners[0].ID)
+	assert.Equal(t, "http2", httpListeners[1].ID)
+
+	// Test gRPC listeners
+	grpcListeners := config.getListenersByType(ListenerTypeGRPC)
+	assert.Len(t, grpcListeners, 1)
+	assert.Equal(t, "grpc1", grpcListeners[0].ID)
+
 	// Test non-existent type
-	otherApps := config.GetAppsByType("other")
-	assert.Empty(t, otherApps)
+	otherListeners := config.getListenersByType(ListenerType("other"))
+	assert.Empty(t, otherListeners)
 }
 
 func TestConfig_GetEndpointsByListenerID(t *testing.T) {
@@ -88,4 +90,37 @@ func TestConfig_GetEndpointsByListenerID(t *testing.T) {
 	// Test non-existent listener
 	otherEndpoints := config.GetEndpointsByListenerID("other")
 	assert.Empty(t, otherEndpoints)
+}
+
+func TestConfig_GetHTTPListeners(t *testing.T) {
+	// Setup test config
+	config := &Config{
+		Listeners: []Listener{
+			{ID: "http1", Type: ListenerTypeHTTP},
+			{ID: "http2", Type: ListenerTypeHTTP},
+			{ID: "grpc1", Type: ListenerTypeGRPC},
+		},
+	}
+
+	// Test HTTP listeners helper method
+	httpListeners := config.GetHTTPListeners()
+	assert.Len(t, httpListeners, 2)
+	assert.Equal(t, "http1", httpListeners[0].ID)
+	assert.Equal(t, "http2", httpListeners[1].ID)
+}
+
+func TestConfig_GetGRPCListeners(t *testing.T) {
+	// Setup test config
+	config := &Config{
+		Listeners: []Listener{
+			{ID: "http1", Type: ListenerTypeHTTP},
+			{ID: "http2", Type: ListenerTypeHTTP},
+			{ID: "grpc1", Type: ListenerTypeGRPC},
+		},
+	}
+
+	// Test GRPC listeners helper method
+	grpcListeners := config.GetGRPCListeners()
+	assert.Len(t, grpcListeners, 1)
+	assert.Equal(t, "grpc1", grpcListeners[0].ID)
 }

@@ -1,4 +1,3 @@
-// Package http provides HTTP listener implementation
 package http
 
 import (
@@ -6,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 )
@@ -14,14 +14,8 @@ import (
 type AppHandler struct {
 	registry apps.Registry
 	routes   []Route
+	mutex    sync.RWMutex
 	logger   *slog.Logger
-}
-
-// Route represents a mapping from a path pattern to an app
-type Route struct {
-	Path       string
-	AppID      string
-	StaticData map[string]any
 }
 
 // NewAppHandler creates a new AppHandler with the given app registry and routes
@@ -48,9 +42,13 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var matchedRoute *Route
 	var matchedPathLen int
 
-	for i, route := range h.routes {
+	h.mutex.RLock()
+	routes := h.routes
+	h.mutex.RUnlock()
+
+	for i, route := range routes {
 		if strings.HasPrefix(path, route.Path) && len(route.Path) > matchedPathLen {
-			matchedRoute = &h.routes[i]
+			matchedRoute = &routes[i]
 			matchedPathLen = len(route.Path)
 		}
 	}
@@ -85,5 +83,7 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // UpdateRoutes updates the routes handled by this handler
 func (h *AppHandler) UpdateRoutes(routes []Route) {
 	h.logger.Debug("Updating routes", "count", len(routes))
+	h.mutex.Lock()
 	h.routes = routes
+	h.mutex.Unlock()
 }
