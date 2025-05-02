@@ -7,7 +7,7 @@ require github.com/urfave/cli/v3 v3.2.0
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/pelletier/go-toml/v2 v2.2.4
-	github.com/robbyt/go-supervisor v0.0.0-20250501041726-8268cc4b5b48
+	github.com/robbyt/go-supervisor v0.0.0-20250502033455-085637332f23
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
