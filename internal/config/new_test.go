@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -107,11 +108,11 @@ timeout = "10s"
 	assert.Equal(t, "test_app", app.ID, "Expected app ID 'test_app'")
 
 	// Check script app
-	scriptApp, ok := app.Config.(ScriptApp)
+	scriptApp, ok := app.Config.(apps.ScriptApp)
 	require.True(t, ok, "App config should be ScriptApp")
 
 	// Check risor evaluator
-	risorEval, ok := scriptApp.Evaluator.(RisorEvaluator)
+	risorEval, ok := scriptApp.Evaluator.(apps.RisorEvaluator)
 	require.True(t, ok, "Evaluator should be RisorEvaluator")
 	assert.Contains(
 		t,
@@ -210,11 +211,11 @@ timeout = "5s"
 		assert.Equal(t, "reader_app", app.ID, "Expected app ID 'reader_app'")
 
 		// Validate script app conversion
-		scriptApp, ok := app.Config.(ScriptApp)
+		scriptApp, ok := app.Config.(apps.ScriptApp)
 		require.True(t, ok, "App config should be ScriptApp")
 
 		// Validate Risor evaluator
-		risorEval, ok := scriptApp.Evaluator.(RisorEvaluator)
+		risorEval, ok := scriptApp.Evaluator.(apps.RisorEvaluator)
 		require.True(t, ok, "Script evaluator should be RisorEvaluator")
 		assert.Contains(
 			t,

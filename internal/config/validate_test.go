@@ -3,6 +3,8 @@ package config
 import (
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +38,7 @@ level = "debug"
 		// Validate should fail
 		err := config.Validate()
 		require.Error(t, err, "Expected error for unsupported version")
-		assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
+		assert.ErrorIs(t, err, errz.ErrUnsupportedConfigVer)
 	})
 
 	t.Run("EmptyVersionDefaultsToUnknown", func(t *testing.T) {
@@ -47,7 +49,7 @@ level = "debug"
 		// Validate should fail with unsupported version
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty version")
-		assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
+		assert.ErrorIs(t, err, errz.ErrUnsupportedConfigVer)
 		assert.Contains(t, err.Error(), VersionUnknown, "Should default to VersionUnknown")
 	})
 
@@ -61,7 +63,7 @@ level = "debug"
 		// Full validation might fail for other reasons, so we check that the error (if any)
 		// is not about the version
 		if err != nil {
-			assert.NotErrorIs(t, err, ErrUnsupportedConfigVer,
+			assert.NotErrorIs(t, err, errz.ErrUnsupportedConfigVer,
 				"Valid version should not trigger version error")
 		}
 	})
@@ -80,8 +82,13 @@ func TestListenerValidation(t *testing.T) {
 		// Validate should fail with duplicate ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for duplicate listener ID")
-		assert.Contains(t, err.Error(), "duplicate listener ID",
-			"Error should mention duplicate listener ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
+			t,
+			err,
+			errz.ErrDuplicateID.Error(),
+			"Error should contain duplicate ID error",
+		)
 	})
 
 	t.Run("DuplicateListenerAddress", func(t *testing.T) {
@@ -96,8 +103,13 @@ func TestListenerValidation(t *testing.T) {
 		// Validate should fail with duplicate address error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for duplicate listener address")
-		assert.Contains(t, err.Error(), "duplicate listener address",
-			"Error should mention duplicate listener address")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
+			t,
+			err,
+			errz.ErrDuplicateID.Error(),
+			"Error should contain duplicate ID error",
+		)
 	})
 
 	t.Run("EmptyListenerID", func(t *testing.T) {
@@ -112,8 +124,8 @@ func TestListenerValidation(t *testing.T) {
 		// Validate should fail with empty ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty listener ID")
-		assert.Contains(t, err.Error(), "has an empty ID",
-			"Error should mention empty ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(t, err, errz.ErrEmptyID.Error(), "Error should contain empty ID error")
 	})
 
 	t.Run("EmptyListenerAddress", func(t *testing.T) {
@@ -128,8 +140,13 @@ func TestListenerValidation(t *testing.T) {
 		// Validate should fail with empty address error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty listener address")
-		assert.Contains(t, err.Error(), "has an empty address",
-			"Error should mention empty address")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
+			t,
+			err,
+			errz.ErrMissingRequiredField.Error(),
+			"Error should contain missing required field error",
+		)
 	})
 }
 
@@ -145,8 +162,13 @@ func TestEndpointValidation(t *testing.T) {
 		// Validate should fail with duplicate ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for duplicate endpoint ID")
-		assert.Contains(t, err.Error(), "duplicate endpoint ID",
-			"Error should mention duplicate endpoint ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
+			t,
+			err,
+			errz.ErrDuplicateID.Error(),
+			"Error should contain duplicate ID error",
+		)
 	})
 
 	t.Run("EmptyEndpointID", func(t *testing.T) {
@@ -160,8 +182,8 @@ func TestEndpointValidation(t *testing.T) {
 		// Validate should fail with empty ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty endpoint ID")
-		assert.Contains(t, err.Error(), "endpoint has an empty ID",
-			"Error should mention empty ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(t, err, errz.ErrEmptyID.Error(), "Error should contain empty ID error")
 	})
 
 	t.Run("NonExistentListenerID", func(t *testing.T) {
@@ -175,8 +197,13 @@ func TestEndpointValidation(t *testing.T) {
 		// Validate should fail with reference error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for non-existent listener ID")
-		assert.Contains(t, err.Error(), "references non-existent listener ID",
-			"Error should mention non-existent listener ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
+			t,
+			err,
+			errz.ErrListenerNotFound.Error(),
+			"Error should contain listener not found error",
+		)
 	})
 
 	t.Run("EmptyAppIDInRoute", func(t *testing.T) {
@@ -192,8 +219,8 @@ func TestEndpointValidation(t *testing.T) {
 		// Validate should fail with empty app ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty app ID in route")
-		assert.Contains(t, err.Error(), "has an empty app ID",
-			"Error should mention empty app ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(t, err, errz.ErrEmptyID.Error(), "Error should contain empty ID error")
 	})
 }
 
@@ -201,29 +228,34 @@ func TestAppValidation(t *testing.T) {
 	t.Run("DuplicateAppID", func(t *testing.T) {
 		// Create a config with duplicate app IDs
 		config := createValidDomainConfig(t)
-		config.Apps = append(config.Apps, App{
+		config.Apps = append(config.Apps, apps.App{
 			ID: "app1", // Duplicate of existing ID
 		})
 
 		// Validate should fail with duplicate ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for duplicate app ID")
-		assert.Contains(t, err.Error(), "duplicate app ID",
-			"Error should mention duplicate app ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
+			t,
+			err,
+			errz.ErrDuplicateID.Error(),
+			"Error should contain duplicate ID error",
+		)
 	})
 
 	t.Run("EmptyAppID", func(t *testing.T) {
 		// Create a config with empty app ID
 		config := createValidDomainConfig(t)
-		config.Apps = append(config.Apps, App{
+		config.Apps = append(config.Apps, apps.App{
 			ID: "", // Empty ID
 		})
 
 		// Validate should fail with empty ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty app ID")
-		assert.Contains(t, err.Error(), "app has an empty ID",
-			"Error should mention empty app ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(t, err, errz.ErrEmptyID.Error(), "Error should contain empty ID error")
 	})
 
 	t.Run("NonExistentAppIDInRoute", func(t *testing.T) {
@@ -239,8 +271,13 @@ func TestAppValidation(t *testing.T) {
 		// Validate should fail with reference error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for non-existent app ID")
-		assert.Contains(t, err.Error(), "references non-existent app ID",
-			"Error should mention non-existent app ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
+			t,
+			err,
+			errz.ErrAppNotFound.Error(),
+			"Error should contain app not found error",
+		)
 	})
 }
 
@@ -248,9 +285,9 @@ func TestCompositeScriptValidation(t *testing.T) {
 	t.Run("NonExistentScriptAppID", func(t *testing.T) {
 		// Create a config with a composite script app that references a non-existent app
 		config := createValidDomainConfig(t)
-		config.Apps = append(config.Apps, App{
+		config.Apps = append(config.Apps, apps.App{
 			ID: "composite_app",
-			Config: CompositeScriptApp{
+			Config: apps.CompositeScriptApp{
 				ScriptAppIDs: []string{"app1", "non_existent_app"}, // One valid, one non-existent
 			},
 		})
@@ -258,26 +295,31 @@ func TestCompositeScriptValidation(t *testing.T) {
 		// Validate should fail with reference error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for non-existent script app ID")
-		assert.Contains(t, err.Error(), "references non-existent app ID",
-			"Error should mention non-existent app ID")
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
+			t,
+			err,
+			errz.ErrAppNotFound.Error(),
+			"Error should contain app not found error",
+		)
 	})
 
 	t.Run("ValidCompositeScript", func(t *testing.T) {
 		// Create a config with a valid composite script app
 		config := createValidDomainConfig(t)
 		// Add a second app that can be referenced
-		config.Apps = append(config.Apps, App{
+		config.Apps = append(config.Apps, apps.App{
 			ID: "app2",
-			Config: ScriptApp{
-				Evaluator: RisorEvaluator{
+			Config: apps.ScriptApp{
+				Evaluator: apps.RisorEvaluator{
 					Code: "function handle(req) { return req; }",
 				},
 			},
 		})
 		// Add the composite app that references both valid apps
-		config.Apps = append(config.Apps, App{
+		config.Apps = append(config.Apps, apps.App{
 			ID: "composite_app",
-			Config: CompositeScriptApp{
+			Config: apps.CompositeScriptApp{
 				ScriptAppIDs: []string{"app1", "app2"}, // Both valid
 			},
 		})
@@ -341,11 +383,12 @@ http_path = "/foo"
 
 		// With our new validation in place, this should now fail
 		require.Error(t, err, "Expected error for conflicting routes")
-		assert.Contains(
+		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorContains(
 			t,
-			err.Error(),
-			"duplicate route condition",
-			"Error should mention duplicate route condition",
+			err,
+			errz.ErrRouteConflict.Error(),
+			"Error should contain route conflict error",
 		)
 		assert.Nil(t, config, "Config should be nil when validation fails")
 

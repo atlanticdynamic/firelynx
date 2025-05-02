@@ -73,7 +73,7 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 				r.logger.Debug("Processing endpoint", "listenerID", l.ID, "endpointID", endpoint.ID)
 
 				// Get HTTP routes from this endpoint
-				httpRoutes := endpoint.GetHTTPRoutes()
+				httpRoutes := endpoint.GetStructuredHTTPRoutes()
 				for _, route := range httpRoutes {
 					// Convert config.HTTPRoute to http.RouteConfig
 					httpRouteConfig := http.RouteConfig{

@@ -3,18 +3,22 @@ package config
 import (
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/stretchr/testify/assert"
 )
 
 // Tests for Config query methods
 
 func TestConfig_GetAppsByType(t *testing.T) {
-	// Setup test config
+	// Setup test config with apps.App types
 	config := &Config{
-		Apps: []App{
-			{ID: "risor1", Config: RisorEvaluator{Code: "code1"}},
-			{ID: "risor2", Config: RisorEvaluator{Code: "code2"}},
-			{ID: "starlark1", Config: StarlarkEvaluator{Code: "code3"}},
+		Apps: []apps.App{
+			{ID: "risor1", Config: apps.ScriptApp{Evaluator: apps.RisorEvaluator{Code: "code1"}}},
+			{ID: "risor2", Config: apps.ScriptApp{Evaluator: apps.RisorEvaluator{Code: "code2"}}},
+			{
+				ID:     "starlark1",
+				Config: apps.ScriptApp{Evaluator: apps.StarlarkEvaluator{Code: "code3"}},
+			},
 		},
 	}
 
@@ -45,18 +49,18 @@ func TestConfig_GetListenersByType(t *testing.T) {
 	}
 
 	// Test HTTP listeners
-	httpListeners := config.getListenersByType(ListenerTypeHTTP)
+	httpListeners := config.GetListenersByType(ListenerTypeHTTP)
 	assert.Len(t, httpListeners, 2)
 	assert.Equal(t, "http1", httpListeners[0].ID)
 	assert.Equal(t, "http2", httpListeners[1].ID)
 
 	// Test gRPC listeners
-	grpcListeners := config.getListenersByType(ListenerTypeGRPC)
+	grpcListeners := config.GetListenersByType(ListenerTypeGRPC)
 	assert.Len(t, grpcListeners, 1)
 	assert.Equal(t, "grpc1", grpcListeners[0].ID)
 
 	// Test non-existent type
-	otherListeners := config.getListenersByType(ListenerType("other"))
+	otherListeners := config.GetListenersByType(ListenerType("other"))
 	assert.Empty(t, otherListeners)
 }
 
