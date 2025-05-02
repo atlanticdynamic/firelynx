@@ -3,9 +3,17 @@ package config
 import (
 	"errors"
 	"fmt"
-
-	configerrz "github.com/atlanticdynamic/firelynx/internal/config/errz"
 )
+
+// Validatable defines an interface for objects that can validate themselves.
+// Any struct that implements this interface can be validated as part of
+// a validation chain.
+type Validatable interface {
+	// Validate performs validation on the object and returns an error if validation fails.
+	// The error should contain specific information about what validation checks failed.
+	// If multiple validations fail, all errors should be combined using errors.Join().
+	Validate() error
+}
 
 // Validate performs comprehensive validation of the configuration
 func (c *Config) Validate() error {
@@ -18,91 +26,77 @@ func (c *Config) Validate() error {
 	case VersionLatest:
 		// Supported version
 	default:
-		return fmt.Errorf("%w: %s", configerrz.ErrUnsupportedConfigVer, c.Version)
+		return fmt.Errorf("%w: %s", ErrUnsupportedConfigVer, c.Version)
 	}
 
 	var errs []error
 
-	// Validate listeners
+	// Validate logging
+	if err := c.Logging.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("logging config: %w", err))
+	}
+
+	// Collect listener and endpoint IDs for reference validation
 	listenerIds := make(map[string]bool, len(c.Listeners))
 	listenerAddrs := make(map[string]bool, len(c.Listeners))
+	endpointIds := make(map[string]bool, len(c.Endpoints))
 
-	for _, listener := range c.Listeners {
-		if listener.ID == "" {
-			errs = append(errs, fmt.Errorf("%w: listener ID", configerrz.ErrEmptyID))
-			continue
+	// Validate individual listeners
+	for i, listener := range c.Listeners {
+		// Validate each listener with its own validation logic
+		if err := listener.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("listener at index %d: %w", i, err))
 		}
 
-		addr := listener.Address
-		if addr == "" {
-			errs = append(
-				errs,
-				fmt.Errorf(
-					"%w: address for listener '%s'",
-					configerrz.ErrMissingRequiredField,
-					listener.ID,
-				),
-			)
-			continue
+		// Additional cross-reference validations
+		if listener.ID != "" {
+			// Check for duplicate IDs
+			if listenerIds[listener.ID] {
+				errs = append(errs, fmt.Errorf("%w: listener ID '%s'",
+					ErrDuplicateID, listener.ID))
+			} else {
+				listenerIds[listener.ID] = true
+			}
 		}
 
-		if listenerAddrs[addr] {
-			// We found a duplicate address, add error and continue checking other listeners
-			errs = append(
-				errs,
-				fmt.Errorf("%w: listener address '%s'", configerrz.ErrDuplicateID, addr),
-			)
-		} else {
-			// Record this address to check for future duplicates
-			listenerAddrs[addr] = true
-		}
-
-		id := listener.ID
-		if listenerIds[id] {
-			// We found a duplicate ID, add error and continue checking other listeners
-			errs = append(errs, fmt.Errorf("%w: listener ID '%s'", configerrz.ErrDuplicateID, id))
-		} else {
-			// Record this ID to check for future duplicates
-			listenerIds[id] = true
+		if listener.Address != "" {
+			// Check for duplicate addresses
+			if listenerAddrs[listener.Address] {
+				errs = append(errs, fmt.Errorf("%w: listener address '%s'",
+					ErrDuplicateID, listener.Address))
+			} else {
+				listenerAddrs[listener.Address] = true
+			}
 		}
 	}
 
 	// Validate endpoints
-	endpointIds := make(map[string]bool, len(c.Endpoints))
-	for _, endpoint := range c.Endpoints {
-		if endpoint.ID == "" {
-			errs = append(errs, fmt.Errorf("%w: endpoint ID", configerrz.ErrEmptyID))
-			continue
+	for i, endpoint := range c.Endpoints {
+		// Validate each endpoint with its own validation logic
+		if err := endpoint.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("endpoint at index %d: %w", i, err))
 		}
 
-		id := endpoint.ID
-		if endpointIds[id] {
-			// We found a duplicate ID, add error and continue checking other endpoints
-			errs = append(errs, fmt.Errorf("%w: endpoint ID '%s'", configerrz.ErrDuplicateID, id))
-		} else {
-			// Record this ID to check for future duplicates
-			endpointIds[id] = true
+		// Additional cross-reference validations
+		if endpoint.ID != "" {
+			// Check for duplicate endpoint IDs
+			if endpointIds[endpoint.ID] {
+				errs = append(errs, fmt.Errorf("%w: endpoint ID '%s'",
+					ErrDuplicateID, endpoint.ID))
+			} else {
+				endpointIds[endpoint.ID] = true
+			}
 		}
 
-		// Check all referenced listener IDs exist
+		// Validate listener references
 		for _, listenerId := range endpoint.ListenerIDs {
 			if !listenerIds[listenerId] {
 				errs = append(errs, fmt.Errorf(
 					"%w: endpoint '%s' references non-existent listener ID '%s'",
-					configerrz.ErrListenerNotFound,
-					id,
+					ErrListenerNotFound,
+					endpoint.ID,
 					listenerId,
 				))
-			}
-		}
-
-		// Validate routes
-		for i, route := range endpoint.Routes {
-			if route.AppID == "" {
-				errs = append(
-					errs,
-					fmt.Errorf("%w: route %d in endpoint '%s'", configerrz.ErrEmptyID, i, id),
-				)
 			}
 		}
 	}
@@ -113,29 +107,27 @@ func (c *Config) Validate() error {
 	}
 
 	// Create slice of route refs for app validation
-	// Define the anonymous struct directly to match the expected type
 	routeRefs := make([]struct{ AppID string }, 0)
-
 	for _, endpoint := range c.Endpoints {
 		for _, route := range endpoint.Routes {
 			routeRefs = append(routeRefs, struct{ AppID string }{AppID: route.AppID})
 		}
 	}
 
-	// Validate route references to apps using the Apps.ValidateRouteAppReferences method
+	// Validate route references to apps
 	if err := c.Apps.ValidateRouteAppReferences(routeRefs); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Check for route conflicts across endpoints
 	if err := c.validateRouteConflicts(); err != nil {
-		errs = append(errs, fmt.Errorf("%w: %w", configerrz.ErrRouteConflict, err))
+		errs = append(errs, fmt.Errorf("%w: %w", ErrRouteConflict, err))
 	}
 
 	// If we have errors, wrap them with the main validation error
 	joinedErrs := errors.Join(errs...)
 	if joinedErrs != nil {
-		return fmt.Errorf("%w: %w", configerrz.ErrFailedToValidateConfig, joinedErrs)
+		return fmt.Errorf("%w: %w", ErrFailedToValidateConfig, joinedErrs)
 	}
 
 	return nil

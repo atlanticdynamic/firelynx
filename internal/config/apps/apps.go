@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -107,88 +106,50 @@ func (a Apps) Validate() error {
 
 	// Create map of app IDs for reference validation
 	appIDs := make(map[string]bool)
+
+	// First pass: Validate IDs and check for duplicates
 	for _, app := range a {
 		if app.ID == "" {
-			errs = append(errs, fmt.Errorf("%w: app ID", errz.ErrEmptyID))
+			errs = append(errs, fmt.Errorf("%w: app ID", ErrEmptyID))
 			continue
 		}
 
 		if appIDs[app.ID] {
-			errs = append(errs, fmt.Errorf("%w: app ID '%s'", errz.ErrDuplicateID, app.ID))
+			errs = append(errs, fmt.Errorf("%w: app ID '%s'", ErrDuplicateID, app.ID))
 			continue
 		}
 
 		appIDs[app.ID] = true
 	}
 
-	// Validate each app's configuration
-	for _, app := range a {
-		if app.Config == nil {
-			errs = append(errs, fmt.Errorf("%w: app '%s' has no configuration",
-				errz.ErrMissingRequiredField, app.ID))
+	// Second pass: Validate each app individually and handle cross-references
+	for i, app := range a {
+		// Skip apps with empty IDs as those are already reported
+		if app.ID == "" {
 			continue
 		}
 
-		// Type-specific validation
-		switch cfg := app.Config.(type) {
-		case ScriptApp:
-			// Validate evaluator exists
-			if cfg.Evaluator == nil {
-				errs = append(errs, fmt.Errorf("%w: script app '%s'",
-					errz.ErrMissingEvaluator, app.ID))
-				continue
-			}
+		// Validate the app itself
+		if err := app.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("app at index %d: %w", i, err))
+		}
 
-			// Validate evaluator by type
-			switch eval := cfg.Evaluator.(type) {
-			case RisorEvaluator:
-				if eval.Code == "" {
-					errs = append(errs, fmt.Errorf("%w: app '%s' Risor evaluator",
-						errz.ErrEmptyCode, app.ID))
-				}
-			case StarlarkEvaluator:
-				if eval.Code == "" {
-					errs = append(errs, fmt.Errorf("%w: app '%s' Starlark evaluator",
-						errz.ErrEmptyCode, app.ID))
-				}
-			case ExtismEvaluator:
-				if eval.Code == "" {
-					errs = append(errs, fmt.Errorf("%w: app '%s' Extism evaluator",
-						errz.ErrEmptyCode, app.ID))
-				}
-				if eval.Entrypoint == "" {
-					errs = append(errs, fmt.Errorf("%w: app '%s' Extism evaluator",
-						errz.ErrEmptyEntrypoint, app.ID))
-				}
-			default:
-				errs = append(errs, fmt.Errorf("%w: app '%s' has unknown evaluator type %T",
-					errz.ErrInvalidEvaluator, app.ID, cfg.Evaluator))
-			}
-
-		case CompositeScriptApp:
-			if len(cfg.ScriptAppIDs) == 0 {
-				errs = append(errs, fmt.Errorf("%w: app '%s' composite script app requires at least one script app ID",
-					errz.ErrMissingRequiredField, app.ID))
-				continue
-			}
-
+		// Handle cross-references for composite apps
+		// This can't be done in App.Validate() since it requires knowledge of all app IDs
+		if composite, isComposite := app.Config.(CompositeScriptApp); isComposite {
 			// Validate all referenced script apps exist
-			for _, scriptAppID := range cfg.ScriptAppIDs {
+			for _, scriptAppID := range composite.ScriptAppIDs {
 				if scriptAppID == "" {
 					errs = append(errs, fmt.Errorf("%w: in app '%s' composite script reference",
-						errz.ErrEmptyID, app.ID))
+						ErrEmptyID, app.ID))
 					continue
 				}
 
 				if !appIDs[scriptAppID] {
 					errs = append(errs, fmt.Errorf("%w: app '%s' references script app ID '%s'",
-						errz.ErrAppNotFound, app.ID, scriptAppID))
+						ErrAppNotFound, app.ID, scriptAppID))
 				}
 			}
-
-		default:
-			errs = append(errs, fmt.Errorf("%w: app '%s' has unknown config type %T",
-				errz.ErrInvalidAppType, app.ID, app.Config))
 		}
 	}
 
@@ -214,7 +175,7 @@ func (a Apps) ValidateRouteAppReferences(routes []struct{ AppID string }) error 
 
 		if !appIDs[route.AppID] {
 			errs = append(errs, fmt.Errorf("%w: route at index %d references app ID '%s'",
-				errz.ErrAppNotFound, i, route.AppID))
+				ErrAppNotFound, i, route.AppID))
 		}
 	}
 

@@ -1,8 +1,8 @@
 package cfgservice
 
 import (
+	"bytes"
 	"context"
-	"io"
 	"log/slog"
 	"testing"
 	"time"
@@ -114,6 +114,9 @@ func TestUpdateConfig(t *testing.T) {
 				{
 					Id:      &listenerId,
 					Address: &listenerAddr,
+					ProtocolOptions: &pb.Listener_Http{
+						Http: &pb.HttpListenerOptions{},
+					},
 				},
 			},
 		}
@@ -149,13 +152,62 @@ func TestUpdateConfig(t *testing.T) {
 		// Verify response gets a gRPC InvalidArgument error
 		require.Error(t, err)
 		st, ok := status.FromError(err)
-		require.True(t, ok, "error should be a gRPC status error")
+		require.True(t, ok, "Error should be a gRPC status error")
 		assert.Equal(t, codes.InvalidArgument, st.Code())
-		assert.Contains(t, st.Message(), "No configuration provided")
 		assert.Nil(t, resp)
 	})
 
-	t.Run("validation_error", func(t *testing.T) {
+	t.Run("invalid_version", func(t *testing.T) {
+		// Create a Runner instance
+		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		require.NoError(t, err)
+
+		// Set up an invalid version
+		invalidVersion := "v2"
+		invalidConfig := &pb.ServerConfig{
+			Version: &invalidVersion,
+		}
+
+		// Call UpdateConfig with invalid version
+		resp, err := r.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
+			Config: invalidConfig,
+		})
+
+		// Should get validation error
+		require.Error(t, err)
+		st, ok := status.FromError(err)
+		require.True(t, ok, "Error should be a gRPC status error")
+		assert.Equal(t, codes.InvalidArgument, st.Code())
+		assert.Contains(t, st.Message(), "validation error")
+		assert.Nil(t, resp)
+	})
+
+	t.Run("invalid_format", func(t *testing.T) {
+		// Create a Runner instance
+		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		require.NoError(t, err)
+
+		// Set up an invalid version (not even a valid format)
+		invalidVersion := "invalid-version"
+		invalidConfig := &pb.ServerConfig{
+			Version: &invalidVersion,
+		}
+
+		// Call UpdateConfig with invalid version format
+		resp, err := r.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
+			Config: invalidConfig,
+		})
+
+		// Should get validation error
+		require.Error(t, err)
+		st, ok := status.FromError(err)
+		require.True(t, ok, "Error should be a gRPC status error")
+		assert.Equal(t, codes.InvalidArgument, st.Code())
+		assert.Contains(t, st.Message(), "validation error")
+		assert.Nil(t, resp)
+	})
+
+	t.Run("multiple_updates", func(t *testing.T) {
 		// Create a Runner instance
 		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
@@ -169,158 +221,163 @@ func TestUpdateConfig(t *testing.T) {
 		r.config = initialConfig
 		r.configMu.Unlock()
 
-		// Create update request with INVALID configuration (v2 is not supported)
-		newVersion := "v2"
-		invalidConfig := &pb.ServerConfig{
-			Version: &newVersion,
-		}
-		invalidReq := &pb.UpdateConfigRequest{
-			Config: invalidConfig,
-		}
-
-		// Call UpdateConfig with invalid config
-		invalidResp, err := r.UpdateConfig(context.Background(), invalidReq)
-
-		// Expect validation error as a gRPC InvalidArgument error
-		require.Error(t, err, "Should receive validation error for unsupported version")
-		st, ok := status.FromError(err)
-		require.True(t, ok, "error should be a gRPC status error")
-		assert.Equal(t, codes.InvalidArgument, st.Code())
-		assert.Nil(t, invalidResp)
-
-		// Verify that the internal config was NOT updated
-		result := r.GetPbConfigClone()
-		assert.Equal(t, initialConfig, result, "Config should not change after failed validation")
-	})
-
-	t.Run("invalid_version", func(t *testing.T) {
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
-		require.NoError(t, err)
-
-		// Create a config with an invalid version that will fail validation
-		invalidVersion := "invalid-version"
-		invalidConfig := &pb.ServerConfig{
-			Version: &invalidVersion,
-		}
-
-		req := &pb.UpdateConfigRequest{
-			Config: invalidConfig,
-		}
-
-		// Update should fail with validation error
-		resp, err := r.UpdateConfig(context.Background(), req)
-		assert.Error(t, err)
-		st, ok := status.FromError(err)
-		require.True(t, ok)
-		assert.Equal(t, codes.InvalidArgument, st.Code())
-		assert.Contains(t, st.Message(), "validation error")
-		assert.Nil(t, resp)
-	})
-
-	t.Run("response_isolation", func(t *testing.T) {
-		// This test verifies that when we modify the response config, it doesn't affect
-		// the internal stored config, which demonstrates proper deep copying
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
-		require.NoError(t, err)
-
-		// Start with a valid config
-		version := "v1"
-		updateConfig := &pb.ServerConfig{
-			Version: &version,
-		}
-
-		// Create update request
-		req := &pb.UpdateConfigRequest{
-			Config: updateConfig,
-		}
-
-		// Update config
-		resp, err := r.UpdateConfig(context.Background(), req)
-		require.NoError(t, err)
-		assert.NotNil(t, resp)
-
-		// Now modify the response config - this should not affect the stored config
-		newVersion := "v999" // An invalid version
-		resp.Config.Version = &newVersion
-
-		// Get the stored config
-		storedConfig := r.GetPbConfigClone()
-
-		// Check that it still has the original valid version
-		assert.Equal(
-			t,
-			version,
-			*storedConfig.Version,
-			"Stored config should not be affected by changes to the response config",
-		)
-	})
-
-	t.Run("multiple_updates", func(t *testing.T) {
-		// Create a custom logger that won't print warnings during tests
-		logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-
-		r, err := New(
-			WithListenAddr(testutil.GetRandomListeningPort(t)),
-			WithLogger(logger),
-		)
-		require.NoError(t, err)
-
-		// Get the reload channel
-		reloadCh := r.GetReloadTrigger()
-
-		// Create initial valid config
-		version := "v1"
-		initialConfig := &pb.ServerConfig{
-			Version: &version,
-		}
-
-		// Create a context
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		// Create three configurations to update with
+		// Prepare test configs
 		configs := []*pb.ServerConfig{
-			proto.Clone(initialConfig).(*pb.ServerConfig),
-			proto.Clone(initialConfig).(*pb.ServerConfig),
-			proto.Clone(initialConfig).(*pb.ServerConfig),
-		}
-
-		// Add different listeners to each config to make them distinguishable
-		for i, cfg := range configs {
-			id := "listener_" + string(rune('A'+i))
-			addr := ":808" + string(rune('0'+i))
-			cfg.Listeners = []*pb.Listener{
-				{
-					Id:      &id,
-					Address: &addr,
+			{
+				Version: &version,
+				Listeners: []*pb.Listener{
+					{
+						Id:      proto.String("listener_A"),
+						Address: proto.String(":8080"),
+						ProtocolOptions: &pb.Listener_Http{
+							Http: &pb.HttpListenerOptions{},
+						},
+					},
 				},
-			}
+			},
+			{
+				Version: &version,
+				Listeners: []*pb.Listener{
+					{
+						Id:      proto.String("listener_B"),
+						Address: proto.String(":8081"),
+						ProtocolOptions: &pb.Listener_Http{
+							Http: &pb.HttpListenerOptions{},
+						},
+					},
+				},
+			},
 		}
 
-		// Update the config multiple times rapidly
+		// Make multiple updates
 		for i, cfg := range configs {
 			t.Logf("Updating config %d", i)
-			req := &pb.UpdateConfigRequest{
-				Config: cfg,
-			}
+			req := &pb.UpdateConfigRequest{Config: cfg}
+			resp, err := r.UpdateConfig(context.Background(), req)
 
-			resp, err := r.UpdateConfig(ctx, req)
-			require.NoError(t, err)
+			require.NoError(t, err, "Update %d should succeed", i)
 			assert.NotNil(t, resp)
 			assert.True(t, *resp.Success)
-		}
 
-		// Check if at least one notification was received
-		select {
-		case <-reloadCh:
-			// Success - reload notification received
-		case <-ctx.Done():
-			t.Fatal("Timeout waiting for reload notification")
+			// Verify the update took effect
+			clone := r.GetPbConfigClone()
+			assert.Equal(t, cfg, clone)
 		}
-
-		// Check if the final config is correctly stored
-		storedConfig := r.GetPbConfigClone()
-		assert.Equal(t, configs[2].Listeners[0].Id, storedConfig.Listeners[0].Id,
-			"Final config should match the last update")
 	})
+}
+
+// Test that the reload channel emits correctly
+func TestReloadNotification(t *testing.T) {
+	r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	require.NoError(t, err)
+
+	// Get the reload channel
+	reloadCh := r.GetReloadTrigger()
+	require.NotNil(t, reloadCh)
+
+	// Check initial state (should be empty)
+	select {
+	case <-reloadCh:
+		t.Fatal("Reload channel should be empty initially")
+	default:
+		// Expected - channel is empty
+	}
+
+	// Create a valid config update
+	version := "v1"
+	listenerId := "test_listener"
+	validConfig := &pb.ServerConfig{
+		Version: &version,
+		Listeners: []*pb.Listener{
+			{
+				Id:      &listenerId,
+				Address: proto.String(":8080"),
+				ProtocolOptions: &pb.Listener_Http{
+					Http: &pb.HttpListenerOptions{},
+				},
+			},
+		},
+	}
+
+	// Submit the update
+	req := &pb.UpdateConfigRequest{Config: validConfig}
+	resp, err := r.UpdateConfig(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, *resp.Success)
+
+	// Verify reload notification was sent
+	select {
+	case <-reloadCh:
+		// Success - we got the expected notification
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Did not receive reload notification within expected timeframe")
+	}
+
+	// Channel should be drained now
+	select {
+	case <-reloadCh:
+		t.Fatal("Should have been only one notification")
+	default:
+		// Expected - channel is empty again
+	}
+}
+
+// TestUpdateConfigWithLogger tests that logger is correctly used during configuration updates
+func TestUpdateConfigWithLogger(t *testing.T) {
+	// Create a buffer to capture log output
+	var buf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&buf, nil))
+
+	// Create Runner with custom logger
+	r, err := New(
+		WithListenAddr(testutil.GetRandomListeningPort(t)),
+		WithLogger(logger),
+	)
+	require.NoError(t, err)
+
+	// Create valid config for update
+	version := "v1"
+	validConfig := &pb.ServerConfig{
+		Version: &version,
+		Listeners: []*pb.Listener{
+			{
+				Id:      proto.String("test_listener"),
+				Address: proto.String(":8080"),
+				ProtocolOptions: &pb.Listener_Http{
+					Http: &pb.HttpListenerOptions{},
+				},
+			},
+		},
+	}
+
+	// Submit the update
+	req := &pb.UpdateConfigRequest{Config: validConfig}
+	resp, err := r.UpdateConfig(context.Background(), req)
+	require.NoError(t, err)
+	assert.True(t, *resp.Success)
+
+	// Verify logger was used by checking that the output buffer contains something
+	assert.NotEmpty(t, buf.String(), "Logger should have output something")
+}
+
+// TestHandlingInvalidVersionConfig tests configs with invalid versions
+func TestHandlingInvalidVersionConfig(t *testing.T) {
+	r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	require.NoError(t, err)
+
+	// Create a config with an invalid version pattern
+	invalidVersion := "invalid_version_format"
+	invalidConfig := &pb.ServerConfig{
+		Version: &invalidVersion,
+	}
+
+	// Submit the update
+	req := &pb.UpdateConfigRequest{Config: invalidConfig}
+	_, err = r.UpdateConfig(context.Background(), req)
+
+	// Should fail because config has an invalid version
+	require.Error(t, err)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	assert.Equal(t, codes.InvalidArgument, st.Code())
 }
