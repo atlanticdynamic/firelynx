@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
-	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +37,7 @@ level = "debug"
 		// Validate should fail
 		err := config.Validate()
 		require.Error(t, err, "Expected error for unsupported version")
-		assert.ErrorIs(t, err, errz.ErrUnsupportedConfigVer)
+		assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
 	})
 
 	t.Run("EmptyVersionDefaultsToUnknown", func(t *testing.T) {
@@ -49,7 +48,7 @@ level = "debug"
 		// Validate should fail with unsupported version
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty version")
-		assert.ErrorIs(t, err, errz.ErrUnsupportedConfigVer)
+		assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
 		assert.Contains(t, err.Error(), VersionUnknown, "Should default to VersionUnknown")
 	})
 
@@ -63,7 +62,7 @@ level = "debug"
 		// Full validation might fail for other reasons, so we check that the error (if any)
 		// is not about the version
 		if err != nil {
-			assert.NotErrorIs(t, err, errz.ErrUnsupportedConfigVer,
+			assert.NotErrorIs(t, err, ErrUnsupportedConfigVer,
 				"Valid version should not trigger version error")
 		}
 	})
@@ -82,11 +81,11 @@ func TestListenerValidation(t *testing.T) {
 		// Validate should fail with duplicate ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for duplicate listener ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrDuplicateID.Error(),
+			ErrDuplicateID.Error(),
 			"Error should contain duplicate ID error",
 		)
 	})
@@ -103,11 +102,11 @@ func TestListenerValidation(t *testing.T) {
 		// Validate should fail with duplicate address error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for duplicate listener address")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrDuplicateID.Error(),
+			ErrDuplicateID.Error(),
 			"Error should contain duplicate ID error",
 		)
 	})
@@ -124,8 +123,8 @@ func TestListenerValidation(t *testing.T) {
 		// Validate should fail with empty ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty listener ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
-		assert.ErrorContains(t, err, errz.ErrEmptyID.Error(), "Error should contain empty ID error")
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
+		assert.ErrorContains(t, err, ErrEmptyID.Error(), "Error should contain empty ID error")
 	})
 
 	t.Run("EmptyListenerAddress", func(t *testing.T) {
@@ -140,11 +139,11 @@ func TestListenerValidation(t *testing.T) {
 		// Validate should fail with empty address error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty listener address")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrMissingRequiredField.Error(),
+			ErrMissingRequiredField.Error(),
 			"Error should contain missing required field error",
 		)
 	})
@@ -162,11 +161,11 @@ func TestEndpointValidation(t *testing.T) {
 		// Validate should fail with duplicate ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for duplicate endpoint ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrDuplicateID.Error(),
+			ErrDuplicateID.Error(),
 			"Error should contain duplicate ID error",
 		)
 	})
@@ -182,8 +181,8 @@ func TestEndpointValidation(t *testing.T) {
 		// Validate should fail with empty ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty endpoint ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
-		assert.ErrorContains(t, err, errz.ErrEmptyID.Error(), "Error should contain empty ID error")
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
+		assert.ErrorContains(t, err, ErrEmptyID.Error(), "Error should contain empty ID error")
 	})
 
 	t.Run("NonExistentListenerID", func(t *testing.T) {
@@ -197,11 +196,11 @@ func TestEndpointValidation(t *testing.T) {
 		// Validate should fail with reference error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for non-existent listener ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrListenerNotFound.Error(),
+			ErrListenerNotFound.Error(),
 			"Error should contain listener not found error",
 		)
 	})
@@ -219,8 +218,8 @@ func TestEndpointValidation(t *testing.T) {
 		// Validate should fail with empty app ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty app ID in route")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
-		assert.ErrorContains(t, err, errz.ErrEmptyID.Error(), "Error should contain empty ID error")
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
+		assert.ErrorContains(t, err, ErrEmptyID.Error(), "Error should contain empty ID error")
 	})
 }
 
@@ -235,11 +234,11 @@ func TestAppValidation(t *testing.T) {
 		// Validate should fail with duplicate ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for duplicate app ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrDuplicateID.Error(),
+			ErrDuplicateID.Error(),
 			"Error should contain duplicate ID error",
 		)
 	})
@@ -254,8 +253,8 @@ func TestAppValidation(t *testing.T) {
 		// Validate should fail with empty ID error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for empty app ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
-		assert.ErrorContains(t, err, errz.ErrEmptyID.Error(), "Error should contain empty ID error")
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
+		assert.ErrorContains(t, err, ErrEmptyID.Error(), "Error should contain empty ID error")
 	})
 
 	t.Run("NonExistentAppIDInRoute", func(t *testing.T) {
@@ -271,11 +270,11 @@ func TestAppValidation(t *testing.T) {
 		// Validate should fail with reference error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for non-existent app ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrAppNotFound.Error(),
+			ErrAppNotFound.Error(),
 			"Error should contain app not found error",
 		)
 	})
@@ -295,11 +294,11 @@ func TestCompositeScriptValidation(t *testing.T) {
 		// Validate should fail with reference error
 		err := config.Validate()
 		require.Error(t, err, "Expected error for non-existent script app ID")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrAppNotFound.Error(),
+			ErrAppNotFound.Error(),
 			"Error should contain app not found error",
 		)
 	})
@@ -383,11 +382,11 @@ http_path = "/foo"
 
 		// With our new validation in place, this should now fail
 		require.Error(t, err, "Expected error for conflicting routes")
-		assert.ErrorIs(t, err, errz.ErrFailedToValidateConfig)
+		assert.ErrorIs(t, err, ErrFailedToValidateConfig)
 		assert.ErrorContains(
 			t,
 			err,
-			errz.ErrRouteConflict.Error(),
+			ErrRouteConflict.Error(),
 			"Error should contain route conflict error",
 		)
 		assert.Nil(t, config, "Config should be nil when validation fails")
