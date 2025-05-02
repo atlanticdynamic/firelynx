@@ -13,13 +13,13 @@ import (
 // AppHandler is a http.Handler that dispatches requests to the appropriate app handler
 type AppHandler struct {
 	registry apps.Registry
-	routes   []Route
+	routes   []RouteConfig
 	mutex    sync.RWMutex
 	logger   *slog.Logger
 }
 
 // NewAppHandler creates a new AppHandler with the given app registry and routes
-func NewAppHandler(registry apps.Registry, routes []Route, logger *slog.Logger) *AppHandler {
+func NewAppHandler(registry apps.Registry, routes []RouteConfig, logger *slog.Logger) *AppHandler {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -39,7 +39,7 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.DebugContext(r.Context(), "Handling request", "method", r.Method)
 
 	// Find matching route
-	var matchedRoute *Route
+	var matchedRoute *RouteConfig
 	var matchedPathLen int
 
 	h.mutex.RLock()
@@ -81,7 +81,7 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateRoutes updates the routes handled by this handler
-func (h *AppHandler) UpdateRoutes(routes []Route) {
+func (h *AppHandler) UpdateRoutes(routes []RouteConfig) {
 	h.logger.Debug("Updating routes", "count", len(routes))
 	h.mutex.Lock()
 	h.routes = routes

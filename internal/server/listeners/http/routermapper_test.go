@@ -1,85 +1,33 @@
 package http
 
 import (
-	"slices"
 	"testing"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRouteMapper_MapEndpoint(t *testing.T) {
+func TestRouteMapper_ValidateRoutes(t *testing.T) {
 	tests := []struct {
 		name           string
-		endpoint       *config.Endpoint
-		expectedRoutes []Route
+		routes         []RouteConfig
+		validAppIDs    []string
+		expectedRoutes []RouteConfig
 	}{
 		{
-			name: "HTTP path condition",
-			endpoint: &config.Endpoint{
-				ID: "test-endpoint",
-				Routes: []config.Route{
-					{
-						AppID: "test-app",
-						Condition: config.HTTPPathCondition{
-							Path: "/test",
-						},
-						StaticData: map[string]any{
-							"key": "value",
-						},
-					},
-				},
-			},
-			expectedRoutes: []Route{
+			name: "all routes valid",
+			routes: []RouteConfig{
 				{
-					Path:       "/test",
-					AppID:      "test-app",
-					StaticData: map[string]any{"key": "value"},
+					Path:  "/test1",
+					AppID: "app1",
+				},
+				{
+					Path:  "/test2",
+					AppID: "app2",
 				},
 			},
-		},
-		{
-			name: "non-HTTP condition",
-			endpoint: &config.Endpoint{
-				ID: "test-endpoint",
-				Routes: []config.Route{
-					{
-						AppID: "test-app",
-						Condition: config.GRPCServiceCondition{
-							Service: "test.Service",
-						},
-					},
-				},
-			},
-			expectedRoutes: []Route{},
-		},
-		{
-			name: "multiple routes",
-			endpoint: &config.Endpoint{
-				ID: "test-endpoint",
-				Routes: []config.Route{
-					{
-						AppID: "app1",
-						Condition: config.HTTPPathCondition{
-							Path: "/test1",
-						},
-					},
-					{
-						AppID: "app2",
-						Condition: config.HTTPPathCondition{
-							Path: "/test2",
-						},
-					},
-					{
-						AppID: "app3",
-						Condition: config.GRPCServiceCondition{
-							Service: "test.Service",
-						},
-					},
-				},
-			},
-			expectedRoutes: []Route{
+			validAppIDs: []string{"app1", "app2"},
+			expectedRoutes: []RouteConfig{
 				{
 					Path:  "/test1",
 					AppID: "app1",
@@ -90,6 +38,74 @@ func TestRouteMapper_MapEndpoint(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "some routes invalid",
+			routes: []RouteConfig{
+				{
+					Path:  "/test1",
+					AppID: "app1",
+				},
+				{
+					Path:  "/test2",
+					AppID: "app2",
+				},
+				{
+					Path:  "/test3",
+					AppID: "app3",
+				},
+			},
+			validAppIDs: []string{"app1", "app3"},
+			expectedRoutes: []RouteConfig{
+				{
+					Path:  "/test1",
+					AppID: "app1",
+				},
+				{
+					Path:  "/test3",
+					AppID: "app3",
+				},
+			},
+		},
+		{
+			name:           "nil routes",
+			routes:         nil,
+			validAppIDs:    []string{"app1", "app2"},
+			expectedRoutes: []RouteConfig{},
+		},
+		{
+			name:           "empty routes",
+			routes:         []RouteConfig{},
+			validAppIDs:    []string{"app1", "app2"},
+			expectedRoutes: []RouteConfig{},
+		},
+		{
+			name: "routes with static data",
+			routes: []RouteConfig{
+				{
+					Path:       "/test1",
+					AppID:      "app1",
+					StaticData: map[string]any{"key1": "value1"},
+				},
+				{
+					Path:       "/test2",
+					AppID:      "app2",
+					StaticData: map[string]any{"key2": "value2"},
+				},
+			},
+			validAppIDs: []string{"app1", "app2"},
+			expectedRoutes: []RouteConfig{
+				{
+					Path:       "/test1",
+					AppID:      "app1",
+					StaticData: map[string]any{"key1": "value1"},
+				},
+				{
+					Path:       "/test2",
+					AppID:      "app2",
+					StaticData: map[string]any{"key2": "value2"},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -97,184 +113,82 @@ func TestRouteMapper_MapEndpoint(t *testing.T) {
 			// Create mock registry
 			registry := mocks.NewMockRegistry()
 
-			// Set up mock expectations for app IDs in routes
-			// This is the key fix - we need to set up expectations for all HTTP routes
-			for _, route := range tt.endpoint.Routes {
-				// Only setup expectations for HTTP path conditions
-				if _, isHTTP := route.Condition.(config.HTTPPathCondition); isHTTP {
-					registry.On("GetApp", route.AppID).Return(struct{}{}, true)
+			// Set up mock expectations
+			for _, appID := range tt.validAppIDs {
+				registry.On("GetApp", appID).Return(struct{}{}, true)
+			}
+
+			// For all other app IDs in the routes, they should return not found
+			for _, route := range tt.routes {
+				found := false
+				for _, appID := range tt.validAppIDs {
+					if route.AppID == appID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					registry.On("GetApp", route.AppID).Return(nil, false)
 				}
 			}
 
 			// Create route mapper
 			mapper := NewRouteMapper(registry, nil)
 
-			// Map endpoint
-			routes := mapper.MapEndpoint(tt.endpoint)
+			// Validate routes
+			validRoutes := mapper.ValidateRoutes(tt.routes)
 
-			// Initialize empty slices to handle nil vs empty slice comparisons
-			if routes == nil {
-				routes = []Route{}
-			}
-			expectedRoutes := tt.expectedRoutes
-			if expectedRoutes == nil {
-				expectedRoutes = []Route{}
-			}
-
-			// Check routes
-			assert.Equal(t, expectedRoutes, routes)
+			// Check results
+			assert.Equal(t, tt.expectedRoutes, validRoutes)
 		})
 	}
 }
 
-func TestRouteMapper_MapEndpointsForListener(t *testing.T) {
+func TestRouteMapper_CreateBaseRoute(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         *config.Config
-		listenerID     string
-		expectedRoutes []Route
+		name       string
+		path       string
+		appID      string
+		staticData map[string]any
+		expected   RouteConfig
 	}{
 		{
-			name: "single endpoint",
-			config: &config.Config{
-				Endpoints: []config.Endpoint{
-					{
-						ID:          "test-endpoint",
-						ListenerIDs: []string{"test-listener"},
-						Routes: []config.Route{
-							{
-								AppID: "test-app",
-								Condition: config.HTTPPathCondition{
-									Path: "/test",
-								},
-							},
-						},
-					},
-				},
-			},
-			listenerID: "test-listener",
-			expectedRoutes: []Route{
-				{
-					Path:  "/test",
-					AppID: "test-app",
-				},
+			name:     "basic route",
+			path:     "/test",
+			appID:    "test-app",
+			expected: RouteConfig{Path: "/test", AppID: "test-app"},
+		},
+		{
+			name:       "route with static data",
+			path:       "/test",
+			appID:      "test-app",
+			staticData: map[string]any{"key": "value"},
+			expected: RouteConfig{
+				Path:       "/test",
+				AppID:      "test-app",
+				StaticData: map[string]any{"key": "value"},
 			},
 		},
 		{
-			name: "multiple endpoints",
-			config: &config.Config{
-				Endpoints: []config.Endpoint{
-					{
-						ID:          "endpoint1",
-						ListenerIDs: []string{"test-listener"},
-						Routes: []config.Route{
-							{
-								AppID: "app1",
-								Condition: config.HTTPPathCondition{
-									Path: "/test1",
-								},
-							},
-						},
-					},
-					{
-						ID:          "endpoint2",
-						ListenerIDs: []string{"test-listener"},
-						Routes: []config.Route{
-							{
-								AppID: "app2",
-								Condition: config.HTTPPathCondition{
-									Path: "/test2",
-								},
-							},
-						},
-					},
-					{
-						ID:          "endpoint3",
-						ListenerIDs: []string{"other-listener"},
-						Routes: []config.Route{
-							{
-								AppID: "app3",
-								Condition: config.HTTPPathCondition{
-									Path: "/test3",
-								},
-							},
-						},
-					},
-				},
+			name:       "with nested static data",
+			path:       "/api/v1",
+			appID:      "api-app",
+			staticData: map[string]any{"nested": map[string]any{"key": "value"}},
+			expected: RouteConfig{
+				Path:       "/api/v1",
+				AppID:      "api-app",
+				StaticData: map[string]any{"nested": map[string]any{"key": "value"}},
 			},
-			listenerID: "test-listener",
-			expectedRoutes: []Route{
-				{
-					Path:  "/test1",
-					AppID: "app1",
-				},
-				{
-					Path:  "/test2",
-					AppID: "app2",
-				},
-			},
-		},
-		{
-			name: "no matching endpoints",
-			config: &config.Config{
-				Endpoints: []config.Endpoint{
-					{
-						ID:          "endpoint1",
-						ListenerIDs: []string{"other-listener"},
-						Routes: []config.Route{
-							{
-								AppID: "app1",
-								Condition: config.HTTPPathCondition{
-									Path: "/test1",
-								},
-							},
-						},
-					},
-				},
-			},
-			listenerID:     "test-listener",
-			expectedRoutes: []Route{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock registry
 			registry := mocks.NewMockRegistry()
-
-			// Set up mock expectations for all app IDs in the endpoints that match the listener ID
-			for _, endpoint := range tt.config.Endpoints {
-				// Only process endpoints for this listener
-				if !slices.Contains(endpoint.ListenerIDs, tt.listenerID) {
-					continue
-				}
-
-				// Set up expectations for all HTTP routes in this endpoint
-				for _, route := range endpoint.Routes {
-					// Only setup expectations for HTTP path conditions
-					if _, isHTTP := route.Condition.(config.HTTPPathCondition); isHTTP {
-						registry.On("GetApp", route.AppID).Return(struct{}{}, true)
-					}
-				}
-			}
-
-			// Create route mapper
 			mapper := NewRouteMapper(registry, nil)
 
-			// Map endpoints for listener
-			routes := mapper.MapEndpointsForListener(tt.config, tt.listenerID)
-
-			// Initialize empty slices to handle nil vs empty slice comparisons
-			if routes == nil {
-				routes = []Route{}
-			}
-			expectedRoutes := tt.expectedRoutes
-			if expectedRoutes == nil {
-				expectedRoutes = []Route{}
-			}
-
-			// Check routes
-			assert.Equal(t, expectedRoutes, routes)
+			route := mapper.CreateBaseRoute(tt.path, tt.appID, tt.staticData)
+			assert.Equal(t, tt.expected, route)
 		})
 	}
 }

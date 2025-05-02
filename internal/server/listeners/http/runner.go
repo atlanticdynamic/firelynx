@@ -135,57 +135,6 @@ func (r *Runner) getRunnerConfig() (*composite.Config[*wrapper.HttpServer], erro
 	return r.buildCompositeConfig(httpConfig)
 }
 
-// validateConfig ensures that the configuration is valid
-func (r *Runner) validateConfig(cfg *Config) error {
-	if cfg == nil {
-		return errors.New("configuration is nil")
-	}
-
-	if cfg.Registry == nil {
-		return errors.New("registry is nil")
-	}
-
-	// At least one listener is required
-	if len(cfg.Listeners) == 0 {
-		return errors.New("no listeners defined")
-	}
-
-	// Validate listeners
-	for _, listener := range cfg.Listeners {
-		if listener.ID == "" {
-			return errors.New("listener id is required")
-		}
-		if listener.Address == "" {
-			return errors.New("listener address is required")
-		}
-		if listener.DrainTimeout < 0 {
-			return fmt.Errorf("invalid drain timeout for HTTP listener %s", listener.ID)
-		}
-		if listener.IdleTimeout < 0 {
-			return fmt.Errorf("invalid idle timeout for HTTP listener %s", listener.ID)
-		}
-
-		// Validate routes
-		for _, route := range listener.Routes {
-			// Validate route path
-			if route.Path == "" {
-				return fmt.Errorf("route in listener %s has empty path", listener.ID)
-			}
-
-			// Validate app ID
-			if route.AppID == "" {
-				return fmt.Errorf(
-					"route %s in listener %s has empty app ID",
-					route.Path,
-					listener.ID,
-				)
-			}
-		}
-	}
-
-	return nil
-}
-
 // buildCompositeConfig constructs the composite runner configuration from the HTTP config
 func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.HttpServer], error) {
 	if cfg == nil {
@@ -198,7 +147,7 @@ func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.H
 	}
 
 	// Validate the configuration
-	if err := r.validateConfig(cfg); err != nil {
+	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
@@ -223,7 +172,7 @@ func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.H
 			routeID := fmt.Sprintf("%s:%s", listenerCfg.ID, route.Path)
 
 			// Create handler for this route
-			appHandler := NewAppHandler(cfg.Registry, []Route{route}, r.logger)
+			appHandler := NewAppHandler(cfg.Registry, []RouteConfig{route}, r.logger)
 
 			// Create httpserver route
 			httpRoute, err := httpserver.NewRoute(routeID, route.Path, appHandler.ServeHTTP)
