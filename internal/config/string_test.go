@@ -3,6 +3,7 @@ package config
 import (
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -38,18 +39,18 @@ func TestConfigTree(t *testing.T) {
 				},
 			},
 		},
-		Apps: []App{
+		Apps: []apps.App{
 			{
 				ID: "hello_app",
-				Config: ScriptApp{
-					Evaluator: RisorEvaluator{
+				Config: apps.ScriptApp{
+					Evaluator: apps.RisorEvaluator{
 						Code: `fn handle(req) { return { "body": "Hello, World!" } }`,
 					},
-					StaticData: StaticData{
+					StaticData: apps.StaticData{
 						Data: map[string]any{
 							"version": "1.0",
 						},
-						MergeMode: StaticDataMergeModeUnique,
+						MergeMode: apps.StaticDataMergeModeUnique,
 					},
 				},
 			},

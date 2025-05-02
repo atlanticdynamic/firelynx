@@ -6,6 +6,7 @@ import (
 	"io"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 )
 
@@ -147,7 +148,7 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	// Convert apps
 	appErrz := make([]error, 0, len(pbConfig.Apps))
 	if pbConfig.Apps != nil {
-		config.Apps = make([]App, 0, len(pbConfig.Apps))
+		appsList := make([]apps.App, 0, len(pbConfig.Apps))
 		for _, pbApp := range pbConfig.Apps {
 			app, err := appFromProto(pbApp)
 			if err != nil {
@@ -159,8 +160,9 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 				)
 				continue
 			}
-			config.Apps = append(config.Apps, app)
+			appsList = append(appsList, app)
 		}
+		config.Apps = appsList
 	}
 
 	return config, errors.Join(appErrz...)

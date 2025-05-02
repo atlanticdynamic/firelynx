@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/tree"
@@ -153,12 +154,12 @@ func ConfigTree(cfg *Config) string {
 
 			// Add app type and specific configurations
 			switch appConfig := a.Config.(type) {
-			case ScriptApp:
+			case apps.ScriptApp:
 				appNode.Child(fancy.InfoStyle.Render(fmt.Sprintf("Type: Script (%s)", appConfig.Evaluator.Type())))
 
 				// Add evaluator details based on type
 				switch eval := appConfig.Evaluator.(type) {
-				case RisorEvaluator:
+				case apps.RisorEvaluator:
 					evalNode := tree.New().Root(fancy.ComponentStyle.Render("Risor Evaluator"))
 					if eval.Timeout != nil {
 						evalNode.Child(fancy.InfoStyle.Render(fmt.Sprintf("Timeout: %v", eval.Timeout)))
@@ -171,7 +172,7 @@ func ConfigTree(cfg *Config) string {
 
 					appNode.Child(evalNode)
 
-				case StarlarkEvaluator:
+				case apps.StarlarkEvaluator:
 					evalNode := tree.New().Root(fancy.ComponentStyle.Render("Starlark Evaluator"))
 					if eval.Timeout != nil {
 						evalNode.Child(fancy.InfoStyle.Render(fmt.Sprintf("Timeout: %v", eval.Timeout)))
@@ -184,7 +185,7 @@ func ConfigTree(cfg *Config) string {
 
 					appNode.Child(evalNode)
 
-				case ExtismEvaluator:
+				case apps.ExtismEvaluator:
 					evalNode := tree.New().Root(fancy.ComponentStyle.Render("Extism Evaluator"))
 					if eval.Entrypoint != "" {
 						evalNode.Child(fancy.InfoStyle.Render(fmt.Sprintf("Entrypoint: %s", eval.Entrypoint)))
@@ -212,7 +213,7 @@ func ConfigTree(cfg *Config) string {
 					appNode.Child(staticNode)
 				}
 
-			case CompositeScriptApp:
+			case apps.CompositeScriptApp:
 				appNode.Child(fancy.InfoStyle.Render("Type: Composite Script"))
 
 				// Add script references

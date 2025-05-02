@@ -1,7 +1,7 @@
 package config
 
 import (
-	"google.golang.org/protobuf/types/known/durationpb"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 )
 
 // Configuration version constants
@@ -19,7 +19,7 @@ type Config struct {
 	Logging   LoggingConfig
 	Listeners []Listener
 	Endpoints []Endpoint
-	Apps      []App
+	Apps      apps.Apps
 
 	// Keep reference to raw protobuf for debugging
 	rawProto any
@@ -69,104 +69,14 @@ type MCPResourceCondition struct {
 func (m MCPResourceCondition) Type() string  { return "mcp_resource" }
 func (m MCPResourceCondition) Value() string { return m.Resource }
 
-// App represents an application definition
-type App struct {
-	ID     string
-	Config AppConfig
-}
-
-// AppConfig represents application-specific configuration
-type AppConfig interface {
-	Type() string
-}
-
-// StaticDataMergeMode represents strategies for merging static data
-type StaticDataMergeMode string
-
-// Constants for StaticDataMergeMode
-const (
-	StaticDataMergeModeUnspecified StaticDataMergeMode = ""
-	StaticDataMergeModeLast        StaticDataMergeMode = "last"
-	StaticDataMergeModeUnique      StaticDataMergeMode = "unique"
-)
-
-// StaticData represents configuration data passed to applications
-type StaticData struct {
-	Data      map[string]any
-	MergeMode StaticDataMergeMode
-}
-
-// ScriptApp represents a script-based application
-type ScriptApp struct {
-	StaticData StaticData
-	Evaluator  ScriptEvaluator
-}
-
-func (s ScriptApp) Type() string { return "script" }
-
-// ScriptEvaluator represents a script execution engine
-type ScriptEvaluator interface {
-	Type() string
-}
-
-// RisorEvaluator executes Risor scripts
-type RisorEvaluator struct {
-	Code    string
-	Timeout *durationpb.Duration
-}
-
-func (r RisorEvaluator) Type() string { return "risor" }
-
-// StarlarkEvaluator executes Starlark scripts
-type StarlarkEvaluator struct {
-	Code    string
-	Timeout *durationpb.Duration
-}
-
-func (s StarlarkEvaluator) Type() string { return "starlark" }
-
-// ExtismEvaluator executes WebAssembly scripts
-type ExtismEvaluator struct {
-	Code       string
-	Entrypoint string
-}
-
-func (e ExtismEvaluator) Type() string { return "extism" }
-
-// CompositeScriptApp represents an application composed of multiple scripts
-type CompositeScriptApp struct {
-	ScriptAppIDs []string
-	StaticData   StaticData
-}
-
-func (c CompositeScriptApp) Type() string { return "composite_script" }
-
-// FindListener finds a listener by ID
-func (c *Config) FindListener(id string) *Listener {
-	for i, listener := range c.Listeners {
-		if listener.ID == id {
-			return &c.Listeners[i]
+// GetHTTPRoutes returns routes with HTTP conditions from an endpoint
+func (e *Endpoint) GetHTTPRoutes() []Route {
+	var httpRoutes []Route
+	for _, route := range e.Routes {
+		// Check if route has an HTTP path condition
+		if _, ok := route.Condition.(HTTPPathCondition); ok {
+			httpRoutes = append(httpRoutes, route)
 		}
 	}
-	return nil
-}
-
-// FindEndpoint finds an endpoint by ID
-func (c *Config) FindEndpoint(id string) *Endpoint {
-	for i, endpoint := range c.Endpoints {
-		if endpoint.ID == id {
-			return &c.Endpoints[i]
-		}
-	}
-	return nil
-}
-
-// FindApp finds an application by ID
-func (c *Config) FindApp(id string) *App {
-	for i, app := range c.Apps {
-		if app.ID == id {
-			return &c.Apps[i]
-		}
-	}
-	return nil
+	return httpRoutes
 }

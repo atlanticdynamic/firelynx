@@ -1,7 +1,14 @@
 package config
 
-// GetHTTPRoutes returns all HTTP routes for this endpoint
-func (e *Endpoint) GetHTTPRoutes() []HTTPRoute {
+// HTTPRoute represents an HTTP-specific route derived from a domain route
+type HTTPRoute struct {
+	Path       string
+	AppID      string
+	StaticData map[string]any
+}
+
+// GetStructuredHTTPRoutes returns all HTTP routes for this endpoint in a structured format
+func (e *Endpoint) GetStructuredHTTPRoutes() []HTTPRoute {
 	var httpRoutes []HTTPRoute
 
 	for _, route := range e.Routes {
@@ -21,33 +28,4 @@ func (e *Endpoint) GetHTTPRoutes() []HTTPRoute {
 	}
 
 	return httpRoutes
-}
-
-// HTTPRoute represents an HTTP-specific route derived from a domain route
-type HTTPRoute struct {
-	Path       string
-	AppID      string
-	StaticData map[string]any
-}
-
-// GetEndpointsForListener returns all endpoints that reference a given listener
-func (c *Config) GetEndpointsForListener(listenerID string) []*Endpoint {
-	var endpoints []*Endpoint
-
-	for i, endpoint := range c.Endpoints {
-		// Check if this endpoint references the listener
-		includesListener := false
-		for _, id := range endpoint.ListenerIDs {
-			if id == listenerID {
-				includesListener = true
-				break
-			}
-		}
-
-		if includesListener {
-			endpoints = append(endpoints, &c.Endpoints[i])
-		}
-	}
-
-	return endpoints
 }

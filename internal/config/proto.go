@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -117,7 +118,7 @@ func (c *Config) ToProto() *pb.ServerConfig {
 
 		// Convert app config
 		switch cfg := a.Config.(type) {
-		case ScriptApp:
+		case apps.ScriptApp:
 			app.AppConfig = &pb.AppDefinition_Script{
 				Script: &pb.AppScript{
 					StaticData: &pb.StaticData{
@@ -142,21 +143,21 @@ func (c *Config) ToProto() *pb.ServerConfig {
 
 			// Convert evaluator
 			switch eval := cfg.Evaluator.(type) {
-			case RisorEvaluator:
+			case apps.RisorEvaluator:
 				app.GetScript().Evaluator = &pb.AppScript_Risor{
 					Risor: &pb.RisorEvaluator{
 						Code:    &eval.Code,
 						Timeout: eval.Timeout,
 					},
 				}
-			case StarlarkEvaluator:
+			case apps.StarlarkEvaluator:
 				app.GetScript().Evaluator = &pb.AppScript_Starlark{
 					Starlark: &pb.StarlarkEvaluator{
 						Code:    &eval.Code,
 						Timeout: eval.Timeout,
 					},
 				}
-			case ExtismEvaluator:
+			case apps.ExtismEvaluator:
 				app.GetScript().Evaluator = &pb.AppScript_Extism{
 					Extism: &pb.ExtismEvaluator{
 						Code:       &eval.Code,
@@ -164,7 +165,7 @@ func (c *Config) ToProto() *pb.ServerConfig {
 					},
 				}
 			}
-		case CompositeScriptApp:
+		case apps.CompositeScriptApp:
 			app.AppConfig = &pb.AppDefinition_CompositeScript{
 				CompositeScript: &pb.AppCompositeScript{
 					ScriptAppIds: cfg.ScriptAppIDs,
@@ -196,11 +197,11 @@ func (c *Config) ToProto() *pb.ServerConfig {
 }
 
 // staticDataMergeModeToProto converts a domain StaticDataMergeMode to a protobuf StaticDataMergeMode
-func staticDataMergeModeToProto(mode StaticDataMergeMode) pb.StaticDataMergeMode {
+func staticDataMergeModeToProto(mode apps.StaticDataMergeMode) pb.StaticDataMergeMode {
 	switch mode {
-	case StaticDataMergeModeLast:
+	case apps.StaticDataMergeModeLast:
 		return pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST
-	case StaticDataMergeModeUnique:
+	case apps.StaticDataMergeModeUnique:
 		return pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE
 	default:
 		return pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED
@@ -209,18 +210,18 @@ func staticDataMergeModeToProto(mode StaticDataMergeMode) pb.StaticDataMergeMode
 
 // appFromProto converts a protobuf AppDefinition to a domain App object.
 // It handles the conversion of different app config types like ScriptApp and CompositeScriptApp.
-func appFromProto(pbApp *pb.AppDefinition) (App, error) {
+func appFromProto(pbApp *pb.AppDefinition) (apps.App, error) {
 	if pbApp == nil {
-		return App{}, fmt.Errorf("%w: nil protobuf app definition", ErrFailedToConvertConfig)
+		return apps.App{}, fmt.Errorf("%w: nil protobuf app definition", ErrFailedToConvertConfig)
 	}
 
-	app := App{
+	app := apps.App{
 		ID: getStringValue(pbApp.Id),
 	}
 
 	// Convert app configuration
 	if pbScript := pbApp.GetScript(); pbScript != nil {
-		scriptApp := ScriptApp{}
+		scriptApp := apps.ScriptApp{}
 
 		// Convert static data
 		if pbStaticData := pbScript.GetStaticData(); pbStaticData != nil {
@@ -235,7 +236,7 @@ func appFromProto(pbApp *pb.AppDefinition) (App, error) {
 
 		// Convert evaluator using early returns for cleaner code
 		if risor := pbScript.GetRisor(); risor != nil {
-			scriptApp.Evaluator = RisorEvaluator{
+			scriptApp.Evaluator = apps.RisorEvaluator{
 				Code:    risor.GetCode(),
 				Timeout: risor.GetTimeout(),
 			}
@@ -244,7 +245,7 @@ func appFromProto(pbApp *pb.AppDefinition) (App, error) {
 		}
 
 		if starlark := pbScript.GetStarlark(); starlark != nil {
-			scriptApp.Evaluator = StarlarkEvaluator{
+			scriptApp.Evaluator = apps.StarlarkEvaluator{
 				Code:    starlark.GetCode(),
 				Timeout: starlark.GetTimeout(),
 			}
@@ -253,7 +254,7 @@ func appFromProto(pbApp *pb.AppDefinition) (App, error) {
 		}
 
 		if extism := pbScript.GetExtism(); extism != nil {
-			scriptApp.Evaluator = ExtismEvaluator{
+			scriptApp.Evaluator = apps.ExtismEvaluator{
 				Code:       extism.GetCode(),
 				Entrypoint: extism.GetEntrypoint(),
 			}
@@ -261,13 +262,13 @@ func appFromProto(pbApp *pb.AppDefinition) (App, error) {
 			return app, nil
 		}
 
-		return App{}, fmt.Errorf(
+		return apps.App{}, fmt.Errorf(
 			"%w: script app '%s' has no evaluator defined",
 			ErrFailedToConvertConfig, app.ID)
 	}
 
 	if pbComposite := pbApp.GetCompositeScript(); pbComposite != nil {
-		compositeApp := CompositeScriptApp{
+		compositeApp := apps.CompositeScriptApp{
 			ScriptAppIDs: pbComposite.GetScriptAppIds(),
 		}
 
@@ -287,20 +288,20 @@ func appFromProto(pbApp *pb.AppDefinition) (App, error) {
 	}
 
 	// If we got here, no valid app config was found
-	return App{}, fmt.Errorf(
+	return apps.App{}, fmt.Errorf(
 		"%w: app definition '%s' has an unknown or empty config type",
 		ErrFailedToConvertConfig, app.ID)
 }
 
 // protoMergeModeToStaticDataMergeMode converts protocol buffer merge mode to domain model merge mode
-func protoMergeModeToStaticDataMergeMode(mode pb.StaticDataMergeMode) StaticDataMergeMode {
+func protoMergeModeToStaticDataMergeMode(mode pb.StaticDataMergeMode) apps.StaticDataMergeMode {
 	switch mode {
 	case pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST:
-		return StaticDataMergeModeLast
+		return apps.StaticDataMergeModeLast
 	case pb.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE:
-		return StaticDataMergeModeUnique
+		return apps.StaticDataMergeModeUnique
 	default:
-		return StaticDataMergeModeUnspecified
+		return apps.StaticDataMergeModeUnspecified
 	}
 }
 
@@ -344,4 +345,111 @@ func getStringValue(ptr *string) string {
 		return ""
 	}
 	return *ptr
+}
+
+// FromProto converts a protobuf ServerConfig to a domain Config
+func FromProto(pbConfig *pb.ServerConfig) (*Config, error) {
+	if pbConfig == nil {
+		return nil, fmt.Errorf("%w: nil protobuf config", ErrFailedToConvertConfig)
+	}
+
+	config := &Config{
+		Version:  getStringValue(pbConfig.Version),
+		rawProto: pbConfig,
+	}
+
+	// Convert logging config
+	if pbConfig.Logging != nil {
+		config.Logging = LoggingConfig{
+			Format: protoFormatToLogFormat(pbConfig.Logging.GetFormat()),
+			Level:  protoLevelToLogLevel(pbConfig.Logging.GetLevel()),
+		}
+	}
+
+	// Convert listeners
+	if len(pbConfig.Listeners) > 0 {
+		config.Listeners = make([]Listener, 0, len(pbConfig.Listeners))
+		for _, l := range pbConfig.Listeners {
+			listener := Listener{
+				ID:      getStringValue(l.Id),
+				Address: getStringValue(l.Address),
+			}
+
+			// Convert protocol-specific options
+			if http := l.GetHttp(); http != nil {
+				listener.Options = HTTPListenerOptions{
+					ReadTimeout:  http.ReadTimeout,
+					WriteTimeout: http.WriteTimeout,
+					DrainTimeout: http.DrainTimeout,
+				}
+			} else if grpc := l.GetGrpc(); grpc != nil {
+				listener.Options = GRPCListenerOptions{
+					MaxConnectionIdle:    grpc.MaxConnectionIdle,
+					MaxConnectionAge:     grpc.MaxConnectionAge,
+					MaxConcurrentStreams: int(grpc.GetMaxConcurrentStreams()),
+				}
+			}
+
+			config.Listeners = append(config.Listeners, listener)
+		}
+	}
+
+	// Convert endpoints
+	if len(pbConfig.Endpoints) > 0 {
+		config.Endpoints = make([]Endpoint, 0, len(pbConfig.Endpoints))
+		for _, e := range pbConfig.Endpoints {
+			endpoint := Endpoint{
+				ID:          getStringValue(e.Id),
+				ListenerIDs: e.ListenerIds,
+			}
+
+			// Convert routes
+			if len(e.Routes) > 0 {
+				endpoint.Routes = make([]Route, 0, len(e.Routes))
+				for _, r := range e.Routes {
+					route := Route{
+						AppID: getStringValue(r.AppId),
+					}
+
+					// Convert static data
+					if r.StaticData != nil && len(r.StaticData.Data) > 0 {
+						route.StaticData = make(map[string]any)
+						for k, v := range r.StaticData.Data {
+							route.StaticData[k] = convertProtoValueToInterface(v)
+						}
+					}
+
+					// Convert condition
+					if path := r.GetHttpPath(); path != "" {
+						route.Condition = HTTPPathCondition{
+							Path: path,
+						}
+					} else if service := r.GetGrpcService(); service != "" {
+						route.Condition = GRPCServiceCondition{
+							Service: service,
+						}
+					}
+
+					endpoint.Routes = append(endpoint.Routes, route)
+				}
+			}
+
+			config.Endpoints = append(config.Endpoints, endpoint)
+		}
+	}
+
+	// Convert apps
+	if len(pbConfig.Apps) > 0 {
+		appDefinitions := make([]apps.App, 0, len(pbConfig.Apps))
+		for _, pbApp := range pbConfig.Apps {
+			app, err := appFromProto(pbApp)
+			if err != nil {
+				return nil, err
+			}
+			appDefinitions = append(appDefinitions, app)
+		}
+		config.Apps = appDefinitions
+	}
+
+	return config, nil
 }
