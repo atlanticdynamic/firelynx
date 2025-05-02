@@ -1,7 +1,7 @@
 package core
 
 import (
-	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 )
 
@@ -32,12 +32,12 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 		// Map HTTP listeners from domain config to HTTP-specific config
 		for _, l := range r.currentConfig.Listeners {
 			// Skip non-HTTP listeners
-			if l.Type != config.ListenerTypeHTTP {
+			if l.Type != listeners.TypeHTTP {
 				continue
 			}
 
 			// Get HTTP options
-			httpOpts, ok := l.Options.(config.HTTPListenerOptions)
+			httpOpts, ok := l.Options.(listeners.HTTPOptions)
 			if !ok {
 				r.logger.Error("Invalid options type for HTTP listener", "id", l.ID)
 				continue

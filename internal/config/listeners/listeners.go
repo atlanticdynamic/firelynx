@@ -1,4 +1,4 @@
-package config
+package listeners
 
 import (
 	"time"
@@ -6,54 +6,54 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
-// ListenerType represents the protocol used by a listener
-type ListenerType string
+// Type represents the protocol used by a listener
+type Type string
 
-// Constants for ListenerType
+// Constants for Type
 const (
-	ListenerTypeHTTP ListenerType = "http"
-	ListenerTypeGRPC ListenerType = "grpc"
+	TypeHTTP Type = "http"
+	TypeGRPC Type = "grpc"
 )
 
-// ListenerOptions represents protocol-specific options for listeners
-type ListenerOptions interface {
-	Type() ListenerType
+// Options represents protocol-specific options for listeners
+type Options interface {
+	Type() Type
 }
 
-// HTTPListenerOptions contains HTTP-specific listener configuration
-type HTTPListenerOptions struct {
+// HTTPOptions contains HTTP-specific listener configuration
+type HTTPOptions struct {
 	ReadTimeout  *durationpb.Duration
 	WriteTimeout *durationpb.Duration
 	DrainTimeout *durationpb.Duration
 	IdleTimeout  *durationpb.Duration
 }
 
-func (h HTTPListenerOptions) Type() ListenerType { return ListenerTypeHTTP }
+func (h HTTPOptions) Type() Type { return TypeHTTP }
 
-// GRPCListenerOptions contains gRPC-specific listener configuration
-type GRPCListenerOptions struct {
+// GRPCOptions contains gRPC-specific listener configuration
+type GRPCOptions struct {
 	MaxConnectionIdle    *durationpb.Duration
 	MaxConnectionAge     *durationpb.Duration
 	MaxConcurrentStreams int
 }
 
-func (g GRPCListenerOptions) Type() ListenerType { return ListenerTypeGRPC }
+func (g GRPCOptions) Type() Type { return TypeGRPC }
 
 // Listener represents a network listener configuration
 type Listener struct {
 	ID      string
 	Address string
-	Type    ListenerType
-	Options ListenerOptions
+	Type    Type
+	Options Options
 }
 
-// GetHTTPOptions safely extracts HTTPListenerOptions from a Listener
-func (l *Listener) GetHTTPOptions() (HTTPListenerOptions, bool) {
-	if l.Type != ListenerTypeHTTP || l.Options == nil {
-		return HTTPListenerOptions{}, false
+// GetHTTPOptions safely extracts HTTPOptions from a Listener
+func (l *Listener) GetHTTPOptions() (HTTPOptions, bool) {
+	if l.Type != TypeHTTP || l.Options == nil {
+		return HTTPOptions{}, false
 	}
 
-	httpOpts, ok := l.Options.(HTTPListenerOptions)
+	httpOpts, ok := l.Options.(HTTPOptions)
 	return httpOpts, ok
 }
 
@@ -115,4 +115,24 @@ func (l *Listener) GetIdleTimeout(defaultDuration time.Duration) time.Duration {
 	}
 
 	return duration
+}
+
+// Config represents the interface needed from a Config object to query endpoints
+type Config interface {
+	GetEndpoints() []interface{} // We'll use interface{} to avoid import cycles
+}
+
+// GetEndpoints returns the endpoints attached to a specific listener
+// This requires passing in the config object
+func (l *Listener) GetEndpoints(config interface{}) []interface{} {
+	// This implementation needs to be updated by callers to convert interface{} to the right type
+	// This approach prevents import cycles
+	return nil
+}
+
+// GetEndpointIDs returns the IDs of endpoints that are attached to this listener
+func (l *Listener) GetEndpointIDs(config interface{}) []string {
+	// This is a placeholder method that should be implemented by the client
+	// using a type assertion to avoid import cycles
+	return nil
 }

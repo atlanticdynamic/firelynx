@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
@@ -48,7 +48,7 @@ type HttpServer struct {
 
 // NewHttpServer creates a new wrapper for the go-supervisor httpserver.Runner from a listener configuration and routes
 func NewHttpServer(
-	listener *config.Listener,
+	listener *listeners.Listener,
 	routes []httpserver.Route,
 	opts ...ServerOption,
 ) (*HttpServer, error) {
@@ -105,16 +105,16 @@ func NewHttpServer(
 }
 
 // validateListenerConfig validates the listener configuration
-func validateListenerConfig(listener *config.Listener) error {
+func validateListenerConfig(listener *listeners.Listener) error {
 	if listener == nil {
 		return fmt.Errorf("listener config cannot be nil")
 	}
 
-	if listener.Type != config.ListenerTypeHTTP {
+	if listener.Type != listeners.TypeHTTP {
 		return fmt.Errorf(
 			"invalid listener type: %s, expected: %s",
 			listener.Type,
-			config.ListenerTypeHTTP,
+			listeners.TypeHTTP,
 		)
 	}
 
@@ -130,10 +130,10 @@ func validateListenerConfig(listener *config.Listener) error {
 }
 
 // extractHTTPOptions extracts HTTP options from listener configuration
-func extractHTTPOptions(listener *config.Listener) (config.HTTPListenerOptions, error) {
-	httpOptions, ok := listener.Options.(config.HTTPListenerOptions)
+func extractHTTPOptions(listener *listeners.Listener) (listeners.HTTPOptions, error) {
+	httpOptions, ok := listener.Options.(listeners.HTTPOptions)
 	if !ok {
-		return config.HTTPListenerOptions{}, fmt.Errorf(
+		return listeners.HTTPOptions{}, fmt.Errorf(
 			"invalid listener options type: expected HTTPListenerOptions",
 		)
 	}

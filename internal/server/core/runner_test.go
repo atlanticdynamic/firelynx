@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -17,26 +19,26 @@ func createTestConfig() *config.Config {
 	// Create a simple domain config for testing
 	cfg := &config.Config{
 		Version: "v1",
-		Listeners: []config.Listener{
+		Listeners: []listeners.Listener{
 			{
 				ID:      "test-listener",
 				Address: "localhost:8080",
-				Type:    config.ListenerTypeHTTP,
-				Options: &config.HTTPListenerOptions{
+				Type:    listeners.TypeHTTP,
+				Options: listeners.HTTPOptions{
 					ReadTimeout:  durationpb.New(5 * time.Second),
 					WriteTimeout: durationpb.New(10 * time.Second),
 					DrainTimeout: durationpb.New(30 * time.Second),
 				},
 			},
 		},
-		Endpoints: []config.Endpoint{
+		Endpoints: []endpoints.Endpoint{
 			{
 				ID:          "test-endpoint",
 				ListenerIDs: []string{"test-listener"},
-				Routes: []config.Route{
+				Routes: []endpoints.Route{
 					{
 						AppID: "echo", // This matches the echo app registered in Runner.New()
-						Condition: &config.HTTPPathCondition{
+						Condition: endpoints.HTTPPathCondition{
 							Path: "/echo",
 						},
 					},

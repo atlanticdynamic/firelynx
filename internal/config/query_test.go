@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -11,120 +13,160 @@ import (
 
 func TestConfig_GetAppsByType(t *testing.T) {
 	// Setup test config with apps.App types
-	config := &Config{
-		Apps: []apps.App{
-			{ID: "risor1", Config: apps.ScriptApp{Evaluator: apps.RisorEvaluator{Code: "code1"}}},
-			{ID: "risor2", Config: apps.ScriptApp{Evaluator: apps.RisorEvaluator{Code: "code2"}}},
-			{
-				ID:     "starlark1",
-				Config: apps.ScriptApp{Evaluator: apps.StarlarkEvaluator{Code: "code3"}},
+	app1 := apps.App{
+		ID: "app1",
+		Config: apps.ScriptApp{
+			Evaluator: apps.RisorEvaluator{
+				Code: "test code",
+			},
+		},
+	}
+	app2 := apps.App{
+		ID: "app2",
+		Config: apps.ScriptApp{
+			Evaluator: apps.RisorEvaluator{
+				Code: "another test code",
+			},
+		},
+	}
+	app3 := apps.App{
+		ID: "app3",
+		Config: apps.ScriptApp{
+			Evaluator: apps.StarlarkEvaluator{
+				Code: "starlark code",
 			},
 		},
 	}
 
-	// Test Risor apps
+	config := &Config{
+		Apps: []apps.App{app1, app2, app3},
+	}
+
+	// Test getting apps by Risor type
 	risorApps := config.GetAppsByType("risor")
 	assert.Len(t, risorApps, 2)
-	assert.Equal(t, "risor1", risorApps[0].ID)
-	assert.Equal(t, "risor2", risorApps[1].ID)
+	assert.Equal(t, "app1", risorApps[0].ID)
+	assert.Equal(t, "app2", risorApps[1].ID)
 
-	// Test Starlark apps
+	// Test getting apps by Starlark type
 	starlarkApps := config.GetAppsByType("starlark")
 	assert.Len(t, starlarkApps, 1)
-	assert.Equal(t, "starlark1", starlarkApps[0].ID)
+	assert.Equal(t, "app3", starlarkApps[0].ID)
 
-	// Test non-existent app type
-	emptyApps := config.GetAppsByType("other")
+	// Test getting apps by non-existent type
+	emptyApps := config.GetAppsByType("nonsense")
 	assert.Empty(t, emptyApps)
 }
 
 func TestConfig_GetListenersByType(t *testing.T) {
 	// Setup test config
 	config := &Config{
-		Listeners: []Listener{
-			{ID: "http1", Type: ListenerTypeHTTP},
-			{ID: "http2", Type: ListenerTypeHTTP},
-			{ID: "grpc1", Type: ListenerTypeGRPC},
+		Listeners: []listeners.Listener{
+			{ID: "http1", Type: listeners.TypeHTTP},
+			{ID: "http2", Type: listeners.TypeHTTP},
+			{ID: "grpc1", Type: listeners.TypeGRPC},
 		},
 	}
 
 	// Test HTTP listeners
-	httpListeners := config.GetListenersByType(ListenerTypeHTTP)
+	httpListeners := config.GetListenersByType(listeners.TypeHTTP)
 	assert.Len(t, httpListeners, 2)
 	assert.Equal(t, "http1", httpListeners[0].ID)
 	assert.Equal(t, "http2", httpListeners[1].ID)
 
 	// Test gRPC listeners
-	grpcListeners := config.GetListenersByType(ListenerTypeGRPC)
+	grpcListeners := config.GetListenersByType(listeners.TypeGRPC)
 	assert.Len(t, grpcListeners, 1)
 	assert.Equal(t, "grpc1", grpcListeners[0].ID)
 
-	// Test non-existent type
-	otherListeners := config.GetListenersByType(ListenerType("other"))
-	assert.Empty(t, otherListeners)
+	// Test convenience methods
+	httpListeners = config.GetHTTPListeners()
+	assert.Len(t, httpListeners, 2)
+	grpcListeners = config.GetGRPCListeners()
+	assert.Len(t, grpcListeners, 1)
+
+	// Test non-existing type
+	emptyListeners := config.GetListenersByType("nonsense")
+	assert.Empty(t, emptyListeners)
 }
 
 func TestConfig_GetEndpointsByListenerID(t *testing.T) {
-	// Setup test config
+	// Setup test config with endpoints that reference listeners
 	config := &Config{
-		Endpoints: []Endpoint{
-			{ID: "endpoint1", ListenerIDs: []string{"listener1", "listener2"}},
-			{ID: "endpoint2", ListenerIDs: []string{"listener2", "listener3"}},
-			{ID: "endpoint3", ListenerIDs: []string{"listener3", "listener4"}},
+		Endpoints: []endpoints.Endpoint{
+			{ID: "ep1", ListenerIDs: []string{"listener1", "listener2"}},
+			{ID: "ep2", ListenerIDs: []string{"listener1"}},
+			{ID: "ep3", ListenerIDs: []string{"listener3"}},
 		},
 	}
 
-	// Test endpoints for listener1
+	// Test getting endpoints by listener ID
 	listener1Endpoints := config.GetEndpointsByListenerID("listener1")
-	assert.Len(t, listener1Endpoints, 1)
-	assert.Equal(t, "endpoint1", listener1Endpoints[0].ID)
+	assert.Len(t, listener1Endpoints, 2)
+	assert.Equal(t, "ep1", listener1Endpoints[0].ID)
+	assert.Equal(t, "ep2", listener1Endpoints[1].ID)
 
-	// Test endpoints for listener2
 	listener2Endpoints := config.GetEndpointsByListenerID("listener2")
-	assert.Len(t, listener2Endpoints, 2)
-	assert.Contains(t, []string{"endpoint1", "endpoint2"}, listener2Endpoints[0].ID)
-	assert.Contains(t, []string{"endpoint1", "endpoint2"}, listener2Endpoints[1].ID)
+	assert.Len(t, listener2Endpoints, 1)
+	assert.Equal(t, "ep1", listener2Endpoints[0].ID)
 
-	// Test endpoints for listener3
 	listener3Endpoints := config.GetEndpointsByListenerID("listener3")
-	assert.Len(t, listener3Endpoints, 2)
-	assert.Contains(t, []string{"endpoint2", "endpoint3"}, listener3Endpoints[0].ID)
-	assert.Contains(t, []string{"endpoint2", "endpoint3"}, listener3Endpoints[1].ID)
+	assert.Len(t, listener3Endpoints, 1)
+	assert.Equal(t, "ep3", listener3Endpoints[0].ID)
 
-	// Test non-existent listener
-	otherEndpoints := config.GetEndpointsByListenerID("other")
-	assert.Empty(t, otherEndpoints)
+	// Test non-existent listener ID
+	emptyEndpoints := config.GetEndpointsByListenerID("listener4")
+	assert.Empty(t, emptyEndpoints)
+
+	// Test alias method
+	listener1EndpointsAlias := config.GetEndpointsForListener("listener1")
+	assert.Equal(t, listener1Endpoints, listener1EndpointsAlias)
 }
 
-func TestConfig_GetHTTPListeners(t *testing.T) {
-	// Setup test config
+func TestConfig_FindByID(t *testing.T) {
+	// Setup test config with IDs to find
 	config := &Config{
-		Listeners: []Listener{
-			{ID: "http1", Type: ListenerTypeHTTP},
-			{ID: "http2", Type: ListenerTypeHTTP},
-			{ID: "grpc1", Type: ListenerTypeGRPC},
+		Listeners: []listeners.Listener{
+			{ID: "listener1"},
+			{ID: "listener2"},
+		},
+		Endpoints: []endpoints.Endpoint{
+			{ID: "endpoint1"},
+			{ID: "endpoint2"},
+		},
+		Apps: []apps.App{
+			{ID: "app1"},
+			{ID: "app2"},
 		},
 	}
 
-	// Test HTTP listeners helper method
-	httpListeners := config.GetHTTPListeners()
-	assert.Len(t, httpListeners, 2)
-	assert.Equal(t, "http1", httpListeners[0].ID)
-	assert.Equal(t, "http2", httpListeners[1].ID)
-}
+	// Test FindListener
+	listener := config.FindListener("listener1")
+	assert.NotNil(t, listener)
+	assert.Equal(t, "listener1", listener.ID)
 
-func TestConfig_GetGRPCListeners(t *testing.T) {
-	// Setup test config
-	config := &Config{
-		Listeners: []Listener{
-			{ID: "http1", Type: ListenerTypeHTTP},
-			{ID: "http2", Type: ListenerTypeHTTP},
-			{ID: "grpc1", Type: ListenerTypeGRPC},
-		},
-	}
+	// Test GetListenerByID (alias)
+	listener = config.GetListenerByID("listener2")
+	assert.NotNil(t, listener)
+	assert.Equal(t, "listener2", listener.ID)
 
-	// Test GRPC listeners helper method
-	grpcListeners := config.GetGRPCListeners()
-	assert.Len(t, grpcListeners, 1)
-	assert.Equal(t, "grpc1", grpcListeners[0].ID)
+	// Test FindEndpoint
+	endpoint := config.FindEndpoint("endpoint1")
+	assert.NotNil(t, endpoint)
+	assert.Equal(t, "endpoint1", endpoint.ID)
+
+	// Test GetEndpointByID (alias)
+	endpoint = config.GetEndpointByID("endpoint2")
+	assert.NotNil(t, endpoint)
+	assert.Equal(t, "endpoint2", endpoint.ID)
+
+	// Test FindApp
+	app := config.FindApp("app1")
+	assert.NotNil(t, app)
+	assert.Equal(t, "app1", app.ID)
+
+	// Test non-existent IDs
+	assert.Nil(t, config.FindListener("nonexistent"))
+	assert.Nil(t, config.FindEndpoint("nonexistent"))
+	assert.Nil(t, config.FindApp("nonexistent"))
 }
