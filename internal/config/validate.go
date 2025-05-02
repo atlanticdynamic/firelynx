@@ -71,30 +71,30 @@ func (c *Config) Validate() error {
 	}
 
 	// Validate endpoints
-	for i, endpoint := range c.Endpoints {
+	for i, ep := range c.Endpoints {
 		// Validate each endpoint with its own validation logic
-		if err := endpoint.Validate(); err != nil {
+		if err := ep.Validate(); err != nil {
 			errs = append(errs, fmt.Errorf("endpoint at index %d: %w", i, err))
 		}
 
 		// Additional cross-reference validations
-		if endpoint.ID != "" {
+		if ep.ID != "" {
 			// Check for duplicate endpoint IDs
-			if endpointIds[endpoint.ID] {
+			if endpointIds[ep.ID] {
 				errs = append(errs, fmt.Errorf("%w: endpoint ID '%s'",
-					ErrDuplicateID, endpoint.ID))
+					ErrDuplicateID, ep.ID))
 			} else {
-				endpointIds[endpoint.ID] = true
+				endpointIds[ep.ID] = true
 			}
 		}
 
 		// Validate listener references
-		for _, listenerId := range endpoint.ListenerIDs {
+		for _, listenerId := range ep.ListenerIDs {
 			if !listenerIds[listenerId] {
 				errs = append(errs, fmt.Errorf(
 					"%w: endpoint '%s' references non-existent listener ID '%s'",
 					ErrListenerNotFound,
-					endpoint.ID,
+					ep.ID,
 					listenerId,
 				))
 			}
@@ -108,8 +108,8 @@ func (c *Config) Validate() error {
 
 	// Create slice of route refs for app validation
 	routeRefs := make([]struct{ AppID string }, 0)
-	for _, endpoint := range c.Endpoints {
-		for _, route := range endpoint.Routes {
+	for _, ep := range c.Endpoints {
+		for _, route := range ep.Routes {
 			routeRefs = append(routeRefs, struct{ AppID string }{AppID: route.AppID})
 		}
 	}
@@ -140,16 +140,16 @@ func (c *Config) validateRouteConflicts() error {
 	// Map to track route conditions by listener: listener ID -> condition string -> endpoint ID
 	routeMap := make(map[string]map[string]string)
 
-	for _, endpoint := range c.Endpoints {
+	for _, ep := range c.Endpoints {
 		// For each listener this endpoint is attached to
-		for _, listenerID := range endpoint.ListenerIDs {
+		for _, listenerID := range ep.ListenerIDs {
 			// Initialize map for this listener if needed
 			if _, exists := routeMap[listenerID]; !exists {
 				routeMap[listenerID] = make(map[string]string)
 			}
 
 			// Check each route for conflicts
-			for _, route := range endpoint.Routes {
+			for _, route := range ep.Routes {
 				// Skip nil conditions - they're validated elsewhere
 				if route.Condition == nil {
 					continue
@@ -169,11 +169,11 @@ func (c *Config) validateRouteConflicts() error {
 						conditionKey,
 						listenerID,
 						existingEndpointID,
-						endpoint.ID,
+						ep.ID,
 					))
 				} else {
 					// Register this condition
-					routeMap[listenerID][conditionKey] = endpoint.ID
+					routeMap[listenerID][conditionKey] = ep.ID
 				}
 			}
 		}

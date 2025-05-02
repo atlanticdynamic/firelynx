@@ -205,7 +205,6 @@ The configuration system uses a flexible condition system for routes:
 * Implementation types:
   * `HTTPPathCondition`: Routes requests based on HTTP path patterns
   * `GRPCServiceCondition`: Routes requests based on gRPC service name
-  * `MCPResourceCondition`: Routes requests based on MCP resource type
 
 This pattern allows for:
 * Type-safe condition handling in the domain model

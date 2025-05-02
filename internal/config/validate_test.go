@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -72,10 +74,10 @@ func TestListenerValidation(t *testing.T) {
 	t.Run("DuplicateListenerID", func(t *testing.T) {
 		// Create a config with duplicate listener IDs
 		config := createValidDomainConfig(t)
-		config.Listeners = append(config.Listeners, Listener{
+		config.Listeners = append(config.Listeners, listeners.Listener{
 			ID:      "listener1", // Duplicate of existing ID
 			Address: ":9090",     // Different address
-			Type:    ListenerTypeHTTP,
+			Type:    listeners.TypeHTTP,
 		})
 
 		// Validate should fail with duplicate ID error
@@ -93,10 +95,10 @@ func TestListenerValidation(t *testing.T) {
 	t.Run("DuplicateListenerAddress", func(t *testing.T) {
 		// Create a config with duplicate listener addresses
 		config := createValidDomainConfig(t)
-		config.Listeners = append(config.Listeners, Listener{
+		config.Listeners = append(config.Listeners, listeners.Listener{
 			ID:      "listener2", // Different ID
 			Address: ":8080",     // Duplicate of existing address
-			Type:    ListenerTypeHTTP,
+			Type:    listeners.TypeHTTP,
 		})
 
 		// Validate should fail with duplicate address error
@@ -114,10 +116,10 @@ func TestListenerValidation(t *testing.T) {
 	t.Run("EmptyListenerID", func(t *testing.T) {
 		// Create a config with empty listener ID
 		config := createValidDomainConfig(t)
-		config.Listeners = append(config.Listeners, Listener{
+		config.Listeners = append(config.Listeners, listeners.Listener{
 			ID:      "", // Empty ID
 			Address: ":9090",
-			Type:    ListenerTypeHTTP,
+			Type:    listeners.TypeHTTP,
 		})
 
 		// Validate should fail with empty ID error
@@ -130,10 +132,10 @@ func TestListenerValidation(t *testing.T) {
 	t.Run("EmptyListenerAddress", func(t *testing.T) {
 		// Create a config with empty listener address
 		config := createValidDomainConfig(t)
-		config.Listeners = append(config.Listeners, Listener{
+		config.Listeners = append(config.Listeners, listeners.Listener{
 			ID:      "listener2",
 			Address: "", // Empty address
-			Type:    ListenerTypeHTTP,
+			Type:    listeners.TypeHTTP,
 		})
 
 		// Validate should fail with empty address error
@@ -153,7 +155,7 @@ func TestEndpointValidation(t *testing.T) {
 	t.Run("DuplicateEndpointID", func(t *testing.T) {
 		// Create a config with duplicate endpoint IDs
 		config := createValidDomainConfig(t)
-		config.Endpoints = append(config.Endpoints, Endpoint{
+		config.Endpoints = append(config.Endpoints, endpoints.Endpoint{
 			ID:          "endpoint1", // Duplicate of existing ID
 			ListenerIDs: []string{"listener1"},
 		})
@@ -173,7 +175,7 @@ func TestEndpointValidation(t *testing.T) {
 	t.Run("EmptyEndpointID", func(t *testing.T) {
 		// Create a config with empty endpoint ID
 		config := createValidDomainConfig(t)
-		config.Endpoints = append(config.Endpoints, Endpoint{
+		config.Endpoints = append(config.Endpoints, endpoints.Endpoint{
 			ID:          "", // Empty ID
 			ListenerIDs: []string{"listener1"},
 		})
@@ -188,7 +190,7 @@ func TestEndpointValidation(t *testing.T) {
 	t.Run("NonExistentListenerID", func(t *testing.T) {
 		// Create a config with reference to non-existent listener ID
 		config := createValidDomainConfig(t)
-		config.Endpoints = append(config.Endpoints, Endpoint{
+		config.Endpoints = append(config.Endpoints, endpoints.Endpoint{
 			ID:          "endpoint2",
 			ListenerIDs: []string{"non_existent_listener"}, // Reference to non-existent listener
 		})
@@ -208,9 +210,9 @@ func TestEndpointValidation(t *testing.T) {
 	t.Run("EmptyAppIDInRoute", func(t *testing.T) {
 		// Create a config with empty app ID in route
 		config := createValidDomainConfig(t)
-		config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, Route{
+		config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, endpoints.Route{
 			AppID: "", // Empty app ID
-			Condition: HTTPPathCondition{
+			Condition: endpoints.HTTPPathCondition{
 				Path: "/empty",
 			},
 		})
@@ -260,9 +262,9 @@ func TestAppValidation(t *testing.T) {
 	t.Run("NonExistentAppIDInRoute", func(t *testing.T) {
 		// Create a config with reference to non-existent app ID in route
 		config := createValidDomainConfig(t)
-		config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, Route{
+		config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, endpoints.Route{
 			AppID: "non_existent_app", // Reference to non-existent app
-			Condition: HTTPPathCondition{
+			Condition: endpoints.HTTPPathCondition{
 				Path: "/non-existent",
 			},
 		})

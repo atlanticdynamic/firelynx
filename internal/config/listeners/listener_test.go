@@ -1,4 +1,4 @@
-package config
+package listeners
 
 import (
 	"testing"
@@ -14,8 +14,8 @@ func TestListener_GetHTTPOptions(t *testing.T) {
 	// Create HTTP listener with options
 	httpListener := &Listener{
 		ID:   "http1",
-		Type: ListenerTypeHTTP,
-		Options: HTTPListenerOptions{
+		Type: TypeHTTP,
+		Options: HTTPOptions{
 			ReadTimeout:  durationpb.New(5 * time.Second),
 			WriteTimeout: durationpb.New(10 * time.Second),
 		},
@@ -24,14 +24,14 @@ func TestListener_GetHTTPOptions(t *testing.T) {
 	// Create GRPC listener
 	grpcListener := &Listener{
 		ID:      "grpc1",
-		Type:    ListenerTypeGRPC,
-		Options: GRPCListenerOptions{},
+		Type:    TypeGRPC,
+		Options: GRPCOptions{},
 	}
 
 	// Create HTTP listener with nil options
 	emptyListener := &Listener{
 		ID:   "empty",
-		Type: ListenerTypeHTTP,
+		Type: TypeHTTP,
 	}
 
 	// Test HTTP listener with options
@@ -59,8 +59,8 @@ func TestListener_GetTimeouts(t *testing.T) {
 	// Create HTTP listener with all options
 	fullListener := &Listener{
 		ID:   "full",
-		Type: ListenerTypeHTTP,
-		Options: HTTPListenerOptions{
+		Type: TypeHTTP,
+		Options: HTTPOptions{
 			ReadTimeout:  durationpb.New(readDuration),
 			WriteTimeout: durationpb.New(writeDuration),
 			DrainTimeout: durationpb.New(drainDuration),
@@ -71,8 +71,8 @@ func TestListener_GetTimeouts(t *testing.T) {
 	// Create HTTP listener with partial options
 	partialListener := &Listener{
 		ID:   "partial",
-		Type: ListenerTypeHTTP,
-		Options: HTTPListenerOptions{
+		Type: TypeHTTP,
+		Options: HTTPOptions{
 			ReadTimeout: durationpb.New(readDuration),
 			// WriteTimeout intentionally omitted
 			// DrainTimeout intentionally omitted
@@ -83,8 +83,8 @@ func TestListener_GetTimeouts(t *testing.T) {
 	// Create HTTP listener with invalid options
 	invalidListener := &Listener{
 		ID:   "invalid",
-		Type: ListenerTypeHTTP,
-		Options: HTTPListenerOptions{
+		Type: TypeHTTP,
+		Options: HTTPOptions{
 			ReadTimeout:  durationpb.New(-1 * time.Second), // Negative duration
 			WriteTimeout: durationpb.New(0),                // Zero duration
 		},
@@ -93,8 +93,8 @@ func TestListener_GetTimeouts(t *testing.T) {
 	// Create GRPC listener
 	grpcListener := &Listener{
 		ID:      "grpc",
-		Type:    ListenerTypeGRPC,
-		Options: GRPCListenerOptions{},
+		Type:    TypeGRPC,
+		Options: GRPCOptions{},
 	}
 
 	// Define fallback values for test purposes only

@@ -1,12 +1,12 @@
-package config
+package logs
 
 import (
 	"errors"
 	"fmt"
 )
 
-// Validate performs validation for LoggingConfig
-func (lc *LoggingConfig) Validate() error {
+// Validate performs validation for Config
+func (lc *Config) Validate() error {
 	var errs []error
 
 	// Validate Format

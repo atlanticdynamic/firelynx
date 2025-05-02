@@ -6,6 +6,9 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -23,62 +26,57 @@ func (c *Config) ToProto() *pb.ServerConfig {
 
 	// Convert logging config
 	if c.Logging.Format != "" || c.Logging.Level != "" {
-		format := logFormatToProto(c.Logging.Format)
-		level := logLevelToProto(c.Logging.Level)
-		config.Logging = &pb.LogOptions{
-			Format: &format,
-			Level:  &level,
-		}
+		// Use the logs package's conversion method
+		config.Logging = c.Logging.ToProto()
 	}
 
 	// Convert listeners
 	config.Listeners = make([]*pb.Listener, 0, len(c.Listeners))
 	for _, l := range c.Listeners {
-		listener := &pb.Listener{
+		pbListener := &pb.Listener{
 			Id:      &l.ID,
 			Address: &l.Address,
 		}
 
-		// Convert protocol-specific options
-		switch opts := l.Options.(type) {
-		case HTTPListenerOptions:
-			listener.ProtocolOptions = &pb.Listener_Http{
+		// Convert options
+		if httpOpts, ok := l.Options.(listeners.HTTPOptions); ok {
+			pbListener.ProtocolOptions = &pb.Listener_Http{
 				Http: &pb.HttpListenerOptions{
-					ReadTimeout:  opts.ReadTimeout,
-					WriteTimeout: opts.WriteTimeout,
-					DrainTimeout: opts.DrainTimeout,
+					ReadTimeout:  httpOpts.ReadTimeout,
+					WriteTimeout: httpOpts.WriteTimeout,
+					IdleTimeout:  httpOpts.IdleTimeout,
+					DrainTimeout: httpOpts.DrainTimeout,
 				},
 			}
-		case GRPCListenerOptions:
-			maxStreams := int32(opts.MaxConcurrentStreams)
-			listener.ProtocolOptions = &pb.Listener_Grpc{
+		} else if grpcOpts, ok := l.Options.(listeners.GRPCOptions); ok {
+			maxStreams := int32(grpcOpts.MaxConcurrentStreams)
+			pbListener.ProtocolOptions = &pb.Listener_Grpc{
 				Grpc: &pb.GrpcListenerOptions{
-					MaxConnectionIdle:    opts.MaxConnectionIdle,
-					MaxConnectionAge:     opts.MaxConnectionAge,
+					MaxConnectionIdle:    grpcOpts.MaxConnectionIdle,
+					MaxConnectionAge:     grpcOpts.MaxConnectionAge,
 					MaxConcurrentStreams: &maxStreams,
 				},
 			}
 		}
 
-		config.Listeners = append(config.Listeners, listener)
+		config.Listeners = append(config.Listeners, pbListener)
 	}
 
 	// Convert endpoints
 	config.Endpoints = make([]*pb.Endpoint, 0, len(c.Endpoints))
 	for _, e := range c.Endpoints {
-		endpoint := &pb.Endpoint{
+		pbEndpoint := &pb.Endpoint{
 			Id:          &e.ID,
 			ListenerIds: e.ListenerIDs,
 		}
 
 		// Convert routes
-		endpoint.Routes = make([]*pb.Route, 0, len(e.Routes))
 		for _, r := range e.Routes {
 			route := &pb.Route{
 				AppId: &r.AppID,
 			}
 
-			// Convert static data
+			// Convert static data if present
 			if r.StaticData != nil {
 				route.StaticData = &pb.StaticData{
 					Data: make(map[string]*structpb.Value),
@@ -93,20 +91,20 @@ func (c *Config) ToProto() *pb.ServerConfig {
 
 			// Convert condition
 			switch cond := r.Condition.(type) {
-			case HTTPPathCondition:
+			case endpoints.HTTPPathCondition:
 				route.Condition = &pb.Route_HttpPath{
 					HttpPath: cond.Path,
 				}
-			case GRPCServiceCondition:
+			case endpoints.GRPCServiceCondition:
 				route.Condition = &pb.Route_GrpcService{
 					GrpcService: cond.Service,
 				}
 			}
 
-			endpoint.Routes = append(endpoint.Routes, route)
+			pbEndpoint.Routes = append(pbEndpoint.Routes, route)
 		}
 
-		config.Endpoints = append(config.Endpoints, endpoint)
+		config.Endpoints = append(config.Endpoints, pbEndpoint)
 	}
 
 	// Convert apps
@@ -208,23 +206,24 @@ func staticDataMergeModeToProto(mode apps.StaticDataMergeMode) pb.StaticDataMerg
 	}
 }
 
-// appFromProto converts a protobuf AppDefinition to a domain App object.
-// It handles the conversion of different app config types like ScriptApp and CompositeScriptApp.
+// appFromProto converts a protobuf AppDefinition to a domain App
 func appFromProto(pbApp *pb.AppDefinition) (apps.App, error) {
+	// Check for nil app
 	if pbApp == nil {
-		return apps.App{}, fmt.Errorf("%w: nil protobuf app definition", ErrFailedToConvertConfig)
+		return apps.App{}, fmt.Errorf("app definition is nil")
 	}
 
 	app := apps.App{
 		ID: getStringValue(pbApp.Id),
 	}
 
-	// Convert app configuration
-	if pbScript := pbApp.GetScript(); pbScript != nil {
+	// Convert app config
+	if script := pbApp.GetScript(); script != nil {
 		scriptApp := apps.ScriptApp{}
 
 		// Convert static data
-		if pbStaticData := pbScript.GetStaticData(); pbStaticData != nil {
+		pbStaticData := script.GetStaticData()
+		if pbStaticData != nil {
 			scriptApp.StaticData.Data = make(map[string]any)
 			for k, v := range pbStaticData.GetData() {
 				scriptApp.StaticData.Data[k] = convertProtoValueToInterface(v)
@@ -234,46 +233,38 @@ func appFromProto(pbApp *pb.AppDefinition) (apps.App, error) {
 			)
 		}
 
-		// Convert evaluator using early returns for cleaner code
-		if risor := pbScript.GetRisor(); risor != nil {
+		// Convert evaluator
+		if risor := script.GetRisor(); risor != nil {
 			scriptApp.Evaluator = apps.RisorEvaluator{
-				Code:    risor.GetCode(),
-				Timeout: risor.GetTimeout(),
+				Code:    getStringValue(risor.Code),
+				Timeout: risor.Timeout,
 			}
-			app.Config = scriptApp
-			return app, nil
-		}
-
-		if starlark := pbScript.GetStarlark(); starlark != nil {
+		} else if starlark := script.GetStarlark(); starlark != nil {
 			scriptApp.Evaluator = apps.StarlarkEvaluator{
-				Code:    starlark.GetCode(),
-				Timeout: starlark.GetTimeout(),
+				Code:    getStringValue(starlark.Code),
+				Timeout: starlark.Timeout,
 			}
-			app.Config = scriptApp
-			return app, nil
-		}
-
-		if extism := pbScript.GetExtism(); extism != nil {
+		} else if extism := script.GetExtism(); extism != nil {
 			scriptApp.Evaluator = apps.ExtismEvaluator{
-				Code:       extism.GetCode(),
-				Entrypoint: extism.GetEntrypoint(),
+				Code:       getStringValue(extism.Code),
+				Entrypoint: getStringValue(extism.Entrypoint),
 			}
-			app.Config = scriptApp
-			return app, nil
+		} else {
+			return apps.App{}, fmt.Errorf(
+				"%w: script app '%s' has an unknown or empty evaluator",
+				ErrFailedToConvertConfig, app.ID)
 		}
 
-		return apps.App{}, fmt.Errorf(
-			"%w: script app '%s' has no evaluator defined",
-			ErrFailedToConvertConfig, app.ID)
-	}
-
-	if pbComposite := pbApp.GetCompositeScript(); pbComposite != nil {
+		app.Config = scriptApp
+		return app, nil
+	} else if composite := pbApp.GetCompositeScript(); composite != nil {
 		compositeApp := apps.CompositeScriptApp{
-			ScriptAppIDs: pbComposite.GetScriptAppIds(),
+			ScriptAppIDs: composite.ScriptAppIds,
 		}
 
 		// Convert static data
-		if pbStaticData := pbComposite.GetStaticData(); pbStaticData != nil {
+		pbStaticData := composite.GetStaticData()
+		if pbStaticData != nil {
 			compositeApp.StaticData.Data = make(map[string]any)
 			for k, v := range pbStaticData.GetData() {
 				compositeApp.StaticData.Data[k] = convertProtoValueToInterface(v)
@@ -360,54 +351,54 @@ func FromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 
 	// Convert logging config
 	if pbConfig.Logging != nil {
-		config.Logging = LoggingConfig{
-			Format: protoFormatToLogFormat(pbConfig.Logging.GetFormat()),
-			Level:  protoLevelToLogLevel(pbConfig.Logging.GetLevel()),
-		}
+		config.Logging = logs.FromProto(pbConfig.Logging)
 	}
 
 	// Convert listeners
 	if len(pbConfig.Listeners) > 0 {
-		config.Listeners = make([]Listener, 0, len(pbConfig.Listeners))
+		config.Listeners = make([]listeners.Listener, 0, len(pbConfig.Listeners))
 		for _, l := range pbConfig.Listeners {
-			listener := Listener{
+			listenerObj := listeners.Listener{
 				ID:      getStringValue(l.Id),
 				Address: getStringValue(l.Address),
 			}
 
 			// Convert protocol-specific options
 			if http := l.GetHttp(); http != nil {
-				listener.Options = HTTPListenerOptions{
+				listenerObj.Type = listeners.TypeHTTP
+				listenerObj.Options = listeners.HTTPOptions{
 					ReadTimeout:  http.ReadTimeout,
 					WriteTimeout: http.WriteTimeout,
 					DrainTimeout: http.DrainTimeout,
+					IdleTimeout:  http.IdleTimeout,
 				}
 			} else if grpc := l.GetGrpc(); grpc != nil {
-				listener.Options = GRPCListenerOptions{
+				listenerObj.Type = listeners.TypeGRPC
+				listenerObj.Options = listeners.GRPCOptions{
 					MaxConnectionIdle:    grpc.MaxConnectionIdle,
 					MaxConnectionAge:     grpc.MaxConnectionAge,
 					MaxConcurrentStreams: int(grpc.GetMaxConcurrentStreams()),
 				}
 			}
 
-			config.Listeners = append(config.Listeners, listener)
+			config.Listeners = append(config.Listeners, listenerObj)
 		}
 	}
 
 	// Convert endpoints
 	if len(pbConfig.Endpoints) > 0 {
-		config.Endpoints = make([]Endpoint, 0, len(pbConfig.Endpoints))
+		config.Endpoints = make([]endpoints.Endpoint, 0, len(pbConfig.Endpoints))
 		for _, e := range pbConfig.Endpoints {
-			endpoint := Endpoint{
+			ep := endpoints.Endpoint{
 				ID:          getStringValue(e.Id),
 				ListenerIDs: e.ListenerIds,
 			}
 
 			// Convert routes
 			if len(e.Routes) > 0 {
-				endpoint.Routes = make([]Route, 0, len(e.Routes))
+				ep.Routes = make([]endpoints.Route, 0, len(e.Routes))
 				for _, r := range e.Routes {
-					route := Route{
+					route := endpoints.Route{
 						AppID: getStringValue(r.AppId),
 					}
 
@@ -421,20 +412,20 @@ func FromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 
 					// Convert condition
 					if path := r.GetHttpPath(); path != "" {
-						route.Condition = HTTPPathCondition{
+						route.Condition = endpoints.HTTPPathCondition{
 							Path: path,
 						}
 					} else if service := r.GetGrpcService(); service != "" {
-						route.Condition = GRPCServiceCondition{
+						route.Condition = endpoints.GRPCServiceCondition{
 							Service: service,
 						}
 					}
 
-					endpoint.Routes = append(endpoint.Routes, route)
+					ep.Routes = append(ep.Routes, route)
 				}
 			}
 
-			config.Endpoints = append(config.Endpoints, endpoint)
+			config.Endpoints = append(config.Endpoints, ep)
 		}
 	}
 

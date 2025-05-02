@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http/wrapper"
 	"github.com/robbyt/go-supervisor/runnables/composite"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
@@ -184,11 +184,11 @@ func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.H
 		}
 
 		// Create a domain listener config based on our HTTP config
-		domainListener := &config.Listener{
+		domainListener := &listeners.Listener{
 			ID:      listenerCfg.ID,
-			Type:    config.ListenerTypeHTTP,
+			Type:    listeners.TypeHTTP,
 			Address: listenerCfg.Address,
-			Options: config.HTTPListenerOptions{
+			Options: listeners.HTTPOptions{
 				ReadTimeout:  convertToDurationPb(listenerCfg.ReadTimeout),
 				WriteTimeout: convertToDurationPb(listenerCfg.WriteTimeout),
 				IdleTimeout:  convertToDurationPb(listenerCfg.IdleTimeout),

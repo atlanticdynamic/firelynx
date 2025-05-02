@@ -93,3 +93,9 @@ func RouteTree(routeInfo string) *ComponentTree {
 	t := NewComponentTree(RouteStyle.Render(routeInfo))
 	return t
 }
+
+// ListenerTree creates a tree specifically for listener visualization
+func ListenerTree(id string) *ComponentTree {
+	t := NewComponentTree(ListenerStyle.Render(id))
+	return t
+}
