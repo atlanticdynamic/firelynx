@@ -13,7 +13,7 @@ import (
 func TestAppHandler_ServeHTTP(t *testing.T) {
 	tests := []struct {
 		name           string
-		routes         []Route
+		routes         []RouteConfig
 		requestPath    string
 		appID          string
 		appError       error
@@ -22,27 +22,27 @@ func TestAppHandler_ServeHTTP(t *testing.T) {
 	}{
 		{
 			name:           "successful request",
-			routes:         []Route{{Path: "/test", AppID: "test-app"}},
+			routes:         []RouteConfig{{Path: "/test", AppID: "test-app"}},
 			requestPath:    "/test",
 			appID:          "test-app",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "app not found",
-			routes:         []Route{{Path: "/test", AppID: "nonexistent"}},
+			routes:         []RouteConfig{{Path: "/test", AppID: "nonexistent"}},
 			requestPath:    "/test",
 			expectedStatus: http.StatusInternalServerError,
 			expectedBody:   "Application nonexistent not configured",
 		},
 		{
 			name:           "no matching route",
-			routes:         []Route{{Path: "/test", AppID: "test-app"}},
+			routes:         []RouteConfig{{Path: "/test", AppID: "test-app"}},
 			requestPath:    "/other",
 			expectedStatus: http.StatusNotFound,
 		},
 		{
 			name:           "app returns error",
-			routes:         []Route{{Path: "/test", AppID: "test-app"}},
+			routes:         []RouteConfig{{Path: "/test", AppID: "test-app"}},
 			requestPath:    "/test",
 			appID:          "test-app",
 			appError:       assert.AnError,
@@ -118,7 +118,7 @@ func TestAppHandler_UpdateRoutes(t *testing.T) {
 	registry := mocks.NewMockRegistry()
 
 	// Create initial routes
-	initialRoutes := []Route{
+	initialRoutes := []RouteConfig{
 		{Path: "/test1", AppID: "app1"},
 		{Path: "/test2", AppID: "app2"},
 	}
@@ -137,7 +137,7 @@ func TestAppHandler_UpdateRoutes(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w1.Code) // App not found
 
 	// Update routes
-	newRoutes := []Route{
+	newRoutes := []RouteConfig{
 		{Path: "/test3", AppID: "app3"},
 		{Path: "/test4", AppID: "app4"},
 	}

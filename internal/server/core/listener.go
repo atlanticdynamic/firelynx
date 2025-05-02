@@ -26,6 +26,9 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 			Listeners: []http.ListenerConfig{},
 		}
 
+		// Create route mapper for app validation
+		routeMapper := http.NewRouteMapper(r.appRegistry, r.logger)
+
 		// Map HTTP listeners from domain config to HTTP-specific config
 		for _, l := range r.currentConfig.Listeners {
 			// Skip non-HTTP listeners
@@ -61,11 +64,29 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 				drainTimeout = httpOpts.DrainTimeout.AsDuration()
 			}
 
-			// Create route mapper to map endpoints
-			routeMapper := http.NewRouteMapper(r.appRegistry, r.logger)
+			// Collect HTTP routes for this listener
+			var httpRouteConfigs []http.RouteConfig
 
-			// Map routes from domain config for this listener
-			routes := routeMapper.MapRoutesFromDomainConfig(r.currentConfig, l.ID)
+			// Get all endpoints for this listener
+			endpoints := r.currentConfig.GetEndpointsForListener(l.ID)
+			for _, endpoint := range endpoints {
+				r.logger.Debug("Processing endpoint", "listenerID", l.ID, "endpointID", endpoint.ID)
+
+				// Get HTTP routes from this endpoint
+				httpRoutes := endpoint.GetHTTPRoutes()
+				for _, route := range httpRoutes {
+					// Convert config.HTTPRoute to http.RouteConfig
+					httpRouteConfig := http.RouteConfig{
+						Path:       route.Path,
+						AppID:      route.AppID,
+						StaticData: route.StaticData,
+					}
+					httpRouteConfigs = append(httpRouteConfigs, httpRouteConfig)
+				}
+			}
+
+			// Validate routes against app registry
+			validRoutes := routeMapper.ValidateRoutes(httpRouteConfigs)
 
 			// Create listener config
 			listenerConfig := http.ListenerConfig{
@@ -75,7 +96,7 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 				WriteTimeout: writeTimeout,
 				IdleTimeout:  idleTimeout,
 				DrainTimeout: drainTimeout,
-				Routes:       routes,
+				Routes:       validRoutes,
 			}
 
 			// Add to HTTP config
