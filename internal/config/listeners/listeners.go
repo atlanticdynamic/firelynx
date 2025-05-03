@@ -11,8 +11,9 @@ type Type string
 
 // Constants for Type
 const (
-	TypeHTTP Type = "http"
-	TypeGRPC Type = "grpc"
+	TypeUnknown Type = ""
+	TypeHTTP    Type = "http"
+	TypeGRPC    Type = "grpc"
 )
 
 // Options represents protocol-specific options for listeners
@@ -46,13 +47,21 @@ type Listeners []Listener
 type Listener struct {
 	ID      string
 	Address string
-	Type    Type
 	Options Options
+}
+
+// GetType returns the type of the listener
+func (l *Listener) GetType() Type {
+	if l.Options == nil {
+		return TypeUnknown
+	}
+
+	return l.Options.Type()
 }
 
 // GetHTTPOptions safely extracts HTTPOptions from a Listener
 func (l *Listener) GetHTTPOptions() (HTTPOptions, bool) {
-	if l.Type != TypeHTTP || l.Options == nil {
+	if l.Options == nil || l.Options.Type() != TypeHTTP {
 		return HTTPOptions{}, false
 	}
 
@@ -122,19 +131,19 @@ func (l *Listener) GetIdleTimeout(defaultDuration time.Duration) time.Duration {
 
 // Config represents the interface needed from a Config object to query endpoints
 type Config interface {
-	GetEndpoints() []interface{} // We'll use interface{} to avoid import cycles
+	GetEndpoints() []any // avoid import cycles
 }
 
 // GetEndpoints returns the endpoints attached to a specific listener
 // This requires passing in the config object
-func (l *Listener) GetEndpoints(config interface{}) []interface{} {
-	// This implementation needs to be updated by callers to convert interface{} to the right type
+func (l *Listener) GetEndpoints(config any) []any {
+	// This implementation needs to be updated by callers to convert any to the right type
 	// This approach prevents import cycles
 	return nil
 }
 
 // GetEndpointIDs returns the IDs of endpoints that are attached to this listener
-func (l *Listener) GetEndpointIDs(config interface{}) []string {
+func (l *Listener) GetEndpointIDs(config any) []string {
 	// This is a placeholder method that should be implemented by the client
 	// using a type assertion to avoid import cycles
 	return nil

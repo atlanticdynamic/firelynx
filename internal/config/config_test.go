@@ -29,7 +29,6 @@ func createValidDomainConfig(t *testing.T) *Config {
 			{
 				ID:      "listener1",
 				Address: ":8080",
-				Type:    listeners.TypeHTTP,
 				Options: listeners.HTTPOptions{
 					ReadTimeout:  durationpb.New(time.Second * 30),
 					WriteTimeout: durationpb.New(time.Second * 30),
@@ -94,7 +93,6 @@ func TestConfigValidation(t *testing.T) {
 	duplicateListenerId.Listeners = append(duplicateListenerId.Listeners, listeners.Listener{
 		ID:      "listener1", // Duplicate
 		Address: ":8081",     // Different address
-		Type:    listeners.TypeHTTP,
 	})
 	err = duplicateListenerId.Validate()
 	require.Error(t, err)

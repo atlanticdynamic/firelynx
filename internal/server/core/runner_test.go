@@ -23,7 +23,6 @@ func createTestConfig() *config.Config {
 			{
 				ID:      "test-listener",
 				Address: "localhost:8080",
-				Type:    listeners.TypeHTTP,
 				Options: listeners.HTTPOptions{
 					ReadTimeout:  durationpb.New(5 * time.Second),
 					WriteTimeout: durationpb.New(10 * time.Second),

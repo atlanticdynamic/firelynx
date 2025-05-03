@@ -62,9 +62,9 @@ func TestConfig_GetListenersByType(t *testing.T) {
 	// Setup test config
 	config := &Config{
 		Listeners: []listeners.Listener{
-			{ID: "http1", Type: listeners.TypeHTTP},
-			{ID: "http2", Type: listeners.TypeHTTP},
-			{ID: "grpc1", Type: listeners.TypeGRPC},
+			{ID: "http1", Options: listeners.HTTPOptions{}},
+			{ID: "http2", Options: listeners.HTTPOptions{}},
+			{ID: "grpc1", Options: listeners.GRPCOptions{}},
 		},
 	}
 

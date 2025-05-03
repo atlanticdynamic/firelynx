@@ -78,7 +78,7 @@ func (c *ComponentTree) AddBranch(text string) *tree.Tree {
 }
 
 // AddChild adds a child node to the root branch
-func (c *ComponentTree) AddChild(child interface{}) *tree.Tree {
+func (c *ComponentTree) AddChild(child any) *tree.Tree {
 	return c.tree.Child(child)
 }
 

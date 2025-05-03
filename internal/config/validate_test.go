@@ -68,7 +68,6 @@ level = "debug"
 			config.Listeners = append(config.Listeners, listeners.Listener{
 				ID:      "listener1", // Duplicate of existing ID
 				Address: ":9090",     // Different address
-				Type:    listeners.TypeHTTP,
 			})
 
 			err := config.Validate()
@@ -82,7 +81,6 @@ level = "debug"
 			config.Listeners = append(config.Listeners, listeners.Listener{
 				ID:      "listener2", // Different ID
 				Address: ":8080",     // Duplicate of existing address
-				Type:    listeners.TypeHTTP,
 			})
 
 			err := config.Validate()
@@ -96,7 +94,6 @@ level = "debug"
 			config.Listeners = append(config.Listeners, listeners.Listener{
 				ID:      "", // Empty ID
 				Address: ":9090",
-				Type:    listeners.TypeHTTP,
 			})
 
 			err := config.Validate()
@@ -110,7 +107,6 @@ level = "debug"
 			config.Listeners = append(config.Listeners, listeners.Listener{
 				ID:      "listener2",
 				Address: "", // Empty address
-				Type:    listeners.TypeHTTP,
 			})
 
 			err := config.Validate()
@@ -486,7 +482,6 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1",
 					Address: ":8080",
-					Type:    listeners.TypeHTTP,
 					Options: listeners.HTTPOptions{
 						ReadTimeout:  durationpb.New(30 * time.Second),
 						WriteTimeout: durationpb.New(30 * time.Second),
@@ -495,7 +490,6 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener2",
 					Address: ":9090",
-					Type:    listeners.TypeGRPC,
 					Options: listeners.GRPCOptions{},
 				},
 			},
@@ -514,7 +508,6 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1",
 					Address: ":8080",
-					Type:    listeners.TypeHTTP,
 					Options: listeners.HTTPOptions{
 						ReadTimeout:  durationpb.New(30 * time.Second),
 						WriteTimeout: durationpb.New(30 * time.Second),
@@ -523,7 +516,6 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1", // Duplicate ID
 					Address: ":9090",
-					Type:    listeners.TypeGRPC,
 					Options: listeners.GRPCOptions{},
 				},
 			},
@@ -548,7 +540,6 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1",
 					Address: ":8080",
-					Type:    listeners.TypeHTTP,
 					Options: listeners.HTTPOptions{
 						ReadTimeout:  durationpb.New(30 * time.Second),
 						WriteTimeout: durationpb.New(30 * time.Second),
@@ -557,7 +548,6 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener2",
 					Address: ":8080", // Duplicate address
-					Type:    listeners.TypeGRPC,
 					Options: listeners.GRPCOptions{},
 				},
 			},
@@ -582,7 +572,6 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1",
 					Address: "", // Empty address is invalid
-					Type:    listeners.TypeHTTP,
 					Options: listeners.HTTPOptions{
 						ReadTimeout:  durationpb.New(30 * time.Second),
 						WriteTimeout: durationpb.New(30 * time.Second),

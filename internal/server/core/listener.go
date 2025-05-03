@@ -32,7 +32,7 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 		// Map HTTP listeners from domain config to HTTP-specific config
 		for _, l := range r.currentConfig.Listeners {
 			// Skip non-HTTP listeners
-			if l.Type != listeners.TypeHTTP {
+			if l.GetType() != listeners.TypeHTTP {
 				continue
 			}
 

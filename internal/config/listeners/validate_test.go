@@ -24,7 +24,6 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "http1",
 				Address: ":8080",
-				Type:    TypeHTTP,
 				Options: HTTPOptions{
 					ReadTimeout: durationpb.New(30),
 				},
@@ -36,7 +35,6 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "grpc1",
 				Address: ":9090",
-				Type:    TypeGRPC,
 				Options: GRPCOptions{
 					MaxConcurrentStreams: 100,
 				},
@@ -48,7 +46,6 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "",
 				Address: ":8080",
-				Type:    TypeHTTP,
 				Options: HTTPOptions{},
 			},
 			wantError:   true,
@@ -60,7 +57,6 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "test",
 				Address: "",
-				Type:    TypeHTTP,
 				Options: HTTPOptions{},
 			},
 			wantError:   true,
@@ -71,8 +67,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "test",
 				Address: ":8080",
-				Type:    "",
-				Options: HTTPOptions{},
+				Options: nil, // No options means GetType() will return empty
 			},
 			wantError:   true,
 			errContains: "type for listener",
@@ -82,63 +77,27 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "test",
 				Address: ":8080",
-				Type:    "invalid",
-				Options: HTTPOptions{},
+				Options: invalidTypeOptions{}, // Use our invalid type options
 			},
 			wantError:   true,
 			errIs:       errz.ErrInvalidListenerType,
 			errContains: "has invalid type",
 		},
 		{
-			name: "Type/Options Mismatch",
-			listener: Listener{
-				ID:      "test",
-				Address: ":8080",
-				Type:    TypeGRPC,
-				Options: HTTPOptions{},
-			},
-			wantError:   true,
-			errContains: "mismatch between listener type",
-		},
-		{
-			name: "HTTP Options with GRPC Type",
-			listener: Listener{
-				ID:      "test",
-				Address: ":8080",
-				Type:    TypeGRPC,
-				Options: HTTPOptions{},
-			},
-			wantError:   true,
-			errContains: "has HTTP options but type is",
-		},
-		{
-			name: "GRPC Options with HTTP Type",
-			listener: Listener{
-				ID:      "test",
-				Address: ":8080",
-				Type:    TypeHTTP,
-				Options: GRPCOptions{},
-			},
-			wantError:   true,
-			errContains: "has gRPC options but type is",
-		},
-		{
 			name: "Nil Options",
 			listener: Listener{
 				ID:      "test",
 				Address: ":8080",
-				Type:    TypeHTTP,
 				Options: nil,
 			},
 			wantError:   true,
-			errContains: "has type 'http' but no options",
+			errContains: "type for listener",
 		},
 		{
 			name: "Unknown Options Type",
 			listener: Listener{
 				ID:      "test",
 				Address: ":8080",
-				Type:    TypeHTTP,
 				Options: customOptions{},
 			},
 			wantError:   true,
@@ -170,7 +129,14 @@ func TestListener_Validate(t *testing.T) {
 type customOptions struct{}
 
 func (co customOptions) Type() Type {
-	return TypeHTTP // Return TypeHTTP even though it's a custom type
+	return "custom" // Use "custom" to match test expectations
+}
+
+// invalidTypeOptions returns an invalid type for testing
+type invalidTypeOptions struct{}
+
+func (io invalidTypeOptions) Type() Type {
+	return "invalid-type" // Return an invalid type for testing
 }
 
 // Test multiple validation errors
@@ -181,8 +147,7 @@ func TestListener_ValidateMultipleErrors(t *testing.T) {
 	invalidListener := Listener{
 		ID:      "",              // Error 1: Empty ID
 		Address: "",              // Error 2: Empty Address
-		Type:    "invalid",       // Error 3: Invalid Type
-		Options: customOptions{}, // Error 4: Unknown Options type
+		Options: customOptions{}, // Error 3: Unknown Options type
 	}
 
 	err := invalidListener.Validate()
@@ -191,7 +156,6 @@ func TestListener_ValidateMultipleErrors(t *testing.T) {
 	// Check if all expected errors are present
 	assert.Contains(t, err.Error(), "empty ID")
 	assert.Contains(t, err.Error(), "address for listener")
-	assert.Contains(t, err.Error(), "invalid type")
 	assert.Contains(t, err.Error(), "unknown options type")
 
 	// Test errors.Is behavior with joined errors
@@ -207,7 +171,6 @@ func TestListener_ErrorJoining(t *testing.T) {
 	listener := Listener{
 		ID:      "",            // Error 1
 		Address: "",            // Error 2
-		Type:    TypeHTTP,      // Valid
 		Options: HTTPOptions{}, // Valid
 	}
 
