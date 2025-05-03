@@ -7,13 +7,11 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-// stringPtr returns a pointer to a string value
-func stringPtr(s string) *string {
-	return &s
-}
+// Using proto.String from google.golang.org/protobuf/proto package instead of a custom function
 
 // mergeModePtrValue converts a StaticDataMergeMode enum to a pointer
 func mergeModePtrValue(mode pb.StaticDataMergeMode) *pb.StaticDataMergeMode {
@@ -67,7 +65,7 @@ func TestAppFromProto(t *testing.T) {
 
 	t.Run("ScriptAppNoEvaluator", func(t *testing.T) {
 		pbApp := &pb.AppDefinition{
-			Id: stringPtr("test-script"),
+			Id: proto.String("test-script"),
 			AppConfig: &pb.AppDefinition_Script{
 				Script: &pb.AppScript{
 					StaticData: &pb.StaticData{
@@ -87,7 +85,7 @@ func TestAppFromProto(t *testing.T) {
 
 	t.Run("ValidCompositeApp", func(t *testing.T) {
 		pbApp := &pb.AppDefinition{
-			Id: stringPtr("test-composite"),
+			Id: proto.String("test-composite"),
 			AppConfig: &pb.AppDefinition_CompositeScript{
 				CompositeScript: &pb.AppCompositeScript{
 					ScriptAppIds: []string{"app1", "app2"},
@@ -138,7 +136,7 @@ func TestAppFromProto(t *testing.T) {
 
 	t.Run("CompositeAppWithoutStaticData", func(t *testing.T) {
 		pbApp := &pb.AppDefinition{
-			Id: stringPtr("test-composite"),
+			Id: proto.String("test-composite"),
 			AppConfig: &pb.AppDefinition_CompositeScript{
 				CompositeScript: &pb.AppCompositeScript{
 					ScriptAppIds: []string{"app1", "app2"},
@@ -202,7 +200,7 @@ func TestAppFromProto(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pbApp := &pb.AppDefinition{
-				Id: stringPtr(tt.appID),
+				Id: proto.String(tt.appID),
 				AppConfig: &pb.AppDefinition_Script{
 					Script: &pb.AppScript{
 						StaticData: &pb.StaticData{
@@ -221,20 +219,20 @@ func TestAppFromProto(t *testing.T) {
 			case "risor":
 				script.Evaluator = &pb.AppScript_Risor{
 					Risor: &pb.RisorEvaluator{
-						Code: stringPtr("function handle(req) { return req; }"),
+						Code: proto.String("function handle(req) { return req; }"),
 					},
 				}
 			case "starlark":
 				script.Evaluator = &pb.AppScript_Starlark{
 					Starlark: &pb.StarlarkEvaluator{
-						Code: stringPtr("def handle(req): return req"),
+						Code: proto.String("def handle(req): return req"),
 					},
 				}
 			case "extism":
 				script.Evaluator = &pb.AppScript_Extism{
 					Extism: &pb.ExtismEvaluator{
-						Code:       stringPtr("(module)"),
-						Entrypoint: stringPtr("handle"),
+						Code:       proto.String("(module)"),
+						Entrypoint: proto.String("handle"),
 					},
 				}
 			}

@@ -9,6 +9,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/logs"
+	"github.com/atlanticdynamic/firelynx/internal/config/protohelpers"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -62,50 +63,8 @@ func (c *Config) ToProto() *pb.ServerConfig {
 		config.Listeners = append(config.Listeners, pbListener)
 	}
 
-	// Convert endpoints
-	config.Endpoints = make([]*pb.Endpoint, 0, len(c.Endpoints))
-	for _, e := range c.Endpoints {
-		pbEndpoint := &pb.Endpoint{
-			Id:          &e.ID,
-			ListenerIds: e.ListenerIDs,
-		}
-
-		// Convert routes
-		for _, r := range e.Routes {
-			route := &pb.Route{
-				AppId: &r.AppID,
-			}
-
-			// Convert static data if present
-			if r.StaticData != nil {
-				route.StaticData = &pb.StaticData{
-					Data: make(map[string]*structpb.Value),
-				}
-				for k, v := range r.StaticData {
-					val, err := structpb.NewValue(v)
-					if err == nil {
-						route.StaticData.Data[k] = val
-					}
-				}
-			}
-
-			// Convert condition
-			switch cond := r.Condition.(type) {
-			case endpoints.HTTPPathCondition:
-				route.Condition = &pb.Route_HttpPath{
-					HttpPath: cond.Path,
-				}
-			case endpoints.GRPCServiceCondition:
-				route.Condition = &pb.Route_GrpcService{
-					GrpcService: cond.Service,
-				}
-			}
-
-			pbEndpoint.Routes = append(pbEndpoint.Routes, route)
-		}
-
-		config.Endpoints = append(config.Endpoints, pbEndpoint)
-	}
+	// Convert endpoints using endpoints package's ToProto method
+	config.Endpoints = c.Endpoints.ToProto()
 
 	// Convert apps
 	config.Apps = make([]*pb.AppDefinition, 0, len(c.Apps))
@@ -298,36 +257,7 @@ func protoMergeModeToStaticDataMergeMode(mode pb.StaticDataMergeMode) apps.Stati
 
 // convertProtoValueToInterface converts a protobuf structpb.Value to a Go any
 func convertProtoValueToInterface(v *structpb.Value) any {
-	if v == nil {
-		return nil
-	}
-
-	switch v.Kind.(type) {
-	case *structpb.Value_NullValue:
-		return nil
-	case *structpb.Value_NumberValue:
-		return v.GetNumberValue()
-	case *structpb.Value_StringValue:
-		return v.GetStringValue()
-	case *structpb.Value_BoolValue:
-		return v.GetBoolValue()
-	case *structpb.Value_ListValue:
-		list := v.GetListValue().GetValues()
-		result := make([]any, len(list))
-		for i, item := range list {
-			result[i] = convertProtoValueToInterface(item)
-		}
-		return result
-	case *structpb.Value_StructValue:
-		m := v.GetStructValue().GetFields()
-		result := make(map[string]any)
-		for k, v := range m {
-			result[k] = convertProtoValueToInterface(v)
-		}
-		return result
-	default:
-		return nil
-	}
+	return protohelpers.ConvertProtoValueToInterface(v)
 }
 
 // Helper function to safely get string value from a string pointer
@@ -385,48 +315,9 @@ func FromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		}
 	}
 
-	// Convert endpoints
+	// Convert endpoints using endpoints package's FromProto method
 	if len(pbConfig.Endpoints) > 0 {
-		config.Endpoints = make([]endpoints.Endpoint, 0, len(pbConfig.Endpoints))
-		for _, e := range pbConfig.Endpoints {
-			ep := endpoints.Endpoint{
-				ID:          getStringValue(e.Id),
-				ListenerIDs: e.ListenerIds,
-			}
-
-			// Convert routes
-			if len(e.Routes) > 0 {
-				ep.Routes = make([]endpoints.Route, 0, len(e.Routes))
-				for _, r := range e.Routes {
-					route := endpoints.Route{
-						AppID: getStringValue(r.AppId),
-					}
-
-					// Convert static data
-					if r.StaticData != nil && len(r.StaticData.Data) > 0 {
-						route.StaticData = make(map[string]any)
-						for k, v := range r.StaticData.Data {
-							route.StaticData[k] = convertProtoValueToInterface(v)
-						}
-					}
-
-					// Convert condition
-					if path := r.GetHttpPath(); path != "" {
-						route.Condition = endpoints.HTTPPathCondition{
-							Path: path,
-						}
-					} else if service := r.GetGrpcService(); service != "" {
-						route.Condition = endpoints.GRPCServiceCondition{
-							Service: service,
-						}
-					}
-
-					ep.Routes = append(ep.Routes, route)
-				}
-			}
-
-			config.Endpoints = append(config.Endpoints, ep)
-		}
+		config.Endpoints = endpoints.NewEndpointsFromProto(pbConfig.Endpoints...)
 	}
 
 	// Convert apps
