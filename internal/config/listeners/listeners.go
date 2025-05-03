@@ -1,8 +1,11 @@
 package listeners
 
 import (
+	"errors"
+	"fmt"
 	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -19,6 +22,7 @@ const (
 // Options represents protocol-specific options for listeners
 type Options interface {
 	Type() Type
+	Validate() error
 }
 
 // HTTPOptions contains HTTP-specific listener configuration
@@ -31,6 +35,34 @@ type HTTPOptions struct {
 
 func (h HTTPOptions) Type() Type { return TypeHTTP }
 
+// Validate checks HTTPOptions for any configuration errors
+func (h HTTPOptions) Validate() error {
+	var errs []error
+	
+	// Validate timeouts (optional, but should be positive if set)
+	if h.ReadTimeout != nil && h.ReadTimeout.AsDuration() <= 0 {
+		errs = append(errs, fmt.Errorf("%w: HTTP read timeout must be positive", 
+			errz.ErrInvalidValue))
+	}
+	
+	if h.WriteTimeout != nil && h.WriteTimeout.AsDuration() <= 0 {
+		errs = append(errs, fmt.Errorf("%w: HTTP write timeout must be positive", 
+			errz.ErrInvalidValue))
+	}
+	
+	if h.DrainTimeout != nil && h.DrainTimeout.AsDuration() <= 0 {
+		errs = append(errs, fmt.Errorf("%w: HTTP drain timeout must be positive", 
+			errz.ErrInvalidValue))
+	}
+	
+	if h.IdleTimeout != nil && h.IdleTimeout.AsDuration() <= 0 {
+		errs = append(errs, fmt.Errorf("%w: HTTP idle timeout must be positive", 
+			errz.ErrInvalidValue))
+	}
+	
+	return errors.Join(errs...)
+}
+
 // GRPCOptions contains gRPC-specific listener configuration
 type GRPCOptions struct {
 	MaxConnectionIdle    *durationpb.Duration
@@ -39,6 +71,30 @@ type GRPCOptions struct {
 }
 
 func (g GRPCOptions) Type() Type { return TypeGRPC }
+
+// Validate checks GRPCOptions for any configuration errors
+func (g GRPCOptions) Validate() error {
+	var errs []error
+	
+	// Validate connection timeouts (optional, but should be positive if set)
+	if g.MaxConnectionIdle != nil && g.MaxConnectionIdle.AsDuration() <= 0 {
+		errs = append(errs, fmt.Errorf("%w: gRPC max connection idle timeout must be positive", 
+			errz.ErrInvalidValue))
+	}
+	
+	if g.MaxConnectionAge != nil && g.MaxConnectionAge.AsDuration() <= 0 {
+		errs = append(errs, fmt.Errorf("%w: gRPC max connection age must be positive", 
+			errz.ErrInvalidValue))
+	}
+	
+	// Validate MaxConcurrentStreams if set
+	if g.MaxConcurrentStreams < 0 {
+		errs = append(errs, fmt.Errorf("%w: gRPC max concurrent streams cannot be negative", 
+			errz.ErrInvalidValue))
+	}
+	
+	return errors.Join(errs...)
+}
 
 // Listeners is a collection of Listener objects
 type Listeners []Listener

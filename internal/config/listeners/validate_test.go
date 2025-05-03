@@ -132,11 +132,19 @@ func (co customOptions) Type() Type {
 	return "custom" // Use "custom" to match test expectations
 }
 
+func (co customOptions) Validate() error {
+	return nil // Always valid for testing
+}
+
 // invalidTypeOptions returns an invalid type for testing
 type invalidTypeOptions struct{}
 
 func (io invalidTypeOptions) Type() Type {
 	return "invalid-type" // Return an invalid type for testing
+}
+
+func (io invalidTypeOptions) Validate() error {
+	return nil // Always valid for testing
 }
 
 // Test multiple validation errors
