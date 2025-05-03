@@ -13,8 +13,7 @@ import (
 func TestListener_GetHTTPOptions(t *testing.T) {
 	// Create HTTP listener with options
 	httpListener := &Listener{
-		ID:   "http1",
-		Type: TypeHTTP,
+		ID: "http1",
 		Options: HTTPOptions{
 			ReadTimeout:  durationpb.New(5 * time.Second),
 			WriteTimeout: durationpb.New(10 * time.Second),
@@ -24,14 +23,12 @@ func TestListener_GetHTTPOptions(t *testing.T) {
 	// Create GRPC listener
 	grpcListener := &Listener{
 		ID:      "grpc1",
-		Type:    TypeGRPC,
 		Options: GRPCOptions{},
 	}
 
 	// Create HTTP listener with nil options
 	emptyListener := &Listener{
-		ID:   "empty",
-		Type: TypeHTTP,
+		ID: "empty",
 	}
 
 	// Test HTTP listener with options
@@ -58,8 +55,7 @@ func TestListener_GetTimeouts(t *testing.T) {
 
 	// Create HTTP listener with all options
 	fullListener := &Listener{
-		ID:   "full",
-		Type: TypeHTTP,
+		ID: "full",
 		Options: HTTPOptions{
 			ReadTimeout:  durationpb.New(readDuration),
 			WriteTimeout: durationpb.New(writeDuration),
@@ -70,8 +66,7 @@ func TestListener_GetTimeouts(t *testing.T) {
 
 	// Create HTTP listener with partial options
 	partialListener := &Listener{
-		ID:   "partial",
-		Type: TypeHTTP,
+		ID: "partial",
 		Options: HTTPOptions{
 			ReadTimeout: durationpb.New(readDuration),
 			// WriteTimeout intentionally omitted
@@ -82,8 +77,7 @@ func TestListener_GetTimeouts(t *testing.T) {
 
 	// Create HTTP listener with invalid options
 	invalidListener := &Listener{
-		ID:   "invalid",
-		Type: TypeHTTP,
+		ID: "invalid",
 		Options: HTTPOptions{
 			ReadTimeout:  durationpb.New(-1 * time.Second), // Negative duration
 			WriteTimeout: durationpb.New(0),                // Zero duration
@@ -93,7 +87,6 @@ func TestListener_GetTimeouts(t *testing.T) {
 	// Create GRPC listener
 	grpcListener := &Listener{
 		ID:      "grpc",
-		Type:    TypeGRPC,
 		Options: GRPCOptions{},
 	}
 

@@ -110,12 +110,8 @@ func validateListenerConfig(listener *listeners.Listener) error {
 		return fmt.Errorf("listener config cannot be nil")
 	}
 
-	if listener.Type != listeners.TypeHTTP {
-		return fmt.Errorf(
-			"invalid listener type: %s, expected: %s",
-			listener.Type,
-			listeners.TypeHTTP,
-		)
+	if listener.Options == nil {
+		return fmt.Errorf("listener options cannot be nil")
 	}
 
 	if listener.ID == "" {

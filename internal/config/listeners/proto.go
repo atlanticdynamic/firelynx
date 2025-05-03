@@ -62,7 +62,6 @@ func FromProto(pbListeners []*pb.Listener) (Listeners, error) {
 
 		// Convert protocol-specific options
 		if http := l.GetHttp(); http != nil {
-			listenerObj.Type = TypeHTTP
 			listenerObj.Options = HTTPOptions{
 				ReadTimeout:  http.ReadTimeout,
 				WriteTimeout: http.WriteTimeout,
@@ -70,7 +69,6 @@ func FromProto(pbListeners []*pb.Listener) (Listeners, error) {
 				IdleTimeout:  http.IdleTimeout,
 			}
 		} else if grpc := l.GetGrpc(); grpc != nil {
-			listenerObj.Type = TypeGRPC
 			listenerObj.Options = GRPCOptions{
 				MaxConnectionIdle:    grpc.MaxConnectionIdle,
 				MaxConnectionAge:     grpc.MaxConnectionAge,

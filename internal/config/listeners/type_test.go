@@ -145,12 +145,10 @@ func TestType_Assertions(t *testing.T) {
 	// Create listeners with these options
 	httpListener := Listener{
 		ID:      "http",
-		Type:    TypeHTTP,
 		Options: httpOpts,
 	}
 	grpcListener := Listener{
 		ID:      "grpc",
-		Type:    TypeGRPC,
 		Options: grpcOpts,
 	}
 

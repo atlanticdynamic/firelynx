@@ -18,7 +18,6 @@ func TestConfigTree(t *testing.T) {
 			{
 				ID:      "http_main",
 				Address: "127.0.0.1:8080",
-				Type:    listeners.TypeHTTP,
 				Options: listeners.HTTPOptions{
 					ReadTimeout: durationpb.New(60),
 				},
@@ -89,7 +88,6 @@ func TestEndpointTree(t *testing.T) {
 	// Create a listener for listener endpoints test
 	listener := listeners.Listener{
 		ID:      "listener1",
-		Type:    listeners.TypeHTTP,
 		Address: ":8080",
 		Options: listeners.HTTPOptions{
 			ReadTimeout: durationpb.New(30),

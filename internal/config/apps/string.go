@@ -34,7 +34,7 @@ func (a *App) String() string {
 }
 
 // ToTree returns a tree visualization of this App
-func (a *App) ToTree() interface{} {
+func (a *App) ToTree() any {
 	// Create a tree node for this app
 	appNode := fancy.Tree()
 	appNode.Root(fancy.AppText(a.ID))
@@ -108,7 +108,7 @@ func (a *App) ToTree() interface{} {
 }
 
 // ToTree returns a tree visualization of a collection of Apps
-func (a Apps) ToTree() interface{} {
+func (a Apps) ToTree() any {
 	appsTree := fancy.Tree()
 	appsTree.Root(fancy.HeaderStyle.Render("Apps"))
 

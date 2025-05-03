@@ -10,7 +10,7 @@ import (
 // String returns a concise representation of a Listener
 func (l *Listener) String() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Listener %s (%s) - %s", l.ID, l.Type, l.Address)
+	fmt.Fprintf(&b, "Listener %s (%s) - %s", l.ID, l.GetType(), l.Address)
 
 	// Add options if present
 	switch opts := l.Options.(type) {
@@ -43,9 +43,9 @@ func (l *Listener) String() string {
 }
 
 // ToTree returns a tree visualization of this Listener
-func (l *Listener) ToTree() interface{} {
+func (l *Listener) ToTree() any {
 	// Create a base tree for the listener
-	tree := fancy.ListenerTree(fmt.Sprintf("%s (%s:%s)", l.ID, l.Type, l.Address))
+	tree := fancy.ListenerTree(fmt.Sprintf("%s (%s:%s)", l.ID, l.GetType(), l.Address))
 
 	// Add listener options
 	switch opts := l.Options.(type) {

@@ -81,7 +81,7 @@ func (c *Config) GetAppsByType(evalType string) []apps.App {
 func (c *Config) GetListenersByType(listenerType listeners.Type) []listeners.Listener {
 	var result []listeners.Listener
 	for _, l := range c.Listeners {
-		if l.Type == listenerType {
+		if l.GetType() == listenerType {
 			result = append(result, l)
 		}
 	}

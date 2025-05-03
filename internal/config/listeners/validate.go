@@ -23,7 +23,7 @@ func (l *Listener) Validate() error {
 	}
 
 	// Validate Type
-	switch l.Type {
+	switch l.GetType() {
 	case TypeHTTP, TypeGRPC:
 		// Valid types
 	case "":
@@ -31,35 +31,35 @@ func (l *Listener) Validate() error {
 			errz.ErrMissingRequiredField, l.ID))
 	default:
 		errs = append(errs, fmt.Errorf("%w: listener '%s' has invalid type '%s'",
-			errz.ErrInvalidListenerType, l.ID, l.Type))
+			errz.ErrInvalidListenerType, l.ID, l.GetType()))
 	}
 
 	// Validate Options
 	if l.Options != nil {
-		if l.Options.Type() != l.Type {
+		if l.Options.Type() != l.GetType() {
 			errs = append(errs, fmt.Errorf(
 				"mismatch between listener type '%s' and options type '%s' for listener '%s'",
-				l.Type, l.Options.Type(), l.ID))
+				l.GetType(), l.Options.Type(), l.ID))
 		}
 
 		// Type-specific validations
 		switch opts := l.Options.(type) {
 		case HTTPOptions:
 			// Validate HTTP-specific options
-			if l.Type != TypeHTTP {
+			if l.GetType() != TypeHTTP {
 				errs = append(errs, fmt.Errorf(
 					"listener '%s' has HTTP options but type is '%s'",
-					l.ID, l.Type))
+					l.ID, l.GetType()))
 			}
 
 			// Additional HTTP option validations could go here
 
 		case GRPCOptions:
 			// Validate gRPC-specific options
-			if l.Type != TypeGRPC {
+			if l.GetType() != TypeGRPC {
 				errs = append(errs, fmt.Errorf(
 					"listener '%s' has gRPC options but type is '%s'",
-					l.ID, l.Type))
+					l.ID, l.GetType()))
 			}
 
 			// Additional gRPC option validations could go here
@@ -69,11 +69,11 @@ func (l *Listener) Validate() error {
 				"%w: listener '%s' has unknown options type %T",
 				errz.ErrInvalidListenerType, l.ID, opts))
 		}
-	} else if l.Type != "" {
+	} else if l.GetType() != "" {
 		// Options are optional, but if the type is set, we should have matching options
 		errs = append(errs, fmt.Errorf(
 			"%w: listener '%s' has type '%s' but no options",
-			errz.ErrMissingRequiredField, l.ID, l.Type))
+			errz.ErrMissingRequiredField, l.ID, l.GetType()))
 	}
 
 	return errors.Join(errs...)

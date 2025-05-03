@@ -21,7 +21,7 @@ func (e *Endpoint) String() string {
 }
 
 // ToTree returns a tree visualization of this Endpoint
-func (e *Endpoint) ToTree() interface{} {
+func (e *Endpoint) ToTree() any {
 	// Create an endpoint tree using fancy package
 	tree := fancy.EndpointTree(e.ID)
 

@@ -186,7 +186,6 @@ func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.H
 		// Create a domain listener config based on our HTTP config
 		domainListener := &listeners.Listener{
 			ID:      listenerCfg.ID,
-			Type:    listeners.TypeHTTP,
 			Address: listenerCfg.Address,
 			Options: listeners.HTTPOptions{
 				ReadTimeout:  convertToDurationPb(listenerCfg.ReadTimeout),

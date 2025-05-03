@@ -8,10 +8,10 @@ import (
 
 // mockConfig implements the Config interface for testing
 type mockConfig struct {
-	endpoints []interface{}
+	endpoints []any
 }
 
-func (m *mockConfig) GetEndpoints() []interface{} {
+func (m *mockConfig) GetEndpoints() []any {
 	return m.endpoints
 }
 
@@ -26,7 +26,7 @@ func TestListener_GetEndpoints(t *testing.T) {
 
 	// Create a mock config with some test endpoints
 	mockCfg := &mockConfig{
-		endpoints: []interface{}{
+		endpoints: []any{
 			mockEndpoint{
 				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1", "listener2"},
@@ -46,7 +46,6 @@ func TestListener_GetEndpoints(t *testing.T) {
 	listener := &Listener{
 		ID:      "listener1",
 		Address: ":8080",
-		Type:    TypeHTTP,
 		Options: HTTPOptions{},
 	}
 
@@ -63,7 +62,7 @@ func TestListener_GetEndpointIDs(t *testing.T) {
 
 	// Create a mock config with some test endpoints
 	mockCfg := &mockConfig{
-		endpoints: []interface{}{
+		endpoints: []any{
 			mockEndpoint{
 				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1", "listener2"},
@@ -83,7 +82,6 @@ func TestListener_GetEndpointIDs(t *testing.T) {
 	listener := &Listener{
 		ID:      "listener1",
 		Address: ":8080",
-		Type:    TypeHTTP,
 		Options: HTTPOptions{},
 	}
 

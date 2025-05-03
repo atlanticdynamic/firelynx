@@ -30,7 +30,6 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "http-listener",
 					Address: "127.0.0.1:8080",
-					Type:    TypeHTTP,
 					Options: HTTPOptions{
 						ReadTimeout:  durationpb.New(time.Second * 30),
 						WriteTimeout: durationpb.New(time.Second * 45),
@@ -60,7 +59,6 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
-					Type:    TypeGRPC,
 					Options: GRPCOptions{
 						MaxConnectionIdle:    durationpb.New(time.Minute * 5),
 						MaxConnectionAge:     durationpb.New(time.Minute * 30),
@@ -88,7 +86,6 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "http-listener-1",
 					Address: "127.0.0.1:8080",
-					Type:    TypeHTTP,
 					Options: HTTPOptions{
 						ReadTimeout:  durationpb.New(time.Second * 30),
 						WriteTimeout: durationpb.New(time.Second * 45),
@@ -97,7 +94,6 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "http-listener-2",
 					Address: "127.0.0.1:8081",
-					Type:    TypeHTTP,
 					Options: HTTPOptions{
 						ReadTimeout:  durationpb.New(time.Second * 15),
 						WriteTimeout: durationpb.New(time.Second * 20),
@@ -106,7 +102,6 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
-					Type:    TypeGRPC,
 					Options: GRPCOptions{
 						MaxConnectionIdle:    durationpb.New(time.Minute * 5),
 						MaxConcurrentStreams: 100,
@@ -272,7 +267,6 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "http-listener",
 					Address: "127.0.0.1:8080",
-					Type:    TypeHTTP,
 					Options: HTTPOptions{
 						ReadTimeout:  durationpb.New(time.Second * 30),
 						WriteTimeout: durationpb.New(time.Second * 45),
@@ -302,7 +296,6 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
-					Type:    TypeGRPC,
 					Options: GRPCOptions{
 						MaxConnectionIdle:    durationpb.New(time.Minute * 5),
 						MaxConnectionAge:     durationpb.New(time.Minute * 30),
@@ -340,7 +333,6 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "http-listener-1",
 					Address: "127.0.0.1:8080",
-					Type:    TypeHTTP,
 					Options: HTTPOptions{
 						ReadTimeout:  durationpb.New(time.Second * 30),
 						WriteTimeout: durationpb.New(time.Second * 45),
@@ -349,7 +341,6 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
-					Type:    TypeGRPC,
 					Options: GRPCOptions{
 						MaxConnectionIdle:    durationpb.New(time.Minute * 5),
 						MaxConcurrentStreams: 100,
@@ -385,7 +376,6 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "",
 					Address: "",
-					Type:    TypeHTTP,
 					Options: HTTPOptions{},
 				},
 			},
@@ -420,10 +410,10 @@ func TestFromProto(t *testing.T) {
 				// Check basic fields
 				assert.Equal(t, expectedListener.ID, actual.ID)
 				assert.Equal(t, expectedListener.Address, actual.Address)
-				assert.Equal(t, expectedListener.Type, actual.Type)
+				assert.Equal(t, expectedListener.GetType(), actual.GetType())
 
 				// Check options based on type
-				switch expectedListener.Type {
+				switch expectedListener.GetType() {
 				case TypeHTTP:
 					expectedOpts, _ := expectedListener.Options.(HTTPOptions)
 					actualOpts, ok := actual.Options.(HTTPOptions)
@@ -537,7 +527,6 @@ func TestRoundTripConversion(t *testing.T) {
 		{
 			ID:      "http-listener",
 			Address: "127.0.0.1:8080",
-			Type:    TypeHTTP,
 			Options: HTTPOptions{
 				ReadTimeout:  durationpb.New(time.Second * 30),
 				WriteTimeout: durationpb.New(time.Second * 45),
@@ -548,7 +537,6 @@ func TestRoundTripConversion(t *testing.T) {
 		{
 			ID:      "grpc-listener",
 			Address: "127.0.0.1:9090",
-			Type:    TypeGRPC,
 			Options: GRPCOptions{
 				MaxConnectionIdle:    durationpb.New(time.Minute * 5),
 				MaxConnectionAge:     durationpb.New(time.Minute * 30),
@@ -572,7 +560,7 @@ func TestRoundTripConversion(t *testing.T) {
 		// Check basic fields
 		assert.Equal(t, orig.ID, actual.ID)
 		assert.Equal(t, orig.Address, actual.Address)
-		assert.Equal(t, orig.Type, actual.Type)
+		assert.Equal(t, orig.GetType(), actual.GetType())
 
 		// Check options
 		switch origOpts := orig.Options.(type) {
