@@ -11,6 +11,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 	"github.com/atlanticdynamic/firelynx/internal/config/logs"
+	"github.com/atlanticdynamic/firelynx/internal/config/protohelpers"
 )
 
 // Configuration version constants
@@ -26,7 +27,7 @@ const (
 type Config struct {
 	Version   string
 	Logging   logs.Config
-	Listeners []listeners.Listener
+	Listeners listeners.Listeners
 	Endpoints endpoints.Endpoints
 	Apps      apps.Apps
 
@@ -62,7 +63,9 @@ func NewConfig(filePath string) (*Config, error) {
 	return config, nil
 }
 
-// FromProto creates a domain Config from a protobuf ServerConfig
+// NewFromProto creates a domain Config from a protobuf ServerConfig with proper initialization.
+// This is the recommended function for converting from protobuf to domain model as it handles
+// defaults, validation, and proper error collection.
 func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	if pbConfig == nil {
 		return nil, fmt.Errorf("nil protobuf config")
@@ -71,69 +74,40 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	// Create a new domain config
 	config := &Config{
 		Version:  VersionLatest,
-		rawProto: pbConfig, // Just reference, not clone to avoid issues
+		rawProto: pbConfig,
 	}
 
-	// Extract version if present
 	if pbConfig.Version != nil && *pbConfig.Version != "" {
 		config.Version = *pbConfig.Version
 	}
 
-	// Convert logging configuration
 	if pbConfig.Logging != nil {
 		config.Logging = logs.FromProto(pbConfig.Logging)
 	}
 
-	// Convert listeners
 	if pbConfig.Listeners != nil {
-		config.Listeners = make([]listeners.Listener, 0, len(pbConfig.Listeners))
-		for _, pbListener := range pbConfig.Listeners {
-			if pbListener == nil {
-				continue
-			}
-
-			l := listeners.Listener{
-				ID:      getStringValue(pbListener.Id),
-				Address: getStringValue(pbListener.Address),
-			}
-
-			// Determine listener type and options
-			if pbHttp := pbListener.GetHttp(); pbHttp != nil {
-				l.Type = listeners.TypeHTTP
-				l.Options = listeners.HTTPOptions{
-					ReadTimeout:  pbHttp.ReadTimeout,
-					WriteTimeout: pbHttp.WriteTimeout,
-					IdleTimeout:  pbHttp.IdleTimeout,
-					DrainTimeout: pbHttp.DrainTimeout,
-				}
-			} else if pbGrpc := pbListener.GetGrpc(); pbGrpc != nil {
-				l.Type = listeners.TypeGRPC
-				maxStreams := 0
-				if pbGrpc.MaxConcurrentStreams != nil {
-					maxStreams = int(*pbGrpc.MaxConcurrentStreams)
-				}
-
-				l.Options = listeners.GRPCOptions{
-					MaxConnectionIdle:    pbGrpc.MaxConnectionIdle,
-					MaxConnectionAge:     pbGrpc.MaxConnectionAge,
-					MaxConcurrentStreams: maxStreams,
-				}
-			}
-
-			config.Listeners = append(config.Listeners, l)
+		listeners, err := listeners.FromProto(pbConfig.Listeners)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
 		}
+		config.Listeners = listeners
 	}
 
-	// Convert endpoints
 	if pbConfig.Endpoints != nil {
 		config.Endpoints = make([]endpoints.Endpoint, 0, len(pbConfig.Endpoints))
 		for _, pbEndpoint := range pbConfig.Endpoints {
 			if pbEndpoint == nil {
 				continue
 			}
+			if pbEndpoint.Id == nil {
+				return nil, fmt.Errorf("%w: nil endpoint ID", ErrFailedToConvertConfig)
+			}
+			if len(pbEndpoint.ListenerIds) == 0 {
+				return nil, fmt.Errorf("%w: empty listener IDs", ErrFailedToConvertConfig)
+			}
 
 			ep := endpoints.Endpoint{
-				ID:          getStringValue(pbEndpoint.Id),
+				ID:          *pbEndpoint.Id,
 				ListenerIDs: pbEndpoint.ListenerIds,
 				Routes:      []endpoints.Route{},
 			}
@@ -141,14 +115,14 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 			// Convert routes
 			for _, pbRoute := range pbEndpoint.Routes {
 				route := endpoints.Route{
-					AppID: getStringValue(pbRoute.AppId),
+					AppID: *pbRoute.AppId,
 				}
 
 				// Convert static data
 				if pbStaticData := pbRoute.GetStaticData(); pbStaticData != nil {
 					route.StaticData = make(map[string]any)
 					for k, v := range pbStaticData.GetData() {
-						route.StaticData[k] = convertProtoValueToInterface(v)
+						route.StaticData[k] = protohelpers.ConvertProtoValueToInterface(v)
 					}
 				}
 
@@ -166,24 +140,14 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		}
 	}
 
-	// Convert apps
-	appErrz := make([]error, 0, len(pbConfig.Apps))
-	if pbConfig.Apps != nil {
-		appsList := make([]apps.App, 0, len(pbConfig.Apps))
-		for _, pbApp := range pbConfig.Apps {
-			app, err := appFromProto(pbApp)
-			if err != nil {
-				// Decide how to handle errors: skip the app, collect errors, or return immediately
-				// For now, let's skip invalid apps and log a warning (actual logging mechanism may vary)
-				appErrz = append(
-					appErrz,
-					fmt.Errorf("failed to convert app %s: %w", pbApp.GetId(), err),
-				)
-				continue
-			}
-			appsList = append(appsList, app)
+	var appErrz []error
+	if len(pbConfig.Apps) > 0 {
+		appDefinitions, err := apps.FromProto(pbConfig.Apps)
+		if err != nil {
+			appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
+		} else {
+			config.Apps = appDefinitions
 		}
-		config.Apps = appsList
 	}
 
 	return config, errors.Join(appErrz...)
@@ -205,13 +169,10 @@ func NewConfigFromBytes(data []byte) (*Config, error) {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
 
-	// Convert protobuf to domain model using the canonical FromProto function
-	config, err := NewFromProto(protoConfig) // FromProto is defined in conversion.go
+	config, err := NewFromProto(protoConfig)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
 	}
-
-	// Validate the domain config
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
 	}
@@ -235,13 +196,10 @@ func NewConfigFromReader(reader io.Reader) (*Config, error) {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
 
-	// Convert protobuf to domain model using the canonical FromProto function
-	config, err := NewFromProto(protoConfig) // FromProto is defined in conversion.go
+	config, err := NewFromProto(protoConfig)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
 	}
-
-	// Validate the domain config
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
 	}

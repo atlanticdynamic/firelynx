@@ -18,15 +18,8 @@ type Validatable interface {
 // Validate performs comprehensive validation of the configuration
 func (c *Config) Validate() error {
 	// Validate version
-	if c.Version == "" {
-		c.Version = VersionUnknown
-	}
-
-	switch c.Version {
-	case VersionLatest:
-		// Supported version
-	default:
-		return fmt.Errorf("%w: %s", ErrUnsupportedConfigVer, c.Version)
+	if err := c.validateVersion(); err != nil {
+		return err
 	}
 
 	var errs []error
@@ -36,21 +29,63 @@ func (c *Config) Validate() error {
 		errs = append(errs, fmt.Errorf("logging config: %w", err))
 	}
 
-	// Collect listener and endpoint IDs for reference validation
+	// Validate listeners and collect their IDs for reference validation
+	listenerIds, listenerErrs := c.validateListeners()
+	errs = append(errs, listenerErrs...)
+
+	// Validate endpoints and their references to listeners
+	endpointErrs := c.validateEndpoints(listenerIds)
+	errs = append(errs, endpointErrs...)
+
+	// Validate apps and route references
+	if err := c.validateAppsAndRoutes(); err != nil {
+		errs = append(errs, err)
+	}
+
+	// Check for route conflicts across endpoints
+	if err := c.validateRouteConflicts(); err != nil {
+		errs = append(errs, fmt.Errorf("%w: %w", ErrRouteConflict, err))
+	}
+
+	// If we have errors, wrap them with the main validation error
+	joinedErrs := errors.Join(errs...)
+	if joinedErrs != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToValidateConfig, joinedErrs)
+	}
+
+	return nil
+}
+
+// validateVersion validates the config version is supported
+func (c *Config) validateVersion() error {
+	if c.Version == "" {
+		c.Version = VersionUnknown
+	}
+
+	switch c.Version {
+	case VersionLatest:
+		// Supported version
+		return nil
+	default:
+		return fmt.Errorf("%w: %s", ErrUnsupportedConfigVer, c.Version)
+	}
+}
+
+// validateListeners validates all listeners and checks for duplicates
+// Returns a map of valid listener IDs and a slice of validation errors
+func (c *Config) validateListeners() (map[string]bool, []error) {
+	var errs []error
 	listenerIds := make(map[string]bool, len(c.Listeners))
 	listenerAddrs := make(map[string]bool, len(c.Listeners))
-	endpointIds := make(map[string]bool, len(c.Endpoints))
 
-	// Validate individual listeners
 	for i, listener := range c.Listeners {
 		// Validate each listener with its own validation logic
 		if err := listener.Validate(); err != nil {
 			errs = append(errs, fmt.Errorf("listener at index %d: %w", i, err))
 		}
 
-		// Additional cross-reference validations
+		// Check for duplicate IDs
 		if listener.ID != "" {
-			// Check for duplicate IDs
 			if listenerIds[listener.ID] {
 				errs = append(errs, fmt.Errorf("%w: listener ID '%s'",
 					ErrDuplicateID, listener.ID))
@@ -59,8 +94,8 @@ func (c *Config) Validate() error {
 			}
 		}
 
+		// Check for duplicate addresses
 		if listener.Address != "" {
-			// Check for duplicate addresses
 			if listenerAddrs[listener.Address] {
 				errs = append(errs, fmt.Errorf("%w: listener address '%s'",
 					ErrDuplicateID, listener.Address))
@@ -70,16 +105,23 @@ func (c *Config) Validate() error {
 		}
 	}
 
-	// Validate endpoints
+	return listenerIds, errs
+}
+
+// validateEndpoints validates all endpoints and their references to listeners
+// Returns a slice of validation errors
+func (c *Config) validateEndpoints(listenerIds map[string]bool) []error {
+	var errs []error
+	endpointIds := make(map[string]bool, len(c.Endpoints))
+
 	for i, ep := range c.Endpoints {
 		// Validate each endpoint with its own validation logic
 		if err := ep.Validate(); err != nil {
 			errs = append(errs, fmt.Errorf("endpoint at index %d: %w", i, err))
 		}
 
-		// Additional cross-reference validations
+		// Check for duplicate endpoint IDs
 		if ep.ID != "" {
-			// Check for duplicate endpoint IDs
 			if endpointIds[ep.ID] {
 				errs = append(errs, fmt.Errorf("%w: endpoint ID '%s'",
 					ErrDuplicateID, ep.ID))
@@ -101,36 +143,38 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	return errs
+}
+
+// validateAppsAndRoutes validates apps and their references from routes
+func (c *Config) validateAppsAndRoutes() error {
+	var errs []error
+
 	// Validate apps
 	if err := c.Apps.Validate(); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Create slice of route refs for app validation
-	routeRefs := make([]struct{ AppID string }, 0)
-	for _, ep := range c.Endpoints {
-		for _, route := range ep.Routes {
-			routeRefs = append(routeRefs, struct{ AppID string }{AppID: route.AppID})
-		}
-	}
+	routeRefs := c.collectRouteReferences()
 
 	// Validate route references to apps
 	if err := c.Apps.ValidateRouteAppReferences(routeRefs); err != nil {
 		errs = append(errs, err)
 	}
 
-	// Check for route conflicts across endpoints
-	if err := c.validateRouteConflicts(); err != nil {
-		errs = append(errs, fmt.Errorf("%w: %w", ErrRouteConflict, err))
-	}
+	return errors.Join(errs...)
+}
 
-	// If we have errors, wrap them with the main validation error
-	joinedErrs := errors.Join(errs...)
-	if joinedErrs != nil {
-		return fmt.Errorf("%w: %w", ErrFailedToValidateConfig, joinedErrs)
+// collectRouteReferences collects app references from all routes
+func (c *Config) collectRouteReferences() []struct{ AppID string } {
+	routeRefs := make([]struct{ AppID string }, 0)
+	for _, ep := range c.Endpoints {
+		for _, route := range ep.Routes {
+			routeRefs = append(routeRefs, struct{ AppID string }{AppID: route.AppID})
+		}
 	}
-
-	return nil
+	return routeRefs
 }
 
 // validateRouteConflicts checks for duplicate routes across endpoints on the same listener
