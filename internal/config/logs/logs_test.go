@@ -27,6 +27,7 @@ func TestFormat_String(t *testing.T) {
 }
 
 func TestLevel_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		level    Level
@@ -49,6 +50,7 @@ func TestLevel_String(t *testing.T) {
 }
 
 func TestFormat_IsValid(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		format   Format
@@ -69,6 +71,7 @@ func TestFormat_IsValid(t *testing.T) {
 }
 
 func TestLevel_IsValid(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		level    Level
@@ -92,6 +95,7 @@ func TestLevel_IsValid(t *testing.T) {
 }
 
 func TestFormatFromString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       string
@@ -121,6 +125,7 @@ func TestFormatFromString(t *testing.T) {
 }
 
 func TestLevelFromString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       string
@@ -153,6 +158,7 @@ func TestLevelFromString(t *testing.T) {
 }
 
 func TestFromProto(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    *pb.LogOptions
@@ -197,6 +203,7 @@ func TestFromProto(t *testing.T) {
 }
 
 func TestConfig_ToProto(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    Config
@@ -242,6 +249,7 @@ func TestConfig_ToProto(t *testing.T) {
 }
 
 func TestRoundTripConversion(t *testing.T) {
+	t.Parallel()
 	// Start with domain model
 	original := Config{
 		Format: FormatJSON,
