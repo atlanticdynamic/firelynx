@@ -1,5 +1,8 @@
 package endpoints
 
+// Endpoints is a collection of Endpoint objects
+type Endpoints []Endpoint
+
 // Endpoint represents a routing configuration for incoming requests
 type Endpoint struct {
 	ID          string
