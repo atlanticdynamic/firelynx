@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
@@ -42,72 +41,9 @@ func ConfigTree(cfg *Config) string {
 	// Add apps section
 	appsTree := t.Child("Apps")
 	for _, app := range cfg.Apps {
-		appNode := appsTree.Child(fancy.AppText(app.ID))
-
-		// Determine app type and add specific details
-		switch appConfig := app.Config.(type) {
-		case apps.ScriptApp:
-			appNode.Child("Type: Script")
-
-			// Add evaluator type and info
-			switch eval := appConfig.Evaluator.(type) {
-			case apps.RisorEvaluator:
-				evalNode := appNode.Child("Evaluator: Risor")
-				codePreview := fancy.TruncateString(eval.Code, 40)
-				evalNode.Child(fmt.Sprintf("Code: %s", codePreview))
-				if eval.Timeout != nil {
-					evalNode.Child(
-						fmt.Sprintf("Timeout: %v", eval.Timeout.AsDuration()),
-					)
-				}
-			case apps.StarlarkEvaluator:
-				evalNode := appNode.Child("Evaluator: Starlark")
-				codePreview := fancy.TruncateString(eval.Code, 40)
-				evalNode.Child(fmt.Sprintf("Code: %s", codePreview))
-				if eval.Timeout != nil {
-					evalNode.Child(
-						fmt.Sprintf("Timeout: %v", eval.Timeout.AsDuration()),
-					)
-				}
-			case apps.ExtismEvaluator:
-				evalNode := appNode.Child("Evaluator: Extism")
-				evalNode.Child(fmt.Sprintf("Entrypoint: %s", eval.Entrypoint))
-				codePreview := fmt.Sprintf("<%d bytes>", len(eval.Code))
-				evalNode.Child(fmt.Sprintf("Code: %s", codePreview))
-			}
-
-			// Add static data if present
-			if len(appConfig.StaticData.Data) > 0 {
-				dataNode := appNode.Child("StaticData")
-				dataNode.Child(
-					fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode),
-				)
-				for k, v := range appConfig.StaticData.Data {
-					dataNode.Child(fmt.Sprintf("%s: %v", k, v))
-				}
-			}
-		case apps.CompositeScriptApp:
-			appNode.Child("Type: CompositeScript")
-
-			// Add script apps
-			if len(appConfig.ScriptAppIDs) > 0 {
-				scriptsNode := appNode.Child("ScriptApps")
-				for _, scriptID := range appConfig.ScriptAppIDs {
-					scriptsNode.Child(scriptID)
-				}
-			}
-
-			// Add static data if present
-			if len(appConfig.StaticData.Data) > 0 {
-				dataNode := appNode.Child("StaticData")
-				dataNode.Child(
-					fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode),
-				)
-				for k, v := range appConfig.StaticData.Data {
-					dataNode.Child(fmt.Sprintf("%s: %v", k, v))
-				}
-			}
-		}
+		// Use the app's ToTree method to get its tree representation
+		appTree := app.ToTree()
+		appsTree.Child(appTree)
 	}
 
 	// Render the tree to string

@@ -39,6 +39,9 @@ type GRPCOptions struct {
 
 func (g GRPCOptions) Type() Type { return TypeGRPC }
 
+// Listeners is a collection of Listener objects
+type Listeners []Listener
+
 // Listener represents a network listener configuration
 type Listener struct {
 	ID      string
