@@ -8,6 +8,17 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
+// customStringOptions for string_test.go
+type customStringOptions struct{}
+
+func (co customStringOptions) Type() Type {
+	return "custom"
+}
+
+func (co customStringOptions) Validate() error {
+	return nil
+}
+
 func TestListener_String(t *testing.T) {
 	t.Parallel()
 
@@ -70,7 +81,7 @@ func TestListener_String(t *testing.T) {
 			listener: Listener{
 				ID:      "custom",
 				Address: ":1234",
-				Options: customOptions{},
+				Options: customStringOptions{},
 			},
 			expected: "Listener custom (custom) - :1234",
 		},

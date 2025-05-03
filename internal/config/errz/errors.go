@@ -16,6 +16,7 @@ var (
 	ErrDuplicateID          = errors.New("duplicate ID")
 	ErrEmptyID              = errors.New("empty ID")
 	ErrInvalidReference     = errors.New("invalid reference")
+	ErrInvalidValue         = errors.New("invalid value")
 	ErrMissingRequiredField = errors.New("missing required field")
 	ErrRouteConflict        = errors.New("route conflict")
 )
