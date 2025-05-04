@@ -147,7 +147,7 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 		if pbStaticData != nil {
 			scriptApp.StaticData.Data = make(map[string]any)
 			for k, v := range pbStaticData.GetData() {
-				scriptApp.StaticData.Data[k] = convertProtoValueToInterface(v)
+				scriptApp.StaticData.Data[k] = protohelpers.ConvertProtoValueToInterface(v)
 			}
 			scriptApp.StaticData.MergeMode = protoMergeModeToStaticDataMergeMode(
 				getMergeModeValue(pbStaticData.MergeMode),
@@ -188,7 +188,7 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 		if pbStaticData != nil {
 			compositeApp.StaticData.Data = make(map[string]any)
 			for k, v := range pbStaticData.GetData() {
-				compositeApp.StaticData.Data[k] = convertProtoValueToInterface(v)
+				compositeApp.StaticData.Data[k] = protohelpers.ConvertProtoValueToInterface(v)
 			}
 			compositeApp.StaticData.MergeMode = protoMergeModeToStaticDataMergeMode(
 				getMergeModeValue(pbStaticData.MergeMode),
@@ -235,11 +235,6 @@ func protoMergeModeToStaticDataMergeMode(mode pb.StaticDataMergeMode) StaticData
 	default:
 		return StaticDataMergeModeUnspecified
 	}
-}
-
-// convertProtoValueToInterface converts a protobuf structpb.Value to a Go any
-func convertProtoValueToInterface(v *structpb.Value) any {
-	return protohelpers.ConvertProtoValueToInterface(v)
 }
 
 // getStringValue safely gets string value from a string pointer
