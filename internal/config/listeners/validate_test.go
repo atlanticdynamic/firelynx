@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestListener_Validate(t *testing.T) {
@@ -24,9 +25,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "http1",
 				Address: ":8080",
-				Options: HTTPOptions{
-					ReadTimeout: durationpb.New(30),
-				},
+				Options: options.NewHTTP(), // Use constructor for valid defaults
 			},
 			wantError: false,
 		},
@@ -35,9 +34,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "grpc1",
 				Address: ":9090",
-				Options: GRPCOptions{
-					MaxConcurrentStreams: 100,
-				},
+				Options: options.NewGRPC(), // Use constructor for valid defaults
 			},
 			wantError: false,
 		},
@@ -46,7 +43,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "",
 				Address: ":8080",
-				Options: HTTPOptions{},
+				Options: options.HTTP{},
 			},
 			wantError:   true,
 			errIs:       errz.ErrEmptyID,
@@ -57,7 +54,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "test",
 				Address: "",
-				Options: HTTPOptions{},
+				Options: options.HTTP{},
 			},
 			wantError:   true,
 			errContains: "address for listener",
@@ -80,7 +77,7 @@ func TestListener_Validate(t *testing.T) {
 				Options: invalidTypeOptions{}, // Use our invalid type options
 			},
 			wantError:   true,
-			errIs:       errz.ErrInvalidListenerType,
+			errIs:       ErrInvalidListenerType,
 			errContains: "has invalid type",
 		},
 		{
@@ -101,7 +98,7 @@ func TestListener_Validate(t *testing.T) {
 				Options: customOptions{},
 			},
 			wantError:   true,
-			errIs:       errz.ErrInvalidListenerType,
+			errIs:       ErrInvalidListenerType,
 			errContains: "has unknown options type",
 		},
 	}
@@ -128,7 +125,7 @@ func TestListener_Validate(t *testing.T) {
 // customOptions is a test-only implementation of Options interface
 type customOptions struct{}
 
-func (co customOptions) Type() Type {
+func (co customOptions) Type() options.Type {
 	return "custom" // Use "custom" to match test expectations
 }
 
@@ -136,15 +133,35 @@ func (co customOptions) Validate() error {
 	return nil // Always valid for testing
 }
 
+func (co customOptions) String() string {
+	return "Custom options"
+}
+
+func (co customOptions) ToTree() *fancy.ComponentTree {
+	tree := fancy.NewComponentTree("Custom Options")
+	tree.AddChild("No specific options")
+	return tree
+}
+
 // invalidTypeOptions returns an invalid type for testing
 type invalidTypeOptions struct{}
 
-func (io invalidTypeOptions) Type() Type {
+func (io invalidTypeOptions) Type() options.Type {
 	return "invalid-type" // Return an invalid type for testing
 }
 
 func (io invalidTypeOptions) Validate() error {
 	return nil // Always valid for testing
+}
+
+func (io invalidTypeOptions) String() string {
+	return "Invalid type options"
+}
+
+func (io invalidTypeOptions) ToTree() *fancy.ComponentTree {
+	tree := fancy.NewComponentTree("Invalid Type Options")
+	tree.AddChild("Invalid type")
+	return tree
 }
 
 // Test multiple validation errors
@@ -168,7 +185,7 @@ func TestListener_ValidateMultipleErrors(t *testing.T) {
 
 	// Test errors.Is behavior with joined errors
 	assert.ErrorIs(t, err, errz.ErrEmptyID)
-	assert.ErrorIs(t, err, errz.ErrInvalidListenerType)
+	assert.ErrorIs(t, err, ErrInvalidListenerType)
 }
 
 // Test that the Validate method correctly returns multiple errors
@@ -177,9 +194,9 @@ func TestListener_ErrorJoining(t *testing.T) {
 
 	// Create a listener with multiple validation failures
 	listener := Listener{
-		ID:      "",            // Error 1
-		Address: "",            // Error 2
-		Options: HTTPOptions{}, // Valid
+		ID:      "",             // Error 1
+		Address: "",             // Error 2
+		Options: options.HTTP{}, // Valid
 	}
 
 	err := listener.Validate()

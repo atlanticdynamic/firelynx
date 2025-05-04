@@ -6,6 +6,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,20 +63,20 @@ func TestConfig_GetListenersByType(t *testing.T) {
 	// Setup test config
 	config := &Config{
 		Listeners: []listeners.Listener{
-			{ID: "http1", Options: listeners.HTTPOptions{}},
-			{ID: "http2", Options: listeners.HTTPOptions{}},
-			{ID: "grpc1", Options: listeners.GRPCOptions{}},
+			{ID: "http1", Options: options.HTTP{}},
+			{ID: "http2", Options: options.HTTP{}},
+			{ID: "grpc1", Options: options.GRPC{}},
 		},
 	}
 
 	// Test HTTP listeners
-	httpListeners := config.GetListenersByType(listeners.TypeHTTP)
+	httpListeners := config.GetListenersByType(options.TypeHTTP)
 	assert.Len(t, httpListeners, 2)
 	assert.Equal(t, "http1", httpListeners[0].ID)
 	assert.Equal(t, "http2", httpListeners[1].ID)
 
 	// Test gRPC listeners
-	grpcListeners := config.GetListenersByType(listeners.TypeGRPC)
+	grpcListeners := config.GetListenersByType(options.TypeGRPC)
 	assert.Len(t, grpcListeners, 1)
 	assert.Equal(t, "grpc1", grpcListeners[0].ID)
 

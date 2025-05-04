@@ -3,6 +3,7 @@ package listeners
 import (
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,7 +47,7 @@ func TestListener_GetEndpoints(t *testing.T) {
 	listener := &Listener{
 		ID:      "listener1",
 		Address: ":8080",
-		Options: HTTPOptions{},
+		Options: options.HTTP{},
 	}
 
 	// Since GetEndpoints returns nil, we are just testing that it doesn't crash
@@ -82,7 +83,7 @@ func TestListener_GetEndpointIDs(t *testing.T) {
 	listener := &Listener{
 		ID:      "listener1",
 		Address: ":8080",
-		Options: HTTPOptions{},
+		Options: options.HTTP{},
 	}
 
 	// Since GetEndpointIDs returns nil, we are just testing that it doesn't crash

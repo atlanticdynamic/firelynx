@@ -21,7 +21,7 @@ func (e *Endpoint) String() string {
 }
 
 // ToTree returns a tree visualization of this Endpoint
-func (e *Endpoint) ToTree() any {
+func (e *Endpoint) ToTree() *fancy.ComponentTree {
 	// Create an endpoint tree using fancy package
 	tree := fancy.EndpointTree(e.ID)
 
@@ -33,13 +33,24 @@ func (e *Endpoint) ToTree() any {
 
 	// Add routes
 	if len(e.Routes) > 0 {
-		routesTree := tree.AddChild(fmt.Sprintf("Routes (%d)", len(e.Routes)))
-		for _, route := range e.Routes {
-			routesTree.Child(route.toTree())
+		routesNode := fancy.NewComponentTree(fmt.Sprintf("Routes (%d)", len(e.Routes)))
+		for i, route := range e.Routes {
+			routeSubNode := fancy.NewComponentTree(fmt.Sprintf("Route %d", i+1))
+			if route.Condition != nil {
+				routeSubNode.AddChild(fmt.Sprintf("App: %s", route.AppID))
+				routeSubNode.AddChild(fmt.Sprintf("Condition: %s = %s", 
+					route.Condition.Type(),
+					route.Condition.Value()))
+			} else {
+				routeSubNode.AddChild(fmt.Sprintf("App: %s", route.AppID))
+				routeSubNode.AddChild("Condition: none")
+			}
+			routesNode.AddChild(routeSubNode.Tree())
 		}
+		tree.AddChild(routesNode.Tree())
 	}
 
-	return tree.Tree()
+	return tree
 }
 
 // String returns a string representation of a Route
@@ -63,7 +74,7 @@ func (r *Route) String() string {
 }
 
 // toTree returns a styled tree node for this Route
-func (r *Route) toTree() string {
+func (r *Route) toTree() *fancy.ComponentTree {
 	// Format condition info
 	var conditionInfo string
 	if r.Condition != nil {
@@ -76,11 +87,13 @@ func (r *Route) toTree() string {
 		conditionInfo = "none"
 	}
 
-	return fancy.RouteText(fmt.Sprintf(
+	text := fancy.RouteText(fmt.Sprintf(
 		"Route: %s -> %s",
 		conditionInfo,
 		r.AppID,
 	))
+
+	return fancy.RouteTree(text)
 }
 
 // String returns a string representation of an HTTPRoute

@@ -9,9 +9,9 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Helper function to create a basic test configuration with HTTP listeners
@@ -23,10 +23,10 @@ func createTestConfig() *config.Config {
 			{
 				ID:      "test-listener",
 				Address: "localhost:8080",
-				Options: listeners.HTTPOptions{
-					ReadTimeout:  durationpb.New(5 * time.Second),
-					WriteTimeout: durationpb.New(10 * time.Second),
-					DrainTimeout: durationpb.New(30 * time.Second),
+				Options: options.HTTP{
+					ReadTimeout:  5 * time.Second,
+					WriteTimeout: 10 * time.Second,
+					DrainTimeout: 30 * time.Second,
 				},
 			},
 		},

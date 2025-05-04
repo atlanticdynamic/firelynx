@@ -1,7 +1,7 @@
 package core
 
 import (
-	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 )
 
@@ -32,36 +32,15 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 		// Map HTTP listeners from domain config to HTTP-specific config
 		for _, l := range r.currentConfig.Listeners {
 			// Skip non-HTTP listeners
-			if l.GetType() != listeners.TypeHTTP {
+			if l.GetType() != options.TypeHTTP {
 				continue
 			}
 
 			// Get HTTP options
-			httpOpts, ok := l.Options.(listeners.HTTPOptions)
+			httpOpts, ok := l.Options.(options.HTTP)
 			if !ok {
 				r.logger.Error("Invalid options type for HTTP listener", "id", l.ID)
 				continue
-			}
-
-			// Extract timeouts with defaults
-			readTimeout := http.DefaultReadTimeout
-			if httpOpts.ReadTimeout != nil && httpOpts.ReadTimeout.AsDuration() > 0 {
-				readTimeout = httpOpts.ReadTimeout.AsDuration()
-			}
-
-			writeTimeout := http.DefaultWriteTimeout
-			if httpOpts.WriteTimeout != nil && httpOpts.WriteTimeout.AsDuration() > 0 {
-				writeTimeout = httpOpts.WriteTimeout.AsDuration()
-			}
-
-			idleTimeout := http.DefaultIdleTimeout
-			if httpOpts.IdleTimeout != nil && httpOpts.IdleTimeout.AsDuration() > 0 {
-				idleTimeout = httpOpts.IdleTimeout.AsDuration()
-			}
-
-			drainTimeout := http.DefaultDrainTimeout
-			if httpOpts.DrainTimeout != nil && httpOpts.DrainTimeout.AsDuration() > 0 {
-				drainTimeout = httpOpts.DrainTimeout.AsDuration()
 			}
 
 			// Collect HTTP routes for this listener
@@ -92,10 +71,10 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 			listenerConfig := http.ListenerConfig{
 				ID:           l.ID,
 				Address:      l.Address,
-				ReadTimeout:  readTimeout,
-				WriteTimeout: writeTimeout,
-				IdleTimeout:  idleTimeout,
-				DrainTimeout: drainTimeout,
+				ReadTimeout:  httpOpts.GetReadTimeout(),
+				WriteTimeout: httpOpts.GetWriteTimeout(),
+				IdleTimeout:  httpOpts.GetIdleTimeout(),
+				DrainTimeout: httpOpts.GetDrainTimeout(),
 				Routes:       validRoutes,
 			}
 

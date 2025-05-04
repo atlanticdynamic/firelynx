@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 )
 
 // ToProto converts a Listeners collection to a slice of protobuf Listener messages
@@ -21,23 +22,14 @@ func (listeners Listeners) ToProto() []*pb.Listener {
 		}
 
 		// Convert options
-		if httpOpts, ok := l.Options.(HTTPOptions); ok {
+		switch opts := l.Options.(type) {
+		case options.HTTP:
 			pbListener.ProtocolOptions = &pb.Listener_Http{
-				Http: &pb.HttpListenerOptions{
-					ReadTimeout:  httpOpts.ReadTimeout,
-					WriteTimeout: httpOpts.WriteTimeout,
-					IdleTimeout:  httpOpts.IdleTimeout,
-					DrainTimeout: httpOpts.DrainTimeout,
-				},
+				Http: options.HTTPToProto(opts),
 			}
-		} else if grpcOpts, ok := l.Options.(GRPCOptions); ok {
-			maxStreams := int32(grpcOpts.MaxConcurrentStreams)
+		case options.GRPC:
 			pbListener.ProtocolOptions = &pb.Listener_Grpc{
-				Grpc: &pb.GrpcListenerOptions{
-					MaxConnectionIdle:    grpcOpts.MaxConnectionIdle,
-					MaxConnectionAge:     grpcOpts.MaxConnectionAge,
-					MaxConcurrentStreams: &maxStreams,
-				},
+				Grpc: options.GRPCToProto(opts),
 			}
 		}
 
@@ -62,18 +54,9 @@ func FromProto(pbListeners []*pb.Listener) (Listeners, error) {
 
 		// Convert protocol-specific options
 		if http := l.GetHttp(); http != nil {
-			listenerObj.Options = HTTPOptions{
-				ReadTimeout:  http.ReadTimeout,
-				WriteTimeout: http.WriteTimeout,
-				DrainTimeout: http.DrainTimeout,
-				IdleTimeout:  http.IdleTimeout,
-			}
+			listenerObj.Options = options.HTTPFromProto(http)
 		} else if grpc := l.GetGrpc(); grpc != nil {
-			listenerObj.Options = GRPCOptions{
-				MaxConnectionIdle:    grpc.MaxConnectionIdle,
-				MaxConnectionAge:     grpc.MaxConnectionAge,
-				MaxConcurrentStreams: int(grpc.GetMaxConcurrentStreams()),
-			}
+			listenerObj.Options = options.GRPCFromProto(grpc)
 		} else {
 			return nil, fmt.Errorf("listener '%s' has unknown protocol options", listenerObj.ID)
 		}

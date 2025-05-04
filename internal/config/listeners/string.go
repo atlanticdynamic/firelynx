@@ -12,30 +12,11 @@ func (l *Listener) String() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Listener %s (%s) - %s", l.ID, l.GetType(), l.Address)
 
-	// Add options if present
-	switch opts := l.Options.(type) {
-	case HTTPOptions:
-		if opts.ReadTimeout != nil {
-			fmt.Fprintf(
-				&b,
-				", ReadTimeout: %v",
-				opts.ReadTimeout.AsDuration(),
-			)
-		}
-		if opts.WriteTimeout != nil {
-			fmt.Fprintf(
-				&b,
-				", WriteTimeout: %v",
-				opts.WriteTimeout.AsDuration(),
-			)
-		}
-	case GRPCOptions:
-		if opts.MaxConnectionIdle != nil {
-			fmt.Fprintf(
-				&b,
-				", MaxConnIdle: %v",
-				opts.MaxConnectionIdle.AsDuration(),
-			)
+	// Add options if present and they have a String method
+	if l.Options != nil {
+		opts := l.Options.String()
+		if opts != "" {
+			fmt.Fprintf(&b, ", %s", opts)
 		}
 	}
 
@@ -43,36 +24,19 @@ func (l *Listener) String() string {
 }
 
 // ToTree returns a tree visualization of this Listener
-func (l *Listener) ToTree() any {
+func (l *Listener) ToTree() *fancy.ComponentTree {
 	// Create a base tree for the listener
-	tree := fancy.ListenerTree(fmt.Sprintf("%s (%s:%s)", l.ID, l.GetType(), l.Address))
-
-	// Add listener options
-	switch opts := l.Options.(type) {
-	case HTTPOptions:
-		if opts.ReadTimeout != nil {
-			tree.AddChild(fmt.Sprintf("ReadTimeout: %v", opts.ReadTimeout.AsDuration()))
-		}
-		if opts.WriteTimeout != nil {
-			tree.AddChild(fmt.Sprintf("WriteTimeout: %v", opts.WriteTimeout.AsDuration()))
-		}
-		if opts.IdleTimeout != nil {
-			tree.AddChild(fmt.Sprintf("IdleTimeout: %v", opts.IdleTimeout.AsDuration()))
-		}
-		if opts.DrainTimeout != nil {
-			tree.AddChild(fmt.Sprintf("DrainTimeout: %v", opts.DrainTimeout.AsDuration()))
-		}
-	case GRPCOptions:
-		if opts.MaxConnectionIdle != nil {
-			tree.AddChild(fmt.Sprintf("MaxConnectionIdle: %v", opts.MaxConnectionIdle.AsDuration()))
-		}
-		if opts.MaxConnectionAge != nil {
-			tree.AddChild(fmt.Sprintf("MaxConnectionAge: %v", opts.MaxConnectionAge.AsDuration()))
-		}
-		if opts.MaxConcurrentStreams > 0 {
-			tree.AddChild(fmt.Sprintf("MaxConcurrentStreams: %d", opts.MaxConcurrentStreams))
-		}
+	tree := fancy.ListenerTree(l.ID)
+	
+	// Add key properties directly as children
+	tree.AddChild(fmt.Sprintf("Address: %s", l.Address))
+	tree.AddChild(fmt.Sprintf("Type: %s", l.GetType()))
+	
+	// Add listener options by delegating to the options' ToTree method
+	if l.Options != nil {
+		optionsTree := l.Options.ToTree()
+		tree.AddChild(optionsTree.Tree())
 	}
 
-	return tree.Tree()
+	return tree
 }

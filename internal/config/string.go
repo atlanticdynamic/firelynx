@@ -18,32 +18,37 @@ func ConfigTree(cfg *Config) string {
 	t.Root(fancy.RootStyle.Render(fmt.Sprintf("Firelynx Config (%s)", cfg.Version)))
 
 	// Add logging section
-	loggingTree := t.Child("Logging")
-	loggingTree.Child(fmt.Sprintf("Format: %s", cfg.Logging.Format))
-	loggingTree.Child(fmt.Sprintf("Level: %s", cfg.Logging.Level))
+	loggingTree := cfg.Logging.ToTree()
+	t.Child(loggingTree.Tree())
 
-	// Add listeners section
-	listenersTree := t.Child("Listeners")
-	for _, l := range cfg.Listeners {
-		// Use the listener's ToTree method to get its tree representation
-		listenerTree := l.ToTree()
-		listenersTree.Child(listenerTree)
+	// Create a properly nested tree of listeners
+	if len(cfg.Listeners) > 0 {
+		listenersRoot := fancy.NewComponentTree(fmt.Sprintf("Listeners (%d)", len(cfg.Listeners)))
+		for _, l := range cfg.Listeners {
+			listenerTree := l.ToTree()
+			listenersRoot.AddChild(listenerTree.Tree())
+		}
+		t.Child(listenersRoot.Tree())
 	}
 
-	// Add endpoints section
-	endpointsTree := t.Child("Endpoints")
-	for _, ep := range cfg.Endpoints {
-		// Use the endpoint's ToTree method to get its tree representation
-		epTree := ep.ToTree()
-		endpointsTree.Child(epTree)
+	// Create a properly nested tree of endpoints
+	if len(cfg.Endpoints) > 0 {
+		endpointsRoot := fancy.NewComponentTree(fmt.Sprintf("Endpoints (%d)", len(cfg.Endpoints)))
+		for _, ep := range cfg.Endpoints {
+			epTree := ep.ToTree()
+			endpointsRoot.AddChild(epTree.Tree())
+		}
+		t.Child(endpointsRoot.Tree())
 	}
 
-	// Add apps section
-	appsTree := t.Child("Apps")
-	for _, app := range cfg.Apps {
-		// Use the app's ToTree method to get its tree representation
-		appTree := app.ToTree()
-		appsTree.Child(appTree)
+	// Create a properly nested tree of apps
+	if len(cfg.Apps) > 0 {
+		appsRoot := fancy.NewComponentTree(fmt.Sprintf("Apps (%d)", len(cfg.Apps)))
+		for _, app := range cfg.Apps {
+			appTree := app.ToTree()
+			appsRoot.AddChild(appTree.Tree())
+		}
+		t.Child(appsRoot.Tree())
 	}
 
 	// Render the tree to string

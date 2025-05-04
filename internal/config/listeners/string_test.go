@@ -4,19 +4,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // customStringOptions for string_test.go
 type customStringOptions struct{}
 
-func (co customStringOptions) Type() Type {
+func (co customStringOptions) Type() options.Type {
 	return "custom"
 }
 
 func (co customStringOptions) Validate() error {
 	return nil
+}
+
+func (co customStringOptions) String() string {
+	return "Custom options"
+}
+
+func (co customStringOptions) ToTree() *fancy.ComponentTree {
+	tree := fancy.NewComponentTree("Custom Options")
+	tree.AddChild("No specific options")
+	return tree
 }
 
 func TestListener_String(t *testing.T) {
@@ -33,7 +44,7 @@ func TestListener_String(t *testing.T) {
 			listener: Listener{
 				ID:      "http1",
 				Address: ":8080",
-				Options: HTTPOptions{},
+				Options: options.HTTP{},
 			},
 			expected: "Listener http1 (http) - :8080",
 		},
@@ -42,9 +53,9 @@ func TestListener_String(t *testing.T) {
 			listener: Listener{
 				ID:      "http2",
 				Address: ":9090",
-				Options: HTTPOptions{
-					ReadTimeout:  durationpb.New(5 * time.Second),
-					WriteTimeout: durationpb.New(10 * time.Second),
+				Options: options.HTTP{
+					ReadTimeout:  5 * time.Second,
+					WriteTimeout: 10 * time.Second,
 				},
 			},
 			contains: []string{
@@ -58,7 +69,7 @@ func TestListener_String(t *testing.T) {
 			listener: Listener{
 				ID:      "grpc1",
 				Address: ":50051",
-				Options: GRPCOptions{},
+				Options: options.GRPC{},
 			},
 			expected: "Listener grpc1 (grpc) - :50051",
 		},
@@ -67,13 +78,13 @@ func TestListener_String(t *testing.T) {
 			listener: Listener{
 				ID:      "grpc2",
 				Address: ":50052",
-				Options: GRPCOptions{
-					MaxConnectionIdle: durationpb.New(30 * time.Minute),
+				Options: options.GRPC{
+					MaxConnectionIdle: 30 * time.Minute,
 				},
 			},
 			contains: []string{
 				"Listener grpc2 (grpc) - :50052",
-				"MaxConnIdle: 30m0s",
+				"MaxConnectionIdle: 30m0s",
 			},
 		},
 		{
@@ -83,7 +94,7 @@ func TestListener_String(t *testing.T) {
 				Address: ":1234",
 				Options: customStringOptions{},
 			},
-			expected: "Listener custom (custom) - :1234",
+			expected: "Listener custom (custom) - :1234, Custom options",
 		},
 	}
 
@@ -115,11 +126,11 @@ func TestListener_ToTree(t *testing.T) {
 			listener: Listener{
 				ID:      "http1",
 				Address: ":8080",
-				Options: HTTPOptions{
-					ReadTimeout:  durationpb.New(5 * time.Second),
-					WriteTimeout: durationpb.New(10 * time.Second),
-					IdleTimeout:  durationpb.New(60 * time.Second),
-					DrainTimeout: durationpb.New(30 * time.Second),
+				Options: options.HTTP{
+					ReadTimeout:  5 * time.Second,
+					WriteTimeout: 10 * time.Second,
+					IdleTimeout:  60 * time.Second,
+					DrainTimeout: 30 * time.Second,
 				},
 			},
 			contains: []string{
@@ -131,9 +142,9 @@ func TestListener_ToTree(t *testing.T) {
 			listener: Listener{
 				ID:      "grpc1",
 				Address: ":50051",
-				Options: GRPCOptions{
-					MaxConnectionIdle:    durationpb.New(30 * time.Minute),
-					MaxConnectionAge:     durationpb.New(1 * time.Hour),
+				Options: options.GRPC{
+					MaxConnectionIdle:    30 * time.Minute,
+					MaxConnectionAge:     1 * time.Hour,
 					MaxConcurrentStreams: 100,
 				},
 			},
@@ -161,11 +172,11 @@ func TestListener_ToTree_WithHTTPOptions(t *testing.T) {
 	listener := Listener{
 		ID:      "http1",
 		Address: ":8080",
-		Options: HTTPOptions{
-			ReadTimeout:  durationpb.New(5 * time.Second),
-			WriteTimeout: durationpb.New(10 * time.Second),
-			IdleTimeout:  durationpb.New(60 * time.Second),
-			DrainTimeout: durationpb.New(30 * time.Second),
+		Options: options.HTTP{
+			ReadTimeout:  5 * time.Second,
+			WriteTimeout: 10 * time.Second,
+			IdleTimeout:  60 * time.Second,
+			DrainTimeout: 30 * time.Second,
 		},
 	}
 
@@ -182,9 +193,9 @@ func TestListener_ToTree_WithGRPCOptions(t *testing.T) {
 	listener := Listener{
 		ID:      "grpc1",
 		Address: ":50051",
-		Options: GRPCOptions{
-			MaxConnectionIdle:    durationpb.New(30 * time.Minute),
-			MaxConnectionAge:     durationpb.New(1 * time.Hour),
+		Options: options.GRPC{
+			MaxConnectionIdle:    30 * time.Minute,
+			MaxConnectionAge:     1 * time.Hour,
 			MaxConcurrentStreams: 100,
 		},
 	}
