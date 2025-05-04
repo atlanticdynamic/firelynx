@@ -14,9 +14,9 @@ func (lc *Config) String() string {
 // ToTree returns a tree visualization of the log configuration
 func (lc *Config) ToTree() *fancy.ComponentTree {
 	tree := fancy.NewComponentTree("Logging")
-	
+
 	tree.AddChild(fmt.Sprintf("Format: %s", lc.Format))
 	tree.AddChild(fmt.Sprintf("Level: %s", lc.Level))
-	
+
 	return tree
 }

@@ -3,7 +3,6 @@ package logs
 import (
 	"testing"
 
-	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,41 +62,30 @@ func TestConfig_String(t *testing.T) {
 
 func TestConfig_ToTree(t *testing.T) {
 	t.Parallel()
-	tests := []struct {
-		name   string
-		config Config
-		verify func(t *testing.T, tree *fancy.ComponentTree)
-	}{
-		{
-			name: "JSON Format Info Level",
-			config: Config{
-				Format: FormatJSON,
-				Level:  LevelInfo,
-			},
-			verify: func(t *testing.T, tree *fancy.ComponentTree) {
-				treeStr := tree.Tree().String()
-				assert.Contains(t, treeStr, "Logging")
-				assert.Contains(t, treeStr, "Format: json")
-				assert.Contains(t, treeStr, "Level: info")
-			},
-		},
-		{
-			name: "Empty Config",
-			config: Config{},
-			verify: func(t *testing.T, tree *fancy.ComponentTree) {
-				treeStr := tree.Tree().String()
-				assert.Contains(t, treeStr, "Logging")
-				assert.Contains(t, treeStr, "Format: ")
-				assert.Contains(t, treeStr, "Level: ")
-			},
-		},
-	}
+	t.Run("JSON Format Info Level", func(t *testing.T) {
+		config := Config{
+			Format: FormatJSON,
+			Level:  LevelInfo,
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tree := tt.config.ToTree()
-			assert.NotNil(t, tree)
-			tt.verify(t, tree)
-		})
-	}
+		tree := config.ToTree()
+		assert.NotNil(t, tree)
+
+		treeStr := tree.Tree().String()
+		assert.Contains(t, treeStr, "Logging")
+		assert.Contains(t, treeStr, "Format: json")
+		assert.Contains(t, treeStr, "Level: info")
+	})
+
+	t.Run("Empty Config", func(t *testing.T) {
+		config := Config{}
+
+		tree := config.ToTree()
+		assert.NotNil(t, tree)
+
+		treeStr := tree.Tree().String()
+		assert.Contains(t, treeStr, "Logging")
+		assert.Contains(t, treeStr, "Format: ")
+		assert.Contains(t, treeStr, "Level: ")
+	})
 }
