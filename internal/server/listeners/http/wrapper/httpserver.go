@@ -19,6 +19,12 @@ var (
 	_ supervisor.Reloadable = (*HttpServer)(nil)
 )
 
+// RunnableReloadable is a local interface that combines supervisor.Runnable and supervisor.Reloadable
+type RunnableReloadable interface {
+	supervisor.Runnable
+	supervisor.Reloadable
+}
+
 // ServerOption configures a ServerWrapper
 type ServerOption func(*HttpServer)
 
@@ -34,7 +40,7 @@ func WithLogger(logger *slog.Logger) ServerOption {
 type HttpServer struct {
 	id      string
 	address string
-	runner  *httpserver.Runner
+	runner  RunnableReloadable
 	logger  *slog.Logger
 	routes  []httpserver.Route
 
