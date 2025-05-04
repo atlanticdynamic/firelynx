@@ -34,87 +34,102 @@ func (a *App) String() string {
 }
 
 // ToTree returns a tree visualization of this App
-func (a *App) ToTree() any {
-	// Create a tree node for this app
-	appNode := fancy.Tree()
-	appNode.Root(fancy.AppText(a.ID))
+func (a *App) ToTree() *fancy.ComponentTree {
+	// Create a component tree for this app
+	tree := fancy.NewComponentTree(fancy.AppText(a.ID))
 
 	// Add app-specific details based on its type
 	switch appConfig := a.Config.(type) {
 	case ScriptApp:
-		appNode.Child("Type: Script")
+		tree.AddChild("Type: Script")
 
 		// Add evaluator type and info
 		switch eval := appConfig.Evaluator.(type) {
 		case RisorEvaluator:
-			evalNode := appNode.Child("Evaluator: Risor")
+			evalNode := fancy.NewComponentTree("Evaluator: Risor")
 			codePreview := fancy.TruncateString(eval.Code, 40)
-			evalNode.Child(fmt.Sprintf("Code: %s", codePreview))
+			evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
 			if eval.Timeout != nil {
-				evalNode.Child(
-					fmt.Sprintf("Timeout: %v", eval.Timeout.AsDuration()),
-				)
+				evalNode.AddChild(fmt.Sprintf("Timeout: %v", eval.Timeout.AsDuration()))
 			}
+			tree.AddChild(evalNode.Tree())
+
 		case StarlarkEvaluator:
-			evalNode := appNode.Child("Evaluator: Starlark")
+			evalNode := fancy.NewComponentTree("Evaluator: Starlark")
 			codePreview := fancy.TruncateString(eval.Code, 40)
-			evalNode.Child(fmt.Sprintf("Code: %s", codePreview))
+			evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
 			if eval.Timeout != nil {
-				evalNode.Child(
-					fmt.Sprintf("Timeout: %v", eval.Timeout.AsDuration()),
-				)
+				evalNode.AddChild(fmt.Sprintf("Timeout: %v", eval.Timeout.AsDuration()))
 			}
+			tree.AddChild(evalNode.Tree())
+
 		case ExtismEvaluator:
-			evalNode := appNode.Child("Evaluator: Extism")
-			evalNode.Child(fmt.Sprintf("Entrypoint: %s", eval.Entrypoint))
+			evalNode := fancy.NewComponentTree("Evaluator: Extism")
+			evalNode.AddChild(fmt.Sprintf("Entrypoint: %s", eval.Entrypoint))
 			codePreview := fmt.Sprintf("<%d bytes>", len(eval.Code))
-			evalNode.Child(fmt.Sprintf("Code: %s", codePreview))
+			evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
+			tree.AddChild(evalNode.Tree())
 		}
 
 		// Add static data if present
 		if len(appConfig.StaticData.Data) > 0 {
-			dataNode := appNode.Child("StaticData")
-			dataNode.Child(
-				fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode),
-			)
-			for k, v := range appConfig.StaticData.Data {
-				dataNode.Child(fmt.Sprintf("%s: %v", k, v))
+			dataNode := fancy.NewComponentTree("StaticData")
+			dataNode.AddChild(fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode))
+			
+			// Create a data entries section
+			if len(appConfig.StaticData.Data) > 0 {
+				dataEntriesNode := fancy.NewComponentTree(fmt.Sprintf("Entries (%d)", len(appConfig.StaticData.Data)))
+				for k, v := range appConfig.StaticData.Data {
+					dataEntriesNode.AddChild(fmt.Sprintf("%s: %v", k, v))
+				}
+				dataNode.AddChild(dataEntriesNode.Tree())
 			}
+			
+			tree.AddChild(dataNode.Tree())
 		}
+
 	case CompositeScriptApp:
-		appNode.Child("Type: CompositeScript")
+		tree.AddChild("Type: CompositeScript")
 
 		// Add script apps
 		if len(appConfig.ScriptAppIDs) > 0 {
-			scriptsNode := appNode.Child("ScriptApps")
+			scriptsNode := fancy.NewComponentTree(fmt.Sprintf("ScriptApps (%d)", len(appConfig.ScriptAppIDs)))
 			for _, scriptID := range appConfig.ScriptAppIDs {
-				scriptsNode.Child(scriptID)
+				scriptsNode.AddChild(scriptID)
 			}
+			tree.AddChild(scriptsNode.Tree())
 		}
 
 		// Add static data if present
 		if len(appConfig.StaticData.Data) > 0 {
-			dataNode := appNode.Child("StaticData")
-			dataNode.Child(
-				fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode),
-			)
-			for k, v := range appConfig.StaticData.Data {
-				dataNode.Child(fmt.Sprintf("%s: %v", k, v))
+			dataNode := fancy.NewComponentTree("StaticData")
+			dataNode.AddChild(fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode))
+			
+			// Create a data entries section
+			if len(appConfig.StaticData.Data) > 0 {
+				dataEntriesNode := fancy.NewComponentTree(fmt.Sprintf("Entries (%d)", len(appConfig.StaticData.Data)))
+				for k, v := range appConfig.StaticData.Data {
+					dataEntriesNode.AddChild(fmt.Sprintf("%s: %v", k, v))
+				}
+				dataNode.AddChild(dataEntriesNode.Tree())
 			}
+			
+			tree.AddChild(dataNode.Tree())
 		}
 	}
 
-	return appNode
+	return tree
 }
 
 // ToTree returns a tree visualization of a collection of Apps
-func (a Apps) ToTree() any {
-	appsTree := fancy.Tree()
-	appsTree.Root(fancy.HeaderStyle.Render("Apps"))
+func (a Apps) ToTree() *fancy.ComponentTree {
+	title := fancy.HeaderStyle.Render(fmt.Sprintf("Apps (%d)", len(a)))
+	tree := fancy.NewComponentTree(title)
 
 	for _, app := range a {
-		appsTree.Child(app.ToTree())
+		appTree := app.ToTree()
+		tree.AddChild(appTree.Tree())
 	}
 
-	return appsTree
+	return tree
 }

@@ -10,10 +10,10 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Helper function to create a valid config for testing
@@ -29,11 +29,7 @@ func createValidDomainConfig(t *testing.T) *Config {
 			{
 				ID:      "listener1",
 				Address: ":8080",
-				Options: listeners.HTTPOptions{
-					ReadTimeout:  durationpb.New(time.Second * 30),
-					WriteTimeout: durationpb.New(time.Second * 30),
-					DrainTimeout: durationpb.New(time.Second * 30),
-				},
+				Options: options.NewHTTP(),
 			},
 		},
 		Endpoints: []endpoints.Endpoint{
@@ -283,7 +279,7 @@ timeout = "5s"
 		assert.Equal(t, ":9090", listener.Address, "Expected listener address ':9090'")
 
 		// We know it's an HTTP listener, so we can just check directly
-		readTimeout := listener.GetReadTimeout(10 * time.Second)
+		readTimeout := listener.GetReadTimeout()
 		assert.Equal(t, 45*time.Second, readTimeout, "Expected 45 second read timeout")
 
 		// Validate endpoint conversion

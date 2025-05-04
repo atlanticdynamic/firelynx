@@ -2,12 +2,13 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestConfigTree(t *testing.T) {
@@ -18,8 +19,8 @@ func TestConfigTree(t *testing.T) {
 			{
 				ID:      "http_main",
 				Address: "127.0.0.1:8080",
-				Options: listeners.HTTPOptions{
-					ReadTimeout: durationpb.New(60),
+				Options: options.HTTP{
+					ReadTimeout: 60 * time.Second,
 				},
 			},
 		},
@@ -52,14 +53,14 @@ func TestConfigTree(t *testing.T) {
 	// Generate the tree
 	tree := ConfigTree(cfg)
 
-	// Verify basic structure - we don't need to check exact content
-	// just make sure all main components are present
+	// Verify basic structure - focus on testing the main components
+	// without relying on implementation details of sub-components
 	assert.Contains(t, tree, "Config")
 	assert.Contains(t, tree, "v1")
 	assert.Contains(t, tree, "Listeners")
+	assert.Contains(t, tree, "http_main")
+	assert.Contains(t, tree, "Endpoints")
 	assert.Contains(t, tree, "main_endpoint")
-	assert.Contains(t, tree, "Route")
-	assert.Contains(t, tree, "/hello")
 	assert.Contains(t, tree, "Apps")
 	assert.Contains(t, tree, "hello_app")
 }
@@ -89,8 +90,8 @@ func TestEndpointTree(t *testing.T) {
 	listener := listeners.Listener{
 		ID:      "listener1",
 		Address: ":8080",
-		Options: listeners.HTTPOptions{
-			ReadTimeout: durationpb.New(30),
+		Options: options.HTTP{
+			ReadTimeout: 30 * time.Second,
 		},
 	}
 

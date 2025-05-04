@@ -3,14 +3,13 @@ package config
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestConfig_Validate(t *testing.T) {
@@ -482,15 +481,12 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1",
 					Address: ":8080",
-					Options: listeners.HTTPOptions{
-						ReadTimeout:  durationpb.New(30 * time.Second),
-						WriteTimeout: durationpb.New(30 * time.Second),
-					},
+					Options: options.NewHTTP(),
 				},
 				{
 					ID:      "listener2",
 					Address: ":9090",
-					Options: listeners.GRPCOptions{},
+					Options: options.NewGRPC(),
 				},
 			},
 		}
@@ -508,15 +504,12 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1",
 					Address: ":8080",
-					Options: listeners.HTTPOptions{
-						ReadTimeout:  durationpb.New(30 * time.Second),
-						WriteTimeout: durationpb.New(30 * time.Second),
-					},
+					Options: options.NewHTTP(),
 				},
 				{
 					ID:      "listener1", // Duplicate ID
 					Address: ":9090",
-					Options: listeners.GRPCOptions{},
+					Options: options.NewGRPC(),
 				},
 			},
 		}
@@ -540,15 +533,12 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1",
 					Address: ":8080",
-					Options: listeners.HTTPOptions{
-						ReadTimeout:  durationpb.New(30 * time.Second),
-						WriteTimeout: durationpb.New(30 * time.Second),
-					},
+					Options: options.NewHTTP(),
 				},
 				{
 					ID:      "listener2",
 					Address: ":8080", // Duplicate address
-					Options: listeners.GRPCOptions{},
+					Options: options.NewGRPC(),
 				},
 			},
 		}
@@ -572,10 +562,7 @@ func TestConfig_validateListeners(t *testing.T) {
 				{
 					ID:      "listener1",
 					Address: "", // Empty address is invalid
-					Options: listeners.HTTPOptions{
-						ReadTimeout:  durationpb.New(30 * time.Second),
-						WriteTimeout: durationpb.New(30 * time.Second),
-					},
+					Options: options.NewHTTP(),
 				},
 			},
 		}

@@ -7,14 +7,13 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http/wrapper"
 	"github.com/robbyt/go-supervisor/runnables/composite"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/robbyt/go-supervisor/supervisor"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Interface guards: ensure Manager implements these interfaces
@@ -187,11 +186,11 @@ func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.H
 		domainListener := &listeners.Listener{
 			ID:      listenerCfg.ID,
 			Address: listenerCfg.Address,
-			Options: listeners.HTTPOptions{
-				ReadTimeout:  convertToDurationPb(listenerCfg.ReadTimeout),
-				WriteTimeout: convertToDurationPb(listenerCfg.WriteTimeout),
-				IdleTimeout:  convertToDurationPb(listenerCfg.IdleTimeout),
-				DrainTimeout: convertToDurationPb(listenerCfg.DrainTimeout),
+			Options: options.HTTP{
+				ReadTimeout:  listenerCfg.ReadTimeout,
+				WriteTimeout: listenerCfg.WriteTimeout,
+				IdleTimeout:  listenerCfg.IdleTimeout,
+				DrainTimeout: listenerCfg.DrainTimeout,
 			},
 		}
 
@@ -222,12 +221,4 @@ func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.H
 
 	// Create composite config for the runner
 	return composite.NewConfig("http-listeners", entries)
-}
-
-// convertToDurationPb converts a Go duration to a protobuf duration
-func convertToDurationPb(d time.Duration) *durationpb.Duration {
-	if d <= 0 {
-		return nil
-	}
-	return durationpb.New(d)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 )
 
 // Validate performs validation for a Listener
@@ -23,14 +24,14 @@ func (l *Listener) Validate() error {
 	// Validate Type
 	listenerType := l.GetType()
 	switch listenerType {
-	case TypeHTTP, TypeGRPC:
+	case options.TypeHTTP, options.TypeGRPC:
 		// Valid types
 	case "":
 		errs = append(errs, fmt.Errorf("%w: type for listener '%s'",
 			errz.ErrMissingRequiredField, l.ID))
 	default:
 		errs = append(errs, fmt.Errorf("%w: listener '%s' has invalid type '%s'",
-			errz.ErrInvalidListenerType, l.ID, listenerType))
+			ErrInvalidListenerType, l.ID, listenerType))
 	}
 
 	// Handle nil Options case
@@ -51,36 +52,36 @@ func (l *Listener) Validate() error {
 
 	// Type-specific validations
 	switch opts := l.Options.(type) {
-	case HTTPOptions:
-		if listenerType != TypeHTTP {
+	case options.HTTP:
+		if listenerType != options.TypeHTTP {
 			errs = append(errs, fmt.Errorf(
 				"listener '%s' has HTTP options but type is '%s'",
 				l.ID, listenerType))
 		}
-		
+
 		// Validate HTTP-specific options
 		if optErr := opts.Validate(); optErr != nil {
-			errs = append(errs, fmt.Errorf("invalid HTTP options for listener '%s': %w", 
+			errs = append(errs, fmt.Errorf("invalid HTTP options for listener '%s': %w",
 				l.ID, optErr))
 		}
 
-	case GRPCOptions:
-		if listenerType != TypeGRPC {
+	case options.GRPC:
+		if listenerType != options.TypeGRPC {
 			errs = append(errs, fmt.Errorf(
 				"listener '%s' has gRPC options but type is '%s'",
 				l.ID, listenerType))
 		}
-		
+
 		// Validate gRPC-specific options
 		if optErr := opts.Validate(); optErr != nil {
-			errs = append(errs, fmt.Errorf("invalid gRPC options for listener '%s': %w", 
+			errs = append(errs, fmt.Errorf("invalid gRPC options for listener '%s': %w",
 				l.ID, optErr))
 		}
 
 	default:
 		errs = append(errs, fmt.Errorf(
 			"%w: listener '%s' has unknown options type %T",
-			errz.ErrInvalidListenerType, l.ID, opts))
+			ErrInvalidListenerType, l.ID, opts))
 	}
 
 	return errors.Join(errs...)

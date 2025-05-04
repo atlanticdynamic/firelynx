@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Tests for Listener-specific functionality
@@ -14,16 +14,16 @@ func TestListener_GetHTTPOptions(t *testing.T) {
 	// Create HTTP listener with options
 	httpListener := &Listener{
 		ID: "http1",
-		Options: HTTPOptions{
-			ReadTimeout:  durationpb.New(5 * time.Second),
-			WriteTimeout: durationpb.New(10 * time.Second),
+		Options: options.HTTP{
+			ReadTimeout:  5 * time.Second,
+			WriteTimeout: 10 * time.Second,
 		},
 	}
 
 	// Create GRPC listener
 	grpcListener := &Listener{
 		ID:      "grpc1",
-		Options: GRPCOptions{},
+		Options: options.GRPC{},
 	}
 
 	// Create HTTP listener with nil options
@@ -34,8 +34,7 @@ func TestListener_GetHTTPOptions(t *testing.T) {
 	// Test HTTP listener with options
 	httpOpts, ok := httpListener.GetHTTPOptions()
 	assert.True(t, ok)
-	assert.NotNil(t, httpOpts.ReadTimeout)
-	assert.Equal(t, 5*time.Second, httpOpts.ReadTimeout.AsDuration())
+	assert.Equal(t, 5*time.Second, httpOpts.ReadTimeout)
 
 	// Test GRPC listener
 	_, ok = grpcListener.GetHTTPOptions()
@@ -56,19 +55,19 @@ func TestListener_GetTimeouts(t *testing.T) {
 	// Create HTTP listener with all options
 	fullListener := &Listener{
 		ID: "full",
-		Options: HTTPOptions{
-			ReadTimeout:  durationpb.New(readDuration),
-			WriteTimeout: durationpb.New(writeDuration),
-			DrainTimeout: durationpb.New(drainDuration),
-			IdleTimeout:  durationpb.New(idleDuration),
+		Options: options.HTTP{
+			ReadTimeout:  readDuration,
+			WriteTimeout: writeDuration,
+			DrainTimeout: drainDuration,
+			IdleTimeout:  idleDuration,
 		},
 	}
 
 	// Create HTTP listener with partial options
 	partialListener := &Listener{
 		ID: "partial",
-		Options: HTTPOptions{
-			ReadTimeout: durationpb.New(readDuration),
+		Options: options.HTTP{
+			ReadTimeout: readDuration,
 			// WriteTimeout intentionally omitted
 			// DrainTimeout intentionally omitted
 			// IdleTimeout intentionally omitted
@@ -78,50 +77,41 @@ func TestListener_GetTimeouts(t *testing.T) {
 	// Create HTTP listener with invalid options
 	invalidListener := &Listener{
 		ID: "invalid",
-		Options: HTTPOptions{
-			ReadTimeout:  durationpb.New(-1 * time.Second), // Negative duration
-			WriteTimeout: durationpb.New(0),                // Zero duration
+		Options: options.HTTP{
+			ReadTimeout:  -1 * time.Second, // Negative duration
+			WriteTimeout: 0,                // Zero duration
 		},
 	}
 
 	// Create GRPC listener
 	grpcListener := &Listener{
 		ID:      "grpc",
-		Options: GRPCOptions{},
+		Options: options.GRPC{},
 	}
 
-	// Define fallback values for test purposes only
-	testFallbackRead := 30 * time.Second
-	testFallbackWrite := 45 * time.Second
-	testFallbackDrain := 60 * time.Second
-	testFallbackIdle := 75 * time.Second
-
 	// Test full listener timeouts (should use configured values)
-	assert.Equal(t, readDuration, fullListener.GetReadTimeout(testFallbackRead))
-	assert.Equal(t, writeDuration, fullListener.GetWriteTimeout(testFallbackWrite))
-	assert.Equal(t, drainDuration, fullListener.GetDrainTimeout(testFallbackDrain))
-	assert.Equal(t, idleDuration, fullListener.GetIdleTimeout(testFallbackIdle))
+	assert.Equal(t, readDuration, fullListener.GetReadTimeout())
+	assert.Equal(t, writeDuration, fullListener.GetWriteTimeout())
+	assert.Equal(t, drainDuration, fullListener.GetDrainTimeout())
+	assert.Equal(t, idleDuration, fullListener.GetIdleTimeout())
 
-	// Test partial listener timeouts (should use provided values for read, fallbacks for others)
-	assert.Equal(t, readDuration, partialListener.GetReadTimeout(testFallbackRead))
-	assert.Equal(t, testFallbackWrite, partialListener.GetWriteTimeout(testFallbackWrite))
-	assert.Equal(t, testFallbackDrain, partialListener.GetDrainTimeout(testFallbackDrain))
-	assert.Equal(t, testFallbackIdle, partialListener.GetIdleTimeout(testFallbackIdle))
+	// Test partial listener timeouts (should use provided values for read, defaults for others)
+	assert.Equal(t, readDuration, partialListener.GetReadTimeout())
+	assert.Equal(t, options.DefaultHTTPWriteTimeout, partialListener.GetWriteTimeout())
+	assert.Equal(t, options.DefaultHTTPDrainTimeout, partialListener.GetDrainTimeout())
+	assert.Equal(t, options.DefaultHTTPIdleTimeout, partialListener.GetIdleTimeout())
 
-	// Test invalid listener timeouts (should use fallback values)
-	assert.Equal(t, testFallbackRead, invalidListener.GetReadTimeout(testFallbackRead))
-	assert.Equal(t, testFallbackWrite, invalidListener.GetWriteTimeout(testFallbackWrite))
-	assert.Equal(t, testFallbackDrain, invalidListener.GetDrainTimeout(testFallbackDrain))
-	assert.Equal(t, testFallbackIdle, invalidListener.GetIdleTimeout(testFallbackIdle))
+	// Test invalid listener timeouts (should use default values)
+	assert.Equal(t, options.DefaultHTTPReadTimeout, invalidListener.GetReadTimeout())
+	assert.Equal(t, options.DefaultHTTPWriteTimeout, invalidListener.GetWriteTimeout())
+	assert.Equal(t, options.DefaultHTTPDrainTimeout, invalidListener.GetDrainTimeout())
+	assert.Equal(t, options.DefaultHTTPIdleTimeout, invalidListener.GetIdleTimeout())
 
-	// Test GRPC listener (should use fallback values)
-	assert.Equal(t, testFallbackRead, grpcListener.GetReadTimeout(testFallbackRead))
-	assert.Equal(t, testFallbackWrite, grpcListener.GetWriteTimeout(testFallbackWrite))
-	assert.Equal(t, testFallbackDrain, grpcListener.GetDrainTimeout(testFallbackDrain))
-	assert.Equal(t, testFallbackIdle, grpcListener.GetIdleTimeout(testFallbackIdle))
+	// Test GRPC listener (should use default values since it's not an HTTP listener)
+	assert.Equal(t, options.DefaultHTTPReadTimeout, grpcListener.GetReadTimeout())
+	assert.Equal(t, options.DefaultHTTPWriteTimeout, grpcListener.GetWriteTimeout())
+	assert.Equal(t, options.DefaultHTTPDrainTimeout, grpcListener.GetDrainTimeout())
+	assert.Equal(t, options.DefaultHTTPIdleTimeout, grpcListener.GetIdleTimeout())
 
-	// Test with different fallback durations
-	differentFallback := 60 * time.Second
-	assert.Equal(t, readDuration, fullListener.GetReadTimeout(differentFallback))
-	assert.Equal(t, differentFallback, partialListener.GetWriteTimeout(differentFallback))
+	// No need to test with different fallbacks since we no longer pass them
 }

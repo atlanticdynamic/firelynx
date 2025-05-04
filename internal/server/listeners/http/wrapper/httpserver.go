@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
@@ -74,21 +75,25 @@ func NewHttpServer(
 		routes:  routes,
 	}
 
-	if httpOptions.ReadTimeout != nil && httpOptions.ReadTimeout.AsDuration() > 0 {
-		rt := httpOptions.ReadTimeout.AsDuration()
-		wrapper.ReadTimeout = &rt
+	// Get timeout values from options
+	readTimeout := httpOptions.GetReadTimeout()
+	if readTimeout > 0 {
+		wrapper.ReadTimeout = &readTimeout
 	}
-	if httpOptions.WriteTimeout != nil && httpOptions.WriteTimeout.AsDuration() > 0 {
-		wt := httpOptions.WriteTimeout.AsDuration()
-		wrapper.WriteTimeout = &wt
+
+	writeTimeout := httpOptions.GetWriteTimeout()
+	if writeTimeout > 0 {
+		wrapper.WriteTimeout = &writeTimeout
 	}
-	if httpOptions.DrainTimeout != nil && httpOptions.DrainTimeout.AsDuration() > 0 {
-		dt := httpOptions.DrainTimeout.AsDuration()
-		wrapper.DrainTimeout = &dt
+
+	drainTimeout := httpOptions.GetDrainTimeout()
+	if drainTimeout > 0 {
+		wrapper.DrainTimeout = &drainTimeout
 	}
-	if httpOptions.IdleTimeout != nil && httpOptions.IdleTimeout.AsDuration() > 0 {
-		it := httpOptions.IdleTimeout.AsDuration()
-		wrapper.IdleTimeout = &it
+
+	idleTimeout := httpOptions.GetIdleTimeout()
+	if idleTimeout > 0 {
+		wrapper.IdleTimeout = &idleTimeout
 	}
 
 	// Apply custom options
@@ -126,11 +131,11 @@ func validateListenerConfig(listener *listeners.Listener) error {
 }
 
 // extractHTTPOptions extracts HTTP options from listener configuration
-func extractHTTPOptions(listener *listeners.Listener) (listeners.HTTPOptions, error) {
-	httpOptions, ok := listener.Options.(listeners.HTTPOptions)
+func extractHTTPOptions(listener *listeners.Listener) (options.HTTP, error) {
+	httpOptions, ok := listener.Options.(options.HTTP)
 	if !ok {
-		return listeners.HTTPOptions{}, fmt.Errorf(
-			"invalid listener options type: expected HTTPListenerOptions",
+		return options.HTTP{}, fmt.Errorf(
+			"invalid listener options type: expected HTTPOptions",
 		)
 	}
 	return httpOptions, nil

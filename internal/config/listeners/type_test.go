@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 func TestHTTPOptions_Type(t *testing.T) {
@@ -13,31 +13,31 @@ func TestHTTPOptions_Type(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		options      HTTPOptions
-		expectedType Type
+		options      options.HTTP
+		expectedType options.Type
 	}{
 		{
 			name:         "Empty Options",
-			options:      HTTPOptions{},
-			expectedType: TypeHTTP,
+			options:      options.HTTP{},
+			expectedType: options.TypeHTTP,
 		},
 		{
 			name: "With Timeouts",
-			options: HTTPOptions{
-				ReadTimeout:  durationpb.New(5 * time.Second),
-				WriteTimeout: durationpb.New(10 * time.Second),
+			options: options.HTTP{
+				ReadTimeout:  5 * time.Second,
+				WriteTimeout: 10 * time.Second,
 			},
-			expectedType: TypeHTTP,
+			expectedType: options.TypeHTTP,
 		},
 		{
 			name: "With All Timeouts",
-			options: HTTPOptions{
-				ReadTimeout:  durationpb.New(5 * time.Second),
-				WriteTimeout: durationpb.New(10 * time.Second),
-				DrainTimeout: durationpb.New(30 * time.Second),
-				IdleTimeout:  durationpb.New(60 * time.Second),
+			options: options.HTTP{
+				ReadTimeout:  5 * time.Second,
+				WriteTimeout: 10 * time.Second,
+				DrainTimeout: 30 * time.Second,
+				IdleTimeout:  60 * time.Second,
 			},
-			expectedType: TypeHTTP,
+			expectedType: options.TypeHTTP,
 		},
 	}
 
@@ -54,37 +54,37 @@ func TestGRPCOptions_Type(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		options      GRPCOptions
-		expectedType Type
+		options      options.GRPC
+		expectedType options.Type
 	}{
 		{
 			name:         "Empty Options",
-			options:      GRPCOptions{},
-			expectedType: TypeGRPC,
+			options:      options.GRPC{},
+			expectedType: options.TypeGRPC,
 		},
 		{
 			name: "With Connection Timeouts",
-			options: GRPCOptions{
-				MaxConnectionIdle: durationpb.New(30 * time.Minute),
-				MaxConnectionAge:  durationpb.New(1 * time.Hour),
+			options: options.GRPC{
+				MaxConnectionIdle: 30 * time.Minute,
+				MaxConnectionAge:  1 * time.Hour,
 			},
-			expectedType: TypeGRPC,
+			expectedType: options.TypeGRPC,
 		},
 		{
 			name: "With Streams",
-			options: GRPCOptions{
+			options: options.GRPC{
 				MaxConcurrentStreams: 100,
 			},
-			expectedType: TypeGRPC,
+			expectedType: options.TypeGRPC,
 		},
 		{
 			name: "With All Options",
-			options: GRPCOptions{
-				MaxConnectionIdle:    durationpb.New(30 * time.Minute),
-				MaxConnectionAge:     durationpb.New(1 * time.Hour),
+			options: options.GRPC{
+				MaxConnectionIdle:    30 * time.Minute,
+				MaxConnectionAge:     1 * time.Hour,
 				MaxConcurrentStreams: 200,
 			},
-			expectedType: TypeGRPC,
+			expectedType: options.TypeGRPC,
 		},
 	}
 
@@ -100,18 +100,18 @@ func TestType_Values(t *testing.T) {
 	t.Parallel()
 
 	// Ensure type constants have expected values
-	assert.Equal(t, Type("http"), TypeHTTP)
-	assert.Equal(t, Type("grpc"), TypeGRPC)
+	assert.Equal(t, options.Type("http"), options.TypeHTTP)
+	assert.Equal(t, options.Type("grpc"), options.TypeGRPC)
 
 	// Ensure types are implemented correctly
-	var httpOpts Options = HTTPOptions{}
-	var grpcOpts Options = GRPCOptions{}
+	var httpOpts options.Options = options.HTTP{}
+	var grpcOpts options.Options = options.GRPC{}
 
-	assert.Equal(t, TypeHTTP, httpOpts.Type())
-	assert.Equal(t, TypeGRPC, grpcOpts.Type())
+	assert.Equal(t, options.TypeHTTP, httpOpts.Type())
+	assert.Equal(t, options.TypeGRPC, grpcOpts.Type())
 
 	// Test type equality
-	assert.NotEqual(t, TypeHTTP, TypeGRPC)
+	assert.NotEqual(t, options.TypeHTTP, options.TypeGRPC)
 	assert.NotEqual(t, httpOpts.Type(), grpcOpts.Type())
 }
 
@@ -119,15 +119,15 @@ func TestType_StringConversion(t *testing.T) {
 	t.Parallel()
 
 	// Test string conversions
-	httpType := TypeHTTP
-	grpcType := TypeGRPC
+	httpType := options.TypeHTTP
+	grpcType := options.TypeGRPC
 
 	assert.Equal(t, "http", string(httpType))
 	assert.Equal(t, "grpc", string(grpcType))
 
 	// Test conversion back to Type
-	assert.Equal(t, TypeHTTP, Type("http"))
-	assert.Equal(t, TypeGRPC, Type("grpc"))
+	assert.Equal(t, options.Type("http"), options.TypeHTTP)
+	assert.Equal(t, options.Type("grpc"), options.TypeGRPC)
 }
 
 // Test type assertion patterns
@@ -135,10 +135,10 @@ func TestType_Assertions(t *testing.T) {
 	t.Parallel()
 
 	// Create options instances
-	httpOpts := HTTPOptions{
-		ReadTimeout: durationpb.New(5 * time.Second),
+	httpOpts := options.HTTP{
+		ReadTimeout: 5 * time.Second,
 	}
-	grpcOpts := GRPCOptions{
+	grpcOpts := options.GRPC{
 		MaxConcurrentStreams: 100,
 	}
 
@@ -153,15 +153,15 @@ func TestType_Assertions(t *testing.T) {
 	}
 
 	// Test type assertions with HTTP options
-	if opts, ok := httpListener.Options.(HTTPOptions); ok {
+	if opts, ok := httpListener.Options.(options.HTTP); ok {
 		assert.Equal(t, httpOpts, opts)
-		assert.Equal(t, 5*time.Second, opts.ReadTimeout.AsDuration())
+		assert.Equal(t, 5*time.Second, opts.ReadTimeout)
 	} else {
 		t.Error("Failed to assert HTTP options type")
 	}
 
 	// Test type assertions with GRPC options
-	if opts, ok := grpcListener.Options.(GRPCOptions); ok {
+	if opts, ok := grpcListener.Options.(options.GRPC); ok {
 		assert.Equal(t, grpcOpts, opts)
 		assert.Equal(t, 100, opts.MaxConcurrentStreams)
 	} else {
@@ -169,6 +169,6 @@ func TestType_Assertions(t *testing.T) {
 	}
 
 	// Test failed type assertion
-	_, ok := httpListener.Options.(GRPCOptions)
+	_, ok := httpListener.Options.(options.GRPC)
 	assert.False(t, ok, "Should not be able to assert HTTP options as GRPC options")
 }
