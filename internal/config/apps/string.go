@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/styles"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
@@ -35,8 +36,8 @@ func (a *App) String() string {
 
 // ToTree returns a tree visualization of this App
 func (a *App) ToTree() *fancy.ComponentTree {
-	// Create a component tree for this app
-	tree := fancy.NewComponentTree(fancy.AppText(a.ID))
+	// Create a component tree for this app with consistent styling
+	tree := fancy.NewComponentTree(styles.AppID(a.ID))
 
 	// Add app-specific details based on its type
 	switch appConfig := a.Config.(type) {
@@ -75,27 +76,28 @@ func (a *App) ToTree() *fancy.ComponentTree {
 		if len(appConfig.StaticData.Data) > 0 {
 			dataNode := fancy.NewComponentTree("StaticData")
 			dataNode.AddChild(fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode))
-			
+
 			// Create a data entries section
 			if len(appConfig.StaticData.Data) > 0 {
-				dataEntriesNode := fancy.NewComponentTree(fmt.Sprintf("Entries (%d)", len(appConfig.StaticData.Data)))
+				dataEntriesNode := fancy.NewComponentTree(styles.FormatSection("Entries", len(appConfig.StaticData.Data)))
 				for k, v := range appConfig.StaticData.Data {
 					dataEntriesNode.AddChild(fmt.Sprintf("%s: %v", k, v))
 				}
 				dataNode.AddChild(dataEntriesNode.Tree())
 			}
-			
+
 			tree.AddChild(dataNode.Tree())
 		}
 
 	case CompositeScriptApp:
 		tree.AddChild("Type: CompositeScript")
 
-		// Add script apps
+		// Add script apps with consistent styling
 		if len(appConfig.ScriptAppIDs) > 0 {
-			scriptsNode := fancy.NewComponentTree(fmt.Sprintf("ScriptApps (%d)", len(appConfig.ScriptAppIDs)))
+			scriptsNode := fancy.NewComponentTree(styles.FormatSection("ScriptApps", len(appConfig.ScriptAppIDs)))
 			for _, scriptID := range appConfig.ScriptAppIDs {
-				scriptsNode.AddChild(scriptID)
+				// Style referenced app IDs consistently
+				scriptsNode.AddChild(styles.AppID(scriptID))
 			}
 			tree.AddChild(scriptsNode.Tree())
 		}
@@ -104,16 +106,16 @@ func (a *App) ToTree() *fancy.ComponentTree {
 		if len(appConfig.StaticData.Data) > 0 {
 			dataNode := fancy.NewComponentTree("StaticData")
 			dataNode.AddChild(fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode))
-			
+
 			// Create a data entries section
 			if len(appConfig.StaticData.Data) > 0 {
-				dataEntriesNode := fancy.NewComponentTree(fmt.Sprintf("Entries (%d)", len(appConfig.StaticData.Data)))
+				dataEntriesNode := fancy.NewComponentTree(styles.FormatSection("Entries", len(appConfig.StaticData.Data)))
 				for k, v := range appConfig.StaticData.Data {
 					dataEntriesNode.AddChild(fmt.Sprintf("%s: %v", k, v))
 				}
 				dataNode.AddChild(dataEntriesNode.Tree())
 			}
-			
+
 			tree.AddChild(dataNode.Tree())
 		}
 	}
@@ -123,8 +125,8 @@ func (a *App) ToTree() *fancy.ComponentTree {
 
 // ToTree returns a tree visualization of a collection of Apps
 func (a Apps) ToTree() *fancy.ComponentTree {
-	title := fancy.HeaderStyle.Render(fmt.Sprintf("Apps (%d)", len(a)))
-	tree := fancy.NewComponentTree(title)
+	// Use consistent section header styling
+	tree := fancy.NewComponentTree(styles.FormatSection("Apps", len(a)))
 
 	for _, app := range a {
 		appTree := app.ToTree()

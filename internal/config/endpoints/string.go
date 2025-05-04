@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/styles"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
@@ -22,27 +23,30 @@ func (e *Endpoint) String() string {
 
 // ToTree returns a tree visualization of this Endpoint
 func (e *Endpoint) ToTree() *fancy.ComponentTree {
-	// Create an endpoint tree using fancy package
-	tree := fancy.EndpointTree(e.ID)
+	// Create an endpoint tree using styled endpoint ID
+	tree := fancy.NewComponentTree(styles.EndpointID(e.ID))
 
-	// Add listeners
+	// Add listeners with consistent styling
 	if len(e.ListenerIDs) > 0 {
-		listenersStr := strings.Join(e.ListenerIDs, ", ")
-		tree.AddChild(fmt.Sprintf("Listeners: %s", listenersStr))
+		tree.AddChild(styles.ListenerRef(e.ListenerIDs))
 	}
 
 	// Add routes
 	if len(e.Routes) > 0 {
-		routesNode := fancy.NewComponentTree(fmt.Sprintf("Routes (%d)", len(e.Routes)))
+		// Use a styled section header for Routes
+		routesNode := fancy.NewComponentTree(styles.FormatSection("Routes", len(e.Routes)))
 		for i, route := range e.Routes {
-			routeSubNode := fancy.NewComponentTree(fmt.Sprintf("Route %d", i+1))
+			routeSubNode := fancy.NewComponentTree(
+				fancy.RouteStyle.Render(fmt.Sprintf("Route %d", i+1)),
+			)
 			if route.Condition != nil {
-				routeSubNode.AddChild(fmt.Sprintf("App: %s", route.AppID))
-				routeSubNode.AddChild(fmt.Sprintf("Condition: %s = %s", 
+				// Style the app reference consistently
+				routeSubNode.AddChild(styles.AppRef(route.AppID))
+				routeSubNode.AddChild(fmt.Sprintf("Condition: %s = %s",
 					route.Condition.Type(),
 					route.Condition.Value()))
 			} else {
-				routeSubNode.AddChild(fmt.Sprintf("App: %s", route.AppID))
+				routeSubNode.AddChild(styles.AppRef(route.AppID))
 				routeSubNode.AddChild("Condition: none")
 			}
 			routesNode.AddChild(routeSubNode.Tree())
