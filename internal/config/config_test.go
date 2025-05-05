@@ -9,6 +9,8 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/config/logs"
@@ -36,12 +38,10 @@ func createValidDomainConfig(t *testing.T) *Config {
 			{
 				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []endpoints.Route{
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: endpoints.HTTPPathCondition{
-							Path: "/api",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api"),
 					},
 				},
 			},

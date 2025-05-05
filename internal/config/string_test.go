@@ -6,6 +6,8 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
@@ -28,12 +30,10 @@ func TestConfigTree(t *testing.T) {
 			{
 				ID:          "main_endpoint",
 				ListenerIDs: []string{"http_main"},
-				Routes: []endpoints.Route{
+				Routes: []routes.Route{
 					{
-						AppID: "hello_app",
-						Condition: endpoints.HTTPPathCondition{
-							Path: "/hello",
-						},
+						AppID:     "hello_app",
+						Condition: conditions.NewHTTP("/hello"),
 					},
 				},
 			},
@@ -70,18 +70,14 @@ func TestEndpointTree(t *testing.T) {
 	ep := endpoints.Endpoint{
 		ID:          "test_endpoint",
 		ListenerIDs: []string{"listener1", "listener2"},
-		Routes: []endpoints.Route{
+		Routes: []routes.Route{
 			{
-				AppID: "app1",
-				Condition: endpoints.HTTPPathCondition{
-					Path: "/api/path1",
-				},
+				AppID:     "app1",
+				Condition: conditions.NewHTTP("/api/path1"),
 			},
 			{
-				AppID: "app2",
-				Condition: endpoints.HTTPPathCondition{
-					Path: "/api/path2",
-				},
+				AppID:     "app2",
+				Condition: conditions.NewHTTP("/api/path2"),
 			},
 		},
 	}

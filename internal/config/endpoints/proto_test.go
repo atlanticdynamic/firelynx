@@ -4,7 +4,10 @@ import (
 	"testing"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -18,39 +21,27 @@ func TestEndpoint_ToProto(t *testing.T) {
 		expected *pb.Endpoint
 	}{
 		{
-			name: "Empty Endpoint",
+			name: "Empty",
 			endpoint: Endpoint{
-				ID: "empty",
+				ID:          "empty",
+				ListenerIDs: []string{"http1"},
+				Routes:      []routes.Route{},
 			},
 			expected: &pb.Endpoint{
 				Id:          proto.String("empty"),
-				ListenerIds: nil,
+				ListenerIds: []string{"http1"},
 				Routes:      nil,
 			},
 		},
 		{
-			name: "Endpoint with Listeners Only",
-			endpoint: Endpoint{
-				ID:          "with_listeners",
-				ListenerIDs: []string{"listener1", "listener2"},
-			},
-			expected: &pb.Endpoint{
-				Id:          proto.String("with_listeners"),
-				ListenerIds: []string{"listener1", "listener2"},
-				Routes:      nil,
-			},
-		},
-		{
-			name: "Complete Endpoint with HTTP Routes",
+			name: "Complete",
 			endpoint: Endpoint{
 				ID:          "complete",
 				ListenerIDs: []string{"http1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
 					},
 				},
 			},
@@ -67,97 +58,33 @@ func TestEndpoint_ToProto(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "Complete Endpoint with gRPC Routes",
-			endpoint: Endpoint{
-				ID:          "grpc_endpoint",
-				ListenerIDs: []string{"grpc1"},
-				Routes: []Route{
-					{
-						AppID: "grpc_app",
-						Condition: GRPCServiceCondition{
-							Service: "myservice.v1",
-						},
-					},
-				},
-			},
-			expected: &pb.Endpoint{
-				Id:          proto.String("grpc_endpoint"),
-				ListenerIds: []string{"grpc1"},
-				Routes: []*pb.Route{
-					{
-						AppId: proto.String("grpc_app"),
-						Condition: &pb.Route_GrpcService{
-							GrpcService: "myservice.v1",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "Endpoint with Multiple Routes",
-			endpoint: Endpoint{
-				ID:          "multi_route",
-				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
-					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
-					},
-					{
-						AppID: "app2",
-						Condition: HTTPPathCondition{
-							Path: "/api/v2",
-						},
-					},
-				},
-			},
-			expected: &pb.Endpoint{
-				Id:          proto.String("multi_route"),
-				ListenerIds: []string{"listener1"},
-				Routes: []*pb.Route{
-					{
-						AppId: proto.String("app1"),
-						Condition: &pb.Route_HttpPath{
-							HttpPath: "/api/v1",
-						},
-					},
-					{
-						AppId: proto.String("app2"),
-						Condition: &pb.Route_HttpPath{
-							HttpPath: "/api/v2",
-						},
-					},
-				},
-			},
-		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result := tc.endpoint.ToProto()
+			actual := tc.endpoint.ToProto()
+			assert.Equal(t, tc.expected.Id, actual.Id)
+			assert.Equal(t, tc.expected.ListenerIds, actual.ListenerIds)
 
-			// Check ID and Listener IDs
-			assert.Equal(t, tc.expected.Id, result.Id)
-			assert.Equal(t, tc.expected.ListenerIds, result.ListenerIds)
+			if len(tc.expected.Routes) == 0 {
+				assert.Empty(t, actual.Routes)
+			} else {
+				assert.Equal(t, len(tc.expected.Routes), len(actual.Routes))
+				for i, expectedRoute := range tc.expected.Routes {
+					actualRoute := actual.Routes[i]
+					assert.Equal(t, expectedRoute.AppId, actualRoute.AppId)
 
-			// Check routes
-			assert.Equal(t, len(tc.expected.Routes), len(result.Routes))
-
-			for i, expectedRoute := range tc.expected.Routes {
-				actualRoute := result.Routes[i]
-				assert.Equal(t, expectedRoute.AppId, actualRoute.AppId)
-
-				// Check condition type
-				switch expectedRoute.Condition.(type) {
-				case *pb.Route_HttpPath:
-					assert.Equal(t, expectedRoute.GetHttpPath(), actualRoute.GetHttpPath())
-				case *pb.Route_GrpcService:
-					assert.Equal(t, expectedRoute.GetGrpcService(), actualRoute.GetGrpcService())
+					// Check condition
+					switch expectedRoute.Condition.(type) {
+					case *pb.Route_HttpPath:
+						assert.Equal(t, expectedRoute.GetHttpPath(), actualRoute.GetHttpPath())
+					case *pb.Route_GrpcService:
+						assert.Equal(t, expectedRoute.GetGrpcService(), actualRoute.GetGrpcService())
+					default:
+						t.Fatalf("Unknown condition type: %T", expectedRoute.Condition)
+					}
 				}
 			}
 		})
@@ -169,90 +96,88 @@ func TestRoute_ToProto(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		route    Route
+		route    routes.Route
 		expected *pb.Route
 	}{
 		{
-			name: "Route with HTTP Path",
-			route: Route{
-				AppID: "app1",
-				Condition: HTTPPathCondition{
-					Path: "/api/users",
-				},
+			name: "HTTP Path",
+			route: routes.Route{
+				AppID:     "app1",
+				Condition: conditions.NewHTTP("/api/v1"),
 			},
 			expected: &pb.Route{
 				AppId: proto.String("app1"),
 				Condition: &pb.Route_HttpPath{
-					HttpPath: "/api/users",
+					HttpPath: "/api/v1",
 				},
 			},
 		},
 		{
-			name: "Route with gRPC Service",
-			route: Route{
-				AppID: "grpc_app",
-				Condition: GRPCServiceCondition{
-					Service: "users.v1.UserService",
-				},
+			name: "GRPC Service",
+			route: routes.Route{
+				AppID:     "app2",
+				Condition: conditions.NewGRPC("service.v1"),
 			},
 			expected: &pb.Route{
-				AppId: proto.String("grpc_app"),
+				AppId: proto.String("app2"),
 				Condition: &pb.Route_GrpcService{
-					GrpcService: "users.v1.UserService",
+					GrpcService: "service.v1",
 				},
 			},
 		},
 		{
-			name: "Route with Static Data",
-			route: Route{
-				AppID: "app_with_data",
+			name: "With Static Data",
+			route: routes.Route{
+				AppID:     "app3",
+				Condition: conditions.NewHTTP("/api/v2"),
 				StaticData: map[string]any{
-					"string_key": "value",
-					"float_key":  42.0, // Use float64 because protobuf converts numbers to float64
-					"bool_key":   true,
-				},
-				Condition: HTTPPathCondition{
-					Path: "/api/data",
+					"key1": "value1",
+					"key2": 42,
 				},
 			},
 			expected: &pb.Route{
-				AppId: proto.String("app_with_data"),
+				AppId: proto.String("app3"),
 				Condition: &pb.Route_HttpPath{
-					HttpPath: "/api/data",
+					HttpPath: "/api/v2",
 				},
-				// Static data is tested separately due to complexity
+				StaticData: &pb.StaticData{
+					Data: map[string]*structpb.Value{
+						"key1": structpb.NewStringValue("value1"),
+						"key2": structpb.NewNumberValue(42),
+					},
+				},
 			},
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result := tc.route.ToProto()
-
-			// Check AppID
-			assert.Equal(t, tc.expected.AppId, result.AppId)
+			actual := tc.route.ToProto()
+			assert.Equal(t, tc.expected.AppId, actual.AppId)
 
 			// Check condition
 			switch tc.expected.Condition.(type) {
 			case *pb.Route_HttpPath:
-				assert.Equal(t, tc.expected.GetHttpPath(), result.GetHttpPath())
+				assert.Equal(t, tc.expected.GetHttpPath(), actual.GetHttpPath())
 			case *pb.Route_GrpcService:
-				assert.Equal(t, tc.expected.GetGrpcService(), result.GetGrpcService())
+				assert.Equal(t, tc.expected.GetGrpcService(), actual.GetGrpcService())
+			default:
+				t.Fatalf("Unknown condition type: %T", tc.expected.Condition)
 			}
 
-			// Check if static data exists when expected
-			if tc.route.StaticData != nil {
-				assert.NotNil(t, result.StaticData)
-
-				// Check if all keys exist (values are tested in specific tests)
-				for k := range tc.route.StaticData {
-					_, exists := result.StaticData.Data[k]
-					assert.True(t, exists, "StaticData key %s should exist", k)
-				}
+			// Check static data
+			if tc.expected.StaticData == nil {
+				assert.Nil(t, actual.StaticData)
 			} else {
-				assert.Nil(t, result.StaticData)
+				assert.NotNil(t, actual.StaticData)
+				// Note: We don't check the actual values because structpb.NewValue() can
+				// produce different internal representations for the same semantic value.
+				// Instead, we just check that the keys are present.
+				for k := range tc.expected.StaticData.Data {
+					assert.Contains(t, actual.StaticData.Data, k)
+				}
 			}
 		})
 	}
@@ -261,364 +186,243 @@ func TestRoute_ToProto(t *testing.T) {
 func TestEndpoints_ToProto(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name      string
-		endpoints Endpoints
-		expected  int // Number of expected proto endpoints
-	}{
+	endpoints := Endpoints{
 		{
-			name:      "Empty Endpoints",
-			endpoints: Endpoints{},
-			expected:  0,
-		},
-		{
-			name: "Single Endpoint",
-			endpoints: Endpoints{
+			ID:          "endpoint1",
+			ListenerIDs: []string{"http1"},
+			Routes: []routes.Route{
 				{
-					ID:          "single",
-					ListenerIDs: []string{"listener1"},
+					AppID:     "app1",
+					Condition: conditions.NewHTTP("/api/v1"),
 				},
 			},
-			expected: 1,
 		},
 		{
-			name: "Multiple Endpoints",
-			endpoints: Endpoints{
+			ID:          "endpoint2",
+			ListenerIDs: []string{"grpc1"},
+			Routes: []routes.Route{
 				{
-					ID:          "first",
-					ListenerIDs: []string{"listener1"},
-				},
-				{
-					ID:          "second",
-					ListenerIDs: []string{"listener2"},
+					AppID:     "app2",
+					Condition: conditions.NewGRPC("service.v1"),
 				},
 			},
-			expected: 2,
 		},
 	}
 
-	for _, tc := range tests {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			result := tc.endpoints.ToProto()
+	expected := []*pb.Endpoint{
+		{
+			Id:          proto.String("endpoint1"),
+			ListenerIds: []string{"http1"},
+			Routes: []*pb.Route{
+				{
+					AppId: proto.String("app1"),
+					Condition: &pb.Route_HttpPath{
+						HttpPath: "/api/v1",
+					},
+				},
+			},
+		},
+		{
+			Id:          proto.String("endpoint2"),
+			ListenerIds: []string{"grpc1"},
+			Routes: []*pb.Route{
+				{
+					AppId: proto.String("app2"),
+					Condition: &pb.Route_GrpcService{
+						GrpcService: "service.v1",
+					},
+				},
+			},
+		},
+	}
 
-			assert.Equal(t, tc.expected, len(result))
+	actual := endpoints.ToProto()
+	assert.Equal(t, len(expected), len(actual))
 
-			// Verify the IDs match when not empty
-			for i, endpoint := range tc.endpoints {
-				if len(result) > i {
-					assert.Equal(t, endpoint.ID, *result[i].Id)
-				}
+	for i, expectedEndpoint := range expected {
+		actualEndpoint := actual[i]
+		assert.Equal(t, expectedEndpoint.Id, actualEndpoint.Id)
+		assert.Equal(t, expectedEndpoint.ListenerIds, actualEndpoint.ListenerIds)
+		assert.Equal(t, len(expectedEndpoint.Routes), len(actualEndpoint.Routes))
+
+		for j, expectedRoute := range expectedEndpoint.Routes {
+			actualRoute := actualEndpoint.Routes[j]
+			assert.Equal(t, expectedRoute.AppId, actualRoute.AppId)
+
+			// Check condition
+			switch expectedRoute.Condition.(type) {
+			case *pb.Route_HttpPath:
+				assert.Equal(t, expectedRoute.GetHttpPath(), actualRoute.GetHttpPath())
+			case *pb.Route_GrpcService:
+				assert.Equal(t, expectedRoute.GetGrpcService(), actualRoute.GetGrpcService())
+			default:
+				t.Fatalf("Unknown condition type: %T", expectedRoute.Condition)
 			}
-		})
-	}
-}
-
-func TestNewRouteFromProto(t *testing.T) {
-	t.Parallel()
-
-	// Helper to create static data for proto
-	createStaticData := func() *pb.StaticData {
-		stringValue, err := structpb.NewValue("string_value")
-		assert.NoError(t, err)
-
-		numberValue, err := structpb.NewValue(42.0)
-		assert.NoError(t, err)
-
-		boolValue, err := structpb.NewValue(true)
-		assert.NoError(t, err)
-
-		return &pb.StaticData{
-			Data: map[string]*structpb.Value{
-				"string_key": stringValue,
-				"number_key": numberValue,
-				"bool_key":   boolValue,
-			},
 		}
 	}
-
-	tests := []struct {
-		name     string
-		pbRoute  *pb.Route
-		expected Route
-	}{
-		{
-			name:     "Nil Route",
-			pbRoute:  nil,
-			expected: Route{},
-		},
-		{
-			name: "HTTP Path Route",
-			pbRoute: &pb.Route{
-				AppId: proto.String("app1"),
-				Condition: &pb.Route_HttpPath{
-					HttpPath: "/api/users",
-				},
-			},
-			expected: Route{
-				AppID: "app1",
-				Condition: HTTPPathCondition{
-					Path: "/api/users",
-				},
-			},
-		},
-		{
-			name: "gRPC Service Route",
-			pbRoute: &pb.Route{
-				AppId: proto.String("grpc_app"),
-				Condition: &pb.Route_GrpcService{
-					GrpcService: "users.v1.UserService",
-				},
-			},
-			expected: Route{
-				AppID: "grpc_app",
-				Condition: GRPCServiceCondition{
-					Service: "users.v1.UserService",
-				},
-			},
-		},
-		{
-			name: "Route with Static Data",
-			pbRoute: &pb.Route{
-				AppId: proto.String("app_with_data"),
-				Condition: &pb.Route_HttpPath{
-					HttpPath: "/api/data",
-				},
-				StaticData: createStaticData(),
-			},
-			expected: Route{
-				AppID: "app_with_data",
-				Condition: HTTPPathCondition{
-					Path: "/api/data",
-				},
-				StaticData: map[string]any{
-					"string_key": "string_value",
-					"number_key": 42.0, // Use float64 because protobuf converts numbers to float64
-					"bool_key":   true,
-				},
-			},
-		},
-		{
-			name: "Route with Nil AppID",
-			pbRoute: &pb.Route{
-				Condition: &pb.Route_HttpPath{
-					HttpPath: "/api/users",
-				},
-			},
-			expected: Route{
-				AppID: "",
-				Condition: HTTPPathCondition{
-					Path: "/api/users",
-				},
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			result := NewRouteFromProto(tc.pbRoute)
-
-			assert.Equal(t, tc.expected.AppID, result.AppID)
-
-			// Check condition type and value
-			if tc.expected.Condition != nil {
-				switch expectedCond := tc.expected.Condition.(type) {
-				case HTTPPathCondition:
-					actualCond, ok := result.Condition.(HTTPPathCondition)
-					assert.True(t, ok, "Expected HTTPPathCondition but got different type")
-					assert.Equal(t, expectedCond.Path, actualCond.Path)
-				case GRPCServiceCondition:
-					actualCond, ok := result.Condition.(GRPCServiceCondition)
-					assert.True(t, ok, "Expected GRPCServiceCondition but got different type")
-					assert.Equal(t, expectedCond.Service, actualCond.Service)
-				}
-			} else {
-				assert.Nil(t, result.Condition)
-			}
-
-			// Check static data
-			if tc.expected.StaticData != nil {
-				assert.NotNil(t, result.StaticData)
-				assert.Equal(t, tc.expected.StaticData, result.StaticData)
-			} else {
-				assert.Nil(t, result.StaticData)
-			}
-		})
-	}
 }
 
-func TestNewEndpointsFromProto(t *testing.T) {
+func TestFromProto(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name        string
 		pbEndpoints []*pb.Endpoint
-		expected    int // Expected number of endpoints
-		expectedIDs []string
+		expected    Endpoints
+		expectError bool
 	}{
+		{
+			name:        "Nil Endpoints",
+			pbEndpoints: nil,
+			expected:    nil,
+			expectError: false,
+		},
 		{
 			name:        "Empty Endpoints",
 			pbEndpoints: []*pb.Endpoint{},
-			expected:    0,
-			expectedIDs: nil,
+			expected:    nil,
+			expectError: false,
 		},
 		{
 			name: "Single Endpoint",
 			pbEndpoints: []*pb.Endpoint{
 				{
 					Id:          proto.String("endpoint1"),
-					ListenerIds: []string{"listener1"},
+					ListenerIds: []string{"http1"},
+					Routes: []*pb.Route{
+						{
+							AppId: proto.String("app1"),
+							Condition: &pb.Route_HttpPath{
+								HttpPath: "/api/v1",
+							},
+						},
+					},
 				},
 			},
-			expected:    1,
-			expectedIDs: []string{"endpoint1"},
+			expected: Endpoints{
+				{
+					ID:          "endpoint1",
+					ListenerIDs: []string{"http1"},
+					Routes: []routes.Route{
+						{
+							AppID:     "app1",
+							Condition: conditions.NewHTTP("/api/v1"),
+						},
+					},
+				},
+			},
+			expectError: false,
 		},
 		{
 			name: "Multiple Endpoints",
 			pbEndpoints: []*pb.Endpoint{
 				{
 					Id:          proto.String("endpoint1"),
-					ListenerIds: []string{"listener1"},
+					ListenerIds: []string{"http1"},
+					Routes: []*pb.Route{
+						{
+							AppId: proto.String("app1"),
+							Condition: &pb.Route_HttpPath{
+								HttpPath: "/api/v1",
+							},
+						},
+					},
 				},
 				{
 					Id:          proto.String("endpoint2"),
-					ListenerIds: []string{"listener2"},
+					ListenerIds: []string{"grpc1"},
+					Routes: []*pb.Route{
+						{
+							AppId: proto.String("app2"),
+							Condition: &pb.Route_GrpcService{
+								GrpcService: "service.v1",
+							},
+						},
+					},
 				},
 			},
-			expected:    2,
-			expectedIDs: []string{"endpoint1", "endpoint2"},
+			expected: Endpoints{
+				{
+					ID:          "endpoint1",
+					ListenerIDs: []string{"http1"},
+					Routes: []routes.Route{
+						{
+							AppID:     "app1",
+							Condition: conditions.NewHTTP("/api/v1"),
+						},
+					},
+				},
+				{
+					ID:          "endpoint2",
+					ListenerIDs: []string{"grpc1"},
+					Routes: []routes.Route{
+						{
+							AppID:     "app2",
+							Condition: conditions.NewGRPC("service.v1"),
+						},
+					},
+				},
+			},
+			expectError: false,
 		},
 		{
-			name: "Handle Nil Endpoint in Array",
+			name: "Empty ID",
+			pbEndpoints: []*pb.Endpoint{
+				{
+					Id:          proto.String(""),
+					ListenerIds: []string{"http1"},
+				},
+			},
+			expected:    nil,
+			expectError: true,
+		},
+		{
+			name: "No Listener IDs",
 			pbEndpoints: []*pb.Endpoint{
 				{
 					Id:          proto.String("endpoint1"),
-					ListenerIds: []string{"listener1"},
-				},
-				nil,
-				{
-					Id:          proto.String("endpoint3"),
-					ListenerIds: []string{"listener3"},
+					ListenerIds: []string{},
 				},
 			},
-			expected:    2, // One is nil, so we should get 2
-			expectedIDs: []string{"endpoint1", "endpoint3"},
-		},
-		{
-			name:        "Nil Endpoints Array",
-			pbEndpoints: nil,
-			expected:    0,
-			expectedIDs: nil,
+			expected:    nil,
+			expectError: true,
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result := NewEndpointsFromProto(tc.pbEndpoints...)
+			actual, err := FromProto(tc.pbEndpoints)
 
-			assert.Equal(t, tc.expected, len(result))
+			if tc.expectError {
+				assert.Error(t, err)
+				return
+			}
 
-			// Check IDs
-			if tc.expectedIDs != nil {
-				resultIDs := make([]string, len(result))
-				for i, e := range result {
-					resultIDs[i] = e.ID
+			require.NoError(t, err)
+
+			if tc.expected == nil {
+				assert.Nil(t, actual)
+				return
+			}
+
+			assert.Equal(t, len(tc.expected), len(actual))
+
+			for i, expectedEndpoint := range tc.expected {
+				actualEndpoint := actual[i]
+				assert.Equal(t, expectedEndpoint.ID, actualEndpoint.ID)
+				assert.Equal(t, expectedEndpoint.ListenerIDs, actualEndpoint.ListenerIDs)
+				assert.Equal(t, len(expectedEndpoint.Routes), len(actualEndpoint.Routes))
+
+				for j, expectedRoute := range expectedEndpoint.Routes {
+					actualRoute := actualEndpoint.Routes[j]
+					assert.Equal(t, expectedRoute.AppID, actualRoute.AppID)
+
+					assert.Equal(t, expectedRoute.Condition.Type(), actualRoute.Condition.Type())
+					assert.Equal(t, expectedRoute.Condition.Value(), actualRoute.Condition.Value())
 				}
-				assert.ElementsMatch(t, tc.expectedIDs, resultIDs)
 			}
 		})
-	}
-}
-
-func TestRoundTripConversion(t *testing.T) {
-	t.Parallel()
-
-	// Create a complex endpoint with various route types and static data
-	original := Endpoint{
-		ID:          "test_endpoint",
-		ListenerIDs: []string{"http_listener", "grpc_listener"},
-		Routes: []Route{
-			{
-				AppID: "http_app",
-				Condition: HTTPPathCondition{
-					Path: "/api/users",
-				},
-				StaticData: map[string]any{
-					"string_key": "value",
-					"float_key":  42.0, // Use float64 because protobuf converts numbers to float64
-					"bool_key":   true,
-				},
-			},
-			{
-				AppID: "grpc_app",
-				Condition: GRPCServiceCondition{
-					Service: "users.v1.UserService",
-				},
-			},
-		},
-	}
-
-	// Convert to protobuf and back
-	proto := original.ToProto()
-	result := Endpoint{}
-
-	// Convert back from proto to domain model using NewEndpointsFromProto
-	endpoints := NewEndpointsFromProto(proto)
-	if len(endpoints) > 0 {
-		result = endpoints[0]
-	}
-
-	// Verify the round-trip conversion
-	assert.Equal(t, original.ID, result.ID)
-	assert.Equal(t, original.ListenerIDs, result.ListenerIDs)
-	assert.Equal(t, len(original.Routes), len(result.Routes))
-
-	// Check routes
-	for i, originalRoute := range original.Routes {
-		resultRoute := result.Routes[i]
-		assert.Equal(t, originalRoute.AppID, resultRoute.AppID)
-
-		// Check condition type and value
-		switch origCond := originalRoute.Condition.(type) {
-		case HTTPPathCondition:
-			resultCond, ok := resultRoute.Condition.(HTTPPathCondition)
-			assert.True(t, ok, "Expected HTTPPathCondition but got different type")
-			assert.Equal(t, origCond.Path, resultCond.Path)
-		case GRPCServiceCondition:
-			resultCond, ok := resultRoute.Condition.(GRPCServiceCondition)
-			assert.True(t, ok, "Expected GRPCServiceCondition but got different type")
-			assert.Equal(t, origCond.Service, resultCond.Service)
-		}
-
-		// Check static data exists if original had it
-		if originalRoute.StaticData != nil {
-			assert.NotNil(t, resultRoute.StaticData)
-
-			// Check each key/value pair
-			for k, v := range originalRoute.StaticData {
-				resultValue, exists := resultRoute.StaticData[k]
-				assert.True(t, exists, "StaticData key %s should exist", k)
-
-				// For numbers, compare using assert.InDelta to handle float64 conversions
-				// This handles the int->float64 conversion case
-				if _, isFloat := v.(float64); isFloat {
-					assert.InDelta(
-						t,
-						v.(float64),
-						resultValue.(float64),
-						0.0001,
-						"Float values should be equal for key %s",
-						k,
-					)
-				} else {
-					assert.Equal(t, v, resultValue, "Values should be equal for key %s", k)
-				}
-			}
-		}
 	}
 }

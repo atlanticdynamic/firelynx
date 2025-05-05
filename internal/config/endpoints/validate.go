@@ -44,38 +44,3 @@ func (e *Endpoint) Validate() error {
 
 	return errors.Join(errs...)
 }
-
-// Validate performs validation for a Route
-func (r *Route) Validate() error {
-	var errs []error
-
-	// Validate AppID
-	if r.AppID == "" {
-		errs = append(errs, fmt.Errorf("%w: route app ID", ErrEmptyID))
-	}
-
-	// Validate Condition
-	if r.Condition == nil {
-		errs = append(errs, fmt.Errorf("%w: route condition", ErrMissingRequiredField))
-	} else {
-		// Validate condition type
-		switch r.Condition.Type() {
-		case "http_path", "grpc_service", "mcp_resource":
-			// These are valid condition types
-		default:
-			errs = append(errs, fmt.Errorf("%w: route condition type '%s'",
-				ErrInvalidRouteType, r.Condition.Type()))
-		}
-
-		// Validate condition value
-		if r.Condition.Value() == "" {
-			errs = append(errs, fmt.Errorf("%w: value for condition type '%s'",
-				ErrMissingRequiredField, r.Condition.Type()))
-		}
-	}
-
-	// StaticData validation could go here if needed
-	// For now, we accept any valid map[string]any
-
-	return errors.Join(errs...)
-}

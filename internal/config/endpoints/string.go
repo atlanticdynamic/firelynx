@@ -14,10 +14,15 @@ func (e *Endpoint) String() string {
 	fmt.Fprintf(&b, "Endpoint %s", e.ID)
 
 	if len(e.ListenerIDs) > 0 {
-		fmt.Fprintf(&b, " [Listeners: %s]", strings.Join(e.ListenerIDs, ", "))
+		fmt.Fprintf(&b, " [Listeners: %s]", strings.Join(e.ListenerIDs, ","))
 	}
 
-	fmt.Fprintf(&b, " (%d routes)", len(e.Routes))
+	fmt.Fprintf(&b, "\nRoutes: %d", len(e.Routes))
+
+	for i, route := range e.Routes {
+		fmt.Fprintf(&b, "\n  %d. %s", i+1, route.String())
+	}
+
 	return b.String()
 }
 
@@ -57,56 +62,16 @@ func (e *Endpoint) ToTree() *fancy.ComponentTree {
 	return tree
 }
 
-// String returns a string representation of a Route
-func (r *Route) String() string {
+// String returns a string representation of the Endpoints collection
+func (endpoints Endpoints) String() string {
 	var b strings.Builder
+	fmt.Fprintf(&b, "Endpoints: %d", len(endpoints))
 
-	if r.Condition != nil {
-		fmt.Fprintf(&b, "Route %s:%s -> %s",
-			r.Condition.Type(),
-			r.Condition.Value(),
-			r.AppID)
-	} else {
-		fmt.Fprintf(&b, "Route <no-condition> -> %s", r.AppID)
-	}
-
-	if len(r.StaticData) > 0 {
-		fmt.Fprintf(&b, " (with StaticData)")
-	}
-
-	return b.String()
-}
-
-// toTree returns a styled tree node for this Route
-func (r *Route) toTree() *fancy.ComponentTree {
-	// Format condition info
-	var conditionInfo string
-	if r.Condition != nil {
-		conditionInfo = fmt.Sprintf(
-			"%s:%s",
-			r.Condition.Type(),
-			r.Condition.Value(),
-		)
-	} else {
-		conditionInfo = "none"
-	}
-
-	text := fancy.RouteText(fmt.Sprintf(
-		"Route: %s -> %s",
-		conditionInfo,
-		r.AppID,
-	))
-
-	return fancy.RouteTree(text)
-}
-
-// String returns a string representation of an HTTPRoute
-func (r HTTPRoute) String() string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "HTTPRoute: %s -> %s", r.Path, r.AppID)
-
-	if len(r.StaticData) > 0 {
-		fmt.Fprintf(&b, " (with StaticData)")
+	for i, endpoint := range endpoints {
+		fmt.Fprintf(&b, "\n%d. %s", i+1, endpoint.String())
+		for j, route := range endpoint.Routes {
+			fmt.Fprintf(&b, "\n   %d.%d %s", i+1, j+1, route.String())
+		}
 	}
 
 	return b.String()

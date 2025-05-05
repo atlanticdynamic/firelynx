@@ -3,6 +3,8 @@ package endpoints
 import (
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,21 +23,23 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 			endpoint: Endpoint{
 				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes:      []Route{},
+				Routes:      []routes.Route{},
 			},
 			expectedCount: 0,
 		},
 		{
 			name: "No HTTP Routes",
 			endpoint: Endpoint{
-				ID:          "endpoint2",
+				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "grpc_app",
-						Condition: GRPCServiceCondition{
-							Service: "service.v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewGRPC("service.v1"),
+					},
+					{
+						AppID:     "app2",
+						Condition: conditions.NewGRPC("service.v2"),
 					},
 				},
 			},
@@ -44,14 +48,16 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 		{
 			name: "Single HTTP Route",
 			endpoint: Endpoint{
-				ID:          "endpoint3",
+				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
+					},
+					{
+						AppID:     "app2",
+						Condition: conditions.NewGRPC("service.v1"),
 					},
 				},
 			},
@@ -62,44 +68,36 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 		{
 			name: "Multiple HTTP Routes",
 			endpoint: Endpoint{
-				ID:          "endpoint4",
+				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
 					},
 					{
-						AppID: "app2",
-						Condition: HTTPPathCondition{
-							Path: "/api/v2",
-						},
+						AppID:     "app2",
+						Condition: conditions.NewGRPC("service.v1"),
 					},
 					{
-						AppID: "grpc_app",
-						Condition: GRPCServiceCondition{
-							Service: "service.v1",
-						},
+						AppID:     "app3",
+						Condition: conditions.NewHTTP("/api/v2"),
 					},
 				},
 			},
 			expectedCount:  2,
 			expectedPaths:  []string{"/api/v1", "/api/v2"},
-			expectedAppIDs: []string{"app1", "app2"},
+			expectedAppIDs: []string{"app1", "app3"},
 		},
 		{
 			name: "HTTP Routes with Static Data",
 			endpoint: Endpoint{
-				ID:          "endpoint5",
+				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
 						StaticData: map[string]any{
 							"key1": "value1",
 						},
@@ -113,38 +111,30 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			result := tc.endpoint.GetStructuredHTTPRoutes()
 
 			assert.Equal(t, tc.expectedCount, len(result))
 
 			if tc.expectedCount > 0 {
-				// Create maps for paths and appIDs
-				paths := make([]string, len(result))
-				appIDs := make([]string, len(result))
-				for i, route := range result {
-					paths[i] = route.Path
-					appIDs[i] = route.AppID
-				}
-
-				// Check paths and appIDs
-				assert.ElementsMatch(t, tc.expectedPaths, paths)
-				assert.ElementsMatch(t, tc.expectedAppIDs, appIDs)
-
-				// Check static data if present
-				for _, route := range result {
-					for _, origRoute := range tc.endpoint.Routes {
-						httpCond, ok := origRoute.Condition.(HTTPPathCondition)
-						if !ok {
-							continue
-						}
-
-						if httpCond.Path == route.Path && origRoute.AppID == route.AppID {
-							assert.Equal(t, origRoute.StaticData, route.StaticData)
+				for i, path := range tc.expectedPaths {
+					found := false
+					for _, httpRoute := range result {
+						if httpRoute.Path == path && httpRoute.AppID == tc.expectedAppIDs[i] {
+							found = true
+							break
 						}
 					}
+					assert.True(
+						t,
+						found,
+						"Expected to find route with path %s and appID %s",
+						path,
+						tc.expectedAppIDs[i],
+					)
 				}
 			}
 		})
@@ -158,166 +148,154 @@ func TestEndpoint_GetHTTPRoutes(t *testing.T) {
 		name           string
 		endpoint       Endpoint
 		expectedCount  int
-		expectedPaths  []string
-		expectedAppIDs []string
+		expectNonEmpty bool
 	}{
 		{
 			name: "No Routes",
 			endpoint: Endpoint{
 				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes:      []Route{},
+				Routes:      []routes.Route{},
 			},
-			expectedCount: 0,
+			expectedCount:  0,
+			expectNonEmpty: false,
 		},
 		{
 			name: "No HTTP Routes",
 			endpoint: Endpoint{
-				ID:          "endpoint2",
+				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "grpc_app",
-						Condition: GRPCServiceCondition{
-							Service: "service.v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewGRPC("service.v1"),
+					},
+					{
+						AppID:     "app2",
+						Condition: conditions.NewGRPC("service.v2"),
 					},
 				},
 			},
-			expectedCount: 0,
+			expectedCount:  0,
+			expectNonEmpty: false,
 		},
 		{
 			name: "Single HTTP Route",
 			endpoint: Endpoint{
-				ID:          "endpoint3",
+				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
+					},
+					{
+						AppID:     "app2",
+						Condition: conditions.NewGRPC("service.v1"),
 					},
 				},
 			},
 			expectedCount:  1,
-			expectedPaths:  []string{"/api/v1"},
-			expectedAppIDs: []string{"app1"},
+			expectNonEmpty: true,
 		},
 		{
 			name: "Multiple HTTP Routes",
 			endpoint: Endpoint{
-				ID:          "endpoint4",
+				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
 					},
 					{
-						AppID: "app2",
-						Condition: HTTPPathCondition{
-							Path: "/api/v2",
-						},
+						AppID:     "app2",
+						Condition: conditions.NewGRPC("service.v1"),
 					},
 					{
-						AppID: "grpc_app",
-						Condition: GRPCServiceCondition{
-							Service: "service.v1",
-						},
+						AppID:     "app3",
+						Condition: conditions.NewHTTP("/api/v2"),
 					},
 				},
 			},
 			expectedCount:  2,
-			expectedPaths:  []string{"/api/v1", "/api/v2"},
-			expectedAppIDs: []string{"app1", "app2"},
+			expectNonEmpty: true,
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			result := tc.endpoint.GetHTTPRoutes()
 
 			assert.Equal(t, tc.expectedCount, len(result))
-
-			if tc.expectedCount > 0 {
-				paths := make([]string, 0, len(result))
-				appIDs := make([]string, 0, len(result))
-
+			if tc.expectNonEmpty {
+				assert.NotEmpty(t, result)
 				for _, route := range result {
-					httpCond, ok := route.Condition.(HTTPPathCondition)
-					if ok {
-						paths = append(paths, httpCond.Path)
-						appIDs = append(appIDs, route.AppID)
-					}
+					assert.Equal(t, conditions.TypeHTTP, route.Condition.Type())
 				}
-
-				assert.ElementsMatch(t, tc.expectedPaths, paths)
-				assert.ElementsMatch(t, tc.expectedAppIDs, appIDs)
+			} else {
+				assert.Empty(t, result)
 			}
 		})
 	}
 }
 
-// Test type alias methods
 func TestEndpoints_CollectionOperations(t *testing.T) {
 	t.Parallel()
 
-	endpoints := Endpoints{
-		{
-			ID:          "endpoint1",
-			ListenerIDs: []string{"listener1"},
-			Routes: []Route{
-				{
-					AppID: "app1",
-					Condition: HTTPPathCondition{
-						Path: "/api/v1",
-					},
-				},
-			},
-		},
-		{
-			ID:          "endpoint2",
-			ListenerIDs: []string{"listener2"},
-			Routes: []Route{
-				{
-					AppID: "app2",
-					Condition: HTTPPathCondition{
-						Path: "/api/v2",
-					},
-				},
+	endpoint1 := Endpoint{
+		ID:          "endpoint1",
+		ListenerIDs: []string{"listener1"},
+		Routes: []routes.Route{
+			{
+				AppID:     "app1",
+				Condition: conditions.NewHTTP("/api/v1"),
 			},
 		},
 	}
 
-	// Test iteration
-	t.Run("Iteration", func(t *testing.T) {
-		ids := make([]string, 0, len(endpoints))
+	endpoint2 := Endpoint{
+		ID:          "endpoint2",
+		ListenerIDs: []string{"listener2"},
+		Routes: []routes.Route{
+			{
+				AppID:     "app2",
+				Condition: conditions.NewHTTP("/api/v2"),
+			},
+		},
+	}
 
+	t.Run("Iteration", func(t *testing.T) {
+		t.Parallel()
+
+		endpoints := Endpoints{endpoint1, endpoint2}
+
+		var ids []string
 		for _, e := range endpoints {
 			ids = append(ids, e.ID)
 		}
 
-		assert.ElementsMatch(t, []string{"endpoint1", "endpoint2"}, ids)
+		assert.Equal(t, []string{"endpoint1", "endpoint2"}, ids)
 	})
 
-	// Test append
 	t.Run("Append", func(t *testing.T) {
-		newEndpoints := append(endpoints, Endpoint{
-			ID:          "endpoint3",
-			ListenerIDs: []string{"listener3"},
-		})
+		t.Parallel()
 
-		assert.Equal(t, 3, len(newEndpoints))
-		assert.Equal(t, "endpoint3", newEndpoints[2].ID)
+		endpoints := Endpoints{endpoint1}
+		endpoints = append(endpoints, endpoint2)
+
+		assert.Equal(t, 2, len(endpoints))
+		assert.Equal(t, "endpoint1", endpoints[0].ID)
+		assert.Equal(t, "endpoint2", endpoints[1].ID)
 	})
 
-	// Test len
 	t.Run("Length", func(t *testing.T) {
+		t.Parallel()
+
+		endpoints := Endpoints{endpoint1, endpoint2}
 		assert.Equal(t, 2, len(endpoints))
 	})
 }

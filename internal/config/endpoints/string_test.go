@@ -3,6 +3,8 @@ package endpoints
 import (
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,61 +19,76 @@ func TestEndpoint_String(t *testing.T) {
 		{
 			name: "Empty Endpoint",
 			endpoint: Endpoint{
-				ID: "test-endpoint",
+				ID:          "empty",
+				ListenerIDs: []string{"listener1"},
+				Routes:      []routes.Route{},
 			},
 			contains: []string{
-				"Endpoint test-endpoint",
-				"(0 routes)",
+				"empty",                // ID
+				"Listeners: listener1", // ListenerIDs
+				"Routes: 0",            // Route count
 			},
 		},
 		{
-			name: "Endpoint with Listeners",
+			name: "Single Route",
 			endpoint: Endpoint{
-				ID:          "with-listeners",
-				ListenerIDs: []string{"listener1", "listener2"},
-			},
-			contains: []string{
-				"Endpoint with-listeners",
-				"[Listeners: listener1, listener2]",
-				"(0 routes)",
-			},
-		},
-		{
-			name: "Endpoint with Routes",
-			endpoint: Endpoint{
-				ID:          "with-routes",
-				ListenerIDs: []string{"http1"},
-				Routes: []Route{
+				ID:          "single",
+				ListenerIDs: []string{"listener1"},
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
-					},
-					{
-						AppID: "app2",
-						Condition: HTTPPathCondition{
-							Path: "/api/v2",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
 					},
 				},
 			},
 			contains: []string{
-				"Endpoint with-routes",
-				"[Listeners: http1]",
-				"(2 routes)",
+				"single",               // ID
+				"Listeners: listener1", // ListenerIDs
+				"Routes: 1",            // Route count
+				"app1",                 // AppID
+				"http_path",            // Condition type
+				"/api/v1",              // Condition value
+			},
+		},
+		{
+			name: "Multiple Routes",
+			endpoint: Endpoint{
+				ID:          "multiple",
+				ListenerIDs: []string{"listener1", "listener2"},
+				Routes: []routes.Route{
+					{
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
+					},
+					{
+						AppID:     "app2",
+						Condition: conditions.NewGRPC("service.v1"),
+					},
+				},
+			},
+			contains: []string{
+				"multiple",                       // ID
+				"Listeners: listener1,listener2", // ListenerIDs
+				"Routes: 2",                      // Route count
+				"app1",                           // First AppID
+				"app2",                           // Second AppID
+				"http_path",                      // First condition type
+				"/api/v1",                        // First condition value
+				"grpc_service",                   // Second condition type
+				"service.v1",                     // Second condition value
 			},
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			result := tc.endpoint.String()
 
-			for _, expected := range tc.contains {
-				assert.Contains(t, result, expected)
+			for _, s := range tc.contains {
+				assert.Contains(t, result, s)
 			}
 		})
 	}
@@ -82,207 +99,89 @@ func TestRoute_String(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		route    Route
-		contains []string
+		route    routes.Route
+		expected string
 	}{
 		{
 			name: "HTTP Route",
-			route: Route{
-				AppID: "app1",
-				Condition: HTTPPathCondition{
-					Path: "/api/users",
-				},
+			route: routes.Route{
+				AppID:     "app1",
+				Condition: conditions.NewHTTP("/api/v1"),
 			},
-			contains: []string{
-				"Route http_path:/api/users -> app1",
-			},
+			expected: "Route http_path:/api/v1 -> app1",
 		},
 		{
-			name: "gRPC Route",
-			route: Route{
-				AppID: "grpc_app",
-				Condition: GRPCServiceCondition{
-					Service: "users.v1.UserService",
-				},
+			name: "GRPC Route",
+			route: routes.Route{
+				AppID:     "app2",
+				Condition: conditions.NewGRPC("service.v1"),
 			},
-			contains: []string{
-				"Route grpc_service:users.v1.UserService -> grpc_app",
-			},
+			expected: "Route grpc_service:service.v1 -> app2",
 		},
 		{
-			name: "Route with Static Data",
-			route: Route{
-				AppID: "app_with_data",
+			name: "With Static Data",
+			route: routes.Route{
+				AppID:     "app3",
+				Condition: conditions.NewHTTP("/api/v2"),
 				StaticData: map[string]any{
 					"key1": "value1",
-				},
-				Condition: HTTPPathCondition{
-					Path: "/api/data",
+					"key2": 42,
 				},
 			},
-			contains: []string{
-				"Route http_path:/api/data -> app_with_data",
-				"(with StaticData)",
-			},
-		},
-		{
-			name: "Route with No Condition",
-			route: Route{
-				AppID: "app_no_condition",
-			},
-			contains: []string{
-				"Route <no-condition> -> app_no_condition",
-			},
+			expected: "Route http_path:/api/v2 -> app3 (with StaticData: key1=value1, key2=42)",
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			result := tc.route.String()
-
-			for _, expected := range tc.contains {
-				assert.Contains(t, result, expected)
-			}
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }
 
-func TestEndpoint_ToTree(t *testing.T) {
+func TestEndpoints_String(t *testing.T) {
 	t.Parallel()
 
-	endpoint := Endpoint{
-		ID:          "test-endpoint",
-		ListenerIDs: []string{"listener1", "listener2"},
-		Routes: []Route{
-			{
-				AppID: "app1",
-				Condition: HTTPPathCondition{
-					Path: "/api/v1",
+	endpoints := Endpoints{
+		{
+			ID:          "endpoint1",
+			ListenerIDs: []string{"listener1"},
+			Routes: []routes.Route{
+				{
+					AppID:     "app1",
+					Condition: conditions.NewHTTP("/api/v1"),
 				},
 			},
-			{
-				AppID: "app2",
-				Condition: GRPCServiceCondition{
-					Service: "service.v1",
+		},
+		{
+			ID:          "endpoint2",
+			ListenerIDs: []string{"listener2"},
+			Routes: []routes.Route{
+				{
+					AppID:     "app2",
+					Condition: conditions.NewGRPC("service.v1"),
 				},
 			},
 		},
 	}
 
-	// Just test that it doesn't panic and returns the expected type
-	tree := endpoint.ToTree()
-
-	// We should get a non-nil value back
-	assert.NotNil(t, tree)
-
-	// Let's check that we have a tree structure without asserting specific content
-	// This avoids depending on the exact string representation
-	assert.Contains(t, endpoint.ID, "test-endpoint")
-	assert.Contains(t, endpoint.ListenerIDs[0], "listener1")
-	assert.Len(t, endpoint.Routes, 2)
-}
-
-func TestRoute_toTree(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		route Route
-	}{
-		{
-			name: "HTTP Route",
-			route: Route{
-				AppID: "app1",
-				Condition: HTTPPathCondition{
-					Path: "/api/users",
-				},
-			},
-		},
-		{
-			name: "gRPC Route",
-			route: Route{
-				AppID: "grpc_app",
-				Condition: GRPCServiceCondition{
-					Service: "users.v1.UserService",
-				},
-			},
-		},
-		{
-			name: "Route with No Condition",
-			route: Route{
-				AppID: "app_no_condition",
-			},
-		},
+	expected := []string{
+		"Endpoints: 2",
+		"1. Endpoint endpoint1",
+		"2. Endpoint endpoint2",
+		"app1",
+		"app2",
+		"http_path",
+		"grpc_service",
 	}
 
-	for _, tc := range tests {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			result := tc.route.toTree()
+	result := endpoints.String()
 
-			// Just verify we get a non-empty string result
-			assert.NotEmpty(t, result)
-
-			// Verify that the result contains some information about the route
-			if tc.route.Condition != nil {
-				condType := tc.route.Condition.Type()
-				condValue := tc.route.Condition.Value()
-				// These assertions just verify the base route properties, not the formatted output
-				assert.NotEmpty(t, condType)
-				assert.NotEmpty(t, condValue)
-			}
-
-			assert.NotEmpty(t, tc.route.AppID)
-		})
-	}
-}
-
-func TestHTTPRoute_String(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		httpRoute HTTPRoute
-		contains  []string
-	}{
-		{
-			name: "Basic HTTP Route",
-			httpRoute: HTTPRoute{
-				Path:  "/api/users",
-				AppID: "app1",
-			},
-			contains: []string{
-				"HTTPRoute: /api/users -> app1",
-			},
-		},
-		{
-			name: "HTTP Route with Static Data",
-			httpRoute: HTTPRoute{
-				Path:  "/api/data",
-				AppID: "app_with_data",
-				StaticData: map[string]any{
-					"key1": "value1",
-				},
-			},
-			contains: []string{
-				"HTTPRoute: /api/data -> app_with_data",
-				"(with StaticData)",
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			result := tc.httpRoute.String()
-
-			for _, expected := range tc.contains {
-				assert.Contains(t, result, expected)
-			}
-		})
+	for _, s := range expected {
+		assert.Contains(t, result, s)
 	}
 }

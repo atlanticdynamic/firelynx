@@ -11,7 +11,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 	"github.com/atlanticdynamic/firelynx/internal/config/logs"
-	"github.com/atlanticdynamic/firelynx/internal/config/protohelpers"
 )
 
 // Configuration version constants
@@ -94,50 +93,12 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	}
 
 	if pbConfig.Endpoints != nil {
-		config.Endpoints = make([]endpoints.Endpoint, 0, len(pbConfig.Endpoints))
-		for _, pbEndpoint := range pbConfig.Endpoints {
-			if pbEndpoint == nil {
-				continue
-			}
-			if pbEndpoint.Id == nil {
-				return nil, fmt.Errorf("%w: nil endpoint ID", ErrFailedToConvertConfig)
-			}
-			if len(pbEndpoint.ListenerIds) == 0 {
-				return nil, fmt.Errorf("%w: empty listener IDs", ErrFailedToConvertConfig)
-			}
-
-			ep := endpoints.Endpoint{
-				ID:          *pbEndpoint.Id,
-				ListenerIDs: pbEndpoint.ListenerIds,
-				Routes:      []endpoints.Route{},
-			}
-
-			// Convert routes
-			for _, pbRoute := range pbEndpoint.Routes {
-				route := endpoints.Route{
-					AppID: *pbRoute.AppId,
-				}
-
-				// Convert static data
-				if pbStaticData := pbRoute.GetStaticData(); pbStaticData != nil {
-					route.StaticData = make(map[string]any)
-					for k, v := range pbStaticData.GetData() {
-						route.StaticData[k] = protohelpers.ConvertProtoValueToInterface(v)
-					}
-				}
-
-				// Convert route condition
-				if httpPath := pbRoute.GetHttpPath(); httpPath != "" {
-					route.Condition = endpoints.HTTPPathCondition{Path: httpPath}
-				} else if grpcService := pbRoute.GetGrpcService(); grpcService != "" {
-					route.Condition = endpoints.GRPCServiceCondition{Service: grpcService}
-				}
-
-				ep.Routes = append(ep.Routes, route)
-			}
-
-			config.Endpoints = append(config.Endpoints, ep)
+		// Convert endpoints using endpoints package's FromProto function
+		endpointsList, err := endpoints.FromProto(pbConfig.Endpoints)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
 		}
+		config.Endpoints = endpointsList
 	}
 
 	var appErrz []error
