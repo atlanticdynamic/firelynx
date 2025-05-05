@@ -6,6 +6,8 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
@@ -160,11 +162,9 @@ level = "debug"
 
 		t.Run("EmptyAppIDInRoute", func(t *testing.T) {
 			config := createValidDomainConfig(t)
-			config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, endpoints.Route{
-				AppID: "", // Empty app ID
-				Condition: endpoints.HTTPPathCondition{
-					Path: "/empty",
-				},
+			config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, routes.Route{
+				AppID:     "", // Empty app ID
+				Condition: conditions.NewHTTP("/empty"),
 			})
 
 			err := config.Validate()
@@ -202,11 +202,9 @@ level = "debug"
 
 		t.Run("NonExistentAppIDInRoute", func(t *testing.T) {
 			config := createValidDomainConfig(t)
-			config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, endpoints.Route{
-				AppID: "non_existent_app", // Reference to non-existent app
-				Condition: endpoints.HTTPPathCondition{
-					Path: "/non-existent",
-				},
+			config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, routes.Route{
+				AppID:     "non_existent_app", // Reference to non-existent app
+				Condition: conditions.NewHTTP("/non-existent"),
 			})
 
 			err := config.Validate()
@@ -670,11 +668,9 @@ func TestConfig_validateAppsAndRoutes(t *testing.T) {
 	t.Run("NonexistentAppReference", func(t *testing.T) {
 		config := createValidDomainConfig(t)
 		// Add a route that references a nonexistent app
-		config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, endpoints.Route{
-			AppID: "nonexistent",
-			Condition: endpoints.HTTPPathCondition{
-				Path: "/nonexistent",
-			},
+		config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, routes.Route{
+			AppID:     "nonexistent",
+			Condition: conditions.NewHTTP("/nonexistent"),
 		})
 
 		err := config.validateAppsAndRoutes()
@@ -689,14 +685,14 @@ func TestConfig_collectRouteReferences(t *testing.T) {
 			Endpoints: []endpoints.Endpoint{
 				{
 					ID: "endpoint1",
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{AppID: "app1"},
 						{AppID: "app2"},
 					},
 				},
 				{
 					ID: "endpoint2",
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{AppID: "app3"},
 					},
 				},
@@ -721,7 +717,7 @@ func TestConfig_collectRouteReferences(t *testing.T) {
 			Endpoints: []endpoints.Endpoint{
 				{
 					ID:     "endpoint1",
-					Routes: []endpoints.Route{},
+					Routes: []routes.Route{},
 				},
 			},
 		}
@@ -748,24 +744,20 @@ func TestConfig_validateRouteConflicts(t *testing.T) {
 				{
 					ID:          "endpoint1",
 					ListenerIDs: []string{"listener1"},
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{
-							AppID: "app1",
-							Condition: endpoints.HTTPPathCondition{
-								Path: "/conflict",
-							},
+							AppID:     "app1",
+							Condition: conditions.NewHTTP("/conflict"),
 						},
 					},
 				},
 				{
 					ID:          "endpoint2",
 					ListenerIDs: []string{"listener1"}, // Same listener
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{
-							AppID: "app2",
-							Condition: endpoints.HTTPPathCondition{
-								Path: "/conflict", // Same path = conflict
-							},
+							AppID:     "app2",
+							Condition: conditions.NewHTTP("/conflict"), // Same path = conflict
 						},
 					},
 				},
@@ -784,24 +776,22 @@ func TestConfig_validateRouteConflicts(t *testing.T) {
 				{
 					ID:          "endpoint1",
 					ListenerIDs: []string{"listener1"},
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{
-							AppID: "app1",
-							Condition: endpoints.HTTPPathCondition{
-								Path: "/same-path",
-							},
+							AppID:     "app1",
+							Condition: conditions.NewHTTP("/same-path"),
 						},
 					},
 				},
 				{
 					ID:          "endpoint2",
 					ListenerIDs: []string{"listener2"}, // Different listener
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{
 							AppID: "app2",
-							Condition: endpoints.HTTPPathCondition{
-								Path: "/same-path", // Same path, but different listener = no conflict
-							},
+							Condition: conditions.NewHTTP(
+								"/same-path",
+							), // Same path, but different listener = no conflict
 						},
 					},
 				},
@@ -819,24 +809,20 @@ func TestConfig_validateRouteConflicts(t *testing.T) {
 				{
 					ID:          "endpoint1",
 					ListenerIDs: []string{"listener1"},
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{
-							AppID: "app1",
-							Condition: endpoints.HTTPPathCondition{
-								Path: "/path1",
-							},
+							AppID:     "app1",
+							Condition: conditions.NewHTTP("/path1"),
 						},
 					},
 				},
 				{
 					ID:          "endpoint2",
 					ListenerIDs: []string{"listener1"}, // Same listener
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{
-							AppID: "app2",
-							Condition: endpoints.HTTPPathCondition{
-								Path: "/path2", // Different path = no conflict
-							},
+							AppID:     "app2",
+							Condition: conditions.NewHTTP("/path2"), // Different path = no conflict
 						},
 					},
 				},
@@ -854,7 +840,7 @@ func TestConfig_validateRouteConflicts(t *testing.T) {
 				{
 					ID:          "endpoint1",
 					ListenerIDs: []string{"listener1"},
-					Routes: []endpoints.Route{
+					Routes: []routes.Route{
 						{
 							AppID:     "app1",
 							Condition: nil, // Nil condition

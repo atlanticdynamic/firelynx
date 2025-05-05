@@ -58,7 +58,11 @@ func fromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 
 	// Convert endpoints using endpoints package's FromProto method
 	if len(pbConfig.Endpoints) > 0 {
-		config.Endpoints = endpoints.NewEndpointsFromProto(pbConfig.Endpoints...)
+		endpointsList, err := endpoints.FromProto(pbConfig.Endpoints)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+		}
+		config.Endpoints = endpointsList
 	}
 
 	// Convert apps using the apps package's FromProto method

@@ -3,6 +3,8 @@ package endpoints
 import (
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,19 +15,26 @@ func TestEndpoint_Validate(t *testing.T) {
 		name        string
 		endpoint    Endpoint
 		errExpected bool
-		errContains []string
+		errContains string // substring that should be in the error message
 	}{
 		{
-			name: "Valid Endpoint",
+			name: "Valid endpoint - no routes",
 			endpoint: Endpoint{
-				ID:          "valid-endpoint",
+				ID:          "endpoint1",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes:      []routes.Route{},
+			},
+			errExpected: false,
+		},
+		{
+			name: "Valid endpoint - with routes",
+			endpoint: Endpoint{
+				ID:          "endpoint2",
+				ListenerIDs: []string{"listener1"},
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
 					},
 				},
 			},
@@ -36,248 +45,87 @@ func TestEndpoint_Validate(t *testing.T) {
 			endpoint: Endpoint{
 				ID:          "",
 				ListenerIDs: []string{"listener1"},
+				Routes:      []routes.Route{},
 			},
 			errExpected: true,
-			errContains: []string{"empty ID"},
+			errContains: "empty ID",
 		},
 		{
-			name: "No Listeners",
+			name: "No listener IDs",
 			endpoint: Endpoint{
-				ID:          "endpoint-no-listeners",
+				ID:          "endpoint3",
 				ListenerIDs: []string{},
+				Routes:      []routes.Route{},
 			},
 			errExpected: true,
-			errContains: []string{"no listener IDs"},
+			errContains: "no listener IDs",
 		},
 		{
-			name: "Invalid Route",
+			name: "Route with missing app ID",
 			endpoint: Endpoint{
-				ID:          "endpoint-invalid-route",
+				ID:          "endpoint4",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID:     "", // Empty AppID
+						AppID:     "",
+						Condition: conditions.NewHTTP("/api/v1"),
+					},
+				},
+			},
+			errExpected: true,
+			errContains: "empty ID",
+		},
+		{
+			name: "Route with missing condition",
+			endpoint: Endpoint{
+				ID:          "endpoint5",
+				ListenerIDs: []string{"listener1"},
+				Routes: []routes.Route{
+					{
+						AppID:     "app1",
 						Condition: nil,
 					},
 				},
 			},
 			errExpected: true,
-			errContains: []string{"empty ID", "missing required field"},
+			errContains: "route condition",
 		},
 		{
-			name: "Duplicate Route Conditions",
+			name: "Duplicate route conditions",
 			endpoint: Endpoint{
-				ID:          "endpoint-duplicate-routes",
+				ID:          "endpoint6",
 				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
+				Routes: []routes.Route{
 					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/api/v1"),
 					},
 					{
-						AppID: "app2",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1", // Same path as above
-						},
+						AppID:     "app2",
+						Condition: conditions.NewHTTP("/api/v1"),
 					},
 				},
 			},
 			errExpected: true,
-			errContains: []string{"conflict", "duplicated"},
-		},
-		{
-			name: "Multiple Valid Routes",
-			endpoint: Endpoint{
-				ID:          "endpoint-valid-routes",
-				ListenerIDs: []string{"listener1"},
-				Routes: []Route{
-					{
-						AppID: "app1",
-						Condition: HTTPPathCondition{
-							Path: "/api/v1",
-						},
-					},
-					{
-						AppID: "app2",
-						Condition: HTTPPathCondition{
-							Path: "/api/v2", // Different path
-						},
-					},
-				},
-			},
-			errExpected: false,
+			errContains: "duplicated",
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			err := tc.endpoint.Validate()
 
 			if tc.errExpected {
 				assert.Error(t, err)
-				for _, errStr := range tc.errContains {
-					assert.Contains(t, err.Error(), errStr)
+				if tc.errContains != "" {
+					assert.Contains(t, err.Error(), tc.errContains)
 				}
 			} else {
 				assert.NoError(t, err)
 			}
 		})
 	}
-}
-
-func TestRoute_Validate(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name        string
-		route       Route
-		errExpected bool
-		errContains []string
-	}{
-		{
-			name: "Valid HTTP Route",
-			route: Route{
-				AppID: "app1",
-				Condition: HTTPPathCondition{
-					Path: "/api/v1",
-				},
-			},
-			errExpected: false,
-		},
-		{
-			name: "Valid gRPC Route",
-			route: Route{
-				AppID: "grpc_app",
-				Condition: GRPCServiceCondition{
-					Service: "service.v1",
-				},
-			},
-			errExpected: false,
-		},
-		{
-			name: "Empty AppID",
-			route: Route{
-				AppID: "",
-				Condition: HTTPPathCondition{
-					Path: "/api/v1",
-				},
-			},
-			errExpected: true,
-			errContains: []string{"empty ID"},
-		},
-		{
-			name: "Missing Condition",
-			route: Route{
-				AppID:     "app1",
-				Condition: nil,
-			},
-			errExpected: true,
-			errContains: []string{"missing required field", "condition"},
-		},
-		{
-			name: "Invalid Condition Type",
-			route: Route{
-				AppID: "app1",
-				Condition: &invalidCondition{
-					condType: "invalid_type",
-					value:    "test",
-				},
-			},
-			errExpected: true,
-			errContains: []string{"invalid route type"},
-		},
-		{
-			name: "Empty Condition Value",
-			route: Route{
-				AppID: "app1",
-				Condition: &invalidCondition{
-					condType: "http_path",
-					value:    "", // Empty value
-				},
-			},
-			errExpected: true,
-			errContains: []string{"missing required field", "value"},
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			err := tc.route.Validate()
-
-			if tc.errExpected {
-				assert.Error(t, err)
-				errStr := err.Error()
-				for _, contains := range tc.errContains {
-					assert.Contains(t, errStr, contains)
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-// invalidCondition is a test implementation of RouteCondition
-type invalidCondition struct {
-	condType string
-	value    string
-}
-
-func (c *invalidCondition) Type() string {
-	return c.condType
-}
-
-func (c *invalidCondition) Value() string {
-	return c.value
-}
-
-func TestValidateErrorJoining(t *testing.T) {
-	t.Parallel()
-
-	// Test that an endpoint with multiple invalid routes correctly joins all errors
-	endpoint := Endpoint{
-		ID:          "",         // Invalid: empty ID
-		ListenerIDs: []string{}, // Invalid: no listeners
-		Routes: []Route{
-			{
-				AppID:     "",  // Invalid: empty AppID
-				Condition: nil, // Invalid: nil condition
-			},
-			{
-				AppID: "app2",
-				Condition: &invalidCondition{
-					condType: "invalid_type", // Invalid: invalid type
-					value:    "",             // Invalid: empty value
-				},
-			},
-		},
-	}
-
-	err := endpoint.Validate()
-
-	// Verify that err is not nil and contains multiple error messages
-	assert.Error(t, err)
-
-	// Check for specific errors in the joined error
-	errorTexts := []string{
-		"empty ID",
-		"no listener IDs",
-		"missing required field",
-		"invalid route type",
-	}
-
-	for _, text := range errorTexts {
-		assert.Contains(t, err.Error(), text)
-	}
-
-	// Also test that errors.Is works correctly with the joined errors
-	assert.ErrorIs(t, err, ErrEmptyID)
-	assert.ErrorIs(t, err, ErrMissingRequiredField)
-	assert.ErrorIs(t, err, ErrInvalidRouteType)
 }
