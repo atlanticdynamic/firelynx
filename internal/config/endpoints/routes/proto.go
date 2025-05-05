@@ -3,8 +3,7 @@ package routes
 import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
-	"github.com/atlanticdynamic/firelynx/internal/config/protohelpers"
-	"google.golang.org/protobuf/types/known/structpb"
+	"github.com/robbyt/protobaggins"
 )
 
 // ToProto converts a Route to a protobuf Route
@@ -16,13 +15,7 @@ func (r *Route) ToProto() *pb.Route {
 	// Convert static data if present
 	if r.StaticData != nil {
 		route.StaticData = &pb.StaticData{
-			Data: make(map[string]*structpb.Value),
-		}
-		for k, v := range r.StaticData {
-			val, err := structpb.NewValue(v)
-			if err == nil {
-				route.StaticData.Data[k] = val
-			}
+			Data: protobaggins.MapToStructValues(r.StaticData),
 		}
 	}
 
@@ -51,10 +44,7 @@ func RouteFromProto(r *pb.Route) Route {
 
 	// Convert static data
 	if r.StaticData != nil && len(r.StaticData.Data) > 0 {
-		route.StaticData = make(map[string]any)
-		for k, v := range r.StaticData.Data {
-			route.StaticData[k] = protohelpers.ConvertProtoValueToInterface(v)
-		}
+		route.StaticData = protobaggins.StructValuesToMap(r.StaticData.Data)
 	}
 
 	// Convert condition using the conditions package

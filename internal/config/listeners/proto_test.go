@@ -6,6 +6,7 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/robbyt/protobaggins"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -450,7 +451,7 @@ func TestFromProto(t *testing.T) {
 	}
 }
 
-func TestGetStringValue(t *testing.T) {
+func TestStringFromProto(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -479,7 +480,7 @@ func TestGetStringValue(t *testing.T) {
 		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result := getStringValue(tc.input)
+			result := protobaggins.StringFromProto(tc.input)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

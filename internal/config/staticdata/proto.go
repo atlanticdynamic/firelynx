@@ -2,7 +2,7 @@ package staticdata
 
 import (
 	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"google.golang.org/protobuf/types/known/structpb"
+	"github.com/robbyt/protobaggins"
 )
 
 // ToProto converts a StaticData to its protocol buffer representation.
@@ -17,13 +17,7 @@ func (sd *StaticData) ToProto() *settingsv1alpha1.StaticData {
 
 	// Convert the data map if it exists
 	if sd.Data != nil {
-		proto.Data = make(map[string]*structpb.Value, len(sd.Data))
-		for k, v := range sd.Data {
-			pbValue, err := structpb.NewValue(v)
-			if err == nil {
-				proto.Data[k] = pbValue
-			}
-		}
+		proto.Data = protobaggins.MapToStructValues(sd.Data)
 	}
 
 	return proto
@@ -41,10 +35,7 @@ func FromProto(proto *settingsv1alpha1.StaticData) (*StaticData, error) {
 
 	// Convert the data map if it exists
 	if proto.Data != nil {
-		sd.Data = make(map[string]any, len(proto.Data))
-		for k, v := range proto.Data {
-			sd.Data[k] = v.AsInterface()
-		}
+		sd.Data = protobaggins.StructValuesToMap(proto.Data)
 	}
 
 	return sd, nil
