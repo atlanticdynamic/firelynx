@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"

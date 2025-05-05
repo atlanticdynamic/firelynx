@@ -24,10 +24,9 @@ func (e *Endpoint) ToProto() *pb.Endpoint {
 		ListenerIds: e.ListenerIDs,
 	}
 
-	// Convert routes
-	for _, r := range e.Routes {
-		pbRoute := r.ToProto()
-		pbEndpoint.Routes = append(pbEndpoint.Routes, pbRoute)
+	// Convert routes if present
+	if len(e.Routes) > 0 {
+		pbEndpoint.Routes = e.Routes.ToProto()
 	}
 
 	return pbEndpoint
@@ -67,11 +66,7 @@ func FromProto(pbEndpoints []*pb.Endpoint) (Endpoints, error) {
 
 		// Convert routes
 		if len(e.Routes) > 0 {
-			ep.Routes = make([]routes.Route, 0, len(e.Routes))
-			for _, r := range e.Routes {
-				route := routes.FromProto(r)
-				ep.Routes = append(ep.Routes, route)
-			}
+			ep.Routes = routes.FromProto(e.Routes)
 		}
 
 		endpoints = append(endpoints, ep)
