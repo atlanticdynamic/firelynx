@@ -31,19 +31,9 @@ func (r *Route) ToTree() *fancy.ComponentTree {
 	return fancy.RouteTree(text)
 }
 
-// GetHTTPRoutes returns routes with HTTP conditions from a slice of routes
-func (r Routes) GetHTTPRoutes() []Route {
-	var httpRoutes []Route
-	for _, route := range r {
-		// Check if route has an HTTP path condition
-		if route.Condition != nil && route.Condition.Type() == conditions.TypeHTTP {
-			httpRoutes = append(httpRoutes, route)
-		}
-	}
-	return httpRoutes
-}
-
-// GetStructuredHTTPRoutes converts routes to HTTP-specific structured format
+// GetStructuredHTTPRoutes returns HTTP routes from this collection in a structured format.
+// This extracts routes with HTTP conditions and returns them as the more type-safe HTTPRoute
+// structure with path, app ID, and static data explicitly defined.
 func (r Routes) GetStructuredHTTPRoutes() []HTTPRoute {
 	var httpRoutes []HTTPRoute
 
