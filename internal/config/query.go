@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
@@ -69,8 +70,8 @@ func (c *Config) FindApp(id string) *apps.App {
 func (c *Config) GetAppsByType(evalType string) []apps.App {
 	var result []apps.App
 	for _, app := range c.Apps {
-		if scriptApp, ok := app.Config.(apps.ScriptApp); ok {
-			if scriptApp.Evaluator.Type() == evalType {
+		if scriptApp, ok := app.Config.(*scripts.AppScript); ok {
+			if scriptApp.Evaluator.Type().String() == evalType {
 				result = append(result, app)
 			}
 		}

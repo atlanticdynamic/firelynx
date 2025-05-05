@@ -3,84 +3,15 @@ package apps
 import (
 	"errors"
 	"fmt"
+
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 )
 
-// Validate performs validation for a single app
-func (a *App) Validate() error {
-	var errs []error
+// We've moved the App.Validate() method to apps.go
+// The method below is now deprecated and should be removed
 
-	// Validate ID
-	if a.ID == "" {
-		errs = append(errs, fmt.Errorf("%w: app ID", ErrEmptyID))
-	}
-
-	// Validate Config
-	if a.Config == nil {
-		errs = append(errs, fmt.Errorf("%w: app '%s' has no configuration",
-			ErrMissingRequiredField, a.ID))
-	} else {
-		// Type-specific validation based on app config type
-		switch cfg := a.Config.(type) {
-		case ScriptApp:
-			if err := validateScriptApp(a.ID, cfg); err != nil {
-				errs = append(errs, err)
-			}
-		case CompositeScriptApp:
-			// CompositeScriptApp validation mostly depends on cross-references
-			// which are validated at the Apps collection level
-			if len(cfg.ScriptAppIDs) == 0 {
-				errs = append(errs, fmt.Errorf(
-					"%w: app '%s' composite script app requires at least one script app ID",
-					ErrMissingRequiredField, a.ID))
-			}
-		default:
-			errs = append(errs, fmt.Errorf("%w: app '%s' has unknown config type %T",
-				ErrInvalidAppType, a.ID, a.Config))
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-// validateScriptApp performs validation for ScriptApp configuration
-func validateScriptApp(appID string, app ScriptApp) error {
-	var errs []error
-
-	// Validate Evaluator
-	if app.Evaluator == nil {
-		errs = append(errs, fmt.Errorf("%w: script app '%s'",
-			ErrMissingEvaluator, appID))
-		return errors.Join(errs...)
-	}
-
-	// Validate evaluator by type
-	switch eval := app.Evaluator.(type) {
-	case RisorEvaluator:
-		if eval.Code == "" {
-			errs = append(errs, fmt.Errorf("%w: app '%s' Risor evaluator",
-				ErrEmptyCode, appID))
-		}
-	case StarlarkEvaluator:
-		if eval.Code == "" {
-			errs = append(errs, fmt.Errorf("%w: app '%s' Starlark evaluator",
-				ErrEmptyCode, appID))
-		}
-	case ExtismEvaluator:
-		if eval.Code == "" {
-			errs = append(errs, fmt.Errorf("%w: app '%s' Extism evaluator",
-				ErrEmptyCode, appID))
-		}
-		if eval.Entrypoint == "" {
-			errs = append(errs, fmt.Errorf("%w: app '%s' Extism evaluator",
-				ErrEmptyEntrypoint, appID))
-		}
-	default:
-		errs = append(errs, fmt.Errorf("%w: app '%s' has unknown evaluator type %T",
-			ErrInvalidEvaluator, appID, app.Evaluator))
-	}
-
-	return errors.Join(errs...)
-}
+// validateAppConfig calls the Validate method on the app config
+// All app config types now implement the Validate method directly
 
 // ValidationContext facilitates cross-reference validation between apps and other components.
 // It maintains a registry of known application IDs to verify that referenced apps exist
@@ -157,13 +88,13 @@ func (vc *ValidationContext) ValidateRouteReferences(routes []struct{ AppID stri
 }
 
 // ValidateCompositeAppReferences validates that all scripts referenced by a composite app exist.
-// CompositeScriptApp types can reference other script apps by ID. This validation ensures that
+// CompositeScript types can reference other script apps by ID. This validation ensures that
 // all those referenced script apps actually exist in the system. If the app is not a composite app,
 // this validation succeeds immediately.
 // This validation is needed because composite apps depend on other apps, creating a dependency graph
 // that must be validated for consistency.
 func (vc *ValidationContext) ValidateCompositeAppReferences(app App) error {
-	composite, ok := app.Config.(CompositeScriptApp)
+	composite, ok := app.Config.(*composite.CompositeScript)
 	if !ok {
 		return nil // Not a composite app, nothing to validate
 	}

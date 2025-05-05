@@ -36,9 +36,9 @@ func FromProto(proto *settingsv1alpha1.AppScript) (*AppScript, error) {
 }
 
 // ToProto converts an AppScript to its protocol buffer representation.
-func (s *AppScript) ToProto() (*settingsv1alpha1.AppScript, error) {
+func (s *AppScript) ToProto() *settingsv1alpha1.AppScript {
 	if s == nil {
-		return nil, nil
+		return nil
 	}
 
 	// Create the protobuf message
@@ -46,11 +46,7 @@ func (s *AppScript) ToProto() (*settingsv1alpha1.AppScript, error) {
 
 	// Convert static data if present
 	if s.StaticData != nil {
-		staticDataProto, err := s.StaticData.ToProto()
-		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrProtoConversion, err)
-		}
-		proto.StaticData = staticDataProto
+		proto.StaticData = s.StaticData.ToProto()
 	}
 
 	// Convert the evaluator based on its type
@@ -68,10 +64,8 @@ func (s *AppScript) ToProto() (*settingsv1alpha1.AppScript, error) {
 			proto.Evaluator = &settingsv1alpha1.AppScript_Extism{
 				Extism: eval.ToProto(),
 			}
-		default:
-			return nil, fmt.Errorf("%w: unknown evaluator type", ErrProtoConversion)
 		}
 	}
 
-	return proto, nil
+	return proto
 }

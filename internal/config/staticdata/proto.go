@@ -6,9 +6,9 @@ import (
 )
 
 // ToProto converts a StaticData to its protocol buffer representation.
-func (sd *StaticData) ToProto() (*settingsv1alpha1.StaticData, error) {
+func (sd *StaticData) ToProto() *settingsv1alpha1.StaticData {
 	if sd == nil {
-		return nil, nil
+		return nil
 	}
 
 	proto := &settingsv1alpha1.StaticData{
@@ -20,14 +20,13 @@ func (sd *StaticData) ToProto() (*settingsv1alpha1.StaticData, error) {
 		proto.Data = make(map[string]*structpb.Value, len(sd.Data))
 		for k, v := range sd.Data {
 			pbValue, err := structpb.NewValue(v)
-			if err != nil {
-				return nil, err
+			if err == nil {
+				proto.Data[k] = pbValue
 			}
-			proto.Data[k] = pbValue
 		}
 	}
 
-	return proto, nil
+	return proto
 }
 
 // FromProto creates a StaticData from its protocol buffer representation.

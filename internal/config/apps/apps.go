@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // App represents an application definition
@@ -23,68 +23,29 @@ type Apps []App
 // AppConfig represents application-specific configuration
 type AppConfig interface {
 	Type() string
+	Validate() error
 }
 
-// StaticDataMergeMode represents strategies for merging static data
-type StaticDataMergeMode string
+// Validate validates a single app definition
+func (a App) Validate() error {
+	var errs []error
 
-// Constants for StaticDataMergeMode
-const (
-	StaticDataMergeModeUnspecified StaticDataMergeMode = ""
-	StaticDataMergeModeLast        StaticDataMergeMode = "last"
-	StaticDataMergeModeUnique      StaticDataMergeMode = "unique"
-)
+	// ID is required
+	if a.ID == "" {
+		errs = append(errs, ErrEmptyID)
+	}
 
-// StaticData represents configuration data passed to applications
-type StaticData struct {
-	Data      map[string]any
-	MergeMode StaticDataMergeMode
+	// Config validation
+	if a.Config == nil {
+		errs = append(errs, fmt.Errorf("%w: app '%s'", ErrMissingAppConfig, a.ID))
+	} else {
+		if err := a.Config.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("config for app '%s': %w", a.ID, err))
+		}
+	}
+
+	return errors.Join(errs...)
 }
-
-// ScriptApp represents a script-based application
-type ScriptApp struct {
-	StaticData StaticData
-	Evaluator  ScriptEvaluator
-}
-
-func (s ScriptApp) Type() string { return "script" }
-
-// ScriptEvaluator represents a script execution engine
-type ScriptEvaluator interface {
-	Type() string
-}
-
-// RisorEvaluator executes Risor scripts
-type RisorEvaluator struct {
-	Code    string
-	Timeout *durationpb.Duration
-}
-
-func (r RisorEvaluator) Type() string { return "risor" }
-
-// StarlarkEvaluator executes Starlark scripts
-type StarlarkEvaluator struct {
-	Code    string
-	Timeout *durationpb.Duration
-}
-
-func (s StarlarkEvaluator) Type() string { return "starlark" }
-
-// ExtismEvaluator executes WebAssembly scripts
-type ExtismEvaluator struct {
-	Code       string
-	Entrypoint string
-}
-
-func (e ExtismEvaluator) Type() string { return "extism" }
-
-// CompositeScriptApp represents an application composed of multiple scripts
-type CompositeScriptApp struct {
-	ScriptAppIDs []string
-	StaticData   StaticData
-}
-
-func (c CompositeScriptApp) Type() string { return "composite_script" }
 
 // FindByID finds an app by its ID
 func (a Apps) FindByID(id string) *App {
@@ -136,9 +97,9 @@ func (a Apps) Validate() error {
 
 		// Handle cross-references for composite apps
 		// This can't be done in App.Validate() since it requires knowledge of all app IDs
-		if composite, isComposite := app.Config.(CompositeScriptApp); isComposite {
+		if comp, isComposite := app.Config.(*composite.CompositeScript); isComposite {
 			// Validate all referenced script apps exist
-			for _, scriptAppID := range composite.ScriptAppIDs {
+			for _, scriptAppID := range comp.ScriptAppIDs {
 				if scriptAppID == "" {
 					errs = append(errs, fmt.Errorf("%w: in app '%s' composite script reference",
 						ErrEmptyID, app.ID))

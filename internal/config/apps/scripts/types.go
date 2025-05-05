@@ -22,3 +22,8 @@ func NewAppScript(data *staticdata.StaticData, evaluator evaluators.Evaluator) *
 		Evaluator:  evaluator,
 	}
 }
+
+// Type returns the type of this application.
+func (s *AppScript) Type() string {
+	return "script"
+}

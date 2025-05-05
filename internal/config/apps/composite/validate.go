@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// Validate checks if the AppCompositeScript is valid.
-func (s *AppCompositeScript) Validate() error {
+// Validate checks if the CompositeScript is valid.
+func (s *CompositeScript) Validate() error {
 	var errs []error
 
 	// Must have at least one script ID

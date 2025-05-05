@@ -40,6 +40,7 @@ var (
 // Script specific errors
 var (
 	ErrMissingEvaluator = errors.New("missing evaluator")
+	ErrMissingAppConfig = errors.New("missing app configuration")
 	ErrEmptyCode        = errors.New("empty code")
 	ErrEmptyEntrypoint  = errors.New("empty entrypoint")
 )

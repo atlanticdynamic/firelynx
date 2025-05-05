@@ -18,4 +18,5 @@ var (
 	ErrMissingEvaluator     = errz.ErrMissingEvaluator
 	ErrEmptyCode            = errz.ErrEmptyCode
 	ErrEmptyEntrypoint      = errz.ErrEmptyEntrypoint
+	ErrMissingAppConfig     = errz.ErrMissingAppConfig
 )

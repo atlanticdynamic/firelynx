@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/evaluators"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/styles"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
@@ -15,7 +18,7 @@ func (a *App) String() string {
 
 	// Add type information
 	switch cfg := a.Config.(type) {
-	case ScriptApp:
+	case *scripts.AppScript:
 		fmt.Fprintf(&b, " [Script")
 
 		// Add evaluator type
@@ -25,7 +28,7 @@ func (a *App) String() string {
 
 		fmt.Fprint(&b, "]")
 
-	case CompositeScriptApp:
+	case *composite.CompositeScript:
 		fmt.Fprintf(&b, " [CompositeScript with %d scripts]", len(cfg.ScriptAppIDs))
 	default:
 		fmt.Fprintf(&b, " [Unknown type]")
@@ -41,39 +44,41 @@ func (a *App) ToTree() *fancy.ComponentTree {
 
 	// Add app-specific details based on its type
 	switch appConfig := a.Config.(type) {
-	case ScriptApp:
+	case *scripts.AppScript:
 		tree.AddChild("Type: Script")
 
 		// Add evaluator type and info
-		switch eval := appConfig.Evaluator.(type) {
-		case RisorEvaluator:
-			evalNode := fancy.NewComponentTree("Evaluator: Risor")
-			codePreview := fancy.TruncateString(eval.Code, 40)
-			evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
-			if eval.Timeout != nil {
-				evalNode.AddChild(fmt.Sprintf("Timeout: %v", eval.Timeout.AsDuration()))
-			}
-			tree.AddChild(evalNode.Tree())
+		if appConfig.Evaluator != nil {
+			switch eval := appConfig.Evaluator.(type) {
+			case *evaluators.RisorEvaluator:
+				evalNode := fancy.NewComponentTree("Evaluator: Risor")
+				codePreview := fancy.TruncateString(eval.Code, 40)
+				evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
+				if eval.Timeout > 0 {
+					evalNode.AddChild(fmt.Sprintf("Timeout: %v", eval.Timeout))
+				}
+				tree.AddChild(evalNode.Tree())
 
-		case StarlarkEvaluator:
-			evalNode := fancy.NewComponentTree("Evaluator: Starlark")
-			codePreview := fancy.TruncateString(eval.Code, 40)
-			evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
-			if eval.Timeout != nil {
-				evalNode.AddChild(fmt.Sprintf("Timeout: %v", eval.Timeout.AsDuration()))
-			}
-			tree.AddChild(evalNode.Tree())
+			case *evaluators.StarlarkEvaluator:
+				evalNode := fancy.NewComponentTree("Evaluator: Starlark")
+				codePreview := fancy.TruncateString(eval.Code, 40)
+				evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
+				if eval.Timeout > 0 {
+					evalNode.AddChild(fmt.Sprintf("Timeout: %v", eval.Timeout))
+				}
+				tree.AddChild(evalNode.Tree())
 
-		case ExtismEvaluator:
-			evalNode := fancy.NewComponentTree("Evaluator: Extism")
-			evalNode.AddChild(fmt.Sprintf("Entrypoint: %s", eval.Entrypoint))
-			codePreview := fmt.Sprintf("<%d bytes>", len(eval.Code))
-			evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
-			tree.AddChild(evalNode.Tree())
+			case *evaluators.ExtismEvaluator:
+				evalNode := fancy.NewComponentTree("Evaluator: Extism")
+				evalNode.AddChild(fmt.Sprintf("Entrypoint: %s", eval.Entrypoint))
+				codePreview := fmt.Sprintf("<%d bytes>", len(eval.Code))
+				evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
+				tree.AddChild(evalNode.Tree())
+			}
 		}
 
 		// Add static data if present
-		if len(appConfig.StaticData.Data) > 0 {
+		if appConfig.StaticData != nil && len(appConfig.StaticData.Data) > 0 {
 			dataNode := fancy.NewComponentTree("StaticData")
 			dataNode.AddChild(fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode))
 
@@ -89,7 +94,7 @@ func (a *App) ToTree() *fancy.ComponentTree {
 			tree.AddChild(dataNode.Tree())
 		}
 
-	case CompositeScriptApp:
+	case *composite.CompositeScript:
 		tree.AddChild("Type: CompositeScript")
 
 		// Add script apps with consistent styling
@@ -103,7 +108,7 @@ func (a *App) ToTree() *fancy.ComponentTree {
 		}
 
 		// Add static data if present
-		if len(appConfig.StaticData.Data) > 0 {
+		if appConfig.StaticData != nil && len(appConfig.StaticData.Data) > 0 {
 			dataNode := fancy.NewComponentTree("StaticData")
 			dataNode.AddChild(fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode))
 

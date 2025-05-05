@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-// String returns a string representation of the AppCompositeScript.
-func (s *AppCompositeScript) String() string {
+// String returns a string representation of the CompositeScript.
+func (s *CompositeScript) String() string {
 	if s == nil {
-		return "AppCompositeScript(nil)"
+		return "CompositeScript(nil)"
 	}
 
 	var scriptIDsStr string
@@ -25,6 +25,6 @@ func (s *AppCompositeScript) String() string {
 		staticDataStr = "nil"
 	}
 
-	return fmt.Sprintf("AppCompositeScript(scriptIds=%s, staticData=%s)",
+	return fmt.Sprintf("CompositeScript(scriptIds=%s, staticData=%s)",
 		scriptIDsStr, staticDataStr)
 }
