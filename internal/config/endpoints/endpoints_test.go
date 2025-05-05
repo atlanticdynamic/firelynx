@@ -3,8 +3,8 @@ package endpoints
 import (
 	"testing"
 
-	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/stretchr/testify/assert"
 )
 

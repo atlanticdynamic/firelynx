@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -170,7 +170,7 @@ func TestFromProto(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			actual := FromProto(tc.pbRoute)
+			actual := RouteFromProto(tc.pbRoute)
 			assert.Equal(t, tc.expected.AppID, actual.AppID)
 
 			if tc.expected.Condition == nil {

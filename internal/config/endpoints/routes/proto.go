@@ -2,7 +2,7 @@ package routes
 
 import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/protohelpers"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -34,8 +34,8 @@ func (r *Route) ToProto() *pb.Route {
 	return route
 }
 
-// FromProto converts a pb.Route to a Route
-func FromProto(r *pb.Route) Route {
+// RouteFromProto converts a pb.Route to a Route
+func RouteFromProto(r *pb.Route) Route {
 	if r == nil {
 		return Route{}
 	}
@@ -61,4 +61,35 @@ func FromProto(r *pb.Route) Route {
 	route.Condition = conditions.FromProto(r)
 
 	return route
+}
+
+// ToProto converts Routes to a slice of protobuf Routes
+func (r Routes) ToProto() []*pb.Route {
+	pbRoutes := make([]*pb.Route, 0, len(r))
+	for i := range r {
+		pbRoute := r[i].ToProto()
+		pbRoutes = append(pbRoutes, pbRoute)
+	}
+	return pbRoutes
+}
+
+// FromProto converts a slice of protobuf Route messages to a domain Routes collection.
+func FromProto(pbRoutes []*pb.Route) Routes {
+	if len(pbRoutes) == 0 {
+		return nil
+	}
+
+	routes := make(Routes, 0, len(pbRoutes))
+	for _, r := range pbRoutes {
+		if r == nil {
+			continue
+		}
+		routes = append(routes, RouteFromProto(r))
+	}
+
+	if len(routes) == 0 {
+		return nil
+	}
+
+	return routes
 }

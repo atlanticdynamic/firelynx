@@ -24,6 +24,28 @@ func FromProto(route *pb.Route) Condition {
 	return nil
 }
 
+// HTTPToProto converts a HTTP condition to a pb.Route_Condition oneof field
+func HTTPToProto(h HTTP, route *pb.Route) {
+	if route == nil {
+		return
+	}
+
+	route.Condition = &pb.Route_HttpPath{
+		HttpPath: h.Path,
+	}
+}
+
+// GRPCToProto converts a GRPC condition to a pb.Route_Condition oneof field
+func GRPCToProto(g GRPC, route *pb.Route) {
+	if route == nil {
+		return
+	}
+
+	route.Condition = &pb.Route_GrpcService{
+		GrpcService: g.Service,
+	}
+}
+
 // ToProto converts a Condition to a pb.Route_Condition (oneof field)
 func ToProto(cond Condition, route *pb.Route) {
 	if cond == nil || route == nil {
@@ -32,12 +54,8 @@ func ToProto(cond Condition, route *pb.Route) {
 
 	switch c := cond.(type) {
 	case HTTP:
-		route.Condition = &pb.Route_HttpPath{
-			HttpPath: c.Path,
-		}
+		HTTPToProto(c, route)
 	case GRPC:
-		route.Condition = &pb.Route_GrpcService{
-			GrpcService: c.Service,
-		}
+		GRPCToProto(c, route)
 	}
 }
