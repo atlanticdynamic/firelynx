@@ -7,8 +7,8 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 )
 
-// FromProto creates an AppCompositeScript from its protocol buffer representation.
-func FromProto(proto *settingsv1alpha1.AppCompositeScript) (*AppCompositeScript, error) {
+// FromProto creates a CompositeScript from its protocol buffer representation.
+func FromProto(proto *settingsv1alpha1.AppCompositeScript) (*CompositeScript, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -19,17 +19,17 @@ func FromProto(proto *settingsv1alpha1.AppCompositeScript) (*AppCompositeScript,
 		return nil, fmt.Errorf("%w: %w", ErrProtoConversion, err)
 	}
 
-	// Create and return the AppCompositeScript
-	return &AppCompositeScript{
+	// Create and return the CompositeScript
+	return &CompositeScript{
 		ScriptAppIDs: proto.ScriptAppIds,
 		StaticData:   staticData,
 	}, nil
 }
 
-// ToProto converts an AppCompositeScript to its protocol buffer representation.
-func (s *AppCompositeScript) ToProto() (*settingsv1alpha1.AppCompositeScript, error) {
+// ToProto converts a CompositeScript to its protocol buffer representation.
+func (s *CompositeScript) ToProto() *settingsv1alpha1.AppCompositeScript {
 	if s == nil {
-		return nil, nil
+		return nil
 	}
 
 	// Create the protobuf message
@@ -39,12 +39,8 @@ func (s *AppCompositeScript) ToProto() (*settingsv1alpha1.AppCompositeScript, er
 
 	// Convert static data if present
 	if s.StaticData != nil {
-		staticDataProto, err := s.StaticData.ToProto()
-		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrProtoConversion, err)
-		}
-		proto.StaticData = staticDataProto
+		proto.StaticData = s.StaticData.ToProto()
 	}
 
-	return proto, nil
+	return proto
 }

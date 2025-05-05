@@ -12,8 +12,7 @@ import (
 func TestStaticDataToProto(t *testing.T) {
 	t.Run("NilStaticData", func(t *testing.T) {
 		var sd *StaticData
-		pb, err := sd.ToProto()
-		require.NoError(t, err)
+		pb := sd.ToProto()
 		assert.Nil(t, pb)
 	})
 
@@ -21,8 +20,7 @@ func TestStaticDataToProto(t *testing.T) {
 		sd := &StaticData{
 			MergeMode: StaticDataMergeModeUnspecified,
 		}
-		pb, err := sd.ToProto()
-		require.NoError(t, err)
+		pb := sd.ToProto()
 		require.NotNil(t, pb.MergeMode)
 		assert.Equal(
 			t,
@@ -41,8 +39,7 @@ func TestStaticDataToProto(t *testing.T) {
 			},
 			MergeMode: StaticDataMergeModeLast,
 		}
-		pb, err := sd.ToProto()
-		require.NoError(t, err)
+		pb := sd.ToProto()
 		require.NotNil(t, pb.MergeMode)
 		assert.Equal(
 			t,
