@@ -6,6 +6,7 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/robbyt/protobaggins"
 )
 
 // ToProto converts a Listeners collection to a slice of protobuf Listener messages
@@ -17,8 +18,8 @@ func (listeners Listeners) ToProto() []*pb.Listener {
 	pbListeners := make([]*pb.Listener, 0, len(listeners))
 	for _, l := range listeners {
 		pbListener := &pb.Listener{
-			Id:      &l.ID,
-			Address: &l.Address,
+			Id:      protobaggins.StringToProto(l.ID),
+			Address: protobaggins.StringToProto(l.Address),
 		}
 
 		// Convert options
@@ -48,8 +49,8 @@ func FromProto(pbListeners []*pb.Listener) (Listeners, error) {
 	listeners := make(Listeners, 0, len(pbListeners))
 	for _, l := range pbListeners {
 		listenerObj := Listener{
-			ID:      getStringValue(l.Id),
-			Address: getStringValue(l.Address),
+			ID:      protobaggins.StringFromProto(l.Id),
+			Address: protobaggins.StringFromProto(l.Address),
 		}
 
 		// Convert protocol-specific options
@@ -65,12 +66,4 @@ func FromProto(pbListeners []*pb.Listener) (Listeners, error) {
 	}
 
 	return listeners, nil
-}
-
-// Helper function to safely get string value from a string pointer
-func getStringValue(ptr *string) string {
-	if ptr == nil {
-		return ""
-	}
-	return *ptr
 }

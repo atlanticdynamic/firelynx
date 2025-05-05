@@ -5,6 +5,7 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/robbyt/protobaggins"
 )
 
 // ToProto converts an Endpoints collection to a slice of protobuf Endpoints
@@ -20,7 +21,7 @@ func (endpoints Endpoints) ToProto() []*pb.Endpoint {
 // ToProto converts an Endpoint to a protobuf Endpoint
 func (e *Endpoint) ToProto() *pb.Endpoint {
 	pbEndpoint := &pb.Endpoint{
-		Id:          &e.ID,
+		Id:          protobaggins.StringToProto(e.ID),
 		ListenerIds: e.ListenerIDs,
 	}
 
@@ -46,10 +47,7 @@ func FromProto(pbEndpoints []*pb.Endpoint) (Endpoints, error) {
 			continue
 		}
 
-		var id string
-		if e.Id != nil {
-			id = *e.Id
-		}
+		id := protobaggins.StringFromProto(e.Id)
 
 		if id == "" {
 			return nil, fmt.Errorf("endpoint has nil or empty ID")

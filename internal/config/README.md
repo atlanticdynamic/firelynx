@@ -13,7 +13,7 @@ The config package has been organized into modular components following a consis
 * `internal/config/logs/`: Logging configuration types and operations
 * `internal/config/loader/`: Configuration loading from different formats/sources
 * `internal/config/errz/`: Common error types and handling
-* `internal/config/protohelpers/`: Utilities for protocol buffer conversions
+* Using `github.com/robbyt/protobaggins` for protocol buffer conversions
 
 ## Common File Patterns
 
