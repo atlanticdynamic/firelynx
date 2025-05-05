@@ -14,12 +14,9 @@ type Endpoint struct {
 	Routes      routes.Routes
 }
 
-// GetStructuredHTTPRoutes returns all HTTP routes for this endpoint in a structured format
+// GetStructuredHTTPRoutes returns all HTTP routes for this endpoint in a structured format.
+// It extracts routes with HTTP conditions and returns them as the more type-safe HTTPRoute
+// structure with path, app ID, and static data explicitly defined.
 func (e *Endpoint) GetStructuredHTTPRoutes() []routes.HTTPRoute {
 	return e.Routes.GetStructuredHTTPRoutes()
-}
-
-// GetHTTPRoutes returns routes with HTTP conditions from an endpoint
-func (e *Endpoint) GetHTTPRoutes() routes.Routes {
-	return e.Routes.GetHTTPRoutes()
 }
