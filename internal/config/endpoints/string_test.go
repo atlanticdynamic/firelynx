@@ -146,7 +146,7 @@ func TestRoute_String(t *testing.T) {
 func TestEndpoints_String(t *testing.T) {
 	t.Parallel()
 
-	endpoints := Endpoints{
+	endpoints := EndpointCollection{
 		{
 			ID:          "endpoint1",
 			ListenerIDs: []string{"listener1"},

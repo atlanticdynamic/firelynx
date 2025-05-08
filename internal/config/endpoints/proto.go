@@ -9,7 +9,7 @@ import (
 )
 
 // ToProto converts an Endpoints collection to a slice of protobuf Endpoints
-func (endpoints Endpoints) ToProto() []*pb.Endpoint {
+func (endpoints EndpointCollection) ToProto() []*pb.Endpoint {
 	pbEndpoints := make([]*pb.Endpoint, 0, len(endpoints))
 	for _, e := range endpoints {
 		pbEndpoint := e.ToProto()
@@ -36,12 +36,12 @@ func (e *Endpoint) ToProto() *pb.Endpoint {
 // FromProto converts protobuf Endpoint messages to a domain Endpoints collection.
 // If no endpoints are provided, it returns nil.
 // Returns an error if any endpoint validation fails (like missing ID or empty listener IDs).
-func FromProto(pbEndpoints []*pb.Endpoint) (Endpoints, error) {
+func FromProto(pbEndpoints []*pb.Endpoint) (EndpointCollection, error) {
 	if len(pbEndpoints) == 0 {
 		return nil, nil
 	}
 
-	endpoints := make(Endpoints, 0, len(pbEndpoints))
+	endpoints := make(EndpointCollection, 0, len(pbEndpoints))
 	for _, e := range pbEndpoints {
 		if e == nil {
 			continue

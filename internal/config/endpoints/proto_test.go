@@ -186,7 +186,7 @@ func TestRoute_ToProto(t *testing.T) {
 func TestEndpoints_ToProto(t *testing.T) {
 	t.Parallel()
 
-	endpoints := Endpoints{
+	endpoints := EndpointCollection{
 		{
 			ID:          "endpoint1",
 			ListenerIDs: []string{"http1"},
@@ -268,7 +268,7 @@ func TestFromProto(t *testing.T) {
 	tests := []struct {
 		name        string
 		pbEndpoints []*pb.Endpoint
-		expected    Endpoints
+		expected    EndpointCollection
 		expectError bool
 	}{
 		{
@@ -299,7 +299,7 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 			},
-			expected: Endpoints{
+			expected: EndpointCollection{
 				{
 					ID:          "endpoint1",
 					ListenerIDs: []string{"http1"},
@@ -341,7 +341,7 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 			},
-			expected: Endpoints{
+			expected: EndpointCollection{
 				{
 					ID:          "endpoint1",
 					ListenerIDs: []string{"http1"},

@@ -4,14 +4,14 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 )
 
-// Endpoints is a collection of Endpoint objects
-type Endpoints []Endpoint
+// EndpointCollection is a collection of Endpoint objects
+type EndpointCollection []Endpoint
 
 // Endpoint represents a routing configuration for incoming requests
 type Endpoint struct {
 	ID          string
 	ListenerIDs []string
-	Routes      routes.Routes
+	Routes      routes.RouteCollection
 }
 
 // GetStructuredHTTPRoutes returns all HTTP routes for this endpoint in a structured format.

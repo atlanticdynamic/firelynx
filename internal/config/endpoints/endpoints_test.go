@@ -169,7 +169,7 @@ func TestEndpoints_CollectionOperations(t *testing.T) {
 	t.Run("Iteration", func(t *testing.T) {
 		t.Parallel()
 
-		endpoints := Endpoints{endpoint1, endpoint2}
+		endpoints := EndpointCollection{endpoint1, endpoint2}
 
 		var ids []string
 		for _, e := range endpoints {
@@ -182,7 +182,7 @@ func TestEndpoints_CollectionOperations(t *testing.T) {
 	t.Run("Append", func(t *testing.T) {
 		t.Parallel()
 
-		endpoints := Endpoints{endpoint1}
+		endpoints := EndpointCollection{endpoint1}
 		endpoints = append(endpoints, endpoint2)
 
 		assert.Equal(t, 2, len(endpoints))
@@ -193,7 +193,7 @@ func TestEndpoints_CollectionOperations(t *testing.T) {
 	t.Run("Length", func(t *testing.T) {
 		t.Parallel()
 
-		endpoints := Endpoints{endpoint1, endpoint2}
+		endpoints := EndpointCollection{endpoint1, endpoint2}
 		assert.Equal(t, 2, len(endpoints))
 	})
 }

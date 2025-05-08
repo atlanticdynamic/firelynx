@@ -63,7 +63,7 @@ func (e *Endpoint) ToTree() *fancy.ComponentTree {
 }
 
 // String returns a string representation of the Endpoints collection
-func (endpoints Endpoints) String() string {
+func (endpoints EndpointCollection) String() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Endpoints: %d", len(endpoints))
 

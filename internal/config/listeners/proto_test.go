@@ -18,17 +18,17 @@ func TestToProto(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		listeners Listeners
+		listeners ListenerCollection
 		expected  []*pb.Listener
 	}{
 		{
 			name:      "Empty listeners",
-			listeners: Listeners{},
+			listeners: ListenerCollection{},
 			expected:  nil,
 		},
 		{
 			name: "Single HTTP listener",
-			listeners: Listeners{
+			listeners: ListenerCollection{
 				{
 					ID:      "http-listener",
 					Address: "127.0.0.1:8080",
@@ -57,7 +57,7 @@ func TestToProto(t *testing.T) {
 		},
 		{
 			name: "Single gRPC listener",
-			listeners: Listeners{
+			listeners: ListenerCollection{
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
@@ -84,7 +84,7 @@ func TestToProto(t *testing.T) {
 		},
 		{
 			name: "Multiple listeners",
-			listeners: Listeners{
+			listeners: ListenerCollection{
 				{
 					ID:      "http-listener-1",
 					Address: "127.0.0.1:8080",
@@ -240,7 +240,7 @@ func TestFromProto(t *testing.T) {
 	tests := []struct {
 		name          string
 		pbListeners   []*pb.Listener
-		expected      Listeners
+		expected      ListenerCollection
 		expectedError bool
 	}{
 		{
@@ -265,7 +265,7 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 			},
-			expected: Listeners{
+			expected: ListenerCollection{
 				{
 					ID:      "http-listener",
 					Address: "127.0.0.1:8080",
@@ -294,7 +294,7 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 			},
-			expected: Listeners{
+			expected: ListenerCollection{
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
@@ -331,7 +331,7 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 			},
-			expected: Listeners{
+			expected: ListenerCollection{
 				{
 					ID:      "http-listener-1",
 					Address: "127.0.0.1:8080",
@@ -377,7 +377,7 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 			},
-			expected: Listeners{
+			expected: ListenerCollection{
 				{
 					ID:      "",
 					Address: "",
@@ -490,7 +490,7 @@ func TestRoundTripConversion(t *testing.T) {
 	t.Parallel()
 
 	// Create listeners with various options
-	original := Listeners{
+	original := ListenerCollection{
 		{
 			ID:      "http-listener",
 			Address: "127.0.0.1:8080",
