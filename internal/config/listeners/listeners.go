@@ -6,8 +6,8 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 )
 
-// Listeners is a collection of Listener objects
-type Listeners []Listener
+// ListenerCollection is a collection of Listener objects
+type ListenerCollection []Listener
 
 // Listener represents a network listener configuration
 type Listener struct {

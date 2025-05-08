@@ -14,7 +14,7 @@ import (
 )
 
 // ToProto converts the Apps collection to a slice of protobuf AppDefinition messages
-func (apps Apps) ToProto() []*pb.AppDefinition {
+func (apps AppCollection) ToProto() []*pb.AppDefinition {
 	if len(apps) == 0 {
 		return nil
 	}
@@ -81,7 +81,7 @@ func (apps Apps) ToProto() []*pb.AppDefinition {
 // ToProto converts a slice of domain App objects to protobuf AppDefinition messages
 // Deprecated: Use the Apps.ToProto() method instead
 func ToProto(apps []App) []*pb.AppDefinition {
-	return Apps(apps).ToProto()
+	return AppCollection(apps).ToProto()
 }
 
 // FromProto converts a slice of protobuf AppDefinition messages to domain App objects

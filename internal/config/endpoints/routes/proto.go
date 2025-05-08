@@ -54,7 +54,7 @@ func RouteFromProto(r *pb.Route) Route {
 }
 
 // ToProto converts Routes to a slice of protobuf Routes
-func (r Routes) ToProto() []*pb.Route {
+func (r RouteCollection) ToProto() []*pb.Route {
 	pbRoutes := make([]*pb.Route, 0, len(r))
 	for i := range r {
 		pbRoute := r[i].ToProto()
@@ -64,12 +64,12 @@ func (r Routes) ToProto() []*pb.Route {
 }
 
 // FromProto converts a slice of protobuf Route messages to a domain Routes collection.
-func FromProto(pbRoutes []*pb.Route) Routes {
+func FromProto(pbRoutes []*pb.Route) RouteCollection {
 	if len(pbRoutes) == 0 {
 		return nil
 	}
 
-	routes := make(Routes, 0, len(pbRoutes))
+	routes := make(RouteCollection, 0, len(pbRoutes))
 	for _, r := range pbRoutes {
 		if r == nil {
 			continue

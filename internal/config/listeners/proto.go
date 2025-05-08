@@ -10,7 +10,7 @@ import (
 )
 
 // ToProto converts a Listeners collection to a slice of protobuf Listener messages
-func (listeners Listeners) ToProto() []*pb.Listener {
+func (listeners ListenerCollection) ToProto() []*pb.Listener {
 	if len(listeners) == 0 {
 		return nil
 	}
@@ -41,12 +41,12 @@ func (listeners Listeners) ToProto() []*pb.Listener {
 }
 
 // FromProto converts protobuf Listener messages to a domain Listeners collection
-func FromProto(pbListeners []*pb.Listener) (Listeners, error) {
+func FromProto(pbListeners []*pb.Listener) (ListenerCollection, error) {
 	if len(pbListeners) == 0 {
 		return nil, nil
 	}
 
-	listeners := make(Listeners, 0, len(pbListeners))
+	listeners := make(ListenerCollection, 0, len(pbListeners))
 	for _, l := range pbListeners {
 		listenerObj := Listener{
 			ID:      protobaggins.StringFromProto(l.Id),

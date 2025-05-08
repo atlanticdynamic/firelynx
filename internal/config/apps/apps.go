@@ -17,8 +17,8 @@ type App struct {
 	Config AppConfig
 }
 
-// Apps is a collection of App definitions
-type Apps []App
+// AppCollection is a collection of App definitions
+type AppCollection []App
 
 // AppConfig represents application-specific configuration
 type AppConfig interface {
@@ -48,7 +48,7 @@ func (a App) Validate() error {
 }
 
 // FindByID finds an app by its ID
-func (a Apps) FindByID(id string) *App {
+func (a AppCollection) FindByID(id string) *App {
 	for i, app := range a {
 		if app.ID == id {
 			return &a[i]
@@ -58,7 +58,7 @@ func (a Apps) FindByID(id string) *App {
 }
 
 // Validate checks that app configurations are valid
-func (a Apps) Validate() error {
+func (a AppCollection) Validate() error {
 	if len(a) == 0 {
 		return nil // Empty app list is valid
 	}
@@ -118,7 +118,7 @@ func (a Apps) Validate() error {
 }
 
 // ValidateRouteAppReferences ensures all routes reference valid apps
-func (a Apps) ValidateRouteAppReferences(routes []struct{ AppID string }) error {
+func (a AppCollection) ValidateRouteAppReferences(routes []struct{ AppID string }) error {
 	// Build map of app IDs for quick lookup
 	appIDs := make(map[string]bool)
 	for _, app := range a {
@@ -144,7 +144,7 @@ func (a Apps) ValidateRouteAppReferences(routes []struct{ AppID string }) error 
 }
 
 // AppsToInstances converts app definitions to running instances
-func AppsToInstances(appDefs Apps) (map[string]apps.App, error) {
+func AppsToInstances(appDefs AppCollection) (map[string]apps.App, error) {
 	// Validate app definitions first
 	if err := appDefs.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid app configuration: %w", err)

@@ -26,9 +26,9 @@ const (
 type Config struct {
 	Version   string
 	Logging   logs.Config
-	Listeners listeners.Listeners
-	Endpoints endpoints.Endpoints
-	Apps      apps.Apps
+	Listeners listeners.ListenerCollection
+	Endpoints endpoints.EndpointCollection
+	Apps      apps.AppCollection
 
 	// Keep reference to raw protobuf for debugging
 	rawProto any

@@ -7,8 +7,8 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
-// Routes is a collection of Route objects
-type Routes []Route
+// RouteCollection is a collection of Route objects
+type RouteCollection []Route
 
 // Route represents a rule for directing traffic to an application
 type Route struct {
@@ -34,7 +34,7 @@ func (r *Route) ToTree() *fancy.ComponentTree {
 // GetStructuredHTTPRoutes returns HTTP routes from this collection in a structured format.
 // This extracts routes with HTTP conditions and returns them as the more type-safe HTTPRoute
 // structure with path, app ID, and static data explicitly defined.
-func (r Routes) GetStructuredHTTPRoutes() []HTTPRoute {
+func (r RouteCollection) GetStructuredHTTPRoutes() []HTTPRoute {
 	var httpRoutes []HTTPRoute
 
 	for _, route := range r {

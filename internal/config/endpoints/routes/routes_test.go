@@ -12,19 +12,19 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		routes         Routes
+		routes         RouteCollection
 		expectedCount  int
 		expectNonEmpty bool
 	}{
 		{
 			name:           "No Routes",
-			routes:         Routes{},
+			routes:         RouteCollection{},
 			expectedCount:  0,
 			expectNonEmpty: false,
 		},
 		{
 			name: "No HTTP Routes",
-			routes: Routes{
+			routes: RouteCollection{
 				{
 					AppID:     "app1",
 					Condition: conditions.NewGRPC("service.v1"),
@@ -39,7 +39,7 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 		},
 		{
 			name: "Single HTTP Route",
-			routes: Routes{
+			routes: RouteCollection{
 				{
 					AppID:     "app1",
 					Condition: conditions.NewHTTP("/api/v1"),
@@ -54,7 +54,7 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 		},
 		{
 			name: "Multiple HTTP Routes",
-			routes: Routes{
+			routes: RouteCollection{
 				{
 					AppID:     "app1",
 					Condition: conditions.NewHTTP("/api/v1"),
@@ -76,7 +76,7 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 		},
 		{
 			name: "HTTP Routes with Static Data",
-			routes: Routes{
+			routes: RouteCollection{
 				{
 					AppID:     "app1",
 					Condition: conditions.NewHTTP("/api/v1"),
