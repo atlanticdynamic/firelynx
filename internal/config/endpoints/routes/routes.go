@@ -1,3 +1,43 @@
+// Package routes provides configuration types and utilities for request routing
+// in the firelynx server.
+//
+// This package defines the domain model for route configurations, which map
+// request conditions (like HTTP paths or gRPC service names) to applications.
+// It handles validation, protocol buffer conversion, and provides helper methods
+// for accessing route properties.
+//
+// The main types include:
+// - Route: Maps a condition to an application with optional static data
+// - RouteCollection: A slice of Route objects with validation and conversion methods
+// - HTTPRoute: A specialized, type-safe representation of HTTP routes
+// - Conditions are defined in the conditions sub-package
+//
+// Thread Safety:
+// The route configuration objects are not thread-safe and should be protected when
+// accessed concurrently. These objects are typically loaded during startup or configuration
+// reload operations, which should be properly synchronized.
+//
+// Usage Example:
+//
+//	// Create routes with different condition types
+//	routes := routes.RouteCollection{
+//	    {
+//	        AppID:     "http-handler",
+//	        Condition: conditions.NewHTTP("/api/v1"),
+//	        StaticData: map[string]any{"version": "1.0"},
+//	    },
+//	    {
+//	        AppID:     "grpc-handler",
+//	        Condition: conditions.NewGRPC("service.GreeterService"),
+//	        StaticData: map[string]any{"timeout": 30},
+//	    },
+//	}
+//
+//	// Get only HTTP routes in a type-safe format
+//	httpRoutes := routes.GetStructuredHTTPRoutes()
+//	for _, route := range httpRoutes {
+//	    fmt.Printf("HTTP Path: %s, App: %s\n", route.Path, route.AppID)
+//	}
 package routes
 
 import (
