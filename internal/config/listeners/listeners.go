@@ -1,3 +1,39 @@
+// Package listeners provides configuration types and utilities for network listeners
+// in the firelynx server.
+//
+// This package defines the domain model for listener configurations, supporting multiple
+// protocol types through the options sub-package. It handles validation, conversion
+// between domain and protocol buffer representations, and provides helper methods for
+// accessing protocol-specific configurations.
+//
+// The main types include:
+// - Listener: Represents a single listener with an ID, address, and protocol-specific options
+// - ListenerCollection: A slice of Listener objects with validation and conversion methods
+//
+// Thread Safety:
+// The listener configuration objects are not thread-safe and should be protected when
+// accessed concurrently. These objects are typically loaded during startup or configuration
+// reload operations, which should be properly synchronized.
+//
+// Usage Example:
+//
+//	// Create an HTTP listener
+//	httpListener := listeners.Listener{
+//	    ID:      "http-main",
+//	    Address: "0.0.0.0:8080",
+//	    Options: options.HTTP{
+//	        ReadTimeout:  time.Second * 30,
+//	        WriteTimeout: time.Second * 30,
+//	    },
+//	}
+//
+//	// Create a collection
+//	listenerCollection := listeners.ListenerCollection{httpListener}
+//
+//	// Validate the configuration
+//	if err := listenerCollection.Validate(); err != nil {
+//	    return err
+//	}
 package listeners
 
 import (
