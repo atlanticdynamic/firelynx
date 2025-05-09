@@ -2,18 +2,43 @@
 
 This package defines the domain model for the Firelynx server configuration and provides utilities for loading, validating, and converting configuration data.
 
+## Core Purpose
+
+The domain configuration layer serves exactly three purposes:
+
+1. **Convert from proto to domain config**: Transform serialized protocol buffer data into strongly-typed Go domain models
+2. **Semantically validate config**: Verify relationships between resources, check valid app names and inputs, ensure referential integrity
+3. **Convert back to proto**: Transform domain models back to protocol buffers for serialization
+
+### Important Boundaries
+
+The domain config layer does **not** handle:
+- Instantiation of runtime components or app instances
+- Execution of any business logic
+- Runtime request routing or handling
+
+This clear separation ensures the domain config remains a pure data model with validation. Runtime execution is the responsibility of the `internal/server` packages.
+
 ## Package Structure
 
 The config package has been organized into modular components following a consistent pattern:
 
 * `internal/config/`: Top-level domain types and orchestration
 * `internal/config/apps/`: Application definition types and operations
+  * `internal/config/apps/echo/`: Echo app configuration
+  * `internal/config/apps/scripts/`: Script app configuration
+    * `internal/config/apps/scripts/evaluators/`: Script evaluator implementations (Risor, Starlark, Extism)
+  * `internal/config/apps/composite/`: Composite script app configuration that combines multiple script apps
 * `internal/config/endpoints/`: Endpoint and route types and operations
+  * `internal/config/endpoints/routes/`: Route definitions and conditions
+    * `internal/config/endpoints/routes/conditions/`: Route matching conditions (HTTP, gRPC)
 * `internal/config/listeners/`: Network listener types and operations
+  * `internal/config/listeners/options/`: Protocol-specific listener options
 * `internal/config/logs/`: Logging configuration types and operations
 * `internal/config/loader/`: Configuration loading from different formats/sources
+* `internal/config/staticdata/`: Shared static data types and operations
 * `internal/config/errz/`: Common error types and handling
-* Using `github.com/robbyt/protobaggins` for protocol buffer conversions
+* `internal/config/styles/`: Formatting and display styles for components
 
 ## Common File Patterns
 
@@ -23,6 +48,7 @@ Each sub-package follows a consistent file organization pattern:
    - `apps/apps.go`, `endpoints/endpoints.go`, `listeners/listeners.go`, `logs/logs.go`
    - Primary domain model types and interfaces
    - Type-specific operations and methods
+   - Collection types follow the singular noun + "Collection" convention (e.g., `AppCollection`, `EndpointCollection`)
 
 2. **Protocol Buffer Conversion**:
    - `apps/proto.go`, `endpoints/proto.go`, `listeners/proto.go`
@@ -64,6 +90,83 @@ Each sub-package follows a consistent file organization pattern:
 
 * **Errors (`errors.go`)**: Defines sentinel errors used throughout the package. Standardizes error types for consistent handling.
 
+## Hierarchical Operation Patterns
+
+The config package uses a hierarchical design where parent objects call their children's methods to perform operations. This pattern is consistently applied for:
+
+### 1. Validation Chain
+
+Validation follows a top-down pattern where each component:
+- Validates its own properties first
+- Calls `Validate()` on all child components
+- Aggregates and returns all errors using `errors.Join()`
+
+Example flow:
+```
+Config.Validate()
+  ├── Logging.Validate()
+  ├── Listeners.Validate()
+  │     └── For each Listener: Listener.Validate()
+  ├── Endpoints.Validate()
+  │     └── For each Endpoint: Endpoint.Validate()
+  │           └── Routes.Validate()
+  │                 └── For each Route: Route.Validate()
+  │                       └── Condition.Validate()
+  └── Apps.Validate()
+        └── For each App: App.Validate()
+              └── AppConfig.Validate() (Script/CompositeScript/Echo)
+                    └── Evaluator.Validate() (for script apps)
+                    └── StaticData.Validate() (if present)
+```
+
+### 2. Protocol Buffer Conversion
+
+Conversion to/from protocol buffers follows a similar hierarchy:
+- Parent objects call `ToProto()` on all child objects 
+- Objects are responsible for converting their own fields
+- Child objects are assembled into the parent's protocol buffer structure
+
+Example flow:
+```
+Config.ToProto()
+  ├── Logging.ToProto()
+  ├── Listeners.ToProto()
+  │     └── For each Listener: Listener.ToProto()
+  │           └── Options.ToProto() (HTTP/gRPC specific)
+  ├── Endpoints.ToProto()
+  │     └── For each Endpoint: Endpoint.ToProto()
+  │           └── Routes.ToProto()
+  │                 └── For each Route: Route.ToProto()
+  │                       └── Condition.ToProto()
+  │                       └── StaticData.ToProto() (if present)
+  └── Apps.ToProto()
+        └── For each App: App.ToProto()
+              └── AppConfig.ToProto() (Script/CompositeScript/Echo)
+                    └── Evaluator.ToProto() (for script apps)
+                    └── StaticData.ToProto() (if present)
+```
+
+### 3. Tree Generation for Visualization
+
+Tree generation for visualization follows a similar pattern:
+- Parent objects call `ToTree()` on all child objects
+- Each object is responsible for formatting its own properties
+- Child trees are added as branches to the parent tree
+
+Example flow:
+```
+Config.String() (calls ConfigTree)
+  ├── Logging.ToTree()
+  ├── Listeners.ToTree()
+  │     └── For each Listener: Listener.ToTree()
+  ├── Endpoints.ToTree()
+  │     └── For each Endpoint: Endpoint.ToTree()
+  │           └── Routes.ToTree()
+  └── Apps.ToTree()
+        └── For each App: App.ToTree()
+              └── AppConfig.ToTree() (Script/CompositeScript/Echo)
+```
+
 ## Core Concepts
 
 * **Domain Model First**: The package is designed to work with Go domain models internally while using protobuf for serialization and transport.
@@ -99,9 +202,17 @@ The domain model contains several key relationships:
    - Each App can be referenced by multiple Routes
    - This allows the same App to be accessible through different routes
 
-4. **CompositeScriptApp and ScriptApps**:
-   - CompositeScriptApp references one or more ScriptApps through `ScriptAppIDs`
-   - This allows composing multiple script apps into a single logical app
+4. **App Types**:
+   - `App` is the container for any app configuration
+   - Three main app types implement the `AppConfig` interface:
+     - `Echo`: Simple app that echoes back information
+     - `AppScript`: Script app using a specific evaluator (Risor, Starlark, Extism)
+     - `CompositeScript`: References multiple script apps via `ScriptAppIDs`
+
+5. **Static Data**:
+   - Both Routes and Apps can have associated static data 
+   - Static data provides configuration values to apps at runtime
+   - The `StaticData` type includes both data and merge strategy
 
 ### Loading Configuration
 
@@ -140,9 +251,8 @@ func main() {
     log.Printf("Loaded config version: %s", cfg.Version)
     
     // Access apps
-    risorApps := cfg.Apps.FindByType("risor")
-    for _, app := range risorApps {
-        log.Printf("Found Risor app: %s", app.ID)
+    for _, app := range cfg.Apps {
+        log.Printf("Found app: %s (type: %s)", app.ID, app.Config.Type())
     }
     
     // Find app by ID
@@ -163,7 +273,7 @@ If you have a domain `*Config` object and need its Protobuf representation, use 
 // Assume 'cfg' is a valid *config.Config object
 pbConfig := cfg.ToProto()
 
-// Now pbConfig is a *pbSettings.ServerConfig object
+// Now pbConfig is a *pb.ServerConfig object
 // You can use it for serialization, sending over network, etc.
 ```
 
@@ -172,25 +282,27 @@ pbConfig := cfg.ToProto()
 ```
 Config
 ├── Logging (logs.Config)
-├── Listeners (listeners.Listeners)
+├── Listeners (listeners.ListenerCollection)
 │   ├── ID
 │   ├── Address
 │   ├── Type (HTTP/gRPC)
 │   └── Options (HTTPOptions/GRPCOptions)
-├── Endpoints (endpoints.Endpoints)
+├── Endpoints (endpoints.EndpointCollection)
 │   ├── ID
 │   ├── ListenerIDs
-│   └── Routes
+│   └── Routes (routes.RouteCollection)
 │       ├── AppID
 │       ├── StaticData
 │       └── Condition (HTTPPathCondition/GRPCServiceCondition)
-└── Apps (apps.Apps)
+└── Apps (apps.AppCollection)
     ├── ID
-    └── Config
-        ├── ScriptApp
+    └── Config (AppConfig interface)
+        ├── Echo
+        │   └── Response
+        ├── AppScript
         │   ├── StaticData
         │   └── Evaluator (Risor/Starlark/Extism)
-        └── CompositeScriptApp
+        └── CompositeScript
             ├── ScriptAppIDs
             └── StaticData
 ```
@@ -200,8 +312,10 @@ The configuration model follows a clear structure:
 - Endpoints reference Listeners via ListenerIDs
 - Routes within Endpoints reference Apps via AppID
 - Routes use different Condition types to determine routing rules
-- Apps can contain different configurations (ScriptApp, CompositeScriptApp)
-- Apps with CompositeScriptApp configuration reference other apps via ScriptAppIDs
+- Apps can contain different configurations implementing the AppConfig interface:
+  - Echo: Simple response app
+  - AppScript: Script with an evaluator (Risor, Starlark, Extism)
+  - CompositeScript: Collection of script apps
 
 ## Component-Specific Sub-Packages
 
@@ -209,22 +323,61 @@ The configuration model follows a clear structure:
 
 The apps package encapsulates all application-related configuration:
 
-* **App Types (`apps.go`)**: Defines app-specific types like `App`, `ScriptApp`, and various evaluator types (`RisorEvaluator`, `StarlarkEvaluator`, `ExtismEvaluator`).
+* **App Types (`apps.go`, `types.go`)**: Defines the main `App` struct, `AppCollection` type, and the `AppConfig` interface implemented by all app types.
 * **Proto Conversion (`proto.go`)**: Converts between domain App types and protobuf representations.
 * **Validation (`validate.go`)**: Contains app-specific validation logic, including reference validation between composite apps.
 * **String Representation (`string.go`)**: Human-readable output and tree visualization.
-* **Collection Operations**: Provides methods like `FindByID` and `FindByType` for working with collections of apps.
-* **Evaluator Type Interface**: Defines a common interface for different script evaluation engines.
+* **Collection Operations**: Provides methods like `FindByID` for working with collections of apps.
+* **App Implementations**: Several subpackages implement specific app types:
+  * `echo`: Simple response-based apps
+  * `scripts`: Script-based apps with different evaluators
+  * `composite`: Apps that combine multiple script apps
+
+### Echo Apps (`internal/config/apps/echo`)
+
+The echo package provides a simple app type that echoes back request information:
+
+* **Types (`echo.go`)**: Defines the `Echo` struct and methods.
+* **Proto Conversion (`proto.go`)**: Converts between domain Echo and protobuf.
+* **Validation**: Basic validation to ensure the Echo app has a response.
+
+### Script Apps (`internal/config/apps/scripts`)
+
+The scripts package provides script-based app configurations:
+
+* **Types (`types.go`)**: Defines the `AppScript` struct.
+* **Evaluators (`evaluators/`)**: Contains different script evaluation engines:
+  * `RisorEvaluator`: For evaluating Risor scripts
+  * `StarlarkEvaluator`: For evaluating Starlark scripts
+  * `ExtismEvaluator`: For evaluating WebAssembly via Extism
+* **Proto Conversion (`proto.go`)**: Converts between domain AppScript and protobuf.
+* **Validation (`validate.go`)**: Validates script app configurations.
+
+### Composite Script Apps (`internal/config/apps/composite`)
+
+The composite package provides a way to combine multiple script apps:
+
+* **Types (`types.go`)**: Defines the `CompositeScript` struct.
+* **Proto Conversion (`proto.go`)**: Converts between domain CompositeScript and protobuf.
+* **Validation (`validate.go`)**: Validates composite script app configurations.
+
+### Static Data (`internal/config/staticdata`)
+
+The staticdata package provides types for passing configuration data:
+
+* **Types (`types.go`)**: Defines the `StaticData` struct with data map and merge mode.
+* **Proto Conversion (`proto.go`)**: Converts between domain StaticData and protobuf.
+* **Validation (`validate.go`)**: Validates static data configurations.
 
 ### Endpoints Package (`internal/config/endpoints`)
 
 The endpoints package handles routing and protocol-independent endpoint configuration:
 
-* **Endpoint Types (`endpoints.go`)**: Defines the `Endpoint` and `Route` types.
+* **Endpoint Types (`endpoints.go`)**: Defines the `Endpoint` and `EndpointCollection` types.
 * **Proto Conversion (`proto.go`)**: Handles conversion to and from protobuf.
-* **Validation (`validate.go`)**: Validates endpoint and route configuration.
+* **Validation (`validate.go`)**: Validates endpoint configuration.
 * **String Representation (`string.go`)**: Creates human-readable output for endpoints.
-* **Route Conditions**: Implements different matching conditions (`HTTPPathCondition`, `GRPCServiceCondition`).
+* **Routes (`routes/`)**: Contains route definitions and conditions.
 * **Structured Routes**: Provides type-safe HTTP and gRPC route representations.
 
 ### Listeners Package (`internal/config/listeners`)
@@ -235,14 +388,14 @@ The listeners package manages network binding and protocol-specific options:
 * **Proto Conversion (`proto.go`)**: Converts between domain and protobuf representations.
 * **Validation (`validate.go`)**: Ensures listener configuration is valid.
 * **String Representation (`string.go`)**: Creates human-readable output for listeners.
-* **Protocol Options**: Type-safe options for HTTP and gRPC protocols.
+* **Protocol Options (`options/`)**: Type-safe options for HTTP and gRPC protocols.
 
 ### Logs Package (`internal/config/logs`)
 
 The logs package handles logging configuration:
 
 * **Log Types (`logs.go`)**: Defines types for log format and level.
-* **Proto Conversion (in `logs.go`)**: Converts between domain and protobuf.
+* **Proto Conversion (`proto.go`)**: Converts between domain and protobuf.
 * **Validation (`validate.go`)**: Validates logging configuration.
 * **String Representation (`string.go`)**: Creates human-readable output.
 
@@ -250,7 +403,7 @@ The logs package handles logging configuration:
 
 Within each sub-package:
 
-1. **Collection Types**: Each component has a plural collection type (`Apps`, `Endpoints`, `Listeners`) that provides collection-level operations.
+1. **Collection Types**: Each component has a collection type (`AppCollection`, `EndpointCollection`, `ListenerCollection`, `RouteCollection`) that provides collection-level operations.
 2. **Domain Methods**: Domain objects implement methods for common operations like validation, conversion, and string representation.
 3. **Type Safety**: Enums are implemented as typed constants with validation methods.
 4. **Error Handling**: Each package defines its own error types and validation logic.

@@ -4,7 +4,7 @@ This document describes the architecture of the firelynx application, its compon
 
 ## Overview
 
-firelynx (Model Context Protocol Application Layer) is a server application that implements the Model Context Protocol (MCP), enabling AI assistants to interact with custom tools, prompts, and resources. It is built with a modular design that emphasizes separation of concerns and enables hot-reloading of configurations.
+firelynx is a server application that provides configurable application routing and scripting capabilities. It is built with a modular design that emphasizes separation of concerns and enables hot-reloading of configurations.
 
 ## System Architecture
 
@@ -15,16 +15,16 @@ firelynx follows a client-server architecture where:
 3. **Configuration Client**: Sends configuration updates to the firelynx server
 
 ```
-┌────────────────┐    MCP Protocol    ┌───────────────┐
-│                │◄──────────────────►│               │
-│   MCP Client   │                    │  firelynx Server │
-│  (e.g. Claude) │                    │               │
-└────────────────┘                    │               │
-                      gRPC Listener   │               │
-┌────────────────┐   ( or protobuf )  │               │
-│  Configuration │◄──────────────────►│               │
-│     Client     │                    │               │
-└────────────────┘                    └───────────────┘
+┌────────────────┐    MCP Protocol    ┌─────────────────┐
+│                │◄──────────────────►│                 │
+│   MCP Client   │                    │                 │
+│  (e.g. Claude) │                    │                 │
+└────────────────┘                    │ firelynx Server │
+                      gRPC Listener   │                 │
+┌────────────────┐   ( or protobuf )  │                 │
+│  Configuration │◄──────────────────►│                 │
+│     Client     │                    │                 │
+└────────────────┘                    └────────────────┘
 ```
 
 ## Core Components
@@ -38,7 +38,7 @@ firelynx follows a three-layer architecture:
 ```
 ┌─────────────────────────────────────────┐
 │              Listeners                  │
-│  (MCP, HTTP/REST, gRPC, Unix Socket)    │
+│  (HTTP, gRPC, Unix Socket)              │
 └─────────────────┬───────────────────────┘
                   │
                   ▼
@@ -50,40 +50,31 @@ firelynx follows a three-layer architecture:
                   ▼
 ┌─────────────────────────────────────────┐
 │             Applications                │
-│  (Script Apps, MCP Implementations)     │
+│  (Echo App, Script Apps, Composite)     │
 └─────────────────────────────────────────┘
 ```
 
-- **Listeners**: Protocol-specific server components that accept connections
+- **Listeners**: Protocol-specific server components that accept connections (HTTP, gRPC)
 - **Endpoints**: Map incoming requests to the appropriate application
-- **Applications**: Implement functionality (scripts, MCP features)
+- **Applications**: Implement functionality (echo, scripts, composite scripts)
 
-### 2. State Management
+### 2. Lifecycle Management
 
-firelynx uses the `go-fsm` library for state management and lifecycle control:
+firelynx uses the `go-supervisor` package for component lifecycle management and coordination. While `go-fsm` is used internally by `go-supervisor`, the focus is on the supervisor pattern for managing components.
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│    FSM State    │    │ State Transition│    │  State Change   │
-│    Machine      │───►│     Logic       │───►│  Notifications  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        │                                             │
-        ▼                                             ▼
-┌─────────────────┐                        ┌─────────────────┐
-│ Component State │                        │ Client Response │
-│  Management     │                        │    Handling     │
-└─────────────────┘                        └─────────────────┘
-```
+Components in the system implement standard lifecycle interfaces:
 
-The standard server states are:
+1. **Runnable**: Components with a `Run(ctx)` method that runs until the context is canceled
+2. **Reloadable**: Components with a `Reload()` method that can update their configuration
+3. **Named**: Components with a `String()` method that provides a unique identifier
+
+The standard component lifecycle states are:
 - **New**: Initial state after creation
-- **Booting**: During startup initialization
 - **Running**: Normal operation
 - **Reloading**: During configuration update
 - **Stopping**: During graceful shutdown
 - **Stopped**: After shutdown completion
 - **Error**: Error condition
-- **Unknown**: Unrecoverable state
 
 ### 3. Hot Reload System
 
@@ -197,135 +188,137 @@ The application uses `urfave/cli` for command-line parsing and context-based coo
 
 ## Configuration System
 
-### Configuration Format
+### Configuration Format and Flow
 
-firelynx uses TOML for human-readable configuration, and Protocol Buffers for in-memory and over-the-wire representation:
+firelynx uses TOML for human-readable configuration and Protocol Buffers for in-memory storage and network transmission. The configuration system follows a domain-driven design approach with several key flows:
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│      TOML       │    │ Config Loader   │    │ Protocol Buffer │    │  Domain Model   │
-│  Config File    │───►│   & Marshaler   │───►│   Objects       │───►│  Configuration  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+#### Initial Loading Flow
 
-The configuration system follows a domain-driven design approach to abstract away Protocol Buffer implementation details:
+When the server starts and loads configuration from a file:
 
-1. **Human-Readable Format**: TOML is used for configuration files, providing a clean syntax for humans
-2. **Wire Format**: Protocol Buffers handle serialization for network transmission and storage
-3. **Domain Model**: Clean Go types represent the configuration in application code
-4. **Conversion Layer**: Handles mapping between domain model and Protocol Buffers
+1. **TOML → Protocol Buffers**:
+   - `loader.NewLoaderFromFilePath()` gets a loader for the TOML file
+   - `loader.LoadProto()` parses TOML and converts to Protocol Buffer objects
+
+2. **Protocol Buffers → Domain Model (for validation)**:
+   - `config.NewFromProto()` converts Protocol Buffers to Domain Model
+   - `config.Validate()` validates the domain model
+
+3. **Domain Model → Protocol Buffers (for storage)**:
+   - After validation, `domainConfig.ToProto()` converts back to Protocol Buffers
+   - The Protocol Buffer version is stored internally: `r.config = protoConfig`
+
+#### Access for Processing
+
+When components need configuration for processing:
+
+1. **Protocol Buffers → Domain Model**:
+   - `GetPbConfigClone()` gets a copy of the stored Protocol Buffer
+   - `config.NewFromProto()` converts to domain model for processing
+
+2. **Domain Model → Service-Specific Format**:
+   - For HTTP components, `GetHTTPConfigCallback()` transforms domain model to HTTP config
+   - Each service gets a configuration format tailored to its needs
+
+#### Configuration Update Flow via gRPC
+
+When a client updates configuration via gRPC:
+
+1. **Protocol Buffers (wire) → Domain Model (validation)**:
+   - Client sends Protocol Buffer objects over gRPC
+   - Server converts to domain model: `config.NewFromProto(req.Config)`
+   - Validates with `domainConfig.Validate()`
+
+2. **Protocol Buffers (storage)**:
+   - Original Protocol Buffer is stored: `r.config = req.Config`
+   - Reload notification is sent to components
+
+This architecture provides:
+1. **Type Safety**: Strong typing for configuration elements
+2. **Validation**: Domain-specific validation rules
+3. **Maintainability**: Changes to the Protocol Buffer schema don't affect application code
+4. **Idiomatic Go**: The domain model follows Go best practices
 
 ### Domain Configuration Model
 
-The configuration domain model provides a clean API for working with configuration:
+The domain model follows a consistent pattern for all configuration components:
 
-```go
-// Config represents the complete server configuration
-type Config struct {
-    Version   string
-    Logging   LoggingConfig
-    Listeners []Listener
-    Endpoints []Endpoint
-    Apps      []App
-}
+1. **Collection Types**: Each component uses a collection type (e.g., `AppCollection`, `EndpointCollection`) that follows the "singular noun + Collection" naming convention.
 
-// Listener represents a network listener configuration
-type Listener struct {
-    ID      string
-    Address string
-    Type    ListenerType
-    Options ListenerOptions
-}
+2. **Interface-Based Design**: App configurations implement a common `AppConfig` interface, allowing different app types (Echo, Script, Composite) to be handled polymorphically.
 
-// Endpoint represents a routing configuration
-type Endpoint struct {
-    ID          string
-    ListenerIDs []string
-    Routes      []Route
-}
+3. **Package Structure**: Each major component has its own package with consistent file organization:
+   - Core types and collections
+   - Protocol buffer conversion
+   - Validation logic
+   - String/tree representation
+   - Error handling
 
-// App represents an application definition
-type App struct {
-    ID     string
-    Config AppConfig
-}
-```
-
-This domain model provides several benefits:
-
+This design provides:
 1. **Type Safety**: Strong typing for configuration elements
 2. **Validation**: Domain-specific validation rules
 3. **Maintainability**: Changes to the Protocol Buffer schema don't affect application code
 4. **Idiomatic Go**: The domain model follows Go best practices
 5. **Separation of Concerns**: Serialization logic is kept separate from business logic
 
-## Script Application Types
+## App Types
 
-firelynx supports different types of script applications:
+firelynx supports different types of applications:
 
-1. **ScriptApp**: Single script executed for each request
-2. **CompositeScriptApp**: Chain of scripts executed in sequence
-3. **McpApp**: Specialized script apps implementing MCP features (tools, prompts, resources)
+1. **EchoApp**: Simple app that echoes back request information (currently implemented)
+2. **ScriptApp**: App powered by script in one of several languages (structure implemented, echo handler used as placeholder)
+   - **RisorScript**: Go-like scripting language
+   - **StarlarkScript**: Python-like configuration language
+   - **ExtismScript**: WebAssembly-based scripts
+3. **CompositeScriptApp**: Chain of script apps executed in sequence (structure implemented, echo handler used as placeholder)
 
-## MCP Implementation Details
+## App Registry and Instantiation
 
-### Tools Implementation
+The app registry system manages the creation and lookup of app instances:
 
-MCP tools are implemented as script applications that:
+1. **Apps Factory**: Converts app configurations to running instances via `AppsToInstances`
+2. **App Registry**: Stores app instances by ID for runtime access
+3. **Route-to-App Mapping**: Maps HTTP routes to the appropriate app instances
 
-1. Receive parameters as input
-2. Process the parameters using scripts
-3. Return results in the MCP tool response format
+This process ensures that:
+- App configurations are validated before instantiation
+- Apps are properly initialized with their configuration
+- Routing can find the correct app instance for each request
+- Different app types can be used interchangeably
 
-Each tool provides:
-- Name and description
-- Parameter schema (JSON Schema)
-- Script implementation
-- Optional static data
+## HTTP Server Implementation
 
-### Prompts Implementation
+The HTTP server implementation uses a composite runner pattern:
 
-MCP prompts are implemented as script applications that:
+1. **HTTP Runner**: Manages the lifecycle of multiple HTTP listeners
+2. **Composite Runner**: Dynamically adds and removes HTTP servers based on configuration
+3. **HTTP Server**: Handles HTTP requests and routes them to the appropriate app
+4. **RouteMapper**: Maps HTTP paths to application handlers
 
-1. Receive argument values
-2. Process the arguments to generate a prompt
-3. Return the formatted prompt template
+This architecture allows:
+- Multiple HTTP listeners with different configurations
+- Dynamic addition and removal of listeners at runtime
+- Thread-safe configuration updates
+- Clean lifecycle management with context cancellation
 
-Each prompt provides:
-- Name and description
-- Argument definitions
-- Script implementation
-- Optional static data
+### Client-Server Communication
 
-## Client-Server Communication
-
-### MCP Protocol Communication
-
-- Client connects to firelynx server using WebSocket/HTTP
-- Client sends MCP protocol requests (tool calls, prompt requests)
-- Server processes requests through the appropriate script application
-- Server returns responses formatted according to MCP specification
-
-### Configuration Updates
-
-The configuration update flow follows this pattern:
-
-```
-┌────────────────┐    ┌───────────────┐    ┌────────────────┐    ┌────────────────┐
-│                │    │               │    │                │    │                │
-│  TOML Config   │───►│  Domain Model │───►│  Protobuf Obj  │───►│  gRPC Service  │
-│  (on disk)     │    │  (in memory)  │    │  (wire format) │    │  (on server)   │
-│                │    │               │    │                │    │                │
-└────────────────┘    └───────────────┘    └────────────────┘    └────────────────┘
-```
+The configuration client communicates with the server via gRPC:
 
 1. Client loads TOML configuration from disk
-2. Client converts TOML to Protocol Buffer format
+2. Client converts TOML to Protocol Buffer format (loader.LoadProto)
 3. Client connects to server via gRPC
-4. Client sends configuration update request
-5. Server validates and applies the configuration 
-6. Server sends reload notification to components
-7. Components reload with the new configuration
+4. Client sends Protocol Buffer configuration in update request
+5. Server validates configuration (by converting to domain model)
+6. Server stores the validated Protocol Buffer configuration
+7. Server sends reload notification to components via channels
+8. Components reload with the new configuration
+
+This approach allows for:
+- Clear separation between client and server
+- Strong validation before configuration is applied
+- Asynchronous notification of configuration changes
+- Graceful handling of configuration updates
 
 ## Logging Architecture
 
