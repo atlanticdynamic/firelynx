@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/atlanticdynamic/firelynx/internal/server/cfgrpc"
+	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice"
 	"github.com/atlanticdynamic/firelynx/internal/server/core"
+	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"github.com/urfave/cli/v3"
 )
@@ -36,33 +37,45 @@ var serverCmd = &cli.Command{
 		}
 
 		logger := slog.Default()
+		logHandler := logger.Handler()
 
-		cManager, err := cfgrpc.New(
-			cfgrpc.WithLogger(logger.With("component", "cfgrpc")),
-			cfgrpc.WithListenAddr(listenAddr),
-			cfgrpc.WithConfigPath(configPath),
+		cManager, err := cfgservice.New(
+			cfgservice.WithLogHandler(logHandler),
+			cfgservice.WithListenAddr(listenAddr),
+			cfgservice.WithConfigPath(configPath),
 		)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to create config manager: %w", err), 1)
 		}
 
 		serverCore, err := core.New(
-			core.WithLogger(logger.With("component", "core")),
-			core.WithConfigCallback(cManager.GetConfigClone),
+			cManager.GetDomainConfig,
+			core.WithLogHandler(logHandler),
 		)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to create server core: %w", err), 1)
+		}
+
+		// Create an HTTP runner using the core's config callback
+		// The registry is already included in the config returned by GetHTTPConfigCallback
+		cfgCallback := serverCore.GetHTTPConfigCallback()
+		httpRunner, err := http.NewRunner(
+			cfgCallback,
+			http.WithManagerLogger(slog.Default().WithGroup("http.Runner")),
+		)
+		if err != nil {
+			return cli.Exit(fmt.Errorf("failed to create HTTP listener runner: %w", err), 1)
 		}
 
 		// Create a list of runnables to manage, order is important
 		runnables := []supervisor.Runnable{
 			cManager,
 			serverCore,
+			httpRunner, // Add the HTTP runner
 		}
-
 		super, err := supervisor.New(
+			supervisor.WithLogHandler(logHandler),
 			supervisor.WithRunnables(runnables...),
-			supervisor.WithLogHandler(slog.Default().Handler()),
 			supervisor.WithContext(ctx),
 		)
 		if err != nil {

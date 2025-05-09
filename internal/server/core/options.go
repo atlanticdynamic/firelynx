@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"log/slog"
-
-	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 )
 
 // Option represents a functional option for configuring Runner.
@@ -17,7 +15,7 @@ type Option func(*Runner)
 func WithLogHandler(handler slog.Handler) Option {
 	return func(r *Runner) {
 		if handler != nil {
-			r.logger = slog.New(handler.WithGroup("core.Runner"))
+			r.logger = slog.New(handler).WithGroup("core.Runner")
 		}
 	}
 }
@@ -36,15 +34,7 @@ func WithLogger(logger *slog.Logger) Option {
 func WithContext(ctx context.Context) Option {
 	return func(r *Runner) {
 		if ctx != nil {
-			r.ctx, r.cancel = context.WithCancel(ctx)
+			r.parentCtx, r.parentCancel = context.WithCancel(ctx)
 		}
-	}
-}
-
-// WithConfigCallback sets the function that will be called to load or reload configuration.
-// This option is required when creating a new Runner.
-func WithConfigCallback(callback func() *pb.ServerConfig) Option {
-	return func(r *Runner) {
-		r.configCallback = callback
 	}
 }

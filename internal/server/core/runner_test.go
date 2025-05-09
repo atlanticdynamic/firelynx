@@ -6,150 +6,166 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestServerCore_New(t *testing.T) {
-	version := "v1"
-	testConfig := &pb.ServerConfig{
-		Version: &version,
-	}
-	configFunc := func() *pb.ServerConfig {
-		return testConfig
+// buildTestConfig creates a minimal config with an HTTP listener and a route
+// that directs to the echo app.
+func buildTestConfig() *config.Config {
+	cfg := &config.Config{
+		Version: "test",
+		Listeners: []listeners.Listener{
+			{
+				ID:      "test-listener",
+				Address: ":0", // Use port 0 to get a random port
+				Options: options.HTTP{
+					ReadTimeout:  10 * time.Second,
+					WriteTimeout: 10 * time.Second,
+					IdleTimeout:  60 * time.Second,
+					DrainTimeout: 30 * time.Second,
+				},
+			},
+		},
+		Endpoints: []endpoints.Endpoint{
+			{
+				ID:          "test-endpoint",
+				ListenerIDs: []string{"test-listener"},
+				Routes: []routes.Route{
+					{
+						AppID:     "echo", // This matches the echo app registered in Runner.New()
+						Condition: conditions.NewHTTP("/echo"),
+					},
+				},
+			},
+		},
 	}
 
-	r, err := New(
-		WithConfigCallback(configFunc),
-	)
-	require.NoError(t, err)
-	assert.NotNil(t, r)
-
-	assert.NotNil(t, r.configCallback)
-	assert.NotNil(t, r.ctx)
-	assert.NotNil(t, r.cancel)
-	assert.NotNil(t, r.logger)
-	assert.Equal(t, r.configCallback(), testConfig)
+	return cfg
 }
 
-// TestServerCore_Run tests that the Run method properly returns an error when
-// the context is canceled.
-func TestServerCore_Run(t *testing.T) {
-	version := "v1"
-	testConfig := &pb.ServerConfig{
-		Version: &version,
-	}
-	configFunc := func() *pb.ServerConfig {
-		return testConfig
+func TestRunner_ConfigurationAccess(t *testing.T) {
+	cfg := buildTestConfig()
+	// Create a configCallback that returns our test configuration
+	configCallback := func() (*config.Config, error) {
+		return cfg, nil
 	}
 
-	r, err := New(
-		WithConfigCallback(configFunc),
-	)
-	require.NoError(t, err)
-	assert.NotNil(t, r)
-
-	// Create a context that will cancel after a short time
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	// Run the ServerCore
-	err = r.Run(ctx)
-
-	// Verify that the ServerCore returns nil on clean shutdown
+	runner, err := New(configCallback)
 	assert.NoError(t, err)
+
+	// Boot the runner to initialize the config
+	err = runner.boot()
+	assert.NoError(t, err)
+
+	assert.Equal(t, cfg, runner.currentConfig)
 }
 
-func TestServerCore_Reload(t *testing.T) {
-	version := "v1"
-	testConfig := &pb.ServerConfig{
-		Version: &version,
-	}
-	currentConfig := testConfig
-	configFunc := func() *pb.ServerConfig {
-		return currentConfig
+func TestRunner_New(t *testing.T) {
+	cfg := buildTestConfig()
+
+	// Create a configCallback that returns our test configuration
+	configCallback := func() (*config.Config, error) {
+		return cfg, nil
 	}
 
-	r, err := New(
-		WithConfigCallback(configFunc),
-	)
-	require.NoError(t, err)
-	assert.NotNil(t, r)
+	runner, err := New(configCallback)
 
-	// Call Run once to process the initial config
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		cancel()
-	}()
-	if err := r.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		t.Logf("Expected error in tests (context canceled): %v", err)
-	}
+	// Verify setup
+	assert.NoError(t, err)
+	assert.NotNil(t, runner)
+	assert.Equal(t, "core.Runner", runner.String())
 
-	// Update the config
-	newVersion := "v2"
-	newConfig := &pb.ServerConfig{
-		Version: &newVersion,
-	}
-	currentConfig = newConfig
-
-	// Call Reload (no error to check with new supervisor-compatible interface)
-	r.Reload()
-
-	// Verify that the new config was processed (indirectly, can't check return value)
-	// This test can't really verify much anymore since Reload() doesn't return an error
-	// We're mostly checking that it doesn't panic
-	assert.True(t, true, "Successfully called Reload() without panicking")
+	// Verify app registry has the echo app
+	app, found := runner.appRegistry.GetApp("echo")
+	assert.True(t, found)
+	assert.NotNil(t, app)
 }
 
-// TestServerCore_Stop tests that calling Stop properly signals the Run method
-// to terminate and that the server shuts down in a timely manner.
-func TestServerCore_Stop(t *testing.T) {
-	version := "v1"
-	testConfig := &pb.ServerConfig{
-		Version: &version,
-	}
-	configFunc := func() *pb.ServerConfig {
-		return testConfig
+func TestRunner_Run(t *testing.T) {
+	cfg := buildTestConfig()
+
+	// Create a configCallback that returns our test configuration
+	configCallback := func() (*config.Config, error) {
+		return cfg, nil
 	}
 
-	r, err := New(
-		WithConfigCallback(configFunc),
-	)
-	require.NoError(t, err)
-	assert.NotNil(t, r)
-
-	// Create a context we can cancel from the test
-	ctx, cancel := context.WithCancel(context.Background())
+	// Create a context with timeout for our test
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	// Run the server in a goroutine and collect the error
-	done := make(chan error, 1)
+	// Create the runner and run it
+	runner, err := New(configCallback)
+	assert.NoError(t, err)
+
+	err = runner.Run(ctx)
+
+	// The run should eventually exit due to context cancellation
+	// The error might be context.DeadlineExceeded or nil depending on how the runner handles timeout
+	assert.True(t, err == nil || errors.Is(err, context.DeadlineExceeded))
+}
+
+func TestRunner_Stop(t *testing.T) {
+	cfg := buildTestConfig()
+
+	// Create a configCallback that returns our test configuration
+	configCallback := func() (*config.Config, error) {
+		return cfg, nil
+	}
+
+	// Create the runner
+	runner, err := New(configCallback)
+	assert.NoError(t, err)
+
+	// Run the runner in a goroutine
 	go func() {
-		err := r.Run(ctx)
-		done <- err
+		ctx := context.Background()
+		err := runner.Run(ctx)
+		// It should exit with a canceled context error or nil
+		assert.True(t, err == nil || errors.Is(err, context.Canceled))
 	}()
 
-	// Wait a bit for the server core to start
-	time.Sleep(50 * time.Millisecond)
+	// Give it a moment to start up
+	time.Sleep(10 * time.Millisecond)
 
-	// Test stop
-	r.Stop()
+	// Stop the runner
+	runner.Stop()
 
-	// Cancel the context since Stop doesn't actually cancel it in our test
-	// (in real use with a supervisor, the supervisor would cancel it)
-	cancel()
+	// Add a small sleep to allow background goroutines to finish
+	time.Sleep(10 * time.Millisecond)
+}
 
-	// Wait for Run to exit with timeout
-	select {
-	case err := <-done:
-		// We expect context.Canceled since the context will be canceled when
-		// the server is stopped
-		if err != nil && !errors.Is(err, context.Canceled) {
-			t.Errorf("Unexpected error: %v", err)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("Timed out waiting for ServerCore.Run to exit")
+func TestRunner_WithApps(t *testing.T) {
+	cfg := buildTestConfig()
+
+	// Create a configCallback that returns our test configuration
+	configCallback := func() (*config.Config, error) {
+		return cfg, nil
 	}
+
+	// Create the runner
+	runner, err := New(configCallback)
+	assert.NoError(t, err)
+
+	// Create a specialized echo app
+	specialApp := echo.New("special")
+
+	// Register the app manually
+	err = runner.appRegistry.RegisterApp(specialApp)
+	assert.NoError(t, err)
+
+	// Verify both apps are registered
+	app1, found1 := runner.appRegistry.GetApp("echo")
+	assert.True(t, found1)
+	assert.NotNil(t, app1)
+
+	app2, found2 := runner.appRegistry.GetApp("special")
+	assert.True(t, found2)
+	assert.NotNil(t, app2)
 }

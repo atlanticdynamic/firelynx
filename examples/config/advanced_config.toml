@@ -3,91 +3,136 @@ version = "v1"
 
 [logging]
 level = "info"
-format = "text"
+format = "json"
 
-# Listener definitions
+# --- Listeners ---
+
 [[listeners]]
-id = "http_main"
-address = "127.0.0.1:8080"
-type = "http"
+id = "http-main"
+address = ":8080"
 
 [listeners.http]
-read_timeout = "30s"
-write_timeout = "30s"
+read_timeout = "5s"
+write_timeout = "10s"
 drain_timeout = "30s"
 
 [[listeners]]
-id = "grpc_api"
-address = "127.0.0.1:9090"
-type = "grpc"
+id = "grpc-internal"
+address = ":50051"
 
 [listeners.grpc]
-max_connection_idle = "60s"
-max_connection_age = "300s"
+max_connection_idle = "3600s" # Changed from 1h
+max_connection_age = "86400s" # Changed from 24h
 max_concurrent_streams = 100
 
-# Endpoint definitions
-[[endpoints]]
-id = "web_endpoint"
-listener_ids = ["http_main"]
-
-[[endpoints.routes]]
-app_id = "hello_world"
-http_path = "/hello"
-static_data = { greeting = "Hello, World!" }
-
-[[endpoints.routes]]
-app_id = "echo_script"
-http_path = "/echo"
+# --- Endpoints ---
 
 [[endpoints]]
-id = "api_endpoint"
-listener_ids = ["grpc_api"]
+id = "public-api"
+listener_ids = ["http-main"]
 
+# Route /api/v1/users to the user-service app
 [[endpoints.routes]]
-app_id = "greeter_service"
-grpc_service = "Greeter"
+app_id = "user-service"
+http_path = "/api/v1/users"
 
-# Application definitions
+# Route /api/v1/products to the product-service app
+[[endpoints.routes]]
+app_id = "product-service"
+http_path = "/api/v1/products"
+
+# Route /api/v1/orders to the composite order-processor app
+[[endpoints.routes]]
+app_id = "order-processor"
+http_path = "/api/v1/orders"
+
+[[endpoints]]
+id = "internal-services"
+listener_ids = ["grpc-internal"]
+
+# Route gRPC service 'inventory.InventoryService' to inventory-app
+[[endpoints.routes]]
+app_id = "inventory-app"
+grpc_service = "inventory.InventoryService"
+
+# --- Applications ---
+
+# User Service (Risor)
 [[apps]]
-id = "hello_world"
+id = "user-service"
 
-[apps.config]
-type = "script"
-evaluator = { type = "risor", code = """
-fn handle(req) {
-  greeting := req.static_data.greeting or "Hello"
-  {
-    body: greeting + ", World!"
-  }
-}
-""", timeout = "5s" }
+[apps.script]
 
-static_data = { version = "1.0.0", merge_mode = "unique" }
+[apps.script.static_data]
+data = { db_connection = "user_db_conn_string", cache_ttl = "300s" } # Changed from 5m
+merge_mode = "last" # Default, can be omitted
 
+[apps.script.risor]
+code = """
+    import "http"
+    import "json"
+
+    func handler(req http.Request) http.Response {
+        # Example: Access static data
+        db_conn = req.static_data.db_connection
+        # ... logic to handle user requests using db_conn ...
+        return http.Response{
+            StatusCode: 200,
+            Body: json.marshal({ "user_id": "123", "name": "Alice" }),
+            Header: {"Content-Type": ["application/json"]},
+        }
+    }
+    export default: handler
+"""
+timeout = "0.5s"
+
+# Product Service (Starlark)
 [[apps]]
-id = "echo_script"
+id = "product-service"
 
-[apps.config]
-type = "script"
-evaluator = { type = "starlark", code = """
-def handle(req):
-  return {
-    "body": "You said: " + req.body
-  }
-""", timeout = "5s" }
+[apps.script]
 
+[apps.script.static_data]
+data = { api_key = "prod_api_key_xyz", discount_rate = 0.1 }
+
+[apps.script.starlark]
+code = """
+load("@stdlib/json", "json")
+load("@stdlib/http", "http")
+
+def handler(req):
+    # Example: Access static data
+    api_key = req.static_data["api_key"]
+    # ... logic to handle product requests ...
+    return http.Response(
+        status_code=200,
+        body=json.marshal({"product_id": "p456", "name": "Widget"}),
+        header={"Content-Type": ["application/json"]},
+    )
+
+def main(req):
+    return handler(req)
+"""
+timeout = "1s"
+
+# Inventory Service (Extism - Placeholder)
 [[apps]]
-id = "greeter_service"
+id = "inventory-app"
 
-[apps.config]
-type = "script"
-evaluator = { type = "extism", code = "...", entrypoint = "handle" }
+[apps.script]
 
+[apps.script.extism]
+# code = "path/to/inventory_plugin.wasm"
+code = """(module)""" # Placeholder WASM
+entrypoint = "handle_grpc"
+
+# Order Processor (Composite)
 [[apps]]
-id = "composite_app"
+id = "order-processor"
 
-[apps.config]
-type = "composite_script"
-script_app_ids = ["hello_world", "echo_script"]
-static_data = { merge_mode = "last" }
+[apps.composite_script]
+script_app_ids = ["user-service", "product-service", "inventory-app"]
+
+[apps.composite_script.static_data]
+data = { order_queue = "orders_topic", notification_service = "email" }
+merge_mode = "unique" # Example: Ensure unique keys if scripts provide overlapping static data

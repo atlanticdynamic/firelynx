@@ -1,13 +1,17 @@
+// Package core provides the core functionality of the firelynx server
 package core
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 
-	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/registry"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
 
@@ -22,30 +26,43 @@ var (
 	_ supervisor.Reloadable = (*Runner)(nil)
 )
 
+type configCallback func() (*config.Config, error)
+
 // Runner implements the supervisor.Runnable and supervisor.Reloadable interfaces.
 type Runner struct {
-	configCallback func() *pb.ServerConfig
-	reloadLock     sync.Mutex
+	configCallback configCallback
+	mutex          sync.Mutex
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	logger *slog.Logger
+	parentCtx    context.Context
+	parentCancel context.CancelFunc
+	runCtx       context.Context
+	runCancel    context.CancelFunc
+
+	appRegistry   apps.Registry
+	logger        *slog.Logger
+	currentConfig *config.Config // Current domain configuration for use by GetListenersConfigCallback
+	serverErrors  chan error     // Channel for async server errors
 }
 
 // New creates a new Runner instance
-func New(opts ...Option) (*Runner, error) {
+func New(configCallback configCallback, opts ...Option) (*Runner, error) {
 	r := &Runner{
-		logger: slog.Default(),
+		configCallback: configCallback,
+		logger:         slog.Default(),
+		serverErrors:   make(chan error, 10), // Buffer for async errors
 	}
-	r.ctx, r.cancel = context.WithCancel(context.Background())
+	r.parentCtx, r.parentCancel = context.WithCancel(context.Background())
 
 	// Apply functional options
 	for _, opt := range opts {
 		opt(r)
 	}
 
-	if r.configCallback == nil {
-		return nil, errors.New("config callback is required")
+	// Initialize the app registry
+	r.appRegistry = registry.New()
+	echoApp := echo.New("echo")
+	if err := r.appRegistry.RegisterApp(echoApp); err != nil {
+		return nil, fmt.Errorf("failed to register echo app: %w", err)
 	}
 
 	return r, nil
@@ -57,162 +74,90 @@ func (r *Runner) String() string {
 
 // Run implements the Runnable interface and starts the Runner
 func (r *Runner) Run(ctx context.Context) error {
-	r.logger.Debug("Starting Runner")
-	config := r.configCallback()
-	if err := r.processConfig(config); err != nil {
-		return err
-	}
+	r.logger.Info("Starting Runner")
+	r.runCtx, r.runCancel = context.WithCancel(ctx)
+	defer r.runCancel()
 
-	// Block here until context is done
+	r.logger.Debug("Booting Runner")
+	if err := r.boot(); err != nil {
+		return fmt.Errorf("failed to boot Runner: %w", err)
+	}
+	r.logger.Debug("Runner boot completed")
+
+	// Block here until either runCtx or parentCtx is canceled or an error occurs
+	var result error
 	select {
-	case <-r.ctx.Done():
-		r.logger.Debug("Runner context closed")
-	case <-ctx.Done():
-		r.logger.Debug("Runner external context closed")
+	case <-r.runCtx.Done():
+		r.logger.Debug("Run context canceled")
+		result = nil
+	case <-r.parentCtx.Done():
+		r.logger.Debug("Parent context canceled")
+		result = r.parentCtx.Err()
+	case err := <-r.serverErrors:
+		r.logger.Error("Received server error", "error", err)
+		result = err
 	}
 
-	return nil
+	r.logger.Debug("Runner shutting down")
+	return result
 }
 
 // Stop implements the Runnable interface and stops the Runner
 func (r *Runner) Stop() {
-	r.reloadLock.Lock()
-	defer r.reloadLock.Unlock()
 	r.logger.Debug("Stopping Runner")
-	r.cancel()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	r.runCancel()
 	r.logger.Debug("Runner stopped")
+}
+
+// boot handles the initialization phase of the Runner by loading the initial configuration
+func (r *Runner) boot() error {
+	r.logger.Debug("Fetching initial configuration")
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if r.configCallback == nil {
+		return errors.New("config callback is nil")
+	}
+
+	// load the initial config from the callback provided by the cfg service
+	domainConfig, err := r.configCallback()
+	if err != nil {
+		return fmt.Errorf("failed to load initial configuration: %w", err)
+	}
+
+	r.currentConfig = domainConfig
+	return nil
 }
 
 // Reload implements the Reloadable interface and reloads the Runner with the latest configuration
 func (r *Runner) Reload() {
-	r.reloadLock.Lock()
-	defer r.reloadLock.Unlock()
 	r.logger.Debug("Reloading Runner")
-	config := r.configCallback()
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
-	// "process" the updated configuration
-	if err := r.processConfig(config); err != nil {
-		r.logger.Error("Failed to reload", "error", err)
+	// Get latest configuration
+	if r.configCallback == nil {
+		r.logger.Error("Cannot reload: config callback is nil")
+		r.serverErrors <- errors.New("config callback is nil during reload")
 		return
 	}
 
-	r.logger.Info("Runner reloaded successfully")
-}
-
-// processConfig processes the provided configuration
-func (r *Runner) processConfig(config *pb.ServerConfig) error {
-	if config == nil {
-		r.logger.Warn("Received nil configuration, using default empty config")
-		version := VersionLatest
-		config = &pb.ServerConfig{
-			Version: &version,
-		}
-	}
-
-	// Get version safely
-	version := VersionUnknown
-	if v := config.Version; v != nil {
-		version = *v
-	}
-	r.logger.Debug("Processing configuration", "version", version)
-
-	// For now, just print the configuration settings
-	r.logConfig(config)
-
-	return nil
-}
-
-// logConfig logs the configuration details
-func (r *Runner) logConfig(config *pb.ServerConfig) {
-	if config == nil {
-		r.logger.Warn("Cannot log nil configuration")
+	domainConfig, err := r.configCallback()
+	if err != nil {
+		r.serverErrors <- fmt.Errorf("failed to load configuration during reload: %w", err)
 		return
 	}
 
-	// Get version safely
-	version := VersionUnknown
-	if config.Version != nil {
-		version = *config.Version
+	// Simply log when we receive an empty config
+	if domainConfig == nil {
+		r.logger.Warn("Empty configuration received during reload")
+		return
 	}
 
-	// Get counts safely
-	listeners := 0
-	if config.Listeners != nil {
-		listeners = len(config.Listeners)
-	}
-
-	endpoints := 0
-	if config.Endpoints != nil {
-		endpoints = len(config.Endpoints)
-	}
-
-	apps := 0
-	if config.Apps != nil {
-		apps = len(config.Apps)
-	}
-
-	r.logger.Debug("Server configuration",
-		"version", version,
-		"listeners", listeners,
-		"endpoints", endpoints,
-		"apps", apps,
-	)
-
-	// Log details about listeners
-	if config.Listeners != nil {
-		for i, listener := range config.Listeners {
-			id := "undefined"
-			if listener.Id != nil {
-				id = *listener.Id
-			}
-
-			address := "undefined"
-			if listener.Address != nil {
-				address = *listener.Address
-			}
-
-			r.logger.Info("Listener configuration",
-				"index", i,
-				"id", id,
-				"address", address,
-			)
-		}
-	}
-
-	// Log details about endpoints
-	if config.Endpoints != nil {
-		for i, endpoint := range config.Endpoints {
-			id := "undefined"
-			if endpoint.Id != nil {
-				id = *endpoint.Id
-			}
-
-			routes := 0
-			if endpoint.Routes != nil {
-				routes = len(endpoint.Routes)
-			}
-
-			r.logger.Info("Endpoint configuration",
-				"index", i,
-				"id", id,
-				"listener_ids", endpoint.ListenerIds,
-				"routes", routes,
-			)
-		}
-	}
-
-	// Log details about apps
-	if config.Apps != nil {
-		for i, app := range config.Apps {
-			id := "undefined"
-			if app.Id != nil {
-				id = *app.Id
-			}
-
-			r.logger.Info("App configuration",
-				"index", i,
-				"id", id,
-			)
-		}
-	}
+	// Update the current config - this will be picked up by GetListenersConfigCallback
+	// when the composite runner calls it
+	r.currentConfig = domainConfig
 }

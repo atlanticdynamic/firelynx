@@ -1,0 +1,69 @@
+# Simple configuration to test HTTP server functionality
+
+version = "v1"
+
+[logging]
+level = "debug"
+format = "text"
+
+[[listeners]]
+id = "http-default"
+address = ":8080"
+
+[listeners.http]
+read_timeout = "5s"
+write_timeout = "10s"
+
+[[endpoints]]
+id = "ep-default"
+listener_ids = ["http-default"]
+
+[[endpoints.routes]]
+app_id = "app-hello"
+http_path = "/hello"
+
+[[endpoints.routes]]
+app_id = "app-static"
+http_path = "/static"
+
+[[apps]]
+id = "app-hello"
+
+[apps.script]
+[apps.script.risor]
+code = """
+	import "http"
+	import "json"
+
+	func handler(req http.Request) http.Response {
+		return http.Response{
+			StatusCode: 200,
+			Body: "Hello, World!",
+		}
+	}
+
+	export default: handler
+"""
+
+# Add the missing app-static reference that was causing the validation error
+[[apps]]
+id = "app-static"
+
+[apps.script]
+[apps.script.static_data]
+data = { message = "Static app content" }
+
+[apps.script.risor]
+code = """
+	import "http"
+	import "json"
+
+	func handler(req http.Request) http.Response {
+		return http.Response{
+			StatusCode: 200,
+			Body: req.static_data.message,
+		}
+	}
+
+	export default: handler
+"""
