@@ -2,7 +2,7 @@
 package scripts
 
 import (
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/evaluators"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 )
 

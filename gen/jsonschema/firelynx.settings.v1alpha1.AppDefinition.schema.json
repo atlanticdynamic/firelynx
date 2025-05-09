@@ -12,6 +12,9 @@
     "composite_script": {
       "$ref": "firelynx.settings.v1alpha1.AppCompositeScript.schema.json"
     },
+    "echo": {
+      "$ref": "firelynx.settings.v1alpha1.EchoApp.schema.json"
+    },
     "id": {
       "type": "string"
     },

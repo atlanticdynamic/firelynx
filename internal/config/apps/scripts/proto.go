@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/evaluators"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 )
 
@@ -36,7 +36,7 @@ func FromProto(proto *settingsv1alpha1.AppScript) (*AppScript, error) {
 }
 
 // ToProto converts an AppScript to its protocol buffer representation.
-func (s *AppScript) ToProto() *settingsv1alpha1.AppScript {
+func (s *AppScript) ToProto() any {
 	if s == nil {
 		return nil
 	}

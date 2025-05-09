@@ -7,8 +7,8 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"google.golang.org/protobuf/proto"
 )
