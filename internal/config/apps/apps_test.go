@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

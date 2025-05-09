@@ -14,7 +14,7 @@ func FromProto(proto *settingsv1alpha1.AppCompositeScript) (*CompositeScript, er
 	}
 
 	// Parse the static data
-	staticData, err := staticdata.FromProto(proto.StaticData)
+	sd, err := staticdata.FromProto(proto.StaticData)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrProtoConversion, err)
 	}
@@ -22,12 +22,12 @@ func FromProto(proto *settingsv1alpha1.AppCompositeScript) (*CompositeScript, er
 	// Create and return the CompositeScript
 	return &CompositeScript{
 		ScriptAppIDs: proto.ScriptAppIds,
-		StaticData:   staticData,
+		StaticData:   sd,
 	}, nil
 }
 
 // ToProto converts a CompositeScript to its protocol buffer representation.
-func (s *CompositeScript) ToProto() *settingsv1alpha1.AppCompositeScript {
+func (s *CompositeScript) ToProto() any {
 	if s == nil {
 		return nil
 	}

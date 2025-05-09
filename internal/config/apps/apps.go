@@ -38,6 +38,7 @@ import (
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
+	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
 )
@@ -55,6 +56,9 @@ type AppCollection []App
 type AppConfig interface {
 	Type() string
 	Validate() error
+	ToProto() any
+	String() string
+	ToTree() *fancy.ComponentTree
 }
 
 // Validate validates a single app definition
@@ -200,6 +204,9 @@ func AppsToInstances(appDefs AppCollection) (map[string]serverApps.App, error) {
 		case "script":
 			// For now, script apps are also implemented as echo apps
 			// In a future implementation, these would use actual script evaluators
+			instance = echo.New(appDef.ID)
+		case "echo":
+			// Echo apps are simple echo handlers
 			instance = echo.New(appDef.ID)
 		default:
 			// Unknown app types default to echo for now

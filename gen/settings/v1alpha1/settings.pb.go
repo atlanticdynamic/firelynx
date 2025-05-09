@@ -913,6 +913,7 @@ type AppDefinition struct {
 	//
 	//	*AppDefinition_Script
 	//	*AppDefinition_CompositeScript
+	//	*AppDefinition_Echo
 	AppConfig     isAppDefinition_AppConfig `protobuf_oneof:"app_config"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -980,6 +981,15 @@ func (x *AppDefinition) GetCompositeScript() *AppCompositeScript {
 	return nil
 }
 
+func (x *AppDefinition) GetEcho() *EchoApp {
+	if x != nil {
+		if x, ok := x.AppConfig.(*AppDefinition_Echo); ok {
+			return x.Echo
+		}
+	}
+	return nil
+}
+
 type isAppDefinition_AppConfig interface {
 	isAppDefinition_AppConfig()
 }
@@ -992,9 +1002,15 @@ type AppDefinition_CompositeScript struct {
 	CompositeScript *AppCompositeScript `protobuf:"bytes,4,opt,name=composite_script,json=compositeScript,oneof"`
 }
 
+type AppDefinition_Echo struct {
+	Echo *EchoApp `protobuf:"bytes,5,opt,name=echo,oneof"`
+}
+
 func (*AppDefinition_Script) isAppDefinition_AppConfig() {}
 
 func (*AppDefinition_CompositeScript) isAppDefinition_AppConfig() {}
+
+func (*AppDefinition_Echo) isAppDefinition_AppConfig() {}
 
 // Individual script application
 type AppScript struct {
@@ -1312,6 +1328,51 @@ func (x *AppCompositeScript) GetStaticData() *StaticData {
 	return nil
 }
 
+// Echo app
+type EchoApp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Response      *string                `protobuf:"bytes,1,opt,name=response" json:"response,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EchoApp) Reset() {
+	*x = EchoApp{}
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EchoApp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EchoApp) ProtoMessage() {}
+
+func (x *EchoApp) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EchoApp.ProtoReflect.Descriptor instead.
+func (*EchoApp) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *EchoApp) GetResponse() string {
+	if x != nil && x.Response != nil {
+		return *x.Response
+	}
+	return ""
+}
+
 type StaticData struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Data          map[string]*structpb.Value `protobuf:"bytes,1,rep,name=data" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -1327,7 +1388,7 @@ const (
 
 func (x *StaticData) Reset() {
 	*x = StaticData{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[17]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1339,7 +1400,7 @@ func (x *StaticData) String() string {
 func (*StaticData) ProtoMessage() {}
 
 func (x *StaticData) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[17]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1352,7 +1413,7 @@ func (x *StaticData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StaticData.ProtoReflect.Descriptor instead.
 func (*StaticData) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{17}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *StaticData) GetData() map[string]*structpb.Value {
@@ -1418,11 +1479,12 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"staticData\x12\x1d\n" +
 	"\thttp_path\x18\x03 \x01(\tH\x00R\bhttpPath\x12#\n" +
 	"\fgrpc_service\x18\x04 \x01(\tH\x00R\vgrpcServiceB\v\n" +
-	"\tcondition\"\xcb\x01\n" +
+	"\tcondition\"\x86\x02\n" +
 	"\rAppDefinition\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12?\n" +
 	"\x06script\x18\x03 \x01(\v2%.firelynx.settings.v1alpha1.AppScriptH\x00R\x06script\x12[\n" +
-	"\x10composite_script\x18\x04 \x01(\v2..firelynx.settings.v1alpha1.AppCompositeScriptH\x00R\x0fcompositeScriptB\f\n" +
+	"\x10composite_script\x18\x04 \x01(\v2..firelynx.settings.v1alpha1.AppCompositeScriptH\x00R\x0fcompositeScript\x129\n" +
+	"\x04echo\x18\x05 \x01(\v2#.firelynx.settings.v1alpha1.EchoAppH\x00R\x04echoB\f\n" +
 	"\n" +
 	"app_config\"\xb9\x02\n" +
 	"\tAppScript\x12G\n" +
@@ -1446,7 +1508,9 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\x12AppCompositeScript\x12$\n" +
 	"\x0escript_app_ids\x18\x01 \x03(\tR\fscriptAppIds\x12G\n" +
 	"\vstatic_data\x18\x02 \x01(\v2&.firelynx.settings.v1alpha1.StaticDataR\n" +
-	"staticData\"\x97\x02\n" +
+	"staticData\"%\n" +
+	"\aEchoApp\x12\x1a\n" +
+	"\bresponse\x18\x01 \x01(\tR\bresponse\"\x97\x02\n" +
 	"\n" +
 	"StaticData\x12D\n" +
 	"\x04data\x18\x01 \x03(\v20.firelynx.settings.v1alpha1.StaticData.DataEntryR\x04data\x12r\n" +
@@ -1487,7 +1551,7 @@ func file_settings_v1alpha1_settings_proto_rawDescGZIP() []byte {
 }
 
 var file_settings_v1alpha1_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_settings_v1alpha1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_settings_v1alpha1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_settings_v1alpha1_settings_proto_goTypes = []any{
 	(LogFormat)(0),               // 0: firelynx.settings.v1alpha1.LogFormat
 	(LogLevel)(0),                // 1: firelynx.settings.v1alpha1.LogLevel
@@ -1509,10 +1573,11 @@ var file_settings_v1alpha1_settings_proto_goTypes = []any{
 	(*StarlarkEvaluator)(nil),    // 17: firelynx.settings.v1alpha1.StarlarkEvaluator
 	(*ExtismEvaluator)(nil),      // 18: firelynx.settings.v1alpha1.ExtismEvaluator
 	(*AppCompositeScript)(nil),   // 19: firelynx.settings.v1alpha1.AppCompositeScript
-	(*StaticData)(nil),           // 20: firelynx.settings.v1alpha1.StaticData
-	nil,                          // 21: firelynx.settings.v1alpha1.StaticData.DataEntry
-	(*durationpb.Duration)(nil),  // 22: google.protobuf.Duration
-	(*structpb.Value)(nil),       // 23: google.protobuf.Value
+	(*EchoApp)(nil),              // 20: firelynx.settings.v1alpha1.EchoApp
+	(*StaticData)(nil),           // 21: firelynx.settings.v1alpha1.StaticData
+	nil,                          // 22: firelynx.settings.v1alpha1.StaticData.DataEntry
+	(*durationpb.Duration)(nil),  // 23: google.protobuf.Duration
+	(*structpb.Value)(nil),       // 24: google.protobuf.Value
 }
 var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
 	7,  // 0: firelynx.settings.v1alpha1.UpdateConfigRequest.config:type_name -> firelynx.settings.v1alpha1.ServerConfig
@@ -1526,35 +1591,36 @@ var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
 	1,  // 8: firelynx.settings.v1alpha1.LogOptions.level:type_name -> firelynx.settings.v1alpha1.LogLevel
 	10, // 9: firelynx.settings.v1alpha1.Listener.http:type_name -> firelynx.settings.v1alpha1.HttpListenerOptions
 	11, // 10: firelynx.settings.v1alpha1.Listener.grpc:type_name -> firelynx.settings.v1alpha1.GrpcListenerOptions
-	22, // 11: firelynx.settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
-	22, // 12: firelynx.settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
-	22, // 13: firelynx.settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
-	22, // 14: firelynx.settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
-	22, // 15: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
-	22, // 16: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
+	23, // 11: firelynx.settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
+	23, // 12: firelynx.settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
+	23, // 13: firelynx.settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
+	23, // 14: firelynx.settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
+	23, // 15: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
+	23, // 16: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
 	13, // 17: firelynx.settings.v1alpha1.Endpoint.routes:type_name -> firelynx.settings.v1alpha1.Route
-	20, // 18: firelynx.settings.v1alpha1.Route.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
+	21, // 18: firelynx.settings.v1alpha1.Route.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
 	15, // 19: firelynx.settings.v1alpha1.AppDefinition.script:type_name -> firelynx.settings.v1alpha1.AppScript
 	19, // 20: firelynx.settings.v1alpha1.AppDefinition.composite_script:type_name -> firelynx.settings.v1alpha1.AppCompositeScript
-	20, // 21: firelynx.settings.v1alpha1.AppScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
-	16, // 22: firelynx.settings.v1alpha1.AppScript.risor:type_name -> firelynx.settings.v1alpha1.RisorEvaluator
-	17, // 23: firelynx.settings.v1alpha1.AppScript.starlark:type_name -> firelynx.settings.v1alpha1.StarlarkEvaluator
-	18, // 24: firelynx.settings.v1alpha1.AppScript.extism:type_name -> firelynx.settings.v1alpha1.ExtismEvaluator
-	22, // 25: firelynx.settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
-	22, // 26: firelynx.settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
-	20, // 27: firelynx.settings.v1alpha1.AppCompositeScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
-	21, // 28: firelynx.settings.v1alpha1.StaticData.data:type_name -> firelynx.settings.v1alpha1.StaticData.DataEntry
-	2,  // 29: firelynx.settings.v1alpha1.StaticData.merge_mode:type_name -> firelynx.settings.v1alpha1.StaticDataMergeMode
-	23, // 30: firelynx.settings.v1alpha1.StaticData.DataEntry.value:type_name -> google.protobuf.Value
-	3,  // 31: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:input_type -> firelynx.settings.v1alpha1.UpdateConfigRequest
-	5,  // 32: firelynx.settings.v1alpha1.ConfigService.GetConfig:input_type -> firelynx.settings.v1alpha1.GetConfigRequest
-	4,  // 33: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:output_type -> firelynx.settings.v1alpha1.UpdateConfigResponse
-	6,  // 34: firelynx.settings.v1alpha1.ConfigService.GetConfig:output_type -> firelynx.settings.v1alpha1.GetConfigResponse
-	33, // [33:35] is the sub-list for method output_type
-	31, // [31:33] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	20, // 21: firelynx.settings.v1alpha1.AppDefinition.echo:type_name -> firelynx.settings.v1alpha1.EchoApp
+	21, // 22: firelynx.settings.v1alpha1.AppScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
+	16, // 23: firelynx.settings.v1alpha1.AppScript.risor:type_name -> firelynx.settings.v1alpha1.RisorEvaluator
+	17, // 24: firelynx.settings.v1alpha1.AppScript.starlark:type_name -> firelynx.settings.v1alpha1.StarlarkEvaluator
+	18, // 25: firelynx.settings.v1alpha1.AppScript.extism:type_name -> firelynx.settings.v1alpha1.ExtismEvaluator
+	23, // 26: firelynx.settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
+	23, // 27: firelynx.settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
+	21, // 28: firelynx.settings.v1alpha1.AppCompositeScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
+	22, // 29: firelynx.settings.v1alpha1.StaticData.data:type_name -> firelynx.settings.v1alpha1.StaticData.DataEntry
+	2,  // 30: firelynx.settings.v1alpha1.StaticData.merge_mode:type_name -> firelynx.settings.v1alpha1.StaticDataMergeMode
+	24, // 31: firelynx.settings.v1alpha1.StaticData.DataEntry.value:type_name -> google.protobuf.Value
+	3,  // 32: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:input_type -> firelynx.settings.v1alpha1.UpdateConfigRequest
+	5,  // 33: firelynx.settings.v1alpha1.ConfigService.GetConfig:input_type -> firelynx.settings.v1alpha1.GetConfigRequest
+	4,  // 34: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:output_type -> firelynx.settings.v1alpha1.UpdateConfigResponse
+	6,  // 35: firelynx.settings.v1alpha1.ConfigService.GetConfig:output_type -> firelynx.settings.v1alpha1.GetConfigResponse
+	34, // [34:36] is the sub-list for method output_type
+	32, // [32:34] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_settings_proto_init() }
@@ -1573,6 +1639,7 @@ func file_settings_v1alpha1_settings_proto_init() {
 	file_settings_v1alpha1_settings_proto_msgTypes[11].OneofWrappers = []any{
 		(*AppDefinition_Script)(nil),
 		(*AppDefinition_CompositeScript)(nil),
+		(*AppDefinition_Echo)(nil),
 	}
 	file_settings_v1alpha1_settings_proto_msgTypes[12].OneofWrappers = []any{
 		(*AppScript_Risor)(nil),
@@ -1585,7 +1652,7 @@ func file_settings_v1alpha1_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_settings_proto_rawDesc), len(file_settings_v1alpha1_settings_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

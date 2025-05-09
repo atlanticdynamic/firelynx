@@ -19,6 +19,6 @@ var (
 )
 
 // NewInvalidMergeModeError returns a new error for an invalid merge mode with the provided value.
-func NewInvalidMergeModeError(value interface{}) error {
+func NewInvalidMergeModeError(value any) error {
 	return fmt.Errorf("%w: %v", ErrInvalidMergeMode, value)
 }
