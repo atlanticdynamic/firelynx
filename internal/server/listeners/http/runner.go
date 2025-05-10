@@ -164,22 +164,75 @@ func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.H
 			listenerCfg.Address,
 		)
 
-		// Convert our HTTP routes to httpserver.Route objects
-		httpRoutes := make([]httpserver.Route, 0, len(listenerCfg.Routes))
-		for _, route := range listenerCfg.Routes {
-			// Create a unique route ID
-			routeID := fmt.Sprintf("%s:%s", listenerCfg.ID, route.Path)
+		var httpRoutes []httpserver.Route
 
-			// Create handler for this route
-			appHandler := NewAppHandler(cfg.Registry, []RouteConfig{route}, r.logger)
+		// Determine which type of routing to use:
+		// 1. New style: Route registry with endpoints (preferred)
+		// 2. Legacy style: App registry with direct route mapping
+		if cfg.IsUsingRouteRegistry() && listenerCfg.EndpointID != "" {
+			// New style routing with endpoint ID and route registry
+			r.logger.Debug(
+				"Using route registry for listener",
+				"id",
+				listenerCfg.ID,
+				"endpoint",
+				listenerCfg.EndpointID,
+			)
 
-			// Create httpserver route
-			httpRoute, err := httpserver.NewRoute(routeID, route.Path, appHandler.ServeHTTP)
+			// Create a route handler that will resolve routes from the registry
+			routeHandler := NewRouteHandler(
+				cfg.RouteRegistry,
+				listenerCfg.EndpointID,
+				r.logger.With(
+					"listener", listenerCfg.ID,
+					"endpoint", listenerCfg.EndpointID,
+				),
+			)
+
+			// Create a single route that captures all paths and delegates to the route handler
+			rootRouteID := fmt.Sprintf("%s:root", listenerCfg.ID)
+			rootRoute, err := httpserver.NewRoute(rootRouteID, "/", routeHandler.ServeHTTP)
 			if err != nil {
-				r.logger.Error("Failed to create HTTP route", "error", err)
+				r.logger.Error("Failed to create root HTTP route", "error", err)
 				continue
 			}
-			httpRoutes = append(httpRoutes, *httpRoute)
+
+			// The route handler will handle all routes for this endpoint
+			httpRoutes = []httpserver.Route{*rootRoute}
+		} else if len(listenerCfg.Routes) > 0 {
+			// Legacy style routing with direct route mapping
+			r.logger.Debug(
+				"Using legacy direct route mapping for listener",
+				"id",
+				listenerCfg.ID,
+				"routes",
+				len(listenerCfg.Routes),
+			)
+
+			// Convert our HTTP routes to httpserver.Route objects
+			httpRoutes = make([]httpserver.Route, 0, len(listenerCfg.Routes))
+			for _, route := range listenerCfg.Routes {
+				// Create a unique route ID
+				routeID := fmt.Sprintf("%s:%s", listenerCfg.ID, route.Path)
+
+				// Create handler for this route
+				appHandler := NewAppHandler(cfg.AppRegistry, []RouteConfig{route}, r.logger)
+
+				// Create httpserver route
+				httpRoute, err := httpserver.NewRoute(routeID, route.Path, appHandler.ServeHTTP)
+				if err != nil {
+					r.logger.Error("Failed to create HTTP route", "error", err)
+					continue
+				}
+				httpRoutes = append(httpRoutes, *httpRoute)
+			}
+		} else {
+			r.logger.Error(
+				"Listener has neither endpoint ID nor routes",
+				"id",
+				listenerCfg.ID,
+			)
+			continue
 		}
 
 		// Create a domain listener config based on our HTTP config

@@ -12,6 +12,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/registry"
+	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
 
@@ -160,4 +161,62 @@ func (r *Runner) Reload() {
 	// Update the current config - this will be picked up by GetListenersConfigCallback
 	// when the composite runner calls it
 	r.currentConfig = domainConfig
+}
+
+// GetHTTPConfigCallback returns a configuration callback for the HTTP runner.
+// This callback provides HTTP-specific configuration derived from the main domain config.
+func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
+	return func() (*http.Config, error) {
+		r.mutex.Lock()
+		defer r.mutex.Unlock()
+
+		if r.currentConfig == nil {
+			return nil, errors.New("no configuration available")
+		}
+
+		// Extract HTTP listeners from the domain config
+		httpListeners := make([]http.ListenerConfig, 0)
+		for _, l := range r.currentConfig.Listeners {
+			// Only process HTTP listeners
+			_, ok := l.GetHTTPOptions()
+			if !ok {
+				continue
+			}
+
+			// Find associated endpoint for this listener
+			var endpointID string
+			for _, e := range r.currentConfig.Endpoints {
+				for _, id := range e.ListenerIDs {
+					if id == l.ID {
+						endpointID = e.ID
+						break
+					}
+				}
+				if endpointID != "" {
+					break
+				}
+			}
+
+			// Convert domain listener to HTTP-specific listener config
+			httpListener := http.ListenerConfig{
+				ID:           l.ID,
+				Address:      l.Address,
+				EndpointID:   endpointID,
+				ReadTimeout:  l.GetReadTimeout(),
+				WriteTimeout: l.GetWriteTimeout(),
+				IdleTimeout:  l.GetIdleTimeout(),
+				DrainTimeout: l.GetDrainTimeout(),
+			}
+
+			httpListeners = append(httpListeners, httpListener)
+		}
+
+		// Create HTTP config with app registry
+		httpConfig := http.NewConfig(
+			r.appRegistry,
+			httpListeners,
+		)
+
+		return httpConfig, nil
+	}
 }

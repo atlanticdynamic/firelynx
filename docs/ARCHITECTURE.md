@@ -76,7 +76,51 @@ The standard component lifecycle states are:
 - **Stopped**: After shutdown completion
 - **Error**: Error condition
 
-### 3. Hot Reload System
+### 3. Architectural Layers
+
+Firelynx follows a strict separation of concerns across three distinct layers to ensure maintainability and flexibility:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐      ┌─────────────────┐
+│                 │     │                 │     │                 │      │                 │
+│     Protobuf    │◄───►│   Domain Config │◄───►│   Core Adapter  │◄────►│ Runtime         │
+│     Schema      │     │      Layer      │     │      Layer      │      │ Components      │
+│                 │     │                 │     │                 │      │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘      └─────────────────┘
+                      internal/config       internal/server/core      internal/server/*
+```
+
+#### Domain Config Layer (`internal/config/*`)
+
+The domain config layer has three specific responsibilities:
+
+1. **Proto Conversion**: Transform serialized protocol buffer data into strongly-typed Go domain models
+2. **Semantic Validation**: Verify relationships between resources, check valid app names and ensure referential integrity
+3. **Proto Serialization**: Transform domain models back to protocol buffers
+
+**Important Boundaries**: This layer does NOT handle:
+- Instantiation of runtime components or app instances
+- Execution of any business logic
+- Runtime request routing or handling
+
+#### Core Adapter Layer (`internal/server/core/*`)
+
+This layer serves as the only bridge between domain config and runtime components:
+
+1. **Domain Config Access**: The only component with direct imports from `internal/config`
+2. **Type Conversion**: Converts domain config types to package-specific configs
+3. **Configuration Callbacks**: Provides configuration through callbacks to runtime components
+
+#### Runtime Components (`internal/server/*` except `core`)
+
+These implement the actual server functionality with these characteristics:
+
+1. **Package Independence**: Each component defines its own config types with no dependency on domain config
+2. **Callback-Based Configuration**: Receives configuration via callbacks, not direct dependencies
+3. **Lazy Configuration**: Loads configuration during Run(), not during initialization
+4. **Lifecycle Adherence**: Follows the standard supervisor lifecycle (Run, Stop, Reload)
+
+### 4. Hot Reload System
 
 The hot reload system enables configuration updates without server downtime:
 

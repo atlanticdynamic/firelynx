@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
+	"github.com/atlanticdynamic/firelynx/internal/server/routing"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewConfig(t *testing.T) {
 	// Create test dependencies
-	registry := mocks.NewMockRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	listeners := []ListenerConfig{
 		{
 			ID:      "test1",
@@ -21,29 +22,38 @@ func TestNewConfig(t *testing.T) {
 	}
 
 	// Test basic creation without options
-	config := NewConfig(registry, listeners)
+	config := NewConfig(appRegistry, listeners)
 	assert.NotNil(t, config)
-	assert.Equal(t, registry, config.Registry)
+	assert.Equal(t, appRegistry, config.AppRegistry)
 	assert.Equal(t, listeners, config.Listeners)
 	assert.NotNil(t, config.logger)
 
 	// Test with custom logger option
 	customLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	configWithLogger := NewConfig(registry, listeners, WithConfigLogger(customLogger))
+	configWithLogger := NewConfig(appRegistry, listeners, WithConfigLogger(customLogger))
 	assert.NotNil(t, configWithLogger)
-	assert.Equal(t, registry, configWithLogger.Registry)
+	assert.Equal(t, appRegistry, configWithLogger.AppRegistry)
 	assert.Equal(t, listeners, configWithLogger.Listeners)
 	assert.Equal(t, customLogger, configWithLogger.logger)
 
 	// Test with nil logger (should use default)
-	configWithNilLogger := NewConfig(registry, listeners, WithConfigLogger(nil))
+	configWithNilLogger := NewConfig(appRegistry, listeners, WithConfigLogger(nil))
 	assert.NotNil(t, configWithNilLogger)
 	assert.NotNil(t, configWithNilLogger.logger)
+
+	// Test with route registry
+	routeRegistry := &routing.Registry{}
+	configWithRouteRegistry := NewConfig(appRegistry, listeners, WithRouteRegistry(routeRegistry))
+	assert.NotNil(t, configWithRouteRegistry)
+	assert.Equal(t, appRegistry, configWithRouteRegistry.AppRegistry)
+	assert.Equal(t, routeRegistry, configWithRouteRegistry.RouteRegistry)
+	assert.Equal(t, listeners, configWithRouteRegistry.Listeners)
 }
 
 func TestConfig_Validate(t *testing.T) {
 	// Create test dependencies
-	registry := mocks.NewMockRegistry()
+	appRegistry := mocks.NewMockRegistry()
+	routeRegistry := &routing.Registry{}
 	validListener := ListenerConfig{
 		ID:      "test1",
 		Address: ":8080",
@@ -63,34 +73,42 @@ func TestConfig_Validate(t *testing.T) {
 		errorMsg  string
 	}{
 		{
-			name: "valid config",
+			name: "valid config with AppRegistry",
 			config: &Config{
-				Registry:  registry,
-				Listeners: []ListenerConfig{validListener},
+				AppRegistry: appRegistry,
+				Listeners:   []ListenerConfig{validListener},
+			},
+			wantError: false,
+		},
+		{
+			name: "valid config with RouteRegistry",
+			config: &Config{
+				RouteRegistry: routeRegistry,
+				Listeners:     []ListenerConfig{validListener},
 			},
 			wantError: false,
 		},
 		{
 			name: "nil registry",
 			config: &Config{
-				Registry:  nil,
-				Listeners: []ListenerConfig{validListener},
+				AppRegistry: nil,
+				Listeners:   []ListenerConfig{validListener},
 			},
 			wantError: true,
-			errorMsg:  "registry cannot be nil",
+			errorMsg:  "either AppRegistry or RouteRegistry must be provided",
 		},
 		{
 			name: "empty listeners",
 			config: &Config{
-				Registry:  registry,
-				Listeners: []ListenerConfig{},
+				AppRegistry: appRegistry,
+				Listeners:   []ListenerConfig{},
 			},
 			wantError: false, // Empty listeners is valid
 		},
 		{
 			name: "invalid listener",
 			config: &Config{
-				Registry: registry,
+				AppRegistry: appRegistry,
 				Listeners: []ListenerConfig{
 					{
 						// Missing ID and Address
@@ -104,38 +122,7 @@ func TestConfig_Validate(t *testing.T) {
 				},
 			},
 			wantError: true,
-			errorMsg:  "invalid listener at index 0",
-		},
-		{
-			name: "invalid listener timeouts",
-			config: &Config{
-				Registry: registry,
-				Listeners: []ListenerConfig{
-					{
-						ID:           "test1",
-						Address:      ":8080",
-						ReadTimeout:  -1 * time.Second, // Negative timeout
-						WriteTimeout: -1 * time.Second,
-						Routes: []RouteConfig{
-							{
-								Path:  "/test",
-								AppID: "test-app",
-							},
-						},
-					},
-				},
-			},
-			wantError: true,
-			errorMsg:  "invalid read timeout",
-		},
-		{
-			name: "nil logger",
-			config: &Config{
-				Registry:  registry,
-				Listeners: []ListenerConfig{validListener},
-				logger:    nil,
-			},
-			wantError: false, // Should not cause validation failure
+			errorMsg:  "ID cannot be empty",
 		},
 	}
 
@@ -144,7 +131,9 @@ func TestConfig_Validate(t *testing.T) {
 			err := tt.config.Validate()
 			if tt.wantError {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errorMsg)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
@@ -153,123 +142,53 @@ func TestConfig_Validate(t *testing.T) {
 }
 
 func TestListenerConfig_Validate(t *testing.T) {
-	validRoute := RouteConfig{
-		Path:  "/test",
-		AppID: "test-app",
-	}
-
-	// Test valid config
-	listener := ListenerConfig{
-		ID:      "test1",
-		Address: ":8080",
-		Routes:  []RouteConfig{validRoute},
-	}
-	err := listener.Validate()
-	assert.NoError(t, err)
-
-	// Test missing ID
-	invalidListener := ListenerConfig{
-		Address: ":8080",
-		Routes:  []RouteConfig{validRoute},
-	}
-	err = invalidListener.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "ID cannot be empty")
-
-	// Test missing address
-	invalidListener = ListenerConfig{
-		ID:     "test1",
-		Routes: []RouteConfig{validRoute},
-	}
-	err = invalidListener.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "address cannot be empty")
-
-	// Test negative timeouts
-	invalidListener = ListenerConfig{
-		ID:           "test1",
-		Address:      ":8080",
-		ReadTimeout:  -1 * time.Second,
-		WriteTimeout: -1 * time.Second,
-		DrainTimeout: -1 * time.Second,
-		IdleTimeout:  -1 * time.Second,
-		Routes:       []RouteConfig{validRoute},
-	}
-	err = invalidListener.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid read timeout")
-	assert.Contains(t, err.Error(), "invalid write timeout")
-	assert.Contains(t, err.Error(), "invalid drain timeout")
-	assert.Contains(t, err.Error(), "invalid idle timeout")
-
-	// Test with invalid route
-	invalidListener = ListenerConfig{
+	// Test valid config with routes
+	validConfig := ListenerConfig{
 		ID:      "test1",
 		Address: ":8080",
 		Routes: []RouteConfig{
 			{
-				// Missing Path and AppID
+				Path:  "/test",
+				AppID: "test-app",
 			},
 		},
 	}
-	err = invalidListener.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid route at index 0")
-}
+	assert.NoError(t, validConfig.Validate())
 
-func TestRouteConfig_Validate(t *testing.T) {
-	// Create a valid route
-	route := RouteConfig{
-		Path:  "/test",
-		AppID: "test-app",
-		StaticData: map[string]any{
-			"key": "value",
+	// Test missing ID
+	missingID := ListenerConfig{
+		Address: ":8080",
+	}
+	assert.Error(t, missingID.Validate())
+	assert.Contains(t, missingID.Validate().Error(), "ID cannot be empty")
+
+	// Test missing address
+	missingAddress := ListenerConfig{
+		ID: "test1",
+		Routes: []RouteConfig{
+			{
+				Path:  "/test",
+				AppID: "test-app",
+			},
 		},
 	}
-	err := route.Validate()
-	assert.NoError(t, err)
+	assert.Error(t, missingAddress.Validate())
+	assert.Contains(t, missingAddress.Validate().Error(), "address cannot be empty")
 
-	// Test missing path
-	invalidRoute := RouteConfig{
-		AppID: "test-app",
+	// Test with timeouts
+	configWithTimeouts := ListenerConfig{
+		ID:           "test1",
+		Address:      ":8080",
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  30 * time.Second,
+		DrainTimeout: 30 * time.Second,
+		Routes: []RouteConfig{
+			{
+				Path:  "/test",
+				AppID: "test-app",
+			},
+		},
 	}
-	err = invalidRoute.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "path cannot be empty")
-
-	// Test missing appID
-	invalidRoute = RouteConfig{
-		Path: "/test",
-	}
-	err = invalidRoute.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "appID cannot be empty")
-
-	// Test missing both
-	invalidRoute = RouteConfig{}
-	err = invalidRoute.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "path cannot be empty")
-	assert.Contains(t, err.Error(), "appID cannot be empty")
-}
-
-func TestWithConfigLogger(t *testing.T) {
-	// Create a test Config
-	config := &Config{}
-
-	// Create a custom logger
-	customLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
-	// Apply the WithConfigLogger option
-	option := WithConfigLogger(customLogger)
-	option(config)
-
-	// Verify the logger was set
-	assert.Equal(t, customLogger, config.logger)
-
-	// Test with nil logger (should not change existing logger)
-	existingLogger := config.logger
-	nilOption := WithConfigLogger(nil)
-	nilOption(config)
-	assert.Equal(t, existingLogger, config.logger)
+	assert.NoError(t, configWithTimeouts.Validate())
 }

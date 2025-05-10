@@ -19,6 +19,61 @@ The domain config layer does **not** handle:
 
 This clear separation ensures the domain config remains a pure data model with validation. Runtime execution is the responsibility of the `internal/server` packages.
 
+## Architectural Patterns
+
+### Clean Separation via Adapters
+
+The Firelynx architecture maintains strict separation between layers using an adapter pattern:
+
+```
+protobuf ↔ domain config ↔ core adapter ↔ package-specific configs
+```
+
+1. **Domain Config Layer** (`internal/config/*`):
+   - Converts proto ↔ domain model
+   - Validates domain model
+   - Has no knowledge of runtime components
+
+2. **Core Adapter Layer** (`internal/server/core/*`):
+   - Only place that accesses domain config types
+   - Converts domain config to package-specific configs
+   - Provides configuration callbacks to runnables
+
+3. **Runtime Components** (`internal/server/*` except `core`):
+   - Define their own package-specific configs
+   - Have no direct dependencies on domain config
+   - Receive config through callbacks
+
+This design ensures that if domain config structure changes, only the core adapter layer needs updating, not all runtime components.
+
+### Callback Pattern for Configuration
+
+Runtime components receive configuration through callbacks rather than direct dependencies:
+
+```go
+// Package-specific config callback (no domain config knowledge)
+type ConfigCallback func() (*MyPackageConfig, error)
+
+// Runtime component using the callback
+func NewComponent(configCallback ConfigCallback) *Component {
+    return &Component{configCallback: configCallback}
+}
+
+// Called during Run() or Reload(), not during initialization
+func (c *Component) Run(ctx context.Context) error {
+    config, err := c.configCallback()
+    if err != nil {
+        return err
+    }
+    // Use config...
+}
+```
+
+This pattern:
+- Avoids premature configuration loading
+- Follows the supervisor lifecycle (Run, Stop, Reload)
+- Maintains clean separation between configuration and runtime
+
 ## Package Structure
 
 The config package has been organized into modular components following a consistent pattern:

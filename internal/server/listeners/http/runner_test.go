@@ -23,7 +23,7 @@ func TestNewRunner(t *testing.T) {
 			name: "valid runner",
 			configCallback: func() (*Config, error) {
 				return &Config{
-					Registry: mocks.NewMockRegistry(),
+					AppRegistry: mocks.NewMockRegistry(),
 					Listeners: []ListenerConfig{
 						{
 							ID:           "test",
@@ -98,7 +98,7 @@ func TestRunner_Run(t *testing.T) {
 	// Create a config callback that returns a valid HTTP config
 	configCallback := func() (*Config, error) {
 		return &Config{
-			Registry: registry,
+			AppRegistry: registry,
 			Listeners: []ListenerConfig{
 				{
 					ID:           "test",
@@ -158,7 +158,7 @@ func TestRunner_Reload(t *testing.T) {
 	// Create a config callback that returns a valid HTTP config
 	configCallback := func() (*Config, error) {
 		return &Config{
-			Registry: registry,
+			AppRegistry: registry,
 			Listeners: []ListenerConfig{
 				{
 					ID:           "test",
