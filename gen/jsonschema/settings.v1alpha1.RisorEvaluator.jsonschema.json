@@ -1,0 +1,15 @@
+{
+  "$id": "settings.v1alpha1.RisorEvaluator.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "code": {
+      "type": "string"
+    },
+    "timeout": {
+      "$ref": "google.protobuf.Duration.jsonschema.json"
+    }
+  },
+  "title": "Risor Evaluator",
+  "type": "object"
+}

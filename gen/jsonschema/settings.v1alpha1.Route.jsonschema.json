@@ -1,0 +1,36 @@
+{
+  "$id": "settings.v1alpha1.Route.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Route defines a rule for directing traffic from an endpoint to an app",
+  "patternProperties": {
+    "^(app_id)$": {
+      "type": "string"
+    },
+    "^(grpc_service)$": {
+      "type": "string"
+    },
+    "^(http_path)$": {
+      "type": "string"
+    },
+    "^(static_data)$": {
+      "$ref": "settings.v1alpha1.StaticData.jsonschema.json"
+    }
+  },
+  "properties": {
+    "appId": {
+      "type": "string"
+    },
+    "grpcService": {
+      "type": "string"
+    },
+    "httpPath": {
+      "type": "string"
+    },
+    "staticData": {
+      "$ref": "settings.v1alpha1.StaticData.jsonschema.json"
+    }
+  },
+  "title": "Route",
+  "type": "object"
+}

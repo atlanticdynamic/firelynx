@@ -456,8 +456,8 @@ func (x *ServerConfig) GetApps() []*AppDefinition {
 
 type LogOptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Format        *LogFormat             `protobuf:"varint,1,opt,name=format,enum=firelynx.settings.v1alpha1.LogFormat,def=0" json:"format,omitempty"`
-	Level         *LogLevel              `protobuf:"varint,2,opt,name=level,enum=firelynx.settings.v1alpha1.LogLevel,def=0" json:"level,omitempty"`
+	Format        *LogFormat             `protobuf:"varint,1,opt,name=format,enum=settings.v1alpha1.LogFormat,def=0" json:"format,omitempty"`
+	Level         *LogLevel              `protobuf:"varint,2,opt,name=level,enum=settings.v1alpha1.LogLevel,def=0" json:"level,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1378,7 +1378,7 @@ func (x *EchoApp) GetResponse() string {
 type StaticData struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Data          map[string]*structpb.Value `protobuf:"bytes,1,rep,name=data" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	MergeMode     *StaticDataMergeMode       `protobuf:"varint,2,opt,name=merge_mode,json=mergeMode,enum=firelynx.settings.v1alpha1.StaticDataMergeMode,def=0" json:"merge_mode,omitempty"`
+	MergeMode     *StaticDataMergeMode       `protobuf:"varint,2,opt,name=merge_mode,json=mergeMode,enum=settings.v1alpha1.StaticDataMergeMode,def=0" json:"merge_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1436,31 +1436,31 @@ var File_settings_v1alpha1_settings_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\n" +
-	" settings/v1alpha1/settings.proto\x12\x1afirelynx.settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\"W\n" +
-	"\x13UpdateConfigRequest\x12@\n" +
-	"\x06config\x18\x01 \x01(\v2(.firelynx.settings.v1alpha1.ServerConfigR\x06config\"\x88\x01\n" +
+	" settings/v1alpha1/settings.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\"N\n" +
+	"\x13UpdateConfigRequest\x127\n" +
+	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\x7f\n" +
 	"\x14UpdateConfigResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\x12@\n" +
-	"\x06config\x18\x03 \x01(\v2(.firelynx.settings.v1alpha1.ServerConfigR\x06config\"\x12\n" +
-	"\x10GetConfigRequest\"U\n" +
-	"\x11GetConfigResponse\x12@\n" +
-	"\x06config\x18\x01 \x01(\v2(.firelynx.settings.v1alpha1.ServerConfigR\x06config\"\xb5\x02\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\x127\n" +
+	"\x06config\x18\x03 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\x12\n" +
+	"\x10GetConfigRequest\"L\n" +
+	"\x11GetConfigResponse\x127\n" +
+	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\x91\x02\n" +
 	"\fServerConfig\x12\x1c\n" +
-	"\aversion\x18\x01 \x01(\t:\x02v1R\aversion\x12@\n" +
-	"\alogging\x18\x02 \x01(\v2&.firelynx.settings.v1alpha1.LogOptionsR\alogging\x12B\n" +
-	"\tlisteners\x18\x03 \x03(\v2$.firelynx.settings.v1alpha1.ListenerR\tlisteners\x12B\n" +
-	"\tendpoints\x18\x04 \x03(\v2$.firelynx.settings.v1alpha1.EndpointR\tendpoints\x12=\n" +
-	"\x04apps\x18\x05 \x03(\v2).firelynx.settings.v1alpha1.AppDefinitionR\x04apps\"\xb6\x01\n" +
+	"\aversion\x18\x01 \x01(\t:\x02v1R\aversion\x127\n" +
+	"\alogging\x18\x02 \x01(\v2\x1d.settings.v1alpha1.LogOptionsR\alogging\x129\n" +
+	"\tlisteners\x18\x03 \x03(\v2\x1b.settings.v1alpha1.ListenerR\tlisteners\x129\n" +
+	"\tendpoints\x18\x04 \x03(\v2\x1b.settings.v1alpha1.EndpointR\tendpoints\x124\n" +
+	"\x04apps\x18\x05 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xa4\x01\n" +
 	"\n" +
-	"LogOptions\x12U\n" +
-	"\x06format\x18\x01 \x01(\x0e2%.firelynx.settings.v1alpha1.LogFormat:\x16LOG_FORMAT_UNSPECIFIEDR\x06format\x12Q\n" +
-	"\x05level\x18\x02 \x01(\x0e2$.firelynx.settings.v1alpha1.LogLevel:\x15LOG_LEVEL_UNSPECIFIEDR\x05level\"\xd6\x01\n" +
+	"LogOptions\x12L\n" +
+	"\x06format\x18\x01 \x01(\x0e2\x1c.settings.v1alpha1.LogFormat:\x16LOG_FORMAT_UNSPECIFIEDR\x06format\x12H\n" +
+	"\x05level\x18\x02 \x01(\x0e2\x1b.settings.v1alpha1.LogLevel:\x15LOG_LEVEL_UNSPECIFIEDR\x05level\"\xc4\x01\n" +
 	"\bListener\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aaddress\x18\x02 \x01(\tR\aaddress\x12E\n" +
-	"\x04http\x18\x03 \x01(\v2/.firelynx.settings.v1alpha1.HttpListenerOptionsH\x00R\x04http\x12E\n" +
-	"\x04grpc\x18\x04 \x01(\v2/.firelynx.settings.v1alpha1.GrpcListenerOptionsH\x00R\x04grpcB\x12\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\x12<\n" +
+	"\x04http\x18\x03 \x01(\v2&.settings.v1alpha1.HttpListenerOptionsH\x00R\x04http\x12<\n" +
+	"\x04grpc\x18\x04 \x01(\v2&.settings.v1alpha1.GrpcListenerOptionsH\x00R\x04grpcB\x12\n" +
 	"\x10protocol_options\"\x91\x02\n" +
 	"\x13HttpListenerOptions\x12<\n" +
 	"\fread_timeout\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vreadTimeout\x12>\n" +
@@ -1470,31 +1470,31 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\x13GrpcListenerOptions\x12I\n" +
 	"\x13max_connection_idle\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x11maxConnectionIdle\x12G\n" +
 	"\x12max_connection_age\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x10maxConnectionAge\x124\n" +
-	"\x16max_concurrent_streams\x18\x03 \x01(\x05R\x14maxConcurrentStreams\"x\n" +
+	"\x16max_concurrent_streams\x18\x03 \x01(\x05R\x14maxConcurrentStreams\"o\n" +
 	"\bEndpoint\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
-	"\flistener_ids\x18\x02 \x03(\tR\vlistenerIds\x129\n" +
-	"\x06routes\x18\x03 \x03(\v2!.firelynx.settings.v1alpha1.RouteR\x06routes\"\xb8\x01\n" +
+	"\flistener_ids\x18\x02 \x03(\tR\vlistenerIds\x120\n" +
+	"\x06routes\x18\x03 \x03(\v2\x18.settings.v1alpha1.RouteR\x06routes\"\xaf\x01\n" +
 	"\x05Route\x12\x15\n" +
-	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12G\n" +
-	"\vstatic_data\x18\x02 \x01(\v2&.firelynx.settings.v1alpha1.StaticDataR\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12>\n" +
+	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
 	"staticData\x12\x1d\n" +
 	"\thttp_path\x18\x03 \x01(\tH\x00R\bhttpPath\x12#\n" +
 	"\fgrpc_service\x18\x04 \x01(\tH\x00R\vgrpcServiceB\v\n" +
-	"\tcondition\"\x86\x02\n" +
+	"\tcondition\"\xeb\x01\n" +
 	"\rAppDefinition\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12?\n" +
-	"\x06script\x18\x03 \x01(\v2%.firelynx.settings.v1alpha1.AppScriptH\x00R\x06script\x12[\n" +
-	"\x10composite_script\x18\x04 \x01(\v2..firelynx.settings.v1alpha1.AppCompositeScriptH\x00R\x0fcompositeScript\x129\n" +
-	"\x04echo\x18\x05 \x01(\v2#.firelynx.settings.v1alpha1.EchoAppH\x00R\x04echoB\f\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x126\n" +
+	"\x06script\x18\x03 \x01(\v2\x1c.settings.v1alpha1.AppScriptH\x00R\x06script\x12R\n" +
+	"\x10composite_script\x18\x04 \x01(\v2%.settings.v1alpha1.AppCompositeScriptH\x00R\x0fcompositeScript\x120\n" +
+	"\x04echo\x18\x05 \x01(\v2\x1a.settings.v1alpha1.EchoAppH\x00R\x04echoB\f\n" +
 	"\n" +
-	"app_config\"\xb9\x02\n" +
-	"\tAppScript\x12G\n" +
-	"\vstatic_data\x18\x02 \x01(\v2&.firelynx.settings.v1alpha1.StaticDataR\n" +
-	"staticData\x12B\n" +
-	"\x05risor\x18\x03 \x01(\v2*.firelynx.settings.v1alpha1.RisorEvaluatorH\x00R\x05risor\x12K\n" +
-	"\bstarlark\x18\x04 \x01(\v2-.firelynx.settings.v1alpha1.StarlarkEvaluatorH\x00R\bstarlark\x12E\n" +
-	"\x06extism\x18\x05 \x01(\v2+.firelynx.settings.v1alpha1.ExtismEvaluatorH\x00R\x06extismB\v\n" +
+	"app_config\"\x95\x02\n" +
+	"\tAppScript\x12>\n" +
+	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
+	"staticData\x129\n" +
+	"\x05risor\x18\x03 \x01(\v2!.settings.v1alpha1.RisorEvaluatorH\x00R\x05risor\x12B\n" +
+	"\bstarlark\x18\x04 \x01(\v2$.settings.v1alpha1.StarlarkEvaluatorH\x00R\bstarlark\x12<\n" +
+	"\x06extism\x18\x05 \x01(\v2\".settings.v1alpha1.ExtismEvaluatorH\x00R\x06extismB\v\n" +
 	"\tevaluator\"Y\n" +
 	"\x0eRisorEvaluator\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x123\n" +
@@ -1506,18 +1506,18 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1e\n" +
 	"\n" +
 	"entrypoint\x18\x02 \x01(\tR\n" +
-	"entrypoint\"\x83\x01\n" +
+	"entrypoint\"z\n" +
 	"\x12AppCompositeScript\x12$\n" +
-	"\x0escript_app_ids\x18\x01 \x03(\tR\fscriptAppIds\x12G\n" +
-	"\vstatic_data\x18\x02 \x01(\v2&.firelynx.settings.v1alpha1.StaticDataR\n" +
+	"\x0escript_app_ids\x18\x01 \x03(\tR\fscriptAppIds\x12>\n" +
+	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
 	"staticData\"%\n" +
 	"\aEchoApp\x12\x1a\n" +
-	"\bresponse\x18\x01 \x01(\tR\bresponse\"\x97\x02\n" +
+	"\bresponse\x18\x01 \x01(\tR\bresponse\"\x85\x02\n" +
 	"\n" +
-	"StaticData\x12D\n" +
-	"\x04data\x18\x01 \x03(\v20.firelynx.settings.v1alpha1.StaticData.DataEntryR\x04data\x12r\n" +
+	"StaticData\x12;\n" +
+	"\x04data\x18\x01 \x03(\v2'.settings.v1alpha1.StaticData.DataEntryR\x04data\x12i\n" +
 	"\n" +
-	"merge_mode\x18\x02 \x01(\x0e2/.firelynx.settings.v1alpha1.StaticDataMergeMode:\"STATIC_DATA_MERGE_MODE_UNSPECIFIEDR\tmergeMode\x1aO\n" +
+	"merge_mode\x18\x02 \x01(\x0e2&.settings.v1alpha1.StaticDataMergeMode:\"STATIC_DATA_MERGE_MODE_UNSPECIFIEDR\tmergeMode\x1aO\n" +
 	"\tDataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
 	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01*P\n" +
@@ -1535,10 +1535,10 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\x13StaticDataMergeMode\x12&\n" +
 	"\"STATIC_DATA_MERGE_MODE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bSTATIC_DATA_MERGE_MODE_LAST\x10\x01\x12!\n" +
-	"\x1dSTATIC_DATA_MERGE_MODE_UNIQUE\x10\x022\xec\x01\n" +
-	"\rConfigService\x12q\n" +
-	"\fUpdateConfig\x12/.firelynx.settings.v1alpha1.UpdateConfigRequest\x1a0.firelynx.settings.v1alpha1.UpdateConfigResponse\x12h\n" +
-	"\tGetConfig\x12,.firelynx.settings.v1alpha1.GetConfigRequest\x1a-.firelynx.settings.v1alpha1.GetConfigResponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
+	"\x1dSTATIC_DATA_MERGE_MODE_UNIQUE\x10\x022\xc8\x01\n" +
+	"\rConfigService\x12_\n" +
+	"\fUpdateConfig\x12&.settings.v1alpha1.UpdateConfigRequest\x1a'.settings.v1alpha1.UpdateConfigResponse\x12V\n" +
+	"\tGetConfig\x12#.settings.v1alpha1.GetConfigRequest\x1a$.settings.v1alpha1.GetConfigResponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_settings_proto_rawDescOnce sync.Once
@@ -1555,69 +1555,69 @@ func file_settings_v1alpha1_settings_proto_rawDescGZIP() []byte {
 var file_settings_v1alpha1_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_settings_v1alpha1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_settings_v1alpha1_settings_proto_goTypes = []any{
-	(LogFormat)(0),               // 0: firelynx.settings.v1alpha1.LogFormat
-	(LogLevel)(0),                // 1: firelynx.settings.v1alpha1.LogLevel
-	(StaticDataMergeMode)(0),     // 2: firelynx.settings.v1alpha1.StaticDataMergeMode
-	(*UpdateConfigRequest)(nil),  // 3: firelynx.settings.v1alpha1.UpdateConfigRequest
-	(*UpdateConfigResponse)(nil), // 4: firelynx.settings.v1alpha1.UpdateConfigResponse
-	(*GetConfigRequest)(nil),     // 5: firelynx.settings.v1alpha1.GetConfigRequest
-	(*GetConfigResponse)(nil),    // 6: firelynx.settings.v1alpha1.GetConfigResponse
-	(*ServerConfig)(nil),         // 7: firelynx.settings.v1alpha1.ServerConfig
-	(*LogOptions)(nil),           // 8: firelynx.settings.v1alpha1.LogOptions
-	(*Listener)(nil),             // 9: firelynx.settings.v1alpha1.Listener
-	(*HttpListenerOptions)(nil),  // 10: firelynx.settings.v1alpha1.HttpListenerOptions
-	(*GrpcListenerOptions)(nil),  // 11: firelynx.settings.v1alpha1.GrpcListenerOptions
-	(*Endpoint)(nil),             // 12: firelynx.settings.v1alpha1.Endpoint
-	(*Route)(nil),                // 13: firelynx.settings.v1alpha1.Route
-	(*AppDefinition)(nil),        // 14: firelynx.settings.v1alpha1.AppDefinition
-	(*AppScript)(nil),            // 15: firelynx.settings.v1alpha1.AppScript
-	(*RisorEvaluator)(nil),       // 16: firelynx.settings.v1alpha1.RisorEvaluator
-	(*StarlarkEvaluator)(nil),    // 17: firelynx.settings.v1alpha1.StarlarkEvaluator
-	(*ExtismEvaluator)(nil),      // 18: firelynx.settings.v1alpha1.ExtismEvaluator
-	(*AppCompositeScript)(nil),   // 19: firelynx.settings.v1alpha1.AppCompositeScript
-	(*EchoApp)(nil),              // 20: firelynx.settings.v1alpha1.EchoApp
-	(*StaticData)(nil),           // 21: firelynx.settings.v1alpha1.StaticData
-	nil,                          // 22: firelynx.settings.v1alpha1.StaticData.DataEntry
+	(LogFormat)(0),               // 0: settings.v1alpha1.LogFormat
+	(LogLevel)(0),                // 1: settings.v1alpha1.LogLevel
+	(StaticDataMergeMode)(0),     // 2: settings.v1alpha1.StaticDataMergeMode
+	(*UpdateConfigRequest)(nil),  // 3: settings.v1alpha1.UpdateConfigRequest
+	(*UpdateConfigResponse)(nil), // 4: settings.v1alpha1.UpdateConfigResponse
+	(*GetConfigRequest)(nil),     // 5: settings.v1alpha1.GetConfigRequest
+	(*GetConfigResponse)(nil),    // 6: settings.v1alpha1.GetConfigResponse
+	(*ServerConfig)(nil),         // 7: settings.v1alpha1.ServerConfig
+	(*LogOptions)(nil),           // 8: settings.v1alpha1.LogOptions
+	(*Listener)(nil),             // 9: settings.v1alpha1.Listener
+	(*HttpListenerOptions)(nil),  // 10: settings.v1alpha1.HttpListenerOptions
+	(*GrpcListenerOptions)(nil),  // 11: settings.v1alpha1.GrpcListenerOptions
+	(*Endpoint)(nil),             // 12: settings.v1alpha1.Endpoint
+	(*Route)(nil),                // 13: settings.v1alpha1.Route
+	(*AppDefinition)(nil),        // 14: settings.v1alpha1.AppDefinition
+	(*AppScript)(nil),            // 15: settings.v1alpha1.AppScript
+	(*RisorEvaluator)(nil),       // 16: settings.v1alpha1.RisorEvaluator
+	(*StarlarkEvaluator)(nil),    // 17: settings.v1alpha1.StarlarkEvaluator
+	(*ExtismEvaluator)(nil),      // 18: settings.v1alpha1.ExtismEvaluator
+	(*AppCompositeScript)(nil),   // 19: settings.v1alpha1.AppCompositeScript
+	(*EchoApp)(nil),              // 20: settings.v1alpha1.EchoApp
+	(*StaticData)(nil),           // 21: settings.v1alpha1.StaticData
+	nil,                          // 22: settings.v1alpha1.StaticData.DataEntry
 	(*durationpb.Duration)(nil),  // 23: google.protobuf.Duration
 	(*structpb.Value)(nil),       // 24: google.protobuf.Value
 }
 var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
-	7,  // 0: firelynx.settings.v1alpha1.UpdateConfigRequest.config:type_name -> firelynx.settings.v1alpha1.ServerConfig
-	7,  // 1: firelynx.settings.v1alpha1.UpdateConfigResponse.config:type_name -> firelynx.settings.v1alpha1.ServerConfig
-	7,  // 2: firelynx.settings.v1alpha1.GetConfigResponse.config:type_name -> firelynx.settings.v1alpha1.ServerConfig
-	8,  // 3: firelynx.settings.v1alpha1.ServerConfig.logging:type_name -> firelynx.settings.v1alpha1.LogOptions
-	9,  // 4: firelynx.settings.v1alpha1.ServerConfig.listeners:type_name -> firelynx.settings.v1alpha1.Listener
-	12, // 5: firelynx.settings.v1alpha1.ServerConfig.endpoints:type_name -> firelynx.settings.v1alpha1.Endpoint
-	14, // 6: firelynx.settings.v1alpha1.ServerConfig.apps:type_name -> firelynx.settings.v1alpha1.AppDefinition
-	0,  // 7: firelynx.settings.v1alpha1.LogOptions.format:type_name -> firelynx.settings.v1alpha1.LogFormat
-	1,  // 8: firelynx.settings.v1alpha1.LogOptions.level:type_name -> firelynx.settings.v1alpha1.LogLevel
-	10, // 9: firelynx.settings.v1alpha1.Listener.http:type_name -> firelynx.settings.v1alpha1.HttpListenerOptions
-	11, // 10: firelynx.settings.v1alpha1.Listener.grpc:type_name -> firelynx.settings.v1alpha1.GrpcListenerOptions
-	23, // 11: firelynx.settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
-	23, // 12: firelynx.settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
-	23, // 13: firelynx.settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
-	23, // 14: firelynx.settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
-	23, // 15: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
-	23, // 16: firelynx.settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
-	13, // 17: firelynx.settings.v1alpha1.Endpoint.routes:type_name -> firelynx.settings.v1alpha1.Route
-	21, // 18: firelynx.settings.v1alpha1.Route.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
-	15, // 19: firelynx.settings.v1alpha1.AppDefinition.script:type_name -> firelynx.settings.v1alpha1.AppScript
-	19, // 20: firelynx.settings.v1alpha1.AppDefinition.composite_script:type_name -> firelynx.settings.v1alpha1.AppCompositeScript
-	20, // 21: firelynx.settings.v1alpha1.AppDefinition.echo:type_name -> firelynx.settings.v1alpha1.EchoApp
-	21, // 22: firelynx.settings.v1alpha1.AppScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
-	16, // 23: firelynx.settings.v1alpha1.AppScript.risor:type_name -> firelynx.settings.v1alpha1.RisorEvaluator
-	17, // 24: firelynx.settings.v1alpha1.AppScript.starlark:type_name -> firelynx.settings.v1alpha1.StarlarkEvaluator
-	18, // 25: firelynx.settings.v1alpha1.AppScript.extism:type_name -> firelynx.settings.v1alpha1.ExtismEvaluator
-	23, // 26: firelynx.settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
-	23, // 27: firelynx.settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
-	21, // 28: firelynx.settings.v1alpha1.AppCompositeScript.static_data:type_name -> firelynx.settings.v1alpha1.StaticData
-	22, // 29: firelynx.settings.v1alpha1.StaticData.data:type_name -> firelynx.settings.v1alpha1.StaticData.DataEntry
-	2,  // 30: firelynx.settings.v1alpha1.StaticData.merge_mode:type_name -> firelynx.settings.v1alpha1.StaticDataMergeMode
-	24, // 31: firelynx.settings.v1alpha1.StaticData.DataEntry.value:type_name -> google.protobuf.Value
-	3,  // 32: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:input_type -> firelynx.settings.v1alpha1.UpdateConfigRequest
-	5,  // 33: firelynx.settings.v1alpha1.ConfigService.GetConfig:input_type -> firelynx.settings.v1alpha1.GetConfigRequest
-	4,  // 34: firelynx.settings.v1alpha1.ConfigService.UpdateConfig:output_type -> firelynx.settings.v1alpha1.UpdateConfigResponse
-	6,  // 35: firelynx.settings.v1alpha1.ConfigService.GetConfig:output_type -> firelynx.settings.v1alpha1.GetConfigResponse
+	7,  // 0: settings.v1alpha1.UpdateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
+	7,  // 1: settings.v1alpha1.UpdateConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
+	7,  // 2: settings.v1alpha1.GetConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
+	8,  // 3: settings.v1alpha1.ServerConfig.logging:type_name -> settings.v1alpha1.LogOptions
+	9,  // 4: settings.v1alpha1.ServerConfig.listeners:type_name -> settings.v1alpha1.Listener
+	12, // 5: settings.v1alpha1.ServerConfig.endpoints:type_name -> settings.v1alpha1.Endpoint
+	14, // 6: settings.v1alpha1.ServerConfig.apps:type_name -> settings.v1alpha1.AppDefinition
+	0,  // 7: settings.v1alpha1.LogOptions.format:type_name -> settings.v1alpha1.LogFormat
+	1,  // 8: settings.v1alpha1.LogOptions.level:type_name -> settings.v1alpha1.LogLevel
+	10, // 9: settings.v1alpha1.Listener.http:type_name -> settings.v1alpha1.HttpListenerOptions
+	11, // 10: settings.v1alpha1.Listener.grpc:type_name -> settings.v1alpha1.GrpcListenerOptions
+	23, // 11: settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
+	23, // 12: settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
+	23, // 13: settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
+	23, // 14: settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
+	23, // 15: settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
+	23, // 16: settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
+	13, // 17: settings.v1alpha1.Endpoint.routes:type_name -> settings.v1alpha1.Route
+	21, // 18: settings.v1alpha1.Route.static_data:type_name -> settings.v1alpha1.StaticData
+	15, // 19: settings.v1alpha1.AppDefinition.script:type_name -> settings.v1alpha1.AppScript
+	19, // 20: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.AppCompositeScript
+	20, // 21: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.EchoApp
+	21, // 22: settings.v1alpha1.AppScript.static_data:type_name -> settings.v1alpha1.StaticData
+	16, // 23: settings.v1alpha1.AppScript.risor:type_name -> settings.v1alpha1.RisorEvaluator
+	17, // 24: settings.v1alpha1.AppScript.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
+	18, // 25: settings.v1alpha1.AppScript.extism:type_name -> settings.v1alpha1.ExtismEvaluator
+	23, // 26: settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
+	23, // 27: settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
+	21, // 28: settings.v1alpha1.AppCompositeScript.static_data:type_name -> settings.v1alpha1.StaticData
+	22, // 29: settings.v1alpha1.StaticData.data:type_name -> settings.v1alpha1.StaticData.DataEntry
+	2,  // 30: settings.v1alpha1.StaticData.merge_mode:type_name -> settings.v1alpha1.StaticDataMergeMode
+	24, // 31: settings.v1alpha1.StaticData.DataEntry.value:type_name -> google.protobuf.Value
+	3,  // 32: settings.v1alpha1.ConfigService.UpdateConfig:input_type -> settings.v1alpha1.UpdateConfigRequest
+	5,  // 33: settings.v1alpha1.ConfigService.GetConfig:input_type -> settings.v1alpha1.GetConfigRequest
+	4,  // 34: settings.v1alpha1.ConfigService.UpdateConfig:output_type -> settings.v1alpha1.UpdateConfigResponse
+	6,  // 35: settings.v1alpha1.ConfigService.GetConfig:output_type -> settings.v1alpha1.GetConfigResponse
 	34, // [34:36] is the sub-list for method output_type
 	32, // [32:34] is the sub-list for method input_type
 	32, // [32:32] is the sub-list for extension type_name

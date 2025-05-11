@@ -1,0 +1,27 @@
+{
+  "$id": "settings.v1alpha1.AppDefinition.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "App definitions (reusable across endpoints)",
+  "patternProperties": {
+    "^(compositeScript)$": {
+      "$ref": "settings.v1alpha1.AppCompositeScript.schema.json"
+    }
+  },
+  "properties": {
+    "composite_script": {
+      "$ref": "settings.v1alpha1.AppCompositeScript.schema.json"
+    },
+    "echo": {
+      "$ref": "settings.v1alpha1.EchoApp.schema.json"
+    },
+    "id": {
+      "type": "string"
+    },
+    "script": {
+      "$ref": "settings.v1alpha1.AppScript.schema.json"
+    }
+  },
+  "title": "App Definition",
+  "type": "object"
+}

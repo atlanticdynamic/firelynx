@@ -1,0 +1,30 @@
+{
+  "$id": "settings.v1alpha1.AppCompositeScript.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Composite script that combines multiple scripts",
+  "patternProperties": {
+    "^(scriptAppIds)$": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "^(staticData)$": {
+      "$ref": "settings.v1alpha1.StaticData.schema.json"
+    }
+  },
+  "properties": {
+    "script_app_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "static_data": {
+      "$ref": "settings.v1alpha1.StaticData.schema.json"
+    }
+  },
+  "title": "App Composite Script",
+  "type": "object"
+}

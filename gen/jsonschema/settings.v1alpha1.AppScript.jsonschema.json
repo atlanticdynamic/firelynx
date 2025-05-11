@@ -1,0 +1,27 @@
+{
+  "$id": "settings.v1alpha1.AppScript.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Individual script application",
+  "patternProperties": {
+    "^(static_data)$": {
+      "$ref": "settings.v1alpha1.StaticData.jsonschema.json"
+    }
+  },
+  "properties": {
+    "extism": {
+      "$ref": "settings.v1alpha1.ExtismEvaluator.jsonschema.json"
+    },
+    "risor": {
+      "$ref": "settings.v1alpha1.RisorEvaluator.jsonschema.json"
+    },
+    "starlark": {
+      "$ref": "settings.v1alpha1.StarlarkEvaluator.jsonschema.json"
+    },
+    "staticData": {
+      "$ref": "settings.v1alpha1.StaticData.jsonschema.json"
+    }
+  },
+  "title": "App Script",
+  "type": "object"
+}

@@ -19,8 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConfigService_UpdateConfig_FullMethodName = "/firelynx.settings.v1alpha1.ConfigService/UpdateConfig"
-	ConfigService_GetConfig_FullMethodName    = "/firelynx.settings.v1alpha1.ConfigService/GetConfig"
+	ConfigService_UpdateConfig_FullMethodName = "/settings.v1alpha1.ConfigService/UpdateConfig"
+	ConfigService_GetConfig_FullMethodName    = "/settings.v1alpha1.ConfigService/GetConfig"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
@@ -150,7 +150,7 @@ func _ConfigService_GetConfig_Handler(srv interface{}, ctx context.Context, dec 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ConfigService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "firelynx.settings.v1alpha1.ConfigService",
+	ServiceName: "settings.v1alpha1.ConfigService",
 	HandlerType: (*ConfigServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
