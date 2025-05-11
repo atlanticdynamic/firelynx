@@ -20,7 +20,7 @@ func Run(
 	listenAddr string,
 ) error {
 	logHandler := logger.Handler()
-	cManager, err := cfgservice.New(
+	cManager, err := cfgservice.NewRunner(
 		cfgservice.WithLogHandler(logHandler),
 		cfgservice.WithListenAddr(listenAddr),
 		cfgservice.WithConfigPath(configPath),
@@ -29,7 +29,7 @@ func Run(
 		return fmt.Errorf("failed to create config manager: %w", err)
 	}
 
-	serverCore, err := core.New(
+	serverCore, err := core.NewRunner(
 		cManager.GetDomainConfig,
 		core.WithLogHandler(logHandler),
 	)

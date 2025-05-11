@@ -1,12 +1,8 @@
 version = "v1"
 
-[logging]
-level = "debug"
-format = "text"
-
 [[listeners]]
 id = "http_listener"
-address = "{{.HTTPAddr}}"
+address = ":8080"
 
 [listeners.http]
 read_timeout = "1s"
@@ -15,19 +11,27 @@ idle_timeout = "1s"
 drain_timeout = "1s"
 
 [[endpoints]]
-id = "echo_endpoint"
+id = "mixed_endpoint"
 listener_ids = ["http_listener"]
 
 [[endpoints.routes]]
 app_id = "echo_app"
-http_path = "/echo"
+http_path = "/echo1"
 
 [[endpoints.routes]]
 app_id = "echo_app"
-http_path = "/new-path"
+http_path = "/echo2"
+
+[[endpoints.routes]]
+app_id = "grpc_app"
+grpc_service = "test.Service"
 
 [[apps]]
 id = "echo_app"
-
 [apps.echo]
-response = "This is a test echo response"
+response = "Test response"
+
+[[apps]]
+id = "grpc_app"
+[apps.echo]
+response = "GRPC response"

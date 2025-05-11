@@ -22,7 +22,7 @@ func TestGetConfig(t *testing.T) {
 	t.Parallel()
 
 	// Create a Runner instance
-	r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 	require.NoError(t, err)
 
 	// Set a test configuration
@@ -54,7 +54,7 @@ func TestGetConfigClone(t *testing.T) {
 	t.Parallel()
 
 	t.Run("normal_case", func(t *testing.T) {
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Set a test configuration
@@ -86,7 +86,7 @@ func TestGetConfigClone(t *testing.T) {
 	})
 
 	t.Run("with_nil_config", func(t *testing.T) {
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Ensure config is nil
@@ -108,7 +108,7 @@ func TestUpdateConfig(t *testing.T) {
 
 	t.Run("valid_config", func(t *testing.T) {
 		// Create a Runner instance
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Set initial version
@@ -176,7 +176,7 @@ func TestUpdateConfig(t *testing.T) {
 
 	t.Run("nil_config", func(t *testing.T) {
 		// Create a Runner instance
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Call UpdateConfig with nil request
@@ -194,7 +194,7 @@ func TestUpdateConfig(t *testing.T) {
 
 	t.Run("invalid_version", func(t *testing.T) {
 		// Create a Runner instance
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Set up an invalid version
@@ -219,7 +219,7 @@ func TestUpdateConfig(t *testing.T) {
 
 	t.Run("invalid_format", func(t *testing.T) {
 		// Create a Runner instance
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Set up an invalid version (not even a valid format)
@@ -244,7 +244,7 @@ func TestUpdateConfig(t *testing.T) {
 
 	t.Run("multiple_updates", func(t *testing.T) {
 		// Create a Runner instance
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Set initial version
@@ -315,7 +315,7 @@ func TestUpdateConfig(t *testing.T) {
 
 // Test that the reload channel emits correctly
 func TestReloadNotification(t *testing.T) {
-	r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 	require.NoError(t, err)
 
 	// Get the reload channel
@@ -382,7 +382,7 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
 	// Create Runner with custom logger
-	r, err := New(
+	r, err := NewRunner(
 		WithListenAddr(testutil.GetRandomListeningPort(t)),
 		WithLogger(logger),
 	)
@@ -415,7 +415,7 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 
 // TestHandlingInvalidVersionConfig tests configs with invalid versions
 func TestHandlingInvalidVersionConfig(t *testing.T) {
-	r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 	require.NoError(t, err)
 
 	// Create a config with an invalid version pattern

@@ -169,10 +169,38 @@ func (r *Registry) reload() error {
 		config = &RoutingConfig{}
 	}
 
+	// Log detailed endpoint information for debugging
+	r.logger.Debug("Route registry configuration details",
+		"num_endpoints", len(config.EndpointRoutes))
+
+	for i, ep := range config.EndpointRoutes {
+		r.logger.Debug("Endpoint configuration",
+			"index", i,
+			"endpoint_id", ep.EndpointID,
+			"num_routes", len(ep.Routes))
+
+		for j, route := range ep.Routes {
+			r.logger.Debug("Route configuration",
+				"endpoint", ep.EndpointID,
+				"index", j,
+				"path", route.Path,
+				"app_id", route.AppID)
+		}
+	}
+
 	// Create new immutable route table
 	newTable, err := r.buildRouteTable(config)
 	if err != nil {
 		return err
+	}
+
+	// Log the built route table
+	r.logger.Debug("Built route table",
+		"num_endpoints", len(newTable.routes))
+	for epID, routes := range newTable.routes {
+		r.logger.Debug("Route table entry",
+			"endpoint_id", epID,
+			"num_routes", len(routes))
 	}
 
 	// Atomically replace the route table (immutability principle)
@@ -195,9 +223,16 @@ func (r *Registry) buildRouteTable(config *RoutingConfig) (*RouteTable, error) {
 	newTable := NewRouteTable()
 	newTable.routes = make(map[string][]MappedRoute)
 
+	r.logger.Debug("Building route table",
+		"config_endpoints", len(config.EndpointRoutes))
+
 	for _, endpointRoutes := range config.EndpointRoutes {
 		endpointID := endpointRoutes.EndpointID
 		mappedRoutes := make([]MappedRoute, 0, len(endpointRoutes.Routes))
+
+		r.logger.Debug("Processing endpoint routes",
+			"endpoint_id", endpointID,
+			"route_count", len(endpointRoutes.Routes))
 
 		for _, route := range endpointRoutes.Routes {
 			// Lookup app instance
@@ -229,6 +264,12 @@ func (r *Registry) buildRouteTable(config *RoutingConfig) (*RouteTable, error) {
 
 		if len(mappedRoutes) > 0 {
 			newTable.routes[endpointID] = mappedRoutes
+			r.logger.Debug("Added mapped routes to endpoint",
+				"endpoint", endpointID,
+				"routes_added", len(mappedRoutes))
+		} else {
+			r.logger.Warn("No routes were mapped for endpoint",
+				"endpoint", endpointID)
 		}
 	}
 

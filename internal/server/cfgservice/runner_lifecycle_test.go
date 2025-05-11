@@ -20,7 +20,7 @@ func TestRun(t *testing.T) {
 
 	t.Run("basic_functionality", func(t *testing.T) {
 		// Create a Runner instance with a listen address
-		r, err := New(
+		r, err := NewRunner(
 			WithListenAddr(testutil.GetRandomListeningPort(t)),
 		)
 		require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestRun(t *testing.T) {
 	t.Run("with_invalid_address", func(t *testing.T) {
 		// Create a Runner with an invalid listen address that will cause NewGRPCManager to fail
 		listenAddr := "invalid:address:with:too:many:colons"
-		r, err := New(WithListenAddr(listenAddr))
+		r, err := NewRunner(WithListenAddr(listenAddr))
 		require.NoError(t, err)
 
 		// Run should return the error from NewGRPCManager
@@ -70,7 +70,7 @@ func TestRun(t *testing.T) {
 
 		// Create a Runner with the config path
 		listenAddr := testutil.GetRandomListeningPort(t)
-		r, err := New(
+		r, err := NewRunner(
 			WithListenAddr(listenAddr),
 			WithConfigPath(configPath),
 		)
@@ -86,7 +86,7 @@ func TestRun(t *testing.T) {
 
 	t.Run("with_listen_addr_only", func(t *testing.T) {
 		// Use a random port to avoid conflicts
-		r, err := New(
+		r, err := NewRunner(
 			WithListenAddr(testutil.GetRandomListeningPort(t)),
 		)
 		require.NoError(t, err)
@@ -119,7 +119,7 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create Runner with config path only
-		r, err := New(WithConfigPath(configPath))
+		r, err := NewRunner(WithConfigPath(configPath))
 		require.NoError(t, err)
 
 		// Run for a short time (should block on ctx.Done)
@@ -144,7 +144,7 @@ func TestLoadInitialConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Create Runner with config path
-		r, err := New(WithConfigPath(configPath))
+		r, err := NewRunner(WithConfigPath(configPath))
 		require.NoError(t, err)
 
 		// Set logger to discard output for cleaner test logs
@@ -170,7 +170,7 @@ func TestLoadInitialConfig(t *testing.T) {
 			require.NoError(t, err, "Failed to remove test file")
 		}
 
-		r, err := New(
+		r, err := NewRunner(
 			WithConfigPath(nonExistentPath),
 			WithListenAddr(testutil.GetRandomListeningPort(t)),
 		)
@@ -195,7 +195,7 @@ func TestLoadInitialConfig(t *testing.T) {
 			require.NoError(t, err, "Failed to remove test file")
 		}
 
-		r, err := New(
+		r, err := NewRunner(
 			WithConfigPath(nonExistentPath),
 		)
 		require.NoError(t, err)

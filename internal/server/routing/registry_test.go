@@ -397,3 +397,59 @@ func createTestRequest(t *testing.T, path string) *http.Request {
 	assert.NoError(t, err, "Failed to parse URL")
 	return &http.Request{URL: u, Method: "GET"}
 }
+
+// TestRegistry_EndpointListenerConnection tests the routing registry with a
+// configuration similar to what's used in the E2E tests.
+func TestRegistry_EndpointListenerConnection(t *testing.T) {
+	// Setup app registry with mock app
+	appRegistry := newMockAppRegistry()
+	appRegistry.addMockApp("echo_app")
+
+	// Create a route configuration like the one in E2E tests
+	config := &RoutingConfig{
+		EndpointRoutes: []EndpointRoutes{
+			{
+				EndpointID: "echo_endpoint",
+				Routes: []Route{
+					{
+						Path:  "/echo",
+						AppID: "echo_app",
+					},
+				},
+			},
+		},
+	}
+
+	// Create a configuration callback that returns our test config
+	configCallback := func() (*RoutingConfig, error) {
+		return config, nil
+	}
+
+	// Create the registry
+	registry := NewRegistry(appRegistry, configCallback, nil)
+	require.NotNil(t, registry)
+
+	// Force reload to load our configuration
+	err := registry.reload()
+	require.NoError(t, err)
+
+	// Verify the registry is initialized
+	assert.True(t, registry.IsInitialized())
+
+	// Get the route table and verify it has the expected data
+	routeTable := registry.GetRouteTable()
+	require.NotNil(t, routeTable)
+
+	// Verify the endpoint routes are correctly registered
+	routes := routeTable.GetRoutesForEndpoint("echo_endpoint")
+	require.Len(t, routes, 1, "Expected 1 route for echo_endpoint")
+	assert.Equal(t, "/echo", routes[0].Route.Path)
+	assert.Equal(t, "echo_app", routes[0].Route.AppID)
+
+	// Test route resolution with a request
+	req := createTestRequest(t, "/echo")
+	result, err := registry.ResolveRoute("echo_endpoint", req)
+	require.NoError(t, err)
+	require.NotNil(t, result, "Route resolution should succeed for /echo on echo_endpoint")
+	assert.Equal(t, "echo_app", result.AppID)
+}

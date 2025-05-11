@@ -79,7 +79,7 @@ func TestRunnerReload(t *testing.T) {
 		logger := slog.New(
 			slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}),
 		)
-		runner, err := New(createTestConfigCallback(testConfig, nil))
+		runner, err := NewRunner(createTestConfigCallback(testConfig, nil))
 		require.NoError(t, err)
 
 		// Set the logger option
@@ -109,7 +109,7 @@ func TestRunnerReload(t *testing.T) {
 		logger := slog.New(
 			slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}),
 		)
-		runner, err := New(nil)
+		runner, err := NewRunner(nil)
 		require.NoError(t, err)
 
 		// Set the logger option
@@ -144,7 +144,7 @@ func TestRunnerReload(t *testing.T) {
 			return config.Config{} // Return empty config
 		}
 
-		runner, err := New(emptyConfigCallback)
+		runner, err := NewRunner(emptyConfigCallback)
 		require.NoError(t, err)
 
 		// Set the logger option
@@ -179,7 +179,7 @@ func TestRunnerReload(t *testing.T) {
 			}
 		}
 
-		runner, err := New(defaultConfigCallback)
+		runner, err := NewRunner(defaultConfigCallback)
 		require.NoError(t, err)
 
 		// Set the logger option
@@ -236,7 +236,7 @@ func TestGetHTTPConfigCallback(t *testing.T) {
 		logger := slog.New(
 			slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}),
 		)
-		runner, err := New(createTestConfigCallback(testConfig, nil))
+		runner, err := NewRunner(createTestConfigCallback(testConfig, nil))
 		require.NoError(t, err)
 
 		// Set the logger option
@@ -274,7 +274,7 @@ func TestGetHTTPConfigCallback(t *testing.T) {
 		logger := slog.New(
 			slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}),
 		)
-		runner, err := New(createTestConfigCallback(nil, nil))
+		runner, err := NewRunner(createTestConfigCallback(nil, nil))
 		require.NoError(t, err)
 
 		// Set the logger option

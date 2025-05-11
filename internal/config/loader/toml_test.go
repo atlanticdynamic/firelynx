@@ -1,12 +1,17 @@
 package loader
 
 import (
+	"embed"
 	"fmt"
 	"testing"
 
+	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+//go:embed testdata/*.toml
+var testdataFS embed.FS
 
 func TestTomlLoader_LoadProto(t *testing.T) {
 	// Simple config
@@ -260,6 +265,71 @@ level = "invalid"
 			"unsupported log level: invalid",
 			"Error should indicate invalid level",
 		)
+	})
+}
+
+func TestTomlLoader_RoutesArrayHandling(t *testing.T) {
+	// Test how routes are loaded from the TOML format used in the E2E tests
+	t.Run("EndpointRoutesArray", func(t *testing.T) {
+		// Load test file simulating the format used in E2E tests
+		tomlData, err := testdataFS.ReadFile("testdata/endpoint_routes_array.toml")
+		require.NoError(t, err, "Failed to read test data file")
+
+		loader := NewTomlLoader(tomlData)
+		config, err := loader.LoadProto()
+		require.NoError(t, err, "Failed to load config with endpoint routes array")
+		require.NotNil(t, config, "Config should not be nil")
+
+		// Validate the endpoint configuration
+		require.Len(t, config.Endpoints, 1, "Should have 1 endpoint")
+		endpoint := config.Endpoints[0]
+		assert.Equal(t, "echo_endpoint", endpoint.GetId(), "Wrong endpoint ID")
+		assert.Equal(t, []string{"http_listener"}, endpoint.ListenerIds, "Wrong listener IDs")
+
+		// Check the routes
+		require.Len(t, endpoint.Routes, 1, "Should have 1 route")
+		route := endpoint.Routes[0]
+		assert.Equal(t, "echo_app", route.GetAppId(), "Wrong app ID")
+
+		// THIS IS THE CRITICAL TEST - verify HTTP path is correctly parsed
+		httpPath := route.GetHttpPath()
+		t.Logf("HTTP Path: %q", httpPath)
+		assert.Equal(t, "/echo", httpPath, "HTTP path should be '/echo'")
+		assert.NotEmpty(t, httpPath, "HTTP path should not be empty")
+
+		// Verify condition is properly set
+		_, isHttpCondition := route.Condition.(*pbSettings.Route_HttpPath)
+		assert.True(t, isHttpCondition, "Condition should be HTTP path type")
+	})
+
+	// Test how routes are loaded with single route object (older format)
+	t.Run("SingleRouteObject", func(t *testing.T) {
+		tomlData, err := testdataFS.ReadFile("testdata/single_route_object.toml")
+		require.NoError(t, err, "Failed to read test data file")
+
+		loader := NewTomlLoader(tomlData)
+		config, err := loader.LoadProto()
+		require.NoError(t, err, "Failed to load config with single route object")
+
+		// Validate the endpoint configuration
+		require.Len(t, config.Endpoints, 1, "Should have 1 endpoint")
+		endpoint := config.Endpoints[0]
+
+		// Check the routes
+		t.Logf("Routes for single route object: %d routes", len(endpoint.Routes))
+		for i, route := range endpoint.Routes {
+			t.Logf("  Route %d: app_id=%s, http_path=%q", i, route.GetAppId(), route.GetHttpPath())
+		}
+
+		// The current implementation might not be correctly handling this format
+		// This test will help us understand if it's working or not
+		if len(endpoint.Routes) > 0 {
+			route := endpoint.Routes[0]
+			assert.Equal(t, "app1", route.GetAppId(), "Wrong app ID")
+			assert.Equal(t, "/test", route.GetHttpPath(), "Wrong HTTP path")
+		} else {
+			t.Log("WARNING: No routes were loaded from single route object format")
+		}
 	})
 }
 

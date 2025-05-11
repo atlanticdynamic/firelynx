@@ -1,6 +1,6 @@
 edition = "2023";
 
-package firelynx.settings.v1alpha1;
+package settings.v1alpha1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";

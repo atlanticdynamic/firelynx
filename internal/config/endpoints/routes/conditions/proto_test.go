@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFromProto(t *testing.T) {
+func TestCondition_FromProto(t *testing.T) {
 	t.Run("NilRoute", func(t *testing.T) {
 		cond := FromProto(nil)
 		assert.Nil(t, cond)
@@ -52,7 +52,7 @@ func TestFromProto(t *testing.T) {
 	})
 }
 
-func TestToProto(t *testing.T) {
+func TestCondition_ToProto(t *testing.T) {
 	t.Run("NilCondition", func(t *testing.T) {
 		pbRoute := &pb.Route{}
 		ToProto(nil, pbRoute)

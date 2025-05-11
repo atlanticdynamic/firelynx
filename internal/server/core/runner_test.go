@@ -57,7 +57,7 @@ func TestRunner_ConfigurationAccess(t *testing.T) {
 		return *cfg
 	}
 
-	runner, err := New(configCallback)
+	runner, err := NewRunner(configCallback)
 	assert.NoError(t, err)
 
 	// Boot the runner to initialize the config
@@ -75,12 +75,17 @@ func TestRunner_New(t *testing.T) {
 		return *cfg
 	}
 
-	runner, err := New(configCallback)
+	runner, err := NewRunner(configCallback)
 
 	// Verify setup
 	assert.NoError(t, err)
 	assert.NotNil(t, runner)
 	assert.Equal(t, "core.Runner", runner.String())
+
+	// Register an echo app for testing
+	echoApp := echo.New("echo")
+	err = runner.appRegistry.RegisterApp(echoApp)
+	assert.NoError(t, err)
 
 	// Verify app registry has the echo app
 	app, found := runner.appRegistry.GetApp("echo")
@@ -101,7 +106,7 @@ func TestRunner_Run(t *testing.T) {
 	defer cancel()
 
 	// Create the runner and run it
-	runner, err := New(configCallback)
+	runner, err := NewRunner(configCallback)
 	assert.NoError(t, err)
 
 	err = runner.Run(ctx)
@@ -120,7 +125,7 @@ func TestRunner_Stop(t *testing.T) {
 	}
 
 	// Create the runner
-	runner, err := New(configCallback)
+	runner, err := NewRunner(configCallback)
 	assert.NoError(t, err)
 
 	// Run the runner in a goroutine
@@ -150,7 +155,7 @@ func TestRunner_WithApps(t *testing.T) {
 	}
 
 	// Create the runner
-	runner, err := New(configCallback)
+	runner, err := NewRunner(configCallback)
 	assert.NoError(t, err)
 
 	// Create a specialized echo app
@@ -158,6 +163,11 @@ func TestRunner_WithApps(t *testing.T) {
 
 	// Register the app manually
 	err = runner.appRegistry.RegisterApp(specialApp)
+	assert.NoError(t, err)
+
+	// Create and register an echo app
+	echoApp := echo.New("echo")
+	err = runner.appRegistry.RegisterApp(echoApp)
 	assert.NoError(t, err)
 
 	// Verify both apps are registered
@@ -168,4 +178,68 @@ func TestRunner_WithApps(t *testing.T) {
 	app2, found2 := runner.appRegistry.GetApp("special")
 	assert.True(t, found2)
 	assert.NotNil(t, app2)
+}
+
+func TestRunner_EndpointListenerAssociation(t *testing.T) {
+	// Create a configuration similar to the E2E test configuration
+	cfg := &config.Config{
+		Version: "test",
+		Listeners: []listeners.Listener{
+			{
+				ID:      "http_listener",
+				Address: ":0", // Use port 0 to get a random port
+				Options: options.HTTP{
+					ReadTimeout:  1 * time.Second,
+					WriteTimeout: 1 * time.Second,
+					IdleTimeout:  1 * time.Second,
+					DrainTimeout: 1 * time.Second,
+				},
+			},
+		},
+		Endpoints: []endpoints.Endpoint{
+			{
+				ID:          "echo_endpoint",
+				ListenerIDs: []string{"http_listener"},
+				Routes: []routes.Route{
+					{
+						AppID:     "echo", // This matches the echo app registered in Runner.New()
+						Condition: conditions.NewHTTP("/echo"),
+					},
+				},
+			},
+		},
+	}
+
+	// Create a configCallback that returns our test configuration
+	configCallback := func() config.Config {
+		return *cfg
+	}
+
+	// Create the runner
+	runner, err := NewRunner(configCallback)
+	assert.NoError(t, err)
+
+	// Boot the runner to initialize the config
+	err = runner.boot()
+	assert.NoError(t, err)
+
+	// Test the HTTP config callback to ensure it properly processes the endpoint association
+	httpConfigCallback := runner.GetHTTPConfigCallback()
+	httpConfig, err := httpConfigCallback()
+	assert.NoError(t, err)
+	assert.NotNil(t, httpConfig)
+
+	// Verify that there's one HTTP listener in the config
+	assert.Equal(t, 1, len(httpConfig.Listeners))
+
+	// Verify that the EndpointID is correctly set on the HTTP listener
+	assert.Equal(
+		t,
+		"echo_endpoint",
+		httpConfig.Listeners[0].EndpointID,
+		"EndpointID should be set to 'echo_endpoint' based on the listener_ids in the endpoint config",
+	)
+
+	// Verify the ID matches what we expect
+	assert.Equal(t, "http_listener", httpConfig.Listeners[0].ID)
 }

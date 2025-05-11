@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"log/slog"
+
+	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 )
 
 // Option represents a functional option for configuring Runner.
@@ -35,6 +37,15 @@ func WithContext(ctx context.Context) Option {
 	return func(r *Runner) {
 		if ctx != nil {
 			r.parentCtx, r.parentCancel = context.WithCancel(ctx)
+		}
+	}
+}
+
+// WithAppRegistry sets a custom app registry for the Runner instance.
+func WithAppRegistry(registry apps.Registry) Option {
+	return func(r *Runner) {
+		if registry != nil {
+			r.appRegistry = registry
 		}
 	}
 }

@@ -5,13 +5,11 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/atlanticdynamic/firelynx/examples"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,17 +25,13 @@ func TestBasicServerStartup(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Create a temporary directory for our test artifacts
-	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "config.toml")
+	// Get random ports for HTTP
+	httpAddr, _ := getTestHTTPAndGRPCAddresses(t)
 
-	// Read the minimal config from the examples package
-	configData, err := examples.Configs.ReadFile("config/minimal_config.toml")
-	require.NoError(t, err, "Failed to read example config file")
-
-	// Write the config file to the temp directory
-	err = os.WriteFile(configPath, configData, 0o644)
-	require.NoError(t, err, "Failed to write config file")
+	// Create a temporary directory and write the config file using the template
+	_, configPath := createTempConfig(t, "testdata/config.tmpl", TemplateData{
+		HTTPAddr: httpAddr,
+	})
 
 	// Start the server
 	cleanup, err := runServerWithConfig(t, ctx, configPath, "")
@@ -56,8 +50,9 @@ func TestBasicServerStartup(t *testing.T) {
 	t.Run("Server responds to requests", func(t *testing.T) {
 		// This is a simple check to ensure the server is running
 		// The actual endpoint will depend on the minimal_config.toml content
-		// For example, if we know there's an echo endpoint on port 8080:
-		url := "http://localhost:8080/echo"
+		// Get the port from httpAddr which is in the format ":port"
+		port := httpAddr[1:] // Remove leading colon
+		url := fmt.Sprintf("http://localhost:%s/echo", port)
 
 		// Wait for the endpoint to become available
 		assert.Eventually(t, func() bool {

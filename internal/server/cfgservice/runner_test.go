@@ -42,7 +42,7 @@ func (m *MockGRPCServer) GetListenAddress() string {
 // TestRunner_New tests the creation of a new Runner
 func TestRunner_New(t *testing.T) {
 	t.Run("minimal config with listen address", func(t *testing.T) {
-		r, err := New(
+		r, err := NewRunner(
 			WithListenAddr(testutil.GetRandomListeningPort(t)),
 		)
 		require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestRunner_New(t *testing.T) {
 	})
 
 	t.Run("with config path", func(t *testing.T) {
-		r, err := New(
+		r, err := NewRunner(
 			WithConfigPath("test.toml"),
 		)
 		require.NoError(t, err)
@@ -65,7 +65,7 @@ func TestRunner_New(t *testing.T) {
 	})
 
 	t.Run("with both listen address and config path", func(t *testing.T) {
-		r, err := New(
+		r, err := NewRunner(
 			WithListenAddr(testutil.GetRandomListeningPort(t)),
 			WithConfigPath("test.toml"),
 		)
@@ -76,7 +76,7 @@ func TestRunner_New(t *testing.T) {
 	})
 
 	t.Run("without listen address or config path", func(t *testing.T) {
-		r, err := New()
+		r, err := NewRunner()
 		assert.Error(t, err)
 		assert.Nil(t, r)
 	})
@@ -90,7 +90,7 @@ func TestStop(t *testing.T) {
 		mockServer.On("GracefulStop").Return()
 
 		// Create a Runner instance
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Set the grpcServer directly instead of starting it
@@ -104,7 +104,7 @@ func TestStop(t *testing.T) {
 	})
 
 	t.Run("with nil server", func(t *testing.T) {
-		r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
 		// Ensure server is nil
@@ -117,7 +117,7 @@ func TestStop(t *testing.T) {
 
 // TestString tests the String method of Runner
 func TestString(t *testing.T) {
-	r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 	require.NoError(t, err)
 
 	// Check that String returns expected value
@@ -137,7 +137,7 @@ func TestGRPCIntegration(t *testing.T) {
 	bufSize := 1024 * 1024
 	listener := bufconn.Listen(bufSize)
 
-	r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 	require.NoError(t, err)
 
 	// Set initial configuration
@@ -219,7 +219,7 @@ func TestGRPCIntegration(t *testing.T) {
 // TestReloadChannel tests the reload notification channel
 func TestReloadChannel(t *testing.T) {
 	// Create a Runner instance
-	r, err := New(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 	require.NoError(t, err)
 
 	// Get the reload channel

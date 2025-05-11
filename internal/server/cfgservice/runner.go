@@ -44,8 +44,8 @@ type Runner struct {
 	reloadCh chan struct{}
 }
 
-// New creates a new Runner instance with the provided functional options.
-func New(opts ...Option) (*Runner, error) {
+// NewRunner creates a new Runner instance with the provided functional options.
+func NewRunner(opts ...Option) (*Runner, error) {
 	r := &Runner{
 		logger:   slog.Default(),
 		reloadCh: make(chan struct{}, 1),

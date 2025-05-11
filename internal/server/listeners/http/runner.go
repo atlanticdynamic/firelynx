@@ -228,9 +228,11 @@ func (r *Runner) buildCompositeConfig(cfg *Config) (*composite.Config[*wrapper.H
 			}
 		} else {
 			r.logger.Error(
-				"Listener has neither endpoint ID nor routes",
-				"id",
-				listenerCfg.ID,
+				"Listener has neither endpoint ID nor routes, or endpoint ID is set but RouteRegistry is missing",
+				"id", listenerCfg.ID,
+				"endpoint_id", listenerCfg.EndpointID,
+				"routes", len(listenerCfg.Routes),
+				"registry", cfg.RouteRegistry != nil,
 			)
 			continue
 		}

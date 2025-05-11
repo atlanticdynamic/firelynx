@@ -1,12 +1,8 @@
 version = "v1"
 
-[logging]
-level = "debug"
-format = "text"
-
 [[listeners]]
 id = "http_listener"
-address = "{{.HTTPAddr}}"
+address = ":8080"
 
 [listeners.http]
 read_timeout = "1s"

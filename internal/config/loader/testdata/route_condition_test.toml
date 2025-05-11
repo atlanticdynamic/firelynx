@@ -1,0 +1,19 @@
+version = "v1"
+
+[[listeners]]
+id = "http_listener"
+address = ":8080"
+
+[listeners.http]
+read_timeout = "1s"
+
+[[endpoints]]
+id = "test_endpoint"
+listener_ids = ["http_listener"]
+
+[[endpoints.routes]]
+app_id = "test_app"
+http_path = "/test" 
+
+[[apps]]
+id = "test_app"

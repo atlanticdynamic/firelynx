@@ -1,0 +1,16 @@
+version = "v1"
+
+[[endpoints]]
+id = "endpoint1"
+listener_ids = ["listener1"]
+
+[endpoints.route]
+app_id = "app1"
+http_path = "/test"
+
+[[listeners]]
+id = "listener1"
+address = ":8080"
+
+[[apps]]
+id = "app1"

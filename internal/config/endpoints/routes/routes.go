@@ -47,6 +47,9 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
+// Constant for HTTP route type
+const HTTPRouteType = conditions.TypeHTTP
+
 // RouteCollection is a collection of Route objects
 type RouteCollection []Route
 
@@ -59,12 +62,9 @@ type Route struct {
 
 // ToTree returns a styled tree node for this Route
 func (r *Route) ToTree() *fancy.ComponentTree {
-	// Format condition info
-	var conditionInfo string
+	conditionInfo := "none"
 	if r.Condition != nil {
 		conditionInfo = fmt.Sprintf("%s:%s", r.Condition.Type(), r.Condition.Value())
-	} else {
-		conditionInfo = "none"
 	}
 
 	text := fancy.RouteText(fmt.Sprintf("Route: %s -> %s", conditionInfo, r.AppID))
@@ -79,7 +79,12 @@ func (r RouteCollection) GetStructuredHTTPRoutes() []HTTPRoute {
 
 	for _, route := range r {
 		// Skip non-HTTP routes
-		if route.Condition == nil || route.Condition.Type() != conditions.TypeHTTP {
+		if route.Condition == nil {
+			continue
+		}
+
+		// Use string comparison instead of direct type comparison for robustness
+		if string(route.Condition.Type()) != string(conditions.TypeHTTP) {
 			continue
 		}
 

@@ -258,7 +258,7 @@ func TestNew(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			runner, err := New(tc.options...)
+			runner, err := NewRunner(tc.options...)
 
 			if tc.expectError {
 				assert.Error(t, err)
