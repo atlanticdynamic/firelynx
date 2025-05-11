@@ -35,6 +35,11 @@ protogen:
 test:
 	go test -race -cover $(PACKAGES)
 
+## test-e2e: Run end-to-end tests
+.PHONY: test-e2e
+test-e2e: build
+	go test -race -v -tags e2e ./test/e2e/...
+
 ## lint: Run golangci-lint code quality checks
 .PHONY: lint
 lint: protogen

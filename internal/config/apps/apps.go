@@ -29,8 +29,8 @@
 //	    return err
 //	}
 //
-//	// Convert to runtime instances
-//	instances, err := apps.AppsToInstances(appCollection)
+//	// Convert to runtime instances (using core adapter)
+//	instances, err := core.CreateAppInstances(appCollection)
 package apps
 
 import (
@@ -39,8 +39,6 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
-	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
 )
 
 // App represents an application definition
@@ -152,15 +150,22 @@ func (a AppCollection) Validate() error {
 	return errors.Join(errs...)
 }
 
-// ValidateRouteAppReferences ensures all routes reference valid apps
-func (a AppCollection) ValidateRouteAppReferences(routes []struct{ AppID string }) error {
+// ValidateRouteAppReferencesWithBuiltIns ensures all routes reference valid apps
+// availableBuiltInApps is a list of built-in app IDs that are always available
+func (a AppCollection) ValidateRouteAppReferencesWithBuiltIns(
+	routes []struct{ AppID string },
+	availableBuiltInApps []string,
+) error {
 	// Build map of app IDs for quick lookup
 	appIDs := make(map[string]bool)
 	for _, app := range a {
 		appIDs[app.ID] = true
 	}
-	// Always include the built-in echo app
-	appIDs["echo"] = true
+
+	// Add built-in app IDs to valid list
+	for _, appID := range availableBuiltInApps {
+		appIDs[appID] = true
+	}
 
 	// Check each route's app ID
 	var errs []error
@@ -176,73 +181,4 @@ func (a AppCollection) ValidateRouteAppReferences(routes []struct{ AppID string 
 	}
 
 	return errors.Join(errs...)
-}
-
-// AppsToInstances converts app definitions to running instances
-func AppsToInstances(appDefs AppCollection) (map[string]serverApps.App, error) {
-	// Validate app definitions first
-	if err := appDefs.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid app configuration: %w", err)
-	}
-
-	// Create instances map
-	instances := make(map[string]serverApps.App)
-
-	// Always register the built-in echo app
-	instances["echo"] = echo.New("echo")
-
-	// First pass: create script app instances
-	for _, appDef := range appDefs {
-		// Skip composite apps for now as they may reference other apps
-		if appDef.Config.Type() == "composite_script" {
-			continue
-		}
-
-		// Create app instance based on type
-		var instance serverApps.App
-		switch appDef.Config.Type() {
-		case "script":
-			// For now, script apps are also implemented as echo apps
-			// In a future implementation, these would use actual script evaluators
-			instance = echo.New(appDef.ID)
-		case "echo":
-			// Echo apps are simple echo handlers
-			instance = echo.New(appDef.ID)
-		default:
-			// Unknown app types default to echo for now
-			instance = echo.New(appDef.ID)
-		}
-
-		// Store the instance
-		instances[appDef.ID] = instance
-	}
-
-	// Second pass: create composite app instances
-	// Now all referenced script apps should exist
-	for _, appDef := range appDefs {
-		// Only process composite apps
-		if appDef.Config.Type() != "composite_script" {
-			continue
-		}
-
-		// Cast to composite script config
-		compositeConfig, ok := appDef.Config.(*composite.CompositeScript)
-		if !ok {
-			return nil, fmt.Errorf("invalid composite script configuration for app '%s'", appDef.ID)
-		}
-
-		// Verify that all referenced script apps exist
-		for _, scriptAppID := range compositeConfig.ScriptAppIDs {
-			if _, exists := instances[scriptAppID]; !exists {
-				return nil, fmt.Errorf("composite app '%s' references non-existent script app '%s'",
-					appDef.ID, scriptAppID)
-			}
-		}
-
-		// For now, composite apps are also implemented as echo apps
-		// In a future implementation, these would chain multiple script evaluators
-		instances[appDef.ID] = echo.New(appDef.ID)
-	}
-
-	return instances, nil
 }

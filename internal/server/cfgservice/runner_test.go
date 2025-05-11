@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -141,11 +142,16 @@ func TestGRPCIntegration(t *testing.T) {
 
 	// Set initial configuration
 	version := "v1"
-	initialConfig := &pb.ServerConfig{
+	initialPbConfig := &pb.ServerConfig{
 		Version: &version,
 	}
+
+	// Convert to domain config
+	initialDomainConfig, err := config.NewFromProto(initialPbConfig)
+	require.NoError(t, err)
+
 	r.configMu.Lock()
-	r.config = initialConfig
+	r.config = initialDomainConfig
 	r.configMu.Unlock()
 
 	// Create a gRPC server
@@ -177,7 +183,7 @@ func TestGRPCIntegration(t *testing.T) {
 	// Test GetConfig
 	getResp, err := client.GetConfig(ctx, &pb.GetConfigRequest{})
 	require.NoError(t, err)
-	assert.Equal(t, *initialConfig.Version, *getResp.Config.Version)
+	assert.Equal(t, *initialPbConfig.Version, *getResp.Config.Version)
 
 	// Test UpdateConfig with valid configuration
 	listenerId := "http_listener"
@@ -221,11 +227,11 @@ func TestReloadChannel(t *testing.T) {
 
 	// Create update request with new configuration
 	version := "v1"
-	config := &pb.ServerConfig{
+	pbConfig := &pb.ServerConfig{
 		Version: &version,
 	}
 	req := &pb.UpdateConfigRequest{
-		Config: config,
+		Config: pbConfig,
 	}
 
 	// Create a context with timeout

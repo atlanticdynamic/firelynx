@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
+
+	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 )
 
 // Validatable defines an interface for objects that can validate themselves.
@@ -158,8 +160,8 @@ func (c *Config) validateAppsAndRoutes() error {
 	// Create slice of route refs for app validation
 	routeRefs := c.collectRouteReferences()
 
-	// Validate route references to apps
-	if err := c.Apps.ValidateRouteAppReferences(routeRefs); err != nil {
+	// Validate route references to apps against built-in app IDs
+	if err := c.Apps.ValidateRouteAppReferencesWithBuiltIns(routeRefs, serverApps.GetBuiltInAppIDs()); err != nil {
 		errs = append(errs, err)
 	}
 

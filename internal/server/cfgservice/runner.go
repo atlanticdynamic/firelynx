@@ -29,12 +29,13 @@ type Runner struct {
 	pb.UnimplementedConfigServiceServer
 
 	logger   *slog.Logger
-	config   *pb.ServerConfig
+	config   *config.Config
 	configMu sync.RWMutex
 
 	// gRPC server stuff
 	grpcServer GRPCServer
 	listenAddr string
+	grpcLock   sync.RWMutex
 
 	// Initial config path
 	configPath string
@@ -75,15 +76,17 @@ func (r *Runner) String() string {
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting Runner")
 
-	if r.grpcServer != nil {
+	r.grpcLock.RLock()
+	grpcServer := r.grpcServer
+	r.grpcLock.RUnlock()
+	if grpcServer != nil {
 		return errors.New("gRPC server is already running")
 	}
 
 	// Initialize with at least an empty config
 	r.configMu.Lock()
-	version := config.VersionLatest
-	r.config = &pb.ServerConfig{
-		Version: &version,
+	r.config = &config.Config{
+		Version: config.VersionLatest,
 	}
 	r.configMu.Unlock()
 
@@ -102,15 +105,21 @@ func (r *Runner) Run(ctx context.Context) error {
 	// Start gRPC server if listen address is provided
 	if r.listenAddr != "" {
 		var err error
-		r.grpcServer, err = server.NewGRPCManager(r.logger, r.listenAddr, r)
+		grpcServer, err = server.NewGRPCManager(r.logger, r.listenAddr, r)
 		if err != nil {
 			return err
 		}
 
-		// Start the server with the current context
-		if err = r.grpcServer.Start(ctx); err != nil {
+		// lock before starting the server to make sure that Stop isn't being called while we're starting
+		// which would cause a listener conflict
+		r.grpcLock.Lock()
+		if err = grpcServer.Start(ctx); err != nil {
+			r.grpcLock.Unlock()
 			return err
 		}
+		// store the started server, for graceful shutdown later
+		r.grpcServer = grpcServer
+		r.grpcLock.Unlock()
 	}
 
 	// Block until context is done
@@ -128,22 +137,24 @@ func (r *Runner) Stop() {
 	defer r.configMu.Unlock()
 	r.logger.Debug("Stopping Runner")
 
-	// Stop gRPC server
-	if r.grpcServer != nil {
-		r.grpcServer.GracefulStop()
-		r.logger.Info("gRPC server stopped")
+	r.grpcLock.RLock()
+	grpcServer := r.grpcServer
+	r.grpcLock.RUnlock()
+	if grpcServer != nil {
+		r.grpcLock.Lock()
+		grpcServer.GracefulStop()
 		r.grpcServer = nil
+		r.grpcLock.Unlock()
+		r.logger.Info("gRPC server stopped")
 	}
 	// When used with the supervisor, the supervisor will cancel the context
 	// passed to Run, which will cause Run to return
 	// TODO: add local context
 }
 
-// GetPbConfigClone returns a deep copy of the current pb config object.
-// We use a deep copy rather than returning the original to prevent callers
-// from modifying the internal state of the Runner. This maintains encapsulation
-// and thread safety. If the config is nil, a minimal valid config is returned
-// rather than nil to simplify client code.
+// GetPbConfigClone returns the current domain config converted to a protobuf message.
+// If the domain config is nil, a minimal valid config is returned rather than nil
+// to simplify client code.
 func (r *Runner) GetPbConfigClone() *pb.ServerConfig {
 	r.configMu.RLock()
 	cfg := r.config
@@ -152,20 +163,34 @@ func (r *Runner) GetPbConfigClone() *pb.ServerConfig {
 	if cfg == nil {
 		r.logger.Warn("Current configuration is nil, returning empty config")
 		version := config.VersionLatest
-		cfg = &pb.ServerConfig{
-			Version: &version,
+		emptyConfig := &config.Config{
+			Version: version,
+		}
+		return emptyConfig.ToProto()
+	}
+
+	// Convert domain config to protobuf
+	pbConfig := cfg.ToProto()
+
+	// Use proto.Clone to ensure we're returning a deep copy
+	// This is an extra safety measure to avoid potential modification
+	return proto.Clone(pbConfig).(*pb.ServerConfig)
+}
+
+// GetDomainConfig returns a copy of the current domain config by value
+func (r *Runner) GetDomainConfig() config.Config {
+	r.configMu.RLock()
+	defer r.configMu.RUnlock()
+
+	if r.config == nil {
+		// Return a minimal valid config if none exists
+		return config.Config{
+			Version: config.VersionLatest,
 		}
 	}
 
-	// Return a copy of the config to avoid
-	// concurrent modification issues
-	return proto.Clone(cfg).(*pb.ServerConfig)
-}
-
-// GetDomainConfig loads the current pb config, and returns a converted domain config
-func (r *Runner) GetDomainConfig() (*config.Config, error) {
-	pbConfig := r.GetPbConfigClone()
-	return config.NewFromProto(pbConfig)
+	// Return a copy by value
+	return *r.config
 }
 
 // GetReloadTrigger implements the supervisor.ReloadSender interface.
@@ -186,12 +211,9 @@ func (r *Runner) loadInitialConfig() error {
 		return err
 	}
 
-	// Convert to proto and update
-	protoConfig := domainConfig.ToProto()
-
-	// Update the configuration
+	// Store the domain config directly
 	r.configMu.Lock()
-	r.config = protoConfig
+	r.config = domainConfig
 	r.configMu.Unlock()
 
 	r.logger.Info("Initial configuration loaded successfully")
@@ -221,9 +243,9 @@ func (r *Runner) UpdateConfig(
 		return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
 	}
 
-	// Update the configuration with the valid config
+	// Update the configuration with the validated domain config
 	r.configMu.Lock()
-	r.config = req.Config
+	r.config = domainConfig
 	r.configMu.Unlock()
 
 	// Trigger a reload notification

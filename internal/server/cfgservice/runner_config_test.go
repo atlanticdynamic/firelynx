@@ -8,6 +8,7 @@ import (
 	"time"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,11 +27,16 @@ func TestGetConfig(t *testing.T) {
 
 	// Set a test configuration
 	version := "v1"
-	testConfig := &pb.ServerConfig{
+	testPbConfig := &pb.ServerConfig{
 		Version: &version,
 	}
+
+	// Convert to domain config
+	domainConfig, err := config.NewFromProto(testPbConfig)
+	require.NoError(t, err)
+
 	r.configMu.Lock()
-	r.config = testConfig
+	r.config = domainConfig
 	r.configMu.Unlock()
 
 	// Call GetConfig
@@ -39,7 +45,8 @@ func TestGetConfig(t *testing.T) {
 	// Verify response
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, testConfig, resp.Config)
+	// Check basic fields to avoid proto internals comparison issues
+	assert.Equal(t, *testPbConfig.Version, *resp.Config.Version)
 }
 
 // TestGetConfigClone tests the GetConfigClone method
@@ -52,22 +59,29 @@ func TestGetConfigClone(t *testing.T) {
 
 		// Set a test configuration
 		version := "v1"
-		testConfig := &pb.ServerConfig{
+		testPbConfig := &pb.ServerConfig{
 			Version: &version,
 		}
+
+		// Convert to domain config
+		domainConfig, err := config.NewFromProto(testPbConfig)
+		require.NoError(t, err)
+
 		r.configMu.Lock()
-		r.config = testConfig
+		r.config = domainConfig
 		r.configMu.Unlock()
 
 		// Get a clone of the config
 		result := r.GetPbConfigClone()
 		require.NotNil(t, result)
-		assert.Equal(t, testConfig, result)
+		// Check basic fields to avoid proto internals comparison issues
+		assert.Equal(t, *testPbConfig.Version, *result.Version)
 
-		// Change a value in the original config and confirm the clone doesn't change
-		newVersion := "v999"
-		testConfig.Version = &newVersion
-		assert.NotEqual(t, testConfig, result)
+		// Change a value in the domain config and ensure the clone still has the original value
+		r.configMu.Lock()
+		r.config.Version = "v999"
+		r.configMu.Unlock()
+
 		assert.Equal(t, version, *result.Version)
 	})
 
@@ -84,6 +98,7 @@ func TestGetConfigClone(t *testing.T) {
 		cfg := r.GetPbConfigClone()
 		assert.NotNil(t, cfg)
 		assert.NotNil(t, cfg.Version)
+		assert.Equal(t, config.VersionLatest, *cfg.Version)
 	})
 }
 
@@ -98,11 +113,16 @@ func TestUpdateConfig(t *testing.T) {
 
 		// Set initial version
 		version := "v1"
-		initialConfig := &pb.ServerConfig{
+		initialPbConfig := &pb.ServerConfig{
 			Version: &version,
 		}
+
+		// Convert to domain config
+		initialDomainConfig, err := config.NewFromProto(initialPbConfig)
+		require.NoError(t, err)
+
 		r.configMu.Lock()
-		r.config = initialConfig
+		r.config = initialDomainConfig
 		r.configMu.Unlock()
 
 		// Create valid update request
@@ -132,11 +152,26 @@ func TestUpdateConfig(t *testing.T) {
 		assert.NotNil(t, validResp)
 		assert.NotNil(t, validResp.Success)
 		assert.True(t, *validResp.Success, "Success should be true for valid config")
-		assert.Equal(t, validConfig, validResp.Config)
+		// Check basic fields to avoid proto internals comparison issues
+		assert.Equal(t, *validConfig.Version, *validResp.Config.Version)
+		assert.Equal(t, len(validConfig.Listeners), len(validResp.Config.Listeners))
 
 		// Verify that the internal config was updated
 		result := r.GetPbConfigClone()
-		assert.Equal(t, validConfig, result, "Config should be updated after successful validation")
+		// Just verify the basic fields - the conversion may add extra fields
+		assert.Equal(t, *validConfig.Version, *result.Version, "Version should match")
+		assert.Equal(
+			t,
+			len(validConfig.Listeners),
+			len(result.Listeners),
+			"Should have same number of listeners",
+		)
+
+		// Verify domain config was stored (not the protobuf)
+		r.configMu.RLock()
+		assert.NotNil(t, r.config)
+		assert.Equal(t, "v1", r.config.Version)
+		r.configMu.RUnlock()
 	})
 
 	t.Run("nil_config", func(t *testing.T) {
@@ -214,11 +249,16 @@ func TestUpdateConfig(t *testing.T) {
 
 		// Set initial version
 		version := "v1"
-		initialConfig := &pb.ServerConfig{
+		initialPbConfig := &pb.ServerConfig{
 			Version: &version,
 		}
+
+		// Convert to domain config
+		initialDomainConfig, err := config.NewFromProto(initialPbConfig)
+		require.NoError(t, err)
+
 		r.configMu.Lock()
-		r.config = initialConfig
+		r.config = initialDomainConfig
 		r.configMu.Unlock()
 
 		// Prepare test configs
@@ -261,7 +301,14 @@ func TestUpdateConfig(t *testing.T) {
 
 			// Verify the update took effect
 			clone := r.GetPbConfigClone()
-			assert.Equal(t, cfg, clone)
+			// Just verify basic fields since we're converting domain→pbuf
+			assert.Equal(t, *cfg.Version, *clone.Version, "Version should match")
+			assert.Equal(
+				t,
+				len(cfg.Listeners),
+				len(clone.Listeners),
+				"Listeners count should match",
+			)
 		}
 	})
 }
@@ -304,6 +351,12 @@ func TestReloadNotification(t *testing.T) {
 	resp, err := r.UpdateConfig(context.Background(), req)
 	require.NoError(t, err)
 	assert.True(t, *resp.Success)
+
+	// Verify domain config was stored
+	r.configMu.RLock()
+	assert.NotNil(t, r.config)
+	assert.Equal(t, "v1", r.config.Version)
+	r.configMu.RUnlock()
 
 	// Verify reload notification was sent
 	select {

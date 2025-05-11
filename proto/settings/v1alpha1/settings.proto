@@ -117,8 +117,9 @@ message Route {
 
 // App definitions (reusable across endpoints)
 message AppDefinition {
-  string id = 1;
+  string id = 1; // The unique name or identifier for the app
 
+  // The configuration for the app
   oneof app_config {
     AppScript script = 3;
     AppCompositeScript composite_script = 4;

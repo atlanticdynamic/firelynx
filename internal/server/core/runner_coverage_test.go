@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"log/slog"
 	"os"
 	"testing"
@@ -43,9 +42,12 @@ func (r *testAppRegistry) UnregisterApp(id string) error {
 }
 
 // Create a mock config callback function
-func createTestConfigCallback(cfg *config.Config, err error) func() (*config.Config, error) {
-	return func() (*config.Config, error) {
-		return cfg, err
+func createTestConfigCallback(cfg *config.Config, err error) func() config.Config {
+	return func() config.Config {
+		if cfg == nil {
+			return config.Config{}
+		}
+		return *cfg
 	}
 }
 
@@ -131,14 +133,18 @@ func TestRunnerReload(t *testing.T) {
 		}
 	})
 
-	// Test reload with config error
+	// Test reload with empty config
 	t.Run("config error", func(t *testing.T) {
-		// Setup a runner with a mock callback that returns an error
-		expectedErr := errors.New("config error")
+		// Setup a runner with a mock callback that returns an empty config
 		logger := slog.New(
 			slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}),
 		)
-		runner, err := New(createTestConfigCallback(nil, expectedErr))
+
+		emptyConfigCallback := func() config.Config {
+			return config.Config{} // Return empty config
+		}
+
+		runner, err := New(emptyConfigCallback)
 		require.NoError(t, err)
 
 		// Set the logger option
@@ -150,22 +156,30 @@ func TestRunnerReload(t *testing.T) {
 		// Call Reload
 		runner.Reload()
 
-		// Verify an error was sent to the channel
+		// There's no error anymore, since we just return an empty config
+		// instead of an error in the callback
 		select {
 		case err := <-runner.serverErrors:
-			assert.Contains(t, err.Error(), "failed to load configuration")
+			t.Fatalf("Unexpected error: %v", err)
 		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Expected error from reload, but none received")
+			// No error expected anymore
 		}
 	})
 
-	// Test reload with nil config
-	t.Run("nil config", func(t *testing.T) {
-		// Setup a runner with a mock callback that returns a nil config
+	// Test reload with default config
+	t.Run("default config", func(t *testing.T) {
+		// Setup a runner with a mock callback that returns a default config
 		logger := slog.New(
 			slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}),
 		)
-		runner, err := New(createTestConfigCallback(nil, nil))
+
+		defaultConfigCallback := func() config.Config {
+			return config.Config{
+				Version: config.VersionLatest,
+			}
+		}
+
+		runner, err := New(defaultConfigCallback)
 		require.NoError(t, err)
 
 		// Set the logger option
@@ -177,7 +191,7 @@ func TestRunnerReload(t *testing.T) {
 		// Call Reload
 		runner.Reload()
 
-		// Verify no errors were sent to the channel (nil config is logged but not an error)
+		// Verify no errors were sent to the channel
 		select {
 		case err := <-runner.serverErrors:
 			t.Fatalf("Unexpected error from reload: %v", err)

@@ -11,23 +11,23 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
-// Echo contains echo app-specific configuration
-type Echo struct {
+// EchoApp contains echo app-specific configuration
+type EchoApp struct {
 	Response string
 }
 
-// NewEcho creates a new Echo app configuration with the specified response string
-func NewEcho(response string) *Echo {
-	return &Echo{
-		Response: response,
+// New creates a new EchoApp configuration with the specified response string
+func New() *EchoApp {
+	return &EchoApp{
+		Response: "Hello from Echo App",
 	}
 }
 
 // Type returns the app type
-func (e *Echo) Type() string { return "echo" }
+func (e *EchoApp) Type() string { return "echo" }
 
 // Validate checks if the Echo app configuration is valid
-func (e *Echo) Validate() error {
+func (e *EchoApp) Validate() error {
 	// Echo apps require a response string
 	if e.Response == "" {
 		return fmt.Errorf("%w: echo app response", errz.ErrMissingRequiredField)
@@ -36,12 +36,12 @@ func (e *Echo) Validate() error {
 }
 
 // String returns a string representation of the Echo app
-func (e *Echo) String() string {
+func (e *EchoApp) String() string {
 	return fmt.Sprintf("Echo App (response: %s)", e.Response)
 }
 
 // ToTree returns a tree representation of the Echo app
-func (e *Echo) ToTree() *fancy.ComponentTree {
+func (e *EchoApp) ToTree() *fancy.ComponentTree {
 	tree := fancy.NewComponentTree("Echo App")
 	tree.AddChild("Type: echo")
 	tree.AddChild(fmt.Sprintf("Response: %s", e.Response))

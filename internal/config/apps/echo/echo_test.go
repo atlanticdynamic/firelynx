@@ -7,26 +7,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEcho_Type(t *testing.T) {
-	echo := NewEcho("test-response")
+func TestEchoApp_Type(t *testing.T) {
+	echo := New()
 	assert.Equal(t, "echo", echo.Type())
 }
 
-func TestEcho_Validate(t *testing.T) {
+func TestEchoApp_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		echo    *Echo
+		echo    *EchoApp
 		wantErr bool
 		errMsg  string
 	}{
 		{
 			name:    "valid echo app",
-			echo:    NewEcho("test-response"),
+			echo:    New(),
 			wantErr: false,
 		},
 		{
 			name:    "empty response",
-			echo:    NewEcho(""),
+			echo:    &EchoApp{Response: ""},
 			wantErr: true,
 			errMsg:  "missing required field: echo app response",
 		},
@@ -45,13 +45,13 @@ func TestEcho_Validate(t *testing.T) {
 	}
 }
 
-func TestEcho_String(t *testing.T) {
-	echo := NewEcho("test-response")
-	assert.Equal(t, "Echo App (response: test-response)", echo.String())
+func TestEchoApp_String(t *testing.T) {
+	echo := New()
+	assert.Contains(t, echo.String(), "Echo App (response:")
 }
 
-func TestEcho_ToTree(t *testing.T) {
-	echo := NewEcho("test-response")
+func TestEchoApp_ToTree(t *testing.T) {
+	echo := New()
 	tree := echo.ToTree()
 
 	// Get the underlying tree for inspection

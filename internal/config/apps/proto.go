@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
@@ -69,6 +70,12 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 
 			app.AppConfig = &pb.AppDefinition_CompositeScript{
 				CompositeScript: pbComposite,
+			}
+
+		case *echo.EchoApp:
+			pbEcho := cfg.ToProto().(*pb.EchoApp)
+			app.AppConfig = &pb.AppDefinition_Echo{
+				Echo: pbEcho,
 			}
 		}
 
@@ -149,6 +156,11 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 		}
 
 		app.Config = composite.NewCompositeScript(pbComposite.GetScriptAppIds(), staticData)
+		return app, nil
+	} else if pbEcho := pbApp.GetEcho(); pbEcho != nil {
+		// Convert Echo app config
+		echoApp := echo.EchoFromProto(pbEcho)
+		app.Config = echoApp
 		return app, nil
 	}
 

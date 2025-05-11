@@ -53,8 +53,8 @@ func buildTestConfig() *config.Config {
 func TestRunner_ConfigurationAccess(t *testing.T) {
 	cfg := buildTestConfig()
 	// Create a configCallback that returns our test configuration
-	configCallback := func() (*config.Config, error) {
-		return cfg, nil
+	configCallback := func() config.Config {
+		return *cfg
 	}
 
 	runner, err := New(configCallback)
@@ -71,8 +71,8 @@ func TestRunner_New(t *testing.T) {
 	cfg := buildTestConfig()
 
 	// Create a configCallback that returns our test configuration
-	configCallback := func() (*config.Config, error) {
-		return cfg, nil
+	configCallback := func() config.Config {
+		return *cfg
 	}
 
 	runner, err := New(configCallback)
@@ -92,8 +92,8 @@ func TestRunner_Run(t *testing.T) {
 	cfg := buildTestConfig()
 
 	// Create a configCallback that returns our test configuration
-	configCallback := func() (*config.Config, error) {
-		return cfg, nil
+	configCallback := func() config.Config {
+		return *cfg
 	}
 
 	// Create a context with timeout for our test
@@ -115,8 +115,8 @@ func TestRunner_Stop(t *testing.T) {
 	cfg := buildTestConfig()
 
 	// Create a configCallback that returns our test configuration
-	configCallback := func() (*config.Config, error) {
-		return cfg, nil
+	configCallback := func() config.Config {
+		return *cfg
 	}
 
 	// Create the runner
@@ -145,8 +145,8 @@ func TestRunner_WithApps(t *testing.T) {
 	cfg := buildTestConfig()
 
 	// Create a configCallback that returns our test configuration
-	configCallback := func() (*config.Config, error) {
-		return cfg, nil
+	configCallback := func() config.Config {
+		return *cfg
 	}
 
 	// Create the runner

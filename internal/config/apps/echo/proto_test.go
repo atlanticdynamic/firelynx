@@ -11,12 +11,12 @@ func TestEchoFromProto(t *testing.T) {
 	tests := []struct {
 		name  string
 		proto *pb.EchoApp
-		want  *Echo
+		want  *EchoApp
 	}{
 		{
 			name:  "normal conversion",
 			proto: &pb.EchoApp{},
-			want:  &Echo{},
+			want:  &EchoApp{},
 		},
 		{
 			name:  "nil proto",
@@ -33,8 +33,8 @@ func TestEchoFromProto(t *testing.T) {
 	}
 }
 
-func TestEcho_ToProto(t *testing.T) {
-	echo := NewEcho("test-response")
+func TestEchoApp_ToProto(t *testing.T) {
+	echo := New()
 	proto := echo.ToProto()
 
 	// Verify the return value is not nil and is of the expected type

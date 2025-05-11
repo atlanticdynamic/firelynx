@@ -908,7 +908,9 @@ func (*Route_GrpcService) isRoute_Condition() {}
 // App definitions (reusable across endpoints)
 type AppDefinition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"` // The unique name or identifier for the app
+	// The configuration for the app
+	//
 	// Types that are valid to be assigned to AppConfig:
 	//
 	//	*AppDefinition_Script
