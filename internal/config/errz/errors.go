@@ -25,6 +25,7 @@ var (
 var (
 	ErrInvalidListenerType = errors.New("invalid listener type")
 	ErrInvalidRouteType    = errors.New("invalid route type")
+	ErrRouteTypeMismatch   = errors.New("route type mismatch with listener")
 	ErrInvalidAppType      = errors.New("invalid app type")
 	ErrInvalidEvaluator    = errors.New("invalid evaluator")
 )

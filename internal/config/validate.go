@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 )
 
@@ -116,6 +119,12 @@ func (c *Config) validateEndpoints(listenerIds map[string]bool) []error {
 	var errs []error
 	endpointIds := make(map[string]bool, len(c.Endpoints))
 
+	// Create a map of listener IDs to listener types for route type validation
+	listenerTypeMap := make(map[string]listeners.Type)
+	for _, listener := range c.Listeners {
+		listenerTypeMap[listener.ID] = listener.Type
+	}
+
 	for i, ep := range c.Endpoints {
 		// Validate each endpoint with its own validation logic
 		if err := ep.Validate(); err != nil {
@@ -133,12 +142,82 @@ func (c *Config) validateEndpoints(listenerIds map[string]bool) []error {
 		}
 
 		// Validate listener reference
-		if ep.ListenerID != "" && !listenerIds[ep.ListenerID] {
+		if ep.ListenerID != "" {
+			// Check if listener exists
+			if !listenerIds[ep.ListenerID] {
+				errs = append(errs, fmt.Errorf(
+					"%w: endpoint '%s' references non-existent listener ID '%s'",
+					ErrListenerNotFound,
+					ep.ID,
+					ep.ListenerID,
+				))
+			} else {
+				// Validate route types match listener type
+				routeTypeErrs := c.validateRouteTypesMatchListenerType(ep, listenerTypeMap)
+				errs = append(errs, routeTypeErrs...)
+			}
+		}
+	}
+
+	return errs
+}
+
+// validateRouteTypesMatchListenerType ensures that routes in an endpoint have rule types
+// that are compatible with the listener type the endpoint is attached to.
+//
+// This validation enforces semantic correctness at configuration load time to prevent
+// runtime errors, ensuring that:
+// 1. HTTP routes (Route.rule of type HttpRule) are only attached to HTTP listeners
+// 2. gRPC routes (Route.rule of type GrpcRule) are only attached to gRPC listeners
+//
+// Failed validation will prevent the configuration from being accepted, ensuring
+// runtime components only receive semantically valid configurations.
+func (c *Config) validateRouteTypesMatchListenerType(
+	endpoint endpoints.Endpoint,
+	listenerTypeMap map[string]listeners.Type,
+) []error {
+	var errs []error
+
+	// Get the listener type for this endpoint
+	listenerType, exists := listenerTypeMap[endpoint.ListenerID]
+	if !exists {
+		return errs // Listener ID validation is handled elsewhere
+	}
+
+	// Define which condition types are compatible with which listener types
+	compatibleTypes := map[listeners.Type][]conditions.Type{
+		listeners.TypeHTTP: {conditions.TypeHTTP},
+		listeners.TypeGRPC: {conditions.TypeGRPC},
+	}
+
+	// Validate that all routes in this endpoint have a compatible type with the listener
+	for j, route := range endpoint.Routes {
+		if route.Condition == nil {
+			continue // Skip routes without conditions, they'll fail other validations
+		}
+
+		condType := route.Condition.Type()
+
+		// Check if the condition type is compatible with the listener type
+		validTypes := compatibleTypes[listenerType]
+		isCompatible := false
+
+		for _, validType := range validTypes {
+			if condType == validType {
+				isCompatible = true
+				break
+			}
+		}
+
+		if !isCompatible {
 			errs = append(errs, fmt.Errorf(
-				"%w: endpoint '%s' references non-existent listener ID '%s'",
-				ErrListenerNotFound,
-				ep.ID,
-				ep.ListenerID,
+				"%w: endpoint '%s' (route index %d) with condition type '%s' is attached to listener '%s' of type '%s'",
+				ErrRouteTypeMismatch,
+				endpoint.ID,
+				j,
+				condType,
+				endpoint.ListenerID,
+				listenerType,
 			))
 		}
 	}

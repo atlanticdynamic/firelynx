@@ -827,6 +827,54 @@ func TestConfig_Validate(t *testing.T) {
 			expectError: true,
 			errorType:   ErrFailedToValidateConfig,
 		},
+		{
+			name: "Route type mismatch with listener type",
+			config: &Config{
+				Version: VersionLatest,
+				Listeners: listeners.ListenerCollection{
+					{
+						ID:      "http1",
+						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
+						Options: options.HTTP{
+							ReadTimeout:  30 * time.Second,
+							WriteTimeout: 30 * time.Second,
+							IdleTimeout:  60 * time.Second,
+							DrainTimeout: 15 * time.Second,
+						},
+					},
+					{
+						ID:      "grpc1",
+						Address: "127.0.0.1:9090",
+						Type:    listeners.TypeGRPC,
+						Options: options.GRPC{},
+					},
+				},
+				Endpoints: endpoints.EndpointCollection{
+					{
+						ID:         "ep1",
+						ListenerID: "http1", // HTTP listener
+						Routes: routes.RouteCollection{
+							{
+								AppID: "app1",
+								Condition: conditions.NewGRPC(
+									"service.Test",
+									"Method",
+								), // gRPC route on HTTP listener
+							},
+						},
+					},
+				},
+				Apps: apps.AppCollection{
+					{
+						ID:     "app1",
+						Config: &echo.EchoApp{Response: "Hello"},
+					},
+				},
+			},
+			expectError: true,
+			errorType:   ErrRouteTypeMismatch,
+		},
 	}
 
 	for _, tc := range testCases {

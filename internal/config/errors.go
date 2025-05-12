@@ -24,6 +24,7 @@ var (
 	// Type specific errors
 	ErrInvalidListenerType = errz.ErrInvalidListenerType
 	ErrInvalidRouteType    = errz.ErrInvalidRouteType
+	ErrRouteTypeMismatch   = errz.ErrRouteTypeMismatch
 	ErrInvalidAppType      = errz.ErrInvalidAppType
 	ErrInvalidEvaluator    = errz.ErrInvalidEvaluator
 
