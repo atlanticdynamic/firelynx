@@ -1,0 +1,24 @@
+edition = "2023";
+
+package settings.v1alpha1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
+
+message StaticData {
+  map<string, google.protobuf.Value> data = 1;
+  StaticDataMergeMode merge_mode = 2 [default = STATIC_DATA_MERGE_MODE_UNSPECIFIED];
+}
+
+// Defines strategies for merging static data maps from different sources.
+enum StaticDataMergeMode {
+  // Default, behavior might be defined by the consuming system (could default to FIRST or DEEP).
+  STATIC_DATA_MERGE_MODE_UNSPECIFIED = 0;
+
+  // 'last' strategy: Uses the last value found (highest priority source wins). Later static_data completely replaces earlier ones.
+  STATIC_DATA_MERGE_MODE_LAST = 1;
+
+  // 'unique' strategy: If a key exists in multiple sources, the values from the last key will replace earlier keys.
+  STATIC_DATA_MERGE_MODE_UNIQUE = 2;
+}

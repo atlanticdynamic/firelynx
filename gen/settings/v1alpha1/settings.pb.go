@@ -10,7 +10,6 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
-	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -22,354 +21,6 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
-
-type LogFormat int32
-
-const (
-	LogFormat_LOG_FORMAT_UNSPECIFIED LogFormat = 0
-	LogFormat_LOG_FORMAT_TXT         LogFormat = 1
-	LogFormat_LOG_FORMAT_JSON        LogFormat = 2
-)
-
-// Enum value maps for LogFormat.
-var (
-	LogFormat_name = map[int32]string{
-		0: "LOG_FORMAT_UNSPECIFIED",
-		1: "LOG_FORMAT_TXT",
-		2: "LOG_FORMAT_JSON",
-	}
-	LogFormat_value = map[string]int32{
-		"LOG_FORMAT_UNSPECIFIED": 0,
-		"LOG_FORMAT_TXT":         1,
-		"LOG_FORMAT_JSON":        2,
-	}
-)
-
-func (x LogFormat) Enum() *LogFormat {
-	p := new(LogFormat)
-	*p = x
-	return p
-}
-
-func (x LogFormat) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (LogFormat) Descriptor() protoreflect.EnumDescriptor {
-	return file_settings_v1alpha1_settings_proto_enumTypes[0].Descriptor()
-}
-
-func (LogFormat) Type() protoreflect.EnumType {
-	return &file_settings_v1alpha1_settings_proto_enumTypes[0]
-}
-
-func (x LogFormat) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use LogFormat.Descriptor instead.
-func (LogFormat) EnumDescriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{0}
-}
-
-type LogLevel int32
-
-const (
-	LogLevel_LOG_LEVEL_UNSPECIFIED LogLevel = 0
-	LogLevel_LOG_LEVEL_DEBUG       LogLevel = 1
-	LogLevel_LOG_LEVEL_INFO        LogLevel = 2
-	LogLevel_LOG_LEVEL_WARN        LogLevel = 3
-	LogLevel_LOG_LEVEL_ERROR       LogLevel = 4
-	LogLevel_LOG_LEVEL_FATAL       LogLevel = 5
-)
-
-// Enum value maps for LogLevel.
-var (
-	LogLevel_name = map[int32]string{
-		0: "LOG_LEVEL_UNSPECIFIED",
-		1: "LOG_LEVEL_DEBUG",
-		2: "LOG_LEVEL_INFO",
-		3: "LOG_LEVEL_WARN",
-		4: "LOG_LEVEL_ERROR",
-		5: "LOG_LEVEL_FATAL",
-	}
-	LogLevel_value = map[string]int32{
-		"LOG_LEVEL_UNSPECIFIED": 0,
-		"LOG_LEVEL_DEBUG":       1,
-		"LOG_LEVEL_INFO":        2,
-		"LOG_LEVEL_WARN":        3,
-		"LOG_LEVEL_ERROR":       4,
-		"LOG_LEVEL_FATAL":       5,
-	}
-)
-
-func (x LogLevel) Enum() *LogLevel {
-	p := new(LogLevel)
-	*p = x
-	return p
-}
-
-func (x LogLevel) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (LogLevel) Descriptor() protoreflect.EnumDescriptor {
-	return file_settings_v1alpha1_settings_proto_enumTypes[1].Descriptor()
-}
-
-func (LogLevel) Type() protoreflect.EnumType {
-	return &file_settings_v1alpha1_settings_proto_enumTypes[1]
-}
-
-func (x LogLevel) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use LogLevel.Descriptor instead.
-func (LogLevel) EnumDescriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{1}
-}
-
-// Defines strategies for merging static data maps from different sources.
-type StaticDataMergeMode int32
-
-const (
-	// Default, behavior might be defined by the consuming system (could default to FIRST or DEEP).
-	StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED StaticDataMergeMode = 0
-	// 'last' strategy: Uses the last value found (highest priority source wins). Later static_data completely replaces earlier ones.
-	StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST StaticDataMergeMode = 1
-	// 'unique' strategy: If a key exists in multiple sources, the values from the last key will replace earlier keys.
-	StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE StaticDataMergeMode = 2
-)
-
-// Enum value maps for StaticDataMergeMode.
-var (
-	StaticDataMergeMode_name = map[int32]string{
-		0: "STATIC_DATA_MERGE_MODE_UNSPECIFIED",
-		1: "STATIC_DATA_MERGE_MODE_LAST",
-		2: "STATIC_DATA_MERGE_MODE_UNIQUE",
-	}
-	StaticDataMergeMode_value = map[string]int32{
-		"STATIC_DATA_MERGE_MODE_UNSPECIFIED": 0,
-		"STATIC_DATA_MERGE_MODE_LAST":        1,
-		"STATIC_DATA_MERGE_MODE_UNIQUE":      2,
-	}
-)
-
-func (x StaticDataMergeMode) Enum() *StaticDataMergeMode {
-	p := new(StaticDataMergeMode)
-	*p = x
-	return p
-}
-
-func (x StaticDataMergeMode) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (StaticDataMergeMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_settings_v1alpha1_settings_proto_enumTypes[2].Descriptor()
-}
-
-func (StaticDataMergeMode) Type() protoreflect.EnumType {
-	return &file_settings_v1alpha1_settings_proto_enumTypes[2]
-}
-
-func (x StaticDataMergeMode) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use StaticDataMergeMode.Descriptor instead.
-func (StaticDataMergeMode) EnumDescriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{2}
-}
-
-// Request to update the server configuration
-type UpdateConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *ServerConfig          `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateConfigRequest) Reset() {
-	*x = UpdateConfigRequest{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateConfigRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateConfigRequest) ProtoMessage() {}
-
-func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateConfigRequest.ProtoReflect.Descriptor instead.
-func (*UpdateConfigRequest) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *UpdateConfigRequest) GetConfig() *ServerConfig {
-	if x != nil {
-		return x.Config
-	}
-	return nil
-}
-
-// Response to an update configuration request
-type UpdateConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       *bool                  `protobuf:"varint,1,opt,name=success" json:"success,omitempty"`
-	Error         *string                `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
-	Config        *ServerConfig          `protobuf:"bytes,3,opt,name=config" json:"config,omitempty"` // Returns the active configuration after update
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateConfigResponse) Reset() {
-	*x = UpdateConfigResponse{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateConfigResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateConfigResponse) ProtoMessage() {}
-
-func (x *UpdateConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateConfigResponse.ProtoReflect.Descriptor instead.
-func (*UpdateConfigResponse) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *UpdateConfigResponse) GetSuccess() bool {
-	if x != nil && x.Success != nil {
-		return *x.Success
-	}
-	return false
-}
-
-func (x *UpdateConfigResponse) GetError() string {
-	if x != nil && x.Error != nil {
-		return *x.Error
-	}
-	return ""
-}
-
-func (x *UpdateConfigResponse) GetConfig() *ServerConfig {
-	if x != nil {
-		return x.Config
-	}
-	return nil
-}
-
-// Request to get the current server configuration
-type GetConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetConfigRequest) Reset() {
-	*x = GetConfigRequest{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetConfigRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetConfigRequest) ProtoMessage() {}
-
-func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
-func (*GetConfigRequest) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{2}
-}
-
-// Response to a get configuration request
-type GetConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *ServerConfig          `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetConfigResponse) Reset() {
-	*x = GetConfigResponse{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetConfigResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetConfigResponse) ProtoMessage() {}
-
-func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetConfigResponse.ProtoReflect.Descriptor instead.
-func (*GetConfigResponse) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *GetConfigResponse) GetConfig() *ServerConfig {
-	if x != nil {
-		return x.Config
-	}
-	return nil
-}
 
 // Server configuration root message
 type ServerConfig struct {
@@ -391,7 +42,7 @@ const (
 
 func (x *ServerConfig) Reset() {
 	*x = ServerConfig{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[4]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -403,7 +54,7 @@ func (x *ServerConfig) String() string {
 func (*ServerConfig) ProtoMessage() {}
 
 func (x *ServerConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[4]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -416,7 +67,7 @@ func (x *ServerConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerConfig.ProtoReflect.Descriptor instead.
 func (*ServerConfig) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{4}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ServerConfig) GetVersion() string {
@@ -454,64 +105,6 @@ func (x *ServerConfig) GetApps() []*AppDefinition {
 	return nil
 }
 
-type LogOptions struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Format        *LogFormat             `protobuf:"varint,1,opt,name=format,enum=settings.v1alpha1.LogFormat,def=0" json:"format,omitempty"`
-	Level         *LogLevel              `protobuf:"varint,2,opt,name=level,enum=settings.v1alpha1.LogLevel,def=0" json:"level,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-// Default values for LogOptions fields.
-const (
-	Default_LogOptions_Format = LogFormat_LOG_FORMAT_UNSPECIFIED
-	Default_LogOptions_Level  = LogLevel_LOG_LEVEL_UNSPECIFIED
-)
-
-func (x *LogOptions) Reset() {
-	*x = LogOptions{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LogOptions) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LogOptions) ProtoMessage() {}
-
-func (x *LogOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LogOptions.ProtoReflect.Descriptor instead.
-func (*LogOptions) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *LogOptions) GetFormat() LogFormat {
-	if x != nil && x.Format != nil {
-		return *x.Format
-	}
-	return Default_LogOptions_Format
-}
-
-func (x *LogOptions) GetLevel() LogLevel {
-	if x != nil && x.Level != nil {
-		return *x.Level
-	}
-	return Default_LogOptions_Level
-}
-
 // Listener configures a protocol/socket layer service (there could be multiple)
 type Listener struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -530,7 +123,7 @@ type Listener struct {
 
 func (x *Listener) Reset() {
 	*x = Listener{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[6]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -542,7 +135,7 @@ func (x *Listener) String() string {
 func (*Listener) ProtoMessage() {}
 
 func (x *Listener) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[6]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -555,7 +148,7 @@ func (x *Listener) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Listener.ProtoReflect.Descriptor instead.
 func (*Listener) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{6}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Listener) GetId() string {
@@ -626,7 +219,7 @@ type HttpListenerOptions struct {
 
 func (x *HttpListenerOptions) Reset() {
 	*x = HttpListenerOptions{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[7]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -638,7 +231,7 @@ func (x *HttpListenerOptions) String() string {
 func (*HttpListenerOptions) ProtoMessage() {}
 
 func (x *HttpListenerOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[7]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -651,7 +244,7 @@ func (x *HttpListenerOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpListenerOptions.ProtoReflect.Descriptor instead.
 func (*HttpListenerOptions) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{7}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *HttpListenerOptions) GetReadTimeout() *durationpb.Duration {
@@ -694,7 +287,7 @@ type GrpcListenerOptions struct {
 
 func (x *GrpcListenerOptions) Reset() {
 	*x = GrpcListenerOptions{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[8]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -706,7 +299,7 @@ func (x *GrpcListenerOptions) String() string {
 func (*GrpcListenerOptions) ProtoMessage() {}
 
 func (x *GrpcListenerOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[8]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -719,7 +312,7 @@ func (x *GrpcListenerOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrpcListenerOptions.ProtoReflect.Descriptor instead.
 func (*GrpcListenerOptions) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{8}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GrpcListenerOptions) GetMaxConnectionIdle() *durationpb.Duration {
@@ -755,7 +348,7 @@ type Endpoint struct {
 
 func (x *Endpoint) Reset() {
 	*x = Endpoint{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[9]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -767,7 +360,7 @@ func (x *Endpoint) String() string {
 func (*Endpoint) ProtoMessage() {}
 
 func (x *Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[9]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -780,7 +373,7 @@ func (x *Endpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Endpoint.ProtoReflect.Descriptor instead.
 func (*Endpoint) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{9}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Endpoint) GetId() string {
@@ -822,7 +415,7 @@ type Route struct {
 
 func (x *Route) Reset() {
 	*x = Route{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[10]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -834,7 +427,7 @@ func (x *Route) String() string {
 func (*Route) ProtoMessage() {}
 
 func (x *Route) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[10]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -847,7 +440,7 @@ func (x *Route) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Route.ProtoReflect.Descriptor instead.
 func (*Route) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{10}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Route) GetAppId() string {
@@ -905,557 +498,17 @@ func (*Route_HttpPath) isRoute_Condition() {}
 
 func (*Route_GrpcService) isRoute_Condition() {}
 
-// App definitions (reusable across endpoints)
-type AppDefinition struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"` // The unique name or identifier for the app
-	// The configuration for the app
-	//
-	// Types that are valid to be assigned to AppConfig:
-	//
-	//	*AppDefinition_Script
-	//	*AppDefinition_CompositeScript
-	//	*AppDefinition_Echo
-	AppConfig     isAppDefinition_AppConfig `protobuf_oneof:"app_config"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AppDefinition) Reset() {
-	*x = AppDefinition{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AppDefinition) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AppDefinition) ProtoMessage() {}
-
-func (x *AppDefinition) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AppDefinition.ProtoReflect.Descriptor instead.
-func (*AppDefinition) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *AppDefinition) GetId() string {
-	if x != nil && x.Id != nil {
-		return *x.Id
-	}
-	return ""
-}
-
-func (x *AppDefinition) GetAppConfig() isAppDefinition_AppConfig {
-	if x != nil {
-		return x.AppConfig
-	}
-	return nil
-}
-
-func (x *AppDefinition) GetScript() *AppScript {
-	if x != nil {
-		if x, ok := x.AppConfig.(*AppDefinition_Script); ok {
-			return x.Script
-		}
-	}
-	return nil
-}
-
-func (x *AppDefinition) GetCompositeScript() *AppCompositeScript {
-	if x != nil {
-		if x, ok := x.AppConfig.(*AppDefinition_CompositeScript); ok {
-			return x.CompositeScript
-		}
-	}
-	return nil
-}
-
-func (x *AppDefinition) GetEcho() *EchoApp {
-	if x != nil {
-		if x, ok := x.AppConfig.(*AppDefinition_Echo); ok {
-			return x.Echo
-		}
-	}
-	return nil
-}
-
-type isAppDefinition_AppConfig interface {
-	isAppDefinition_AppConfig()
-}
-
-type AppDefinition_Script struct {
-	Script *AppScript `protobuf:"bytes,3,opt,name=script,oneof"`
-}
-
-type AppDefinition_CompositeScript struct {
-	CompositeScript *AppCompositeScript `protobuf:"bytes,4,opt,name=composite_script,json=compositeScript,oneof"`
-}
-
-type AppDefinition_Echo struct {
-	Echo *EchoApp `protobuf:"bytes,5,opt,name=echo,oneof"`
-}
-
-func (*AppDefinition_Script) isAppDefinition_AppConfig() {}
-
-func (*AppDefinition_CompositeScript) isAppDefinition_AppConfig() {}
-
-func (*AppDefinition_Echo) isAppDefinition_AppConfig() {}
-
-// Individual script application
-type AppScript struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	StaticData *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
-	// Types that are valid to be assigned to Evaluator:
-	//
-	//	*AppScript_Risor
-	//	*AppScript_Starlark
-	//	*AppScript_Extism
-	Evaluator     isAppScript_Evaluator `protobuf_oneof:"evaluator"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AppScript) Reset() {
-	*x = AppScript{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AppScript) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AppScript) ProtoMessage() {}
-
-func (x *AppScript) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AppScript.ProtoReflect.Descriptor instead.
-func (*AppScript) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *AppScript) GetStaticData() *StaticData {
-	if x != nil {
-		return x.StaticData
-	}
-	return nil
-}
-
-func (x *AppScript) GetEvaluator() isAppScript_Evaluator {
-	if x != nil {
-		return x.Evaluator
-	}
-	return nil
-}
-
-func (x *AppScript) GetRisor() *RisorEvaluator {
-	if x != nil {
-		if x, ok := x.Evaluator.(*AppScript_Risor); ok {
-			return x.Risor
-		}
-	}
-	return nil
-}
-
-func (x *AppScript) GetStarlark() *StarlarkEvaluator {
-	if x != nil {
-		if x, ok := x.Evaluator.(*AppScript_Starlark); ok {
-			return x.Starlark
-		}
-	}
-	return nil
-}
-
-func (x *AppScript) GetExtism() *ExtismEvaluator {
-	if x != nil {
-		if x, ok := x.Evaluator.(*AppScript_Extism); ok {
-			return x.Extism
-		}
-	}
-	return nil
-}
-
-type isAppScript_Evaluator interface {
-	isAppScript_Evaluator()
-}
-
-type AppScript_Risor struct {
-	Risor *RisorEvaluator `protobuf:"bytes,3,opt,name=risor,oneof"`
-}
-
-type AppScript_Starlark struct {
-	Starlark *StarlarkEvaluator `protobuf:"bytes,4,opt,name=starlark,oneof"`
-}
-
-type AppScript_Extism struct {
-	Extism *ExtismEvaluator `protobuf:"bytes,5,opt,name=extism,oneof"`
-}
-
-func (*AppScript_Risor) isAppScript_Evaluator() {}
-
-func (*AppScript_Starlark) isAppScript_Evaluator() {}
-
-func (*AppScript_Extism) isAppScript_Evaluator() {}
-
-type RisorEvaluator struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          *string                `protobuf:"bytes,1,opt,name=code" json:"code,omitempty"`
-	Timeout       *durationpb.Duration   `protobuf:"bytes,2,opt,name=timeout" json:"timeout,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RisorEvaluator) Reset() {
-	*x = RisorEvaluator{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RisorEvaluator) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RisorEvaluator) ProtoMessage() {}
-
-func (x *RisorEvaluator) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RisorEvaluator.ProtoReflect.Descriptor instead.
-func (*RisorEvaluator) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *RisorEvaluator) GetCode() string {
-	if x != nil && x.Code != nil {
-		return *x.Code
-	}
-	return ""
-}
-
-func (x *RisorEvaluator) GetTimeout() *durationpb.Duration {
-	if x != nil {
-		return x.Timeout
-	}
-	return nil
-}
-
-type StarlarkEvaluator struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          *string                `protobuf:"bytes,1,opt,name=code" json:"code,omitempty"`
-	Timeout       *durationpb.Duration   `protobuf:"bytes,2,opt,name=timeout" json:"timeout,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StarlarkEvaluator) Reset() {
-	*x = StarlarkEvaluator{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StarlarkEvaluator) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StarlarkEvaluator) ProtoMessage() {}
-
-func (x *StarlarkEvaluator) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StarlarkEvaluator.ProtoReflect.Descriptor instead.
-func (*StarlarkEvaluator) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *StarlarkEvaluator) GetCode() string {
-	if x != nil && x.Code != nil {
-		return *x.Code
-	}
-	return ""
-}
-
-func (x *StarlarkEvaluator) GetTimeout() *durationpb.Duration {
-	if x != nil {
-		return x.Timeout
-	}
-	return nil
-}
-
-type ExtismEvaluator struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          *string                `protobuf:"bytes,1,opt,name=code" json:"code,omitempty"`
-	Entrypoint    *string                `protobuf:"bytes,2,opt,name=entrypoint" json:"entrypoint,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ExtismEvaluator) Reset() {
-	*x = ExtismEvaluator{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ExtismEvaluator) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ExtismEvaluator) ProtoMessage() {}
-
-func (x *ExtismEvaluator) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ExtismEvaluator.ProtoReflect.Descriptor instead.
-func (*ExtismEvaluator) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *ExtismEvaluator) GetCode() string {
-	if x != nil && x.Code != nil {
-		return *x.Code
-	}
-	return ""
-}
-
-func (x *ExtismEvaluator) GetEntrypoint() string {
-	if x != nil && x.Entrypoint != nil {
-		return *x.Entrypoint
-	}
-	return ""
-}
-
-// Composite script that combines multiple scripts
-type AppCompositeScript struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ScriptAppIds  []string               `protobuf:"bytes,1,rep,name=script_app_ids,json=scriptAppIds" json:"script_app_ids,omitempty"` // IDs of script apps to run in sequence
-	StaticData    *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AppCompositeScript) Reset() {
-	*x = AppCompositeScript{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AppCompositeScript) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AppCompositeScript) ProtoMessage() {}
-
-func (x *AppCompositeScript) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AppCompositeScript.ProtoReflect.Descriptor instead.
-func (*AppCompositeScript) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *AppCompositeScript) GetScriptAppIds() []string {
-	if x != nil {
-		return x.ScriptAppIds
-	}
-	return nil
-}
-
-func (x *AppCompositeScript) GetStaticData() *StaticData {
-	if x != nil {
-		return x.StaticData
-	}
-	return nil
-}
-
-// Echo app
-type EchoApp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      *string                `protobuf:"bytes,1,opt,name=response" json:"response,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EchoApp) Reset() {
-	*x = EchoApp{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EchoApp) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EchoApp) ProtoMessage() {}
-
-func (x *EchoApp) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EchoApp.ProtoReflect.Descriptor instead.
-func (*EchoApp) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *EchoApp) GetResponse() string {
-	if x != nil && x.Response != nil {
-		return *x.Response
-	}
-	return ""
-}
-
-type StaticData struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	Data          map[string]*structpb.Value `protobuf:"bytes,1,rep,name=data" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	MergeMode     *StaticDataMergeMode       `protobuf:"varint,2,opt,name=merge_mode,json=mergeMode,enum=settings.v1alpha1.StaticDataMergeMode,def=0" json:"merge_mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-// Default values for StaticData fields.
-const (
-	Default_StaticData_MergeMode = StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED
-)
-
-func (x *StaticData) Reset() {
-	*x = StaticData{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StaticData) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StaticData) ProtoMessage() {}
-
-func (x *StaticData) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StaticData.ProtoReflect.Descriptor instead.
-func (*StaticData) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *StaticData) GetData() map[string]*structpb.Value {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-func (x *StaticData) GetMergeMode() StaticDataMergeMode {
-	if x != nil && x.MergeMode != nil {
-		return *x.MergeMode
-	}
-	return Default_StaticData_MergeMode
-}
-
 var File_settings_v1alpha1_settings_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\n" +
-	" settings/v1alpha1/settings.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\"N\n" +
-	"\x13UpdateConfigRequest\x127\n" +
-	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\x7f\n" +
-	"\x14UpdateConfigResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\x127\n" +
-	"\x06config\x18\x03 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\x12\n" +
-	"\x10GetConfigRequest\"L\n" +
-	"\x11GetConfigResponse\x127\n" +
-	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\x91\x02\n" +
+	" settings/v1alpha1/settings.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1csettings/v1alpha1/apps.proto\x1a\x1fsettings/v1alpha1/logging.proto\x1a#settings/v1alpha1/static_data.proto\"\x91\x02\n" +
 	"\fServerConfig\x12\x1c\n" +
 	"\aversion\x18\x01 \x01(\t:\x02v1R\aversion\x127\n" +
 	"\alogging\x18\x02 \x01(\v2\x1d.settings.v1alpha1.LogOptionsR\alogging\x129\n" +
 	"\tlisteners\x18\x03 \x03(\v2\x1b.settings.v1alpha1.ListenerR\tlisteners\x129\n" +
 	"\tendpoints\x18\x04 \x03(\v2\x1b.settings.v1alpha1.EndpointR\tendpoints\x124\n" +
-	"\x04apps\x18\x05 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xa4\x01\n" +
-	"\n" +
-	"LogOptions\x12L\n" +
-	"\x06format\x18\x01 \x01(\x0e2\x1c.settings.v1alpha1.LogFormat:\x16LOG_FORMAT_UNSPECIFIEDR\x06format\x12H\n" +
-	"\x05level\x18\x02 \x01(\x0e2\x1b.settings.v1alpha1.LogLevel:\x15LOG_LEVEL_UNSPECIFIEDR\x05level\"\xc4\x01\n" +
+	"\x04apps\x18\x05 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xc4\x01\n" +
 	"\bListener\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\x12<\n" +
@@ -1481,64 +534,7 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"staticData\x12\x1d\n" +
 	"\thttp_path\x18\x03 \x01(\tH\x00R\bhttpPath\x12#\n" +
 	"\fgrpc_service\x18\x04 \x01(\tH\x00R\vgrpcServiceB\v\n" +
-	"\tcondition\"\xeb\x01\n" +
-	"\rAppDefinition\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x126\n" +
-	"\x06script\x18\x03 \x01(\v2\x1c.settings.v1alpha1.AppScriptH\x00R\x06script\x12R\n" +
-	"\x10composite_script\x18\x04 \x01(\v2%.settings.v1alpha1.AppCompositeScriptH\x00R\x0fcompositeScript\x120\n" +
-	"\x04echo\x18\x05 \x01(\v2\x1a.settings.v1alpha1.EchoAppH\x00R\x04echoB\f\n" +
-	"\n" +
-	"app_config\"\x95\x02\n" +
-	"\tAppScript\x12>\n" +
-	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
-	"staticData\x129\n" +
-	"\x05risor\x18\x03 \x01(\v2!.settings.v1alpha1.RisorEvaluatorH\x00R\x05risor\x12B\n" +
-	"\bstarlark\x18\x04 \x01(\v2$.settings.v1alpha1.StarlarkEvaluatorH\x00R\bstarlark\x12<\n" +
-	"\x06extism\x18\x05 \x01(\v2\".settings.v1alpha1.ExtismEvaluatorH\x00R\x06extismB\v\n" +
-	"\tevaluator\"Y\n" +
-	"\x0eRisorEvaluator\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x123\n" +
-	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\\\n" +
-	"\x11StarlarkEvaluator\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x123\n" +
-	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"E\n" +
-	"\x0fExtismEvaluator\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1e\n" +
-	"\n" +
-	"entrypoint\x18\x02 \x01(\tR\n" +
-	"entrypoint\"z\n" +
-	"\x12AppCompositeScript\x12$\n" +
-	"\x0escript_app_ids\x18\x01 \x03(\tR\fscriptAppIds\x12>\n" +
-	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
-	"staticData\"%\n" +
-	"\aEchoApp\x12\x1a\n" +
-	"\bresponse\x18\x01 \x01(\tR\bresponse\"\x85\x02\n" +
-	"\n" +
-	"StaticData\x12;\n" +
-	"\x04data\x18\x01 \x03(\v2'.settings.v1alpha1.StaticData.DataEntryR\x04data\x12i\n" +
-	"\n" +
-	"merge_mode\x18\x02 \x01(\x0e2&.settings.v1alpha1.StaticDataMergeMode:\"STATIC_DATA_MERGE_MODE_UNSPECIFIEDR\tmergeMode\x1aO\n" +
-	"\tDataEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01*P\n" +
-	"\tLogFormat\x12\x1a\n" +
-	"\x16LOG_FORMAT_UNSPECIFIED\x10\x00\x12\x12\n" +
-	"\x0eLOG_FORMAT_TXT\x10\x01\x12\x13\n" +
-	"\x0fLOG_FORMAT_JSON\x10\x02*\x8c\x01\n" +
-	"\bLogLevel\x12\x19\n" +
-	"\x15LOG_LEVEL_UNSPECIFIED\x10\x00\x12\x13\n" +
-	"\x0fLOG_LEVEL_DEBUG\x10\x01\x12\x12\n" +
-	"\x0eLOG_LEVEL_INFO\x10\x02\x12\x12\n" +
-	"\x0eLOG_LEVEL_WARN\x10\x03\x12\x13\n" +
-	"\x0fLOG_LEVEL_ERROR\x10\x04\x12\x13\n" +
-	"\x0fLOG_LEVEL_FATAL\x10\x05*\x81\x01\n" +
-	"\x13StaticDataMergeMode\x12&\n" +
-	"\"STATIC_DATA_MERGE_MODE_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bSTATIC_DATA_MERGE_MODE_LAST\x10\x01\x12!\n" +
-	"\x1dSTATIC_DATA_MERGE_MODE_UNIQUE\x10\x022\xc8\x01\n" +
-	"\rConfigService\x12_\n" +
-	"\fUpdateConfig\x12&.settings.v1alpha1.UpdateConfigRequest\x1a'.settings.v1alpha1.UpdateConfigResponse\x12V\n" +
-	"\tGetConfig\x12#.settings.v1alpha1.GetConfigRequest\x1a$.settings.v1alpha1.GetConfigResponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
+	"\tconditionB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_settings_proto_rawDescOnce sync.Once
@@ -1552,77 +548,39 @@ func file_settings_v1alpha1_settings_proto_rawDescGZIP() []byte {
 	return file_settings_v1alpha1_settings_proto_rawDescData
 }
 
-var file_settings_v1alpha1_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_settings_v1alpha1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_settings_v1alpha1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_settings_v1alpha1_settings_proto_goTypes = []any{
-	(LogFormat)(0),               // 0: settings.v1alpha1.LogFormat
-	(LogLevel)(0),                // 1: settings.v1alpha1.LogLevel
-	(StaticDataMergeMode)(0),     // 2: settings.v1alpha1.StaticDataMergeMode
-	(*UpdateConfigRequest)(nil),  // 3: settings.v1alpha1.UpdateConfigRequest
-	(*UpdateConfigResponse)(nil), // 4: settings.v1alpha1.UpdateConfigResponse
-	(*GetConfigRequest)(nil),     // 5: settings.v1alpha1.GetConfigRequest
-	(*GetConfigResponse)(nil),    // 6: settings.v1alpha1.GetConfigResponse
-	(*ServerConfig)(nil),         // 7: settings.v1alpha1.ServerConfig
-	(*LogOptions)(nil),           // 8: settings.v1alpha1.LogOptions
-	(*Listener)(nil),             // 9: settings.v1alpha1.Listener
-	(*HttpListenerOptions)(nil),  // 10: settings.v1alpha1.HttpListenerOptions
-	(*GrpcListenerOptions)(nil),  // 11: settings.v1alpha1.GrpcListenerOptions
-	(*Endpoint)(nil),             // 12: settings.v1alpha1.Endpoint
-	(*Route)(nil),                // 13: settings.v1alpha1.Route
-	(*AppDefinition)(nil),        // 14: settings.v1alpha1.AppDefinition
-	(*AppScript)(nil),            // 15: settings.v1alpha1.AppScript
-	(*RisorEvaluator)(nil),       // 16: settings.v1alpha1.RisorEvaluator
-	(*StarlarkEvaluator)(nil),    // 17: settings.v1alpha1.StarlarkEvaluator
-	(*ExtismEvaluator)(nil),      // 18: settings.v1alpha1.ExtismEvaluator
-	(*AppCompositeScript)(nil),   // 19: settings.v1alpha1.AppCompositeScript
-	(*EchoApp)(nil),              // 20: settings.v1alpha1.EchoApp
-	(*StaticData)(nil),           // 21: settings.v1alpha1.StaticData
-	nil,                          // 22: settings.v1alpha1.StaticData.DataEntry
-	(*durationpb.Duration)(nil),  // 23: google.protobuf.Duration
-	(*structpb.Value)(nil),       // 24: google.protobuf.Value
+	(*ServerConfig)(nil),        // 0: settings.v1alpha1.ServerConfig
+	(*Listener)(nil),            // 1: settings.v1alpha1.Listener
+	(*HttpListenerOptions)(nil), // 2: settings.v1alpha1.HttpListenerOptions
+	(*GrpcListenerOptions)(nil), // 3: settings.v1alpha1.GrpcListenerOptions
+	(*Endpoint)(nil),            // 4: settings.v1alpha1.Endpoint
+	(*Route)(nil),               // 5: settings.v1alpha1.Route
+	(*LogOptions)(nil),          // 6: settings.v1alpha1.LogOptions
+	(*AppDefinition)(nil),       // 7: settings.v1alpha1.AppDefinition
+	(*durationpb.Duration)(nil), // 8: google.protobuf.Duration
+	(*StaticData)(nil),          // 9: settings.v1alpha1.StaticData
 }
 var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
-	7,  // 0: settings.v1alpha1.UpdateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
-	7,  // 1: settings.v1alpha1.UpdateConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
-	7,  // 2: settings.v1alpha1.GetConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
-	8,  // 3: settings.v1alpha1.ServerConfig.logging:type_name -> settings.v1alpha1.LogOptions
-	9,  // 4: settings.v1alpha1.ServerConfig.listeners:type_name -> settings.v1alpha1.Listener
-	12, // 5: settings.v1alpha1.ServerConfig.endpoints:type_name -> settings.v1alpha1.Endpoint
-	14, // 6: settings.v1alpha1.ServerConfig.apps:type_name -> settings.v1alpha1.AppDefinition
-	0,  // 7: settings.v1alpha1.LogOptions.format:type_name -> settings.v1alpha1.LogFormat
-	1,  // 8: settings.v1alpha1.LogOptions.level:type_name -> settings.v1alpha1.LogLevel
-	10, // 9: settings.v1alpha1.Listener.http:type_name -> settings.v1alpha1.HttpListenerOptions
-	11, // 10: settings.v1alpha1.Listener.grpc:type_name -> settings.v1alpha1.GrpcListenerOptions
-	23, // 11: settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
-	23, // 12: settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
-	23, // 13: settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
-	23, // 14: settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
-	23, // 15: settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
-	23, // 16: settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
-	13, // 17: settings.v1alpha1.Endpoint.routes:type_name -> settings.v1alpha1.Route
-	21, // 18: settings.v1alpha1.Route.static_data:type_name -> settings.v1alpha1.StaticData
-	15, // 19: settings.v1alpha1.AppDefinition.script:type_name -> settings.v1alpha1.AppScript
-	19, // 20: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.AppCompositeScript
-	20, // 21: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.EchoApp
-	21, // 22: settings.v1alpha1.AppScript.static_data:type_name -> settings.v1alpha1.StaticData
-	16, // 23: settings.v1alpha1.AppScript.risor:type_name -> settings.v1alpha1.RisorEvaluator
-	17, // 24: settings.v1alpha1.AppScript.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
-	18, // 25: settings.v1alpha1.AppScript.extism:type_name -> settings.v1alpha1.ExtismEvaluator
-	23, // 26: settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
-	23, // 27: settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
-	21, // 28: settings.v1alpha1.AppCompositeScript.static_data:type_name -> settings.v1alpha1.StaticData
-	22, // 29: settings.v1alpha1.StaticData.data:type_name -> settings.v1alpha1.StaticData.DataEntry
-	2,  // 30: settings.v1alpha1.StaticData.merge_mode:type_name -> settings.v1alpha1.StaticDataMergeMode
-	24, // 31: settings.v1alpha1.StaticData.DataEntry.value:type_name -> google.protobuf.Value
-	3,  // 32: settings.v1alpha1.ConfigService.UpdateConfig:input_type -> settings.v1alpha1.UpdateConfigRequest
-	5,  // 33: settings.v1alpha1.ConfigService.GetConfig:input_type -> settings.v1alpha1.GetConfigRequest
-	4,  // 34: settings.v1alpha1.ConfigService.UpdateConfig:output_type -> settings.v1alpha1.UpdateConfigResponse
-	6,  // 35: settings.v1alpha1.ConfigService.GetConfig:output_type -> settings.v1alpha1.GetConfigResponse
-	34, // [34:36] is the sub-list for method output_type
-	32, // [32:34] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	6,  // 0: settings.v1alpha1.ServerConfig.logging:type_name -> settings.v1alpha1.LogOptions
+	1,  // 1: settings.v1alpha1.ServerConfig.listeners:type_name -> settings.v1alpha1.Listener
+	4,  // 2: settings.v1alpha1.ServerConfig.endpoints:type_name -> settings.v1alpha1.Endpoint
+	7,  // 3: settings.v1alpha1.ServerConfig.apps:type_name -> settings.v1alpha1.AppDefinition
+	2,  // 4: settings.v1alpha1.Listener.http:type_name -> settings.v1alpha1.HttpListenerOptions
+	3,  // 5: settings.v1alpha1.Listener.grpc:type_name -> settings.v1alpha1.GrpcListenerOptions
+	8,  // 6: settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
+	8,  // 7: settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
+	8,  // 8: settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
+	8,  // 9: settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
+	8,  // 10: settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
+	8,  // 11: settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
+	5,  // 12: settings.v1alpha1.Endpoint.routes:type_name -> settings.v1alpha1.Route
+	9,  // 13: settings.v1alpha1.Route.static_data:type_name -> settings.v1alpha1.StaticData
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_settings_proto_init() }
@@ -1630,37 +588,29 @@ func file_settings_v1alpha1_settings_proto_init() {
 	if File_settings_v1alpha1_settings_proto != nil {
 		return
 	}
-	file_settings_v1alpha1_settings_proto_msgTypes[6].OneofWrappers = []any{
+	file_settings_v1alpha1_apps_proto_init()
+	file_settings_v1alpha1_logging_proto_init()
+	file_settings_v1alpha1_static_data_proto_init()
+	file_settings_v1alpha1_settings_proto_msgTypes[1].OneofWrappers = []any{
 		(*Listener_Http)(nil),
 		(*Listener_Grpc)(nil),
 	}
-	file_settings_v1alpha1_settings_proto_msgTypes[10].OneofWrappers = []any{
+	file_settings_v1alpha1_settings_proto_msgTypes[5].OneofWrappers = []any{
 		(*Route_HttpPath)(nil),
 		(*Route_GrpcService)(nil),
-	}
-	file_settings_v1alpha1_settings_proto_msgTypes[11].OneofWrappers = []any{
-		(*AppDefinition_Script)(nil),
-		(*AppDefinition_CompositeScript)(nil),
-		(*AppDefinition_Echo)(nil),
-	}
-	file_settings_v1alpha1_settings_proto_msgTypes[12].OneofWrappers = []any{
-		(*AppScript_Risor)(nil),
-		(*AppScript_Starlark)(nil),
-		(*AppScript_Extism)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_settings_proto_rawDesc), len(file_settings_v1alpha1_settings_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   20,
+			NumEnums:      0,
+			NumMessages:   6,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   0,
 		},
 		GoTypes:           file_settings_v1alpha1_settings_proto_goTypes,
 		DependencyIndexes: file_settings_v1alpha1_settings_proto_depIdxs,
-		EnumInfos:         file_settings_v1alpha1_settings_proto_enumTypes,
 		MessageInfos:      file_settings_v1alpha1_settings_proto_msgTypes,
 	}.Build()
 	File_settings_v1alpha1_settings_proto = out.File

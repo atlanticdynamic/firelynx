@@ -1,0 +1,56 @@
+edition = "2023";
+
+package settings.v1alpha1;
+
+import "google/protobuf/duration.proto";
+import "settings/v1alpha1/static_data.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
+
+// App definitions (reusable across endpoints)
+message AppDefinition {
+  string id = 1; // The unique name or identifier for the app
+
+  // The configuration for the app
+  oneof app_config {
+    AppScript script = 3;
+    AppCompositeScript composite_script = 4;
+    EchoApp echo = 5;
+  }
+}
+
+// Individual script application
+message AppScript {
+  StaticData static_data = 2;
+  oneof evaluator {
+    RisorEvaluator risor = 3;
+    StarlarkEvaluator starlark = 4;
+    ExtismEvaluator extism = 5;
+  }
+}
+
+message RisorEvaluator {
+  string code = 1;
+  google.protobuf.Duration timeout = 2;
+}
+
+message StarlarkEvaluator {
+  string code = 1;
+  google.protobuf.Duration timeout = 2;
+}
+
+message ExtismEvaluator {
+  string code = 1;
+  string entrypoint = 2;
+}
+
+// Composite script that combines multiple scripts
+message AppCompositeScript {
+  repeated string script_app_ids = 1; // IDs of script apps to run in sequence
+  StaticData static_data = 2;
+}
+
+// Echo app
+message EchoApp {
+  string response = 1;
+}
