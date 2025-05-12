@@ -16,6 +16,7 @@ func TestRouteDuplication(t *testing.T) {
 	[[listeners]]
 	id = "http_listener"
 	address = ":8080"
+	type = "http"
 
 	[listeners.http]
 	read_timeout = "1s"
@@ -23,11 +24,13 @@ func TestRouteDuplication(t *testing.T) {
 
 	[[endpoints]]
 	id = "echo_endpoint"
-	listener_ids = ["http_listener"]
+	listener_id = "http_listener"
 
 	[[endpoints.routes]]
 	app_id = "echo_app"
-	http_path = "/echo"
+	
+	[endpoints.routes.http]
+	path_prefix = "/echo"
 
 	[[apps]]
 	id = "echo_app"
@@ -50,9 +53,10 @@ func TestRouteDuplication(t *testing.T) {
 	// Check that the route has the correct app ID
 	assert.Equal(t, "echo_app", *route.AppId)
 
-	// Check that the route has the correct HTTP path in the oneof field
-	httpPath := route.GetHttpPath()
-	assert.Equal(t, "/echo", httpPath)
+	// Check that the route has the correct HTTP rule in the oneof field
+	httpRule := route.GetHttp()
+	assert.NotNil(t, httpRule)
+	assert.Equal(t, "/echo", *httpRule.PathPrefix)
 
 	// Now test the fix - let's make sure there's no duplication
 	// by examining the first route of the first endpoint
@@ -62,12 +66,16 @@ func TestRouteDuplication(t *testing.T) {
 	// Check that the route has the correct values
 	checkRoute := config.Endpoints[0].Routes[0]
 	assert.Equal(t, "echo_app", *checkRoute.AppId)
-	assert.Equal(t, "/echo", checkRoute.GetHttpPath())
+
+	// Check HTTP rule
+	httpRule = checkRoute.GetHttp()
+	assert.NotNil(t, httpRule)
+	assert.Equal(t, "/echo", *httpRule.PathPrefix)
 
 	// Make sure there's no grpc field populated
-	grpcService := checkRoute.GetGrpcService()
-	assert.Empty(t, grpcService, "gRPC service should be empty")
+	grpcRule := checkRoute.GetGrpc()
+	assert.Nil(t, grpcRule, "gRPC rule should be nil")
 
-	// Make sure the oneof field is correctly set to HTTP path
-	assert.IsType(t, &pbSettings.Route_HttpPath{}, checkRoute.Condition)
+	// Make sure the oneof field is correctly set to HTTP rule
+	assert.IsType(t, &pbSettings.Route_Http{}, checkRoute.Rule)
 }

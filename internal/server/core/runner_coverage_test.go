@@ -8,6 +8,8 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
@@ -64,8 +66,8 @@ func TestRunnerReload(t *testing.T) {
 		},
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "test-endpoint",
-				ListenerIDs: []string{"test-listener"},
+				ID:         "test-endpoint",
+				ListenerID: "test-listener",
 			},
 		},
 	}
@@ -224,8 +226,14 @@ func TestGetHTTPConfigCallback(t *testing.T) {
 		},
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "http-endpoint",
-				ListenerIDs: []string{"http-listener"},
+				ID:         "http-endpoint",
+				ListenerID: "http-listener",
+				Routes: []routes.Route{
+					{
+						AppID:     "echo", // This matches the echo app registered in Runner.New()
+						Condition: conditions.NewHTTP("/echo", "GET"),
+					},
+				},
 			},
 		},
 	}

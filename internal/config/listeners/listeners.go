@@ -21,6 +21,7 @@
 //	httpListener := listeners.Listener{
 //	    ID:      "http-main",
 //	    Address: "0.0.0.0:8080",
+//	    Type:    TypeHTTP,
 //	    Options: options.HTTP{
 //	        ReadTimeout:  time.Second * 30,
 //	        WriteTimeout: time.Second * 30,
@@ -42,6 +43,16 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 )
 
+// Type represents the listener type
+type Type int32
+
+// Listener types
+const (
+	TypeUnspecified Type = 0
+	TypeHTTP        Type = 1
+	TypeGRPC        Type = 2
+)
+
 // ListenerCollection is a collection of Listener objects
 type ListenerCollection []Listener
 
@@ -49,16 +60,29 @@ type ListenerCollection []Listener
 type Listener struct {
 	ID      string
 	Address string
+	Type    Type
 	Options options.Options
 }
 
-// GetType returns the type of the listener
-func (l *Listener) GetType() options.Type {
+// GetOptionsType returns the type of the listener options
+func (l *Listener) GetOptionsType() options.Type {
 	if l.Options == nil {
 		return options.Unknown
 	}
 
 	return l.Options.Type()
+}
+
+// GetTypeString returns a string representation of the listener type
+func (l *Listener) GetTypeString() string {
+	switch l.Type {
+	case TypeHTTP:
+		return "HTTP"
+	case TypeGRPC:
+		return "GRPC"
+	default:
+		return "Unknown"
+	}
 }
 
 // Config represents the interface needed from a Config object to query endpoints

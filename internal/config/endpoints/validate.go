@@ -14,9 +14,9 @@ func (e *Endpoint) Validate() error {
 		errs = append(errs, fmt.Errorf("%w: endpoint ID", ErrEmptyID))
 	}
 
-	// Validate Listener IDs
-	if len(e.ListenerIDs) == 0 {
-		errs = append(errs, fmt.Errorf("%w: endpoint '%s' has no listener IDs",
+	// Validate Listener ID
+	if e.ListenerID == "" {
+		errs = append(errs, fmt.Errorf("%w: endpoint '%s' has empty listener ID",
 			ErrMissingRequiredField, e.ID))
 	}
 

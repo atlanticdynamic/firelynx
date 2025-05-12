@@ -2,15 +2,17 @@ version = "v1"
 
 [[endpoints]]
 id = "endpoint1"
-listener_ids = ["listener1"]
+listener_id = "listener1"
 
 [endpoints.route]
 app_id = "app1"
-http_path = "/test"
+[endpoints.route.http]
+path_prefix = "/test"
 
 [[listeners]]
 id = "listener1"
 address = ":8080"
+type = "http"
 
 [[apps]]
 id = "app1"

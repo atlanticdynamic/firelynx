@@ -21,7 +21,7 @@ func TestRoute_Validate(t *testing.T) {
 			name: "Valid HTTP route",
 			route: Route{
 				AppID:     "app1",
-				Condition: conditions.NewHTTP("/api/v1"),
+				Condition: conditions.NewHTTP("/api/v1", ""),
 			},
 			expectError: false,
 		},
@@ -29,7 +29,7 @@ func TestRoute_Validate(t *testing.T) {
 			name: "Valid gRPC route",
 			route: Route{
 				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1"),
+				Condition: conditions.NewGRPC("service.v1", ""),
 			},
 			expectError: false,
 		},
@@ -37,7 +37,7 @@ func TestRoute_Validate(t *testing.T) {
 			name: "Empty app ID",
 			route: Route{
 				AppID:     "",
-				Condition: conditions.NewHTTP("/api/v1"),
+				Condition: conditions.NewHTTP("/api/v1", ""),
 			},
 			expectError: true,
 			errorType:   ErrEmptyID,
@@ -55,7 +55,7 @@ func TestRoute_Validate(t *testing.T) {
 			name: "Invalid HTTP path",
 			route: Route{
 				AppID:     "app1",
-				Condition: conditions.NewHTTP(""),
+				Condition: conditions.NewHTTP("", ""),
 			},
 			expectError: true,
 		},
@@ -63,7 +63,7 @@ func TestRoute_Validate(t *testing.T) {
 			name: "Invalid gRPC service",
 			route: Route{
 				AppID:     "app2",
-				Condition: conditions.NewGRPC(""),
+				Condition: conditions.NewGRPC("", ""),
 			},
 			expectError: true,
 		},

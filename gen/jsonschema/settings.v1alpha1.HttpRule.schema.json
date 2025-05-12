@@ -1,0 +1,20 @@
+{
+  "$id": "settings.v1alpha1.HttpRule.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(pathPrefix)$": {
+      "type": "string"
+    }
+  },
+  "properties": {
+    "method": {
+      "type": "string"
+    },
+    "path_prefix": {
+      "type": "string"
+    }
+  },
+  "title": "Http Rule",
+  "type": "object"
+}

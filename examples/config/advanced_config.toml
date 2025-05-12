@@ -10,6 +10,7 @@ format = "json"
 [[listeners]]
 id = "http-main"
 address = ":8080"
+type = "http"
 
 [listeners.http]
 read_timeout = "5s"
@@ -19,6 +20,7 @@ drain_timeout = "30s"
 [[listeners]]
 id = "grpc-internal"
 address = ":50051"
+type = "grpc"
 
 [listeners.grpc]
 max_connection_idle = "3600s" # Changed from 1h
@@ -29,31 +31,35 @@ max_concurrent_streams = 100
 
 [[endpoints]]
 id = "public-api"
-listener_ids = ["http-main"]
+listener_id = "http-main"
 
 # Route /api/v1/users to the user-service app
 [[endpoints.routes]]
 app_id = "user-service"
-http_path = "/api/v1/users"
+[endpoints.routes.http]
+path_prefix = "/api/v1/users"
 
 # Route /api/v1/products to the product-service app
 [[endpoints.routes]]
 app_id = "product-service"
-http_path = "/api/v1/products"
+[endpoints.routes.http]
+path_prefix = "/api/v1/products"
 
 # Route /api/v1/orders to the composite order-processor app
 [[endpoints.routes]]
 app_id = "order-processor"
-http_path = "/api/v1/orders"
+[endpoints.routes.http]
+path_prefix = "/api/v1/orders"
 
 [[endpoints]]
 id = "internal-services"
-listener_ids = ["grpc-internal"]
+listener_id = "grpc-internal"
 
 # Route gRPC service 'inventory.InventoryService' to inventory-app
 [[endpoints.routes]]
 app_id = "inventory-app"
-grpc_service = "inventory.InventoryService"
+[endpoints.routes.grpc]
+service = "inventory.InventoryService"
 
 # --- Applications ---
 

@@ -33,17 +33,22 @@ func TestTomlLoader_MultipleRouteTypes(t *testing.T) {
 		t.Logf("Route %d: app_id=%s", i, route.GetAppId())
 
 		// Check if it's an HTTP route
-		if httpPath := route.GetHttpPath(); httpPath != "" {
+		if httpRule := route.GetHttp(); httpRule != nil {
 			httpCount++
-			t.Logf("  HTTP path: %q", httpPath)
-			assert.Contains(t, []string{"/echo1", "/echo2"}, httpPath, "Unexpected HTTP path")
+			t.Logf("  HTTP path: %q", *httpRule.PathPrefix)
+			assert.Contains(
+				t,
+				[]string{"/echo1", "/echo2"},
+				*httpRule.PathPrefix,
+				"Unexpected HTTP path prefix",
+			)
 		}
 
 		// Check if it's a gRPC route
-		if grpcService := route.GetGrpcService(); grpcService != "" {
+		if grpcRule := route.GetGrpc(); grpcRule != nil {
 			grpcCount++
-			t.Logf("  gRPC service: %q", grpcService)
-			assert.Equal(t, "test.Service", grpcService, "Unexpected gRPC service")
+			t.Logf("  gRPC service: %q", *grpcRule.Service)
+			assert.Equal(t, "test.Service", *grpcRule.Service, "Unexpected gRPC service")
 		}
 	}
 
@@ -60,12 +65,13 @@ version = "v1"
 
 [[endpoints]]
 id = "empty_endpoint"
-listener_ids = ["listener1"]
+listener_id = "listener1"
 # No routes
 
 [[listeners]]
 id = "listener1"
 address = ":8080"
+type = "http"
 	`)
 
 	loader := NewTomlLoader(tomlData)

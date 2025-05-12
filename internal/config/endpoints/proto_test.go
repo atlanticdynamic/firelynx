@@ -23,36 +23,38 @@ func TestEndpoint_ToProto(t *testing.T) {
 		{
 			name: "Empty",
 			endpoint: Endpoint{
-				ID:          "empty",
-				ListenerIDs: []string{"http1"},
-				Routes:      []routes.Route{},
+				ID:         "empty",
+				ListenerID: "http1",
+				Routes:     []routes.Route{},
 			},
 			expected: &pb.Endpoint{
-				Id:          proto.String("empty"),
-				ListenerIds: []string{"http1"},
-				Routes:      nil,
+				Id:         proto.String("empty"),
+				ListenerId: proto.String("http1"),
+				Routes:     nil,
 			},
 		},
 		{
 			name: "Complete",
 			endpoint: Endpoint{
-				ID:          "complete",
-				ListenerIDs: []string{"http1"},
+				ID:         "complete",
+				ListenerID: "http1",
 				Routes: []routes.Route{
 					{
 						AppID:     "app1",
-						Condition: conditions.NewHTTP("/api/v1"),
+						Condition: conditions.NewHTTP("/api/v1", ""),
 					},
 				},
 			},
 			expected: &pb.Endpoint{
-				Id:          proto.String("complete"),
-				ListenerIds: []string{"http1"},
+				Id:         proto.String("complete"),
+				ListenerId: proto.String("http1"),
 				Routes: []*pb.Route{
 					{
 						AppId: proto.String("app1"),
-						Condition: &pb.Route_HttpPath{
-							HttpPath: "/api/v1",
+						Rule: &pb.Route_Http{
+							Http: &pb.HttpRule{
+								PathPrefix: proto.String("/api/v1"),
+							},
 						},
 					},
 				},
@@ -66,7 +68,7 @@ func TestEndpoint_ToProto(t *testing.T) {
 			t.Parallel()
 			actual := tc.endpoint.ToProto()
 			assert.Equal(t, tc.expected.Id, actual.Id)
-			assert.Equal(t, tc.expected.ListenerIds, actual.ListenerIds)
+			assert.Equal(t, tc.expected.ListenerId, actual.ListenerId)
 
 			if len(tc.expected.Routes) == 0 {
 				assert.Empty(t, actual.Routes)
@@ -76,14 +78,16 @@ func TestEndpoint_ToProto(t *testing.T) {
 					actualRoute := actual.Routes[i]
 					assert.Equal(t, expectedRoute.AppId, actualRoute.AppId)
 
-					// Check condition
-					switch expectedRoute.Condition.(type) {
-					case *pb.Route_HttpPath:
-						assert.Equal(t, expectedRoute.GetHttpPath(), actualRoute.GetHttpPath())
-					case *pb.Route_GrpcService:
-						assert.Equal(t, expectedRoute.GetGrpcService(), actualRoute.GetGrpcService())
+					// Check rule
+					switch expectedRoute.Rule.(type) {
+					case *pb.Route_Http:
+						assert.NotNil(t, actualRoute.GetHttp())
+						assert.Equal(t, expectedRoute.GetHttp().PathPrefix, actualRoute.GetHttp().PathPrefix)
+					case *pb.Route_Grpc:
+						assert.NotNil(t, actualRoute.GetGrpc())
+						assert.Equal(t, expectedRoute.GetGrpc().Service, actualRoute.GetGrpc().Service)
 					default:
-						t.Fatalf("Unknown condition type: %T", expectedRoute.Condition)
+						t.Fatalf("Unknown rule type: %T", expectedRoute.Rule)
 					}
 				}
 			}
@@ -103,12 +107,14 @@ func TestRoute_ToProto(t *testing.T) {
 			name: "HTTP Path",
 			route: routes.Route{
 				AppID:     "app1",
-				Condition: conditions.NewHTTP("/api/v1"),
+				Condition: conditions.NewHTTP("/api/v1", ""),
 			},
 			expected: &pb.Route{
 				AppId: proto.String("app1"),
-				Condition: &pb.Route_HttpPath{
-					HttpPath: "/api/v1",
+				Rule: &pb.Route_Http{
+					Http: &pb.HttpRule{
+						PathPrefix: proto.String("/api/v1"),
+					},
 				},
 			},
 		},
@@ -116,12 +122,14 @@ func TestRoute_ToProto(t *testing.T) {
 			name: "GRPC Service",
 			route: routes.Route{
 				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1"),
+				Condition: conditions.NewGRPC("service.v1", ""),
 			},
 			expected: &pb.Route{
 				AppId: proto.String("app2"),
-				Condition: &pb.Route_GrpcService{
-					GrpcService: "service.v1",
+				Rule: &pb.Route_Grpc{
+					Grpc: &pb.GrpcRule{
+						Service: proto.String("service.v1"),
+					},
 				},
 			},
 		},
@@ -129,7 +137,7 @@ func TestRoute_ToProto(t *testing.T) {
 			name: "With Static Data",
 			route: routes.Route{
 				AppID:     "app3",
-				Condition: conditions.NewHTTP("/api/v2"),
+				Condition: conditions.NewHTTP("/api/v2", ""),
 				StaticData: map[string]any{
 					"key1": "value1",
 					"key2": 42,
@@ -137,8 +145,10 @@ func TestRoute_ToProto(t *testing.T) {
 			},
 			expected: &pb.Route{
 				AppId: proto.String("app3"),
-				Condition: &pb.Route_HttpPath{
-					HttpPath: "/api/v2",
+				Rule: &pb.Route_Http{
+					Http: &pb.HttpRule{
+						PathPrefix: proto.String("/api/v2"),
+					},
 				},
 				StaticData: &pb.StaticData{
 					Data: map[string]*structpb.Value{
@@ -157,14 +167,18 @@ func TestRoute_ToProto(t *testing.T) {
 			actual := tc.route.ToProto()
 			assert.Equal(t, tc.expected.AppId, actual.AppId)
 
-			// Check condition
-			switch tc.expected.Condition.(type) {
-			case *pb.Route_HttpPath:
-				assert.Equal(t, tc.expected.GetHttpPath(), actual.GetHttpPath())
-			case *pb.Route_GrpcService:
-				assert.Equal(t, tc.expected.GetGrpcService(), actual.GetGrpcService())
+			// Check rule
+			switch tc.expected.Rule.(type) {
+			case *pb.Route_Http:
+				httpRule := actual.GetHttp()
+				assert.NotNil(t, httpRule)
+				assert.Equal(t, tc.expected.GetHttp().PathPrefix, httpRule.PathPrefix)
+			case *pb.Route_Grpc:
+				grpcRule := actual.GetGrpc()
+				assert.NotNil(t, grpcRule)
+				assert.Equal(t, tc.expected.GetGrpc().Service, grpcRule.Service)
 			default:
-				t.Fatalf("Unknown condition type: %T", tc.expected.Condition)
+				t.Fatalf("Unknown rule type: %T", tc.expected.Rule)
 			}
 
 			// Check static data
@@ -188,22 +202,22 @@ func TestEndpoints_ToProto(t *testing.T) {
 
 	endpoints := EndpointCollection{
 		{
-			ID:          "endpoint1",
-			ListenerIDs: []string{"http1"},
+			ID:         "endpoint1",
+			ListenerID: "http1",
 			Routes: []routes.Route{
 				{
 					AppID:     "app1",
-					Condition: conditions.NewHTTP("/api/v1"),
+					Condition: conditions.NewHTTP("/api/v1", ""),
 				},
 			},
 		},
 		{
-			ID:          "endpoint2",
-			ListenerIDs: []string{"grpc1"},
+			ID:         "endpoint2",
+			ListenerID: "grpc1",
 			Routes: []routes.Route{
 				{
 					AppID:     "app2",
-					Condition: conditions.NewGRPC("service.v1"),
+					Condition: conditions.NewGRPC("service.v1", ""),
 				},
 			},
 		},
@@ -211,25 +225,29 @@ func TestEndpoints_ToProto(t *testing.T) {
 
 	expected := []*pb.Endpoint{
 		{
-			Id:          proto.String("endpoint1"),
-			ListenerIds: []string{"http1"},
+			Id:         proto.String("endpoint1"),
+			ListenerId: proto.String("http1"),
 			Routes: []*pb.Route{
 				{
 					AppId: proto.String("app1"),
-					Condition: &pb.Route_HttpPath{
-						HttpPath: "/api/v1",
+					Rule: &pb.Route_Http{
+						Http: &pb.HttpRule{
+							PathPrefix: proto.String("/api/v1"),
+						},
 					},
 				},
 			},
 		},
 		{
-			Id:          proto.String("endpoint2"),
-			ListenerIds: []string{"grpc1"},
+			Id:         proto.String("endpoint2"),
+			ListenerId: proto.String("grpc1"),
 			Routes: []*pb.Route{
 				{
 					AppId: proto.String("app2"),
-					Condition: &pb.Route_GrpcService{
-						GrpcService: "service.v1",
+					Rule: &pb.Route_Grpc{
+						Grpc: &pb.GrpcRule{
+							Service: proto.String("service.v1"),
+						},
 					},
 				},
 			},
@@ -242,21 +260,23 @@ func TestEndpoints_ToProto(t *testing.T) {
 	for i, expectedEndpoint := range expected {
 		actualEndpoint := actual[i]
 		assert.Equal(t, expectedEndpoint.Id, actualEndpoint.Id)
-		assert.Equal(t, expectedEndpoint.ListenerIds, actualEndpoint.ListenerIds)
+		assert.Equal(t, expectedEndpoint.ListenerId, actualEndpoint.ListenerId)
 		assert.Equal(t, len(expectedEndpoint.Routes), len(actualEndpoint.Routes))
 
 		for j, expectedRoute := range expectedEndpoint.Routes {
 			actualRoute := actualEndpoint.Routes[j]
 			assert.Equal(t, expectedRoute.AppId, actualRoute.AppId)
 
-			// Check condition
-			switch expectedRoute.Condition.(type) {
-			case *pb.Route_HttpPath:
-				assert.Equal(t, expectedRoute.GetHttpPath(), actualRoute.GetHttpPath())
-			case *pb.Route_GrpcService:
-				assert.Equal(t, expectedRoute.GetGrpcService(), actualRoute.GetGrpcService())
+			// Check rule
+			switch expectedRoute.Rule.(type) {
+			case *pb.Route_Http:
+				assert.NotNil(t, actualRoute.GetHttp())
+				assert.Equal(t, expectedRoute.GetHttp().PathPrefix, actualRoute.GetHttp().PathPrefix)
+			case *pb.Route_Grpc:
+				assert.NotNil(t, actualRoute.GetGrpc())
+				assert.Equal(t, expectedRoute.GetGrpc().Service, actualRoute.GetGrpc().Service)
 			default:
-				t.Fatalf("Unknown condition type: %T", expectedRoute.Condition)
+				t.Fatalf("Unknown rule type: %T", expectedRoute.Rule)
 			}
 		}
 	}
@@ -287,13 +307,15 @@ func TestFromProto(t *testing.T) {
 			name: "Single Endpoint",
 			pbEndpoints: []*pb.Endpoint{
 				{
-					Id:          proto.String("endpoint1"),
-					ListenerIds: []string{"http1"},
+					Id:         proto.String("endpoint1"),
+					ListenerId: proto.String("http1"),
 					Routes: []*pb.Route{
 						{
 							AppId: proto.String("app1"),
-							Condition: &pb.Route_HttpPath{
-								HttpPath: "/api/v1",
+							Rule: &pb.Route_Http{
+								Http: &pb.HttpRule{
+									PathPrefix: proto.String("/api/v1"),
+								},
 							},
 						},
 					},
@@ -301,12 +323,12 @@ func TestFromProto(t *testing.T) {
 			},
 			expected: EndpointCollection{
 				{
-					ID:          "endpoint1",
-					ListenerIDs: []string{"http1"},
+					ID:         "endpoint1",
+					ListenerID: "http1",
 					Routes: []routes.Route{
 						{
 							AppID:     "app1",
-							Condition: conditions.NewHTTP("/api/v1"),
+							Condition: conditions.NewHTTP("/api/v1", ""),
 						},
 					},
 				},
@@ -317,25 +339,29 @@ func TestFromProto(t *testing.T) {
 			name: "Multiple Endpoints",
 			pbEndpoints: []*pb.Endpoint{
 				{
-					Id:          proto.String("endpoint1"),
-					ListenerIds: []string{"http1"},
+					Id:         proto.String("endpoint1"),
+					ListenerId: proto.String("http1"),
 					Routes: []*pb.Route{
 						{
 							AppId: proto.String("app1"),
-							Condition: &pb.Route_HttpPath{
-								HttpPath: "/api/v1",
+							Rule: &pb.Route_Http{
+								Http: &pb.HttpRule{
+									PathPrefix: proto.String("/api/v1"),
+								},
 							},
 						},
 					},
 				},
 				{
-					Id:          proto.String("endpoint2"),
-					ListenerIds: []string{"grpc1"},
+					Id:         proto.String("endpoint2"),
+					ListenerId: proto.String("grpc1"),
 					Routes: []*pb.Route{
 						{
 							AppId: proto.String("app2"),
-							Condition: &pb.Route_GrpcService{
-								GrpcService: "service.v1",
+							Rule: &pb.Route_Grpc{
+								Grpc: &pb.GrpcRule{
+									Service: proto.String("service.v1"),
+								},
 							},
 						},
 					},
@@ -343,22 +369,22 @@ func TestFromProto(t *testing.T) {
 			},
 			expected: EndpointCollection{
 				{
-					ID:          "endpoint1",
-					ListenerIDs: []string{"http1"},
+					ID:         "endpoint1",
+					ListenerID: "http1",
 					Routes: []routes.Route{
 						{
 							AppID:     "app1",
-							Condition: conditions.NewHTTP("/api/v1"),
+							Condition: conditions.NewHTTP("/api/v1", ""),
 						},
 					},
 				},
 				{
-					ID:          "endpoint2",
-					ListenerIDs: []string{"grpc1"},
+					ID:         "endpoint2",
+					ListenerID: "grpc1",
 					Routes: []routes.Route{
 						{
 							AppID:     "app2",
-							Condition: conditions.NewGRPC("service.v1"),
+							Condition: conditions.NewGRPC("service.v1", ""),
 						},
 					},
 				},
@@ -369,19 +395,19 @@ func TestFromProto(t *testing.T) {
 			name: "Empty ID",
 			pbEndpoints: []*pb.Endpoint{
 				{
-					Id:          proto.String(""),
-					ListenerIds: []string{"http1"},
+					Id:         proto.String(""),
+					ListenerId: proto.String("http1"),
 				},
 			},
 			expected:    nil,
 			expectError: true,
 		},
 		{
-			name: "No Listener IDs",
+			name: "No Listener ID",
 			pbEndpoints: []*pb.Endpoint{
 				{
-					Id:          proto.String("endpoint1"),
-					ListenerIds: []string{},
+					Id:         proto.String("endpoint1"),
+					ListenerId: nil,
 				},
 			},
 			expected:    nil,
@@ -412,7 +438,7 @@ func TestFromProto(t *testing.T) {
 			for i, expectedEndpoint := range tc.expected {
 				actualEndpoint := actual[i]
 				assert.Equal(t, expectedEndpoint.ID, actualEndpoint.ID)
-				assert.Equal(t, expectedEndpoint.ListenerIDs, actualEndpoint.ListenerIDs)
+				assert.Equal(t, expectedEndpoint.ListenerID, actualEndpoint.ListenerID)
 				assert.Equal(t, len(expectedEndpoint.Routes), len(actualEndpoint.Routes))
 
 				for j, expectedRoute := range expectedEndpoint.Routes {

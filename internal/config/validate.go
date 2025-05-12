@@ -132,16 +132,14 @@ func (c *Config) validateEndpoints(listenerIds map[string]bool) []error {
 			}
 		}
 
-		// Validate listener references
-		for _, listenerId := range ep.ListenerIDs {
-			if !listenerIds[listenerId] {
-				errs = append(errs, fmt.Errorf(
-					"%w: endpoint '%s' references non-existent listener ID '%s'",
-					ErrListenerNotFound,
-					ep.ID,
-					listenerId,
-				))
-			}
+		// Validate listener reference
+		if ep.ListenerID != "" && !listenerIds[ep.ListenerID] {
+			errs = append(errs, fmt.Errorf(
+				"%w: endpoint '%s' references non-existent listener ID '%s'",
+				ErrListenerNotFound,
+				ep.ID,
+				ep.ListenerID,
+			))
 		}
 	}
 
@@ -187,40 +185,43 @@ func (c *Config) validateRouteConflicts() error {
 	routeMap := make(map[string]map[string]string)
 
 	for _, ep := range c.Endpoints {
-		// For each listener this endpoint is attached to
-		for _, listenerID := range ep.ListenerIDs {
-			// Initialize map for this listener if needed
-			if _, exists := routeMap[listenerID]; !exists {
-				routeMap[listenerID] = make(map[string]string)
+		// Get listener ID for this endpoint
+		listenerID := ep.ListenerID
+		if listenerID == "" {
+			continue // Skip endpoints without a valid listener ID
+		}
+
+		// Initialize map for this listener if needed
+		if _, exists := routeMap[listenerID]; !exists {
+			routeMap[listenerID] = make(map[string]string)
+		}
+
+		// Check each route for conflicts
+		for _, route := range ep.Routes {
+			// Skip nil conditions - they're validated elsewhere
+			if route.Condition == nil {
+				continue
 			}
 
-			// Check each route for conflicts
-			for _, route := range ep.Routes {
-				// Skip nil conditions - they're validated elsewhere
-				if route.Condition == nil {
-					continue
-				}
+			// Generate a condition key in the format "type:value"
+			conditionKey := fmt.Sprintf(
+				"%s:%s",
+				route.Condition.Type(),
+				route.Condition.Value(),
+			)
 
-				// Generate a condition key in the format "type:value"
-				conditionKey := fmt.Sprintf(
-					"%s:%s",
-					route.Condition.Type(),
-					route.Condition.Value(),
-				)
-
-				// Check if this condition is already used on this listener
-				if existingEndpointID, exists := routeMap[listenerID][conditionKey]; exists {
-					errs = append(errs, fmt.Errorf(
-						"condition '%s' on listener '%s' is used by both endpoint '%s' and '%s'",
-						conditionKey,
-						listenerID,
-						existingEndpointID,
-						ep.ID,
-					))
-				} else {
-					// Register this condition
-					routeMap[listenerID][conditionKey] = ep.ID
-				}
+			// Check if this condition is already used on this listener
+			if existingEndpointID, exists := routeMap[listenerID][conditionKey]; exists {
+				errs = append(errs, fmt.Errorf(
+					"condition '%s' on listener '%s' is used by both endpoint '%s' and '%s'",
+					conditionKey,
+					listenerID,
+					existingEndpointID,
+					ep.ID,
+				))
+			} else {
+				// Register this condition
+				routeMap[listenerID][conditionKey] = ep.ID
 			}
 		}
 	}

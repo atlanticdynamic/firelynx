@@ -9,11 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Tests will be updated to use the new subdirectory types
-func TestConfigMigration(t *testing.T) {
-	t.Skip("Tests will be updated to use the new subdirectory types")
-}
-
 func TestNewFromProtoWithEmptyApps(t *testing.T) {
 	// Create a minimal protobuf config with no apps
 	pbConfig := &pb.ServerConfig{

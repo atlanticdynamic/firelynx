@@ -50,9 +50,9 @@ type EndpointCollection []Endpoint
 
 // Endpoint represents a routing configuration for incoming requests
 type Endpoint struct {
-	ID          string
-	ListenerIDs []string
-	Routes      routes.RouteCollection
+	ID         string
+	ListenerID string // Single listener ID instead of an array
+	Routes     routes.RouteCollection
 }
 
 // GetStructuredHTTPRoutes returns all HTTP routes for this endpoint in a structured format.

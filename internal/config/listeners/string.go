@@ -11,7 +11,7 @@ import (
 // String returns a concise representation of a Listener
 func (l *Listener) String() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Listener %s (%s) - %s", l.ID, l.GetType(), l.Address)
+	fmt.Fprintf(&b, "Listener %s (%s) - %s", l.ID, l.GetTypeString(), l.Address)
 
 	// Add options if present and they have a String method
 	if l.Options != nil {
@@ -31,7 +31,7 @@ func (l *Listener) ToTree() *fancy.ComponentTree {
 
 	// Add key properties directly as children
 	tree.AddChild(fmt.Sprintf("Address: %s", l.Address))
-	tree.AddChild(fmt.Sprintf("Type: %s", l.GetType()))
+	tree.AddChild(fmt.Sprintf("Type: %s", l.GetTypeString()))
 
 	// Add listener options by delegating to the options' ToTree method
 	if l.Options != nil {

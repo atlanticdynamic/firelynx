@@ -1,4 +1,3 @@
-//nolint:dupl
 package conditions
 
 import (
@@ -10,31 +9,38 @@ import (
 
 // HTTP contains HTTP-specific route condition configuration
 type HTTP struct {
-	Path string
+	PathPrefix string
+	Method     string
 }
 
 // NewHTTP creates a new HTTP path condition
-func NewHTTP(path string) HTTP {
+func NewHTTP(pathPrefix string, method string) HTTP {
 	return HTTP{
-		Path: path,
+		PathPrefix: pathPrefix,
+		Method:     method,
 	}
 }
 
 // Type returns the condition type
 func (h HTTP) Type() Type { return TypeHTTP }
 
-// Value returns the path value
-func (h HTTP) Value() string { return h.Path }
+// Value returns a representative value
+func (h HTTP) Value() string {
+	if h.Method != "" {
+		return h.PathPrefix + " (" + h.Method + ")"
+	}
+	return h.PathPrefix
+}
 
 // Validate checks if the HTTP condition is valid
 func (h HTTP) Validate() error {
-	if h.Path == "" {
+	if h.PathPrefix == "" {
 		return fmt.Errorf("%w: %w", ErrInvalidHTTPCondition, ErrEmptyValue)
 	}
 
 	// Additional validation logic can be added here
 	// For example, check if the path starts with '/'
-	if !strings.HasPrefix(h.Path, "/") {
+	if !strings.HasPrefix(h.PathPrefix, "/") {
 		return fmt.Errorf("%w: path must start with '/'", ErrInvalidHTTPCondition)
 	}
 
@@ -43,12 +49,18 @@ func (h HTTP) Validate() error {
 
 // String returns a string representation of the HTTP condition
 func (h HTTP) String() string {
-	return fmt.Sprintf("HTTP Path: %s", h.Path)
+	if h.Method != "" {
+		return fmt.Sprintf("HTTP: %s %s", h.Method, h.PathPrefix)
+	}
+	return fmt.Sprintf("HTTP Path: %s", h.PathPrefix)
 }
 
 // ToTree returns a tree representation of the HTTP condition
 func (h HTTP) ToTree() *fancy.ComponentTree {
-	tree := fancy.NewComponentTree("HTTP Path Condition")
-	tree.AddChild(fmt.Sprintf("Path: %s", h.Path))
+	tree := fancy.NewComponentTree("HTTP Rule")
+	tree.AddChild(fmt.Sprintf("Path Prefix: %s", h.PathPrefix))
+	if h.Method != "" {
+		tree.AddChild(fmt.Sprintf("Method: %s", h.Method))
+	}
 	return tree
 }

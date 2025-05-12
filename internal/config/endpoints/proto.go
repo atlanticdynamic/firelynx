@@ -21,8 +21,8 @@ func (endpoints EndpointCollection) ToProto() []*pb.Endpoint {
 // ToProto converts an Endpoint to a protobuf Endpoint
 func (e *Endpoint) ToProto() *pb.Endpoint {
 	pbEndpoint := &pb.Endpoint{
-		Id:          protobaggins.StringToProto(e.ID),
-		ListenerIds: e.ListenerIDs,
+		Id:         protobaggins.StringToProto(e.ID),
+		ListenerId: protobaggins.StringToProto(e.ListenerID),
 	}
 
 	// Convert routes if present
@@ -35,7 +35,7 @@ func (e *Endpoint) ToProto() *pb.Endpoint {
 
 // FromProto converts protobuf Endpoint messages to a domain Endpoints collection.
 // If no endpoints are provided, it returns nil.
-// Returns an error if any endpoint validation fails (like missing ID or empty listener IDs).
+// Returns an error if any endpoint validation fails (like missing ID or empty listener ID).
 func FromProto(pbEndpoints []*pb.Endpoint) (EndpointCollection, error) {
 	if len(pbEndpoints) == 0 {
 		return nil, nil
@@ -48,18 +48,18 @@ func FromProto(pbEndpoints []*pb.Endpoint) (EndpointCollection, error) {
 		}
 
 		id := protobaggins.StringFromProto(e.Id)
-
 		if id == "" {
 			return nil, fmt.Errorf("endpoint has nil or empty ID")
 		}
 
-		if len(e.ListenerIds) == 0 {
-			return nil, fmt.Errorf("endpoint '%s' has empty listener IDs", id)
+		listenerID := protobaggins.StringFromProto(e.ListenerId)
+		if listenerID == "" {
+			return nil, fmt.Errorf("endpoint '%s' has empty listener ID", id)
 		}
 
 		ep := Endpoint{
-			ID:          id,
-			ListenerIDs: e.ListenerIds,
+			ID:         id,
+			ListenerID: listenerID,
 		}
 
 		// Convert routes

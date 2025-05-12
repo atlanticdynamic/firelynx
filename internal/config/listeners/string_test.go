@@ -44,22 +44,24 @@ func TestListener_String(t *testing.T) {
 			listener: Listener{
 				ID:      "http1",
 				Address: ":8080",
+				Type:    TypeHTTP,
 				Options: options.HTTP{},
 			},
-			expected: "Listener http1 (http) - :8080",
+			expected: "Listener http1 (HTTP) - :8080",
 		},
 		{
 			name: "HTTP Listener With Timeouts",
 			listener: Listener{
 				ID:      "http2",
 				Address: ":9090",
+				Type:    TypeHTTP,
 				Options: options.HTTP{
 					ReadTimeout:  5 * time.Second,
 					WriteTimeout: 10 * time.Second,
 				},
 			},
 			contains: []string{
-				"Listener http2 (http) - :9090",
+				"Listener http2 (HTTP) - :9090",
 				"ReadTimeout: 5s",
 				"WriteTimeout: 10s",
 			},
@@ -69,21 +71,23 @@ func TestListener_String(t *testing.T) {
 			listener: Listener{
 				ID:      "grpc1",
 				Address: ":50051",
+				Type:    TypeGRPC,
 				Options: options.GRPC{},
 			},
-			expected: "Listener grpc1 (grpc) - :50051",
+			expected: "Listener grpc1 (GRPC) - :50051",
 		},
 		{
 			name: "GRPC Listener With Options",
 			listener: Listener{
 				ID:      "grpc2",
 				Address: ":50052",
+				Type:    TypeGRPC,
 				Options: options.GRPC{
 					MaxConnectionIdle: 30 * time.Minute,
 				},
 			},
 			contains: []string{
-				"Listener grpc2 (grpc) - :50052",
+				"Listener grpc2 (GRPC) - :50052",
 				"MaxConnectionIdle: 30m0s",
 			},
 		},
@@ -92,9 +96,10 @@ func TestListener_String(t *testing.T) {
 			listener: Listener{
 				ID:      "custom",
 				Address: ":1234",
+				Type:    TypeUnspecified,
 				Options: customStringOptions{},
 			},
-			expected: "Listener custom (custom) - :1234, Custom options",
+			expected: "Listener custom (Unknown) - :1234, Custom options",
 		},
 	}
 
@@ -126,6 +131,7 @@ func TestListener_ToTree(t *testing.T) {
 			listener: Listener{
 				ID:      "http1",
 				Address: ":8080",
+				Type:    TypeHTTP,
 				Options: options.HTTP{
 					ReadTimeout:  5 * time.Second,
 					WriteTimeout: 10 * time.Second,
@@ -142,6 +148,7 @@ func TestListener_ToTree(t *testing.T) {
 			listener: Listener{
 				ID:      "grpc1",
 				Address: ":50051",
+				Type:    TypeGRPC,
 				Options: options.GRPC{
 					MaxConnectionIdle:    30 * time.Minute,
 					MaxConnectionAge:     1 * time.Hour,
@@ -172,6 +179,7 @@ func TestListener_ToTree_WithHTTPOptions(t *testing.T) {
 	listener := Listener{
 		ID:      "http1",
 		Address: ":8080",
+		Type:    TypeHTTP,
 		Options: options.HTTP{
 			ReadTimeout:  5 * time.Second,
 			WriteTimeout: 10 * time.Second,
@@ -193,6 +201,7 @@ func TestListener_ToTree_WithGRPCOptions(t *testing.T) {
 	listener := Listener{
 		ID:      "grpc1",
 		Address: ":50051",
+		Type:    TypeGRPC,
 		Options: options.GRPC{
 			MaxConnectionIdle:    30 * time.Minute,
 			MaxConnectionAge:     1 * time.Hour,

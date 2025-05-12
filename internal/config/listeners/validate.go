@@ -22,41 +22,49 @@ func (l *Listener) Validate() error {
 	}
 
 	// Validate Type
-	listenerType := l.GetType()
-	switch listenerType {
-	case options.TypeHTTP, options.TypeGRPC:
+	switch l.Type {
+	case TypeHTTP, TypeGRPC:
 		// Valid types
-	case "":
+	case TypeUnspecified:
 		errs = append(errs, fmt.Errorf("%w: type for listener '%s'",
 			errz.ErrMissingRequiredField, l.ID))
 	default:
-		errs = append(errs, fmt.Errorf("%w: listener '%s' has invalid type '%s'",
-			ErrInvalidListenerType, l.ID, listenerType))
+		errs = append(errs, fmt.Errorf("%w: listener '%s' has invalid type '%d'",
+			ErrInvalidListenerType, l.ID, l.Type))
 	}
 
 	// Handle nil Options case
 	if l.Options == nil {
-		if listenerType != "" {
+		if l.Type != TypeUnspecified {
 			errs = append(errs, fmt.Errorf("%w: listener '%s' has type '%s' but no options",
-				errz.ErrMissingRequiredField, l.ID, listenerType))
+				errz.ErrMissingRequiredField, l.ID, l.GetTypeString()))
 		}
 		return errors.Join(errs...)
 	}
 
+	// Map from listener.Type to options.Type for validation
+	var expectedOptionsType options.Type
+	switch l.Type {
+	case TypeHTTP:
+		expectedOptionsType = options.TypeHTTP
+	case TypeGRPC:
+		expectedOptionsType = options.TypeGRPC
+	}
+
 	optionsType := l.Options.Type()
-	if optionsType != listenerType {
+	if optionsType != expectedOptionsType {
 		errs = append(errs, fmt.Errorf(
 			"mismatch between listener type '%s' and options type '%s' for listener '%s'",
-			listenerType, optionsType, l.ID))
+			l.GetTypeString(), optionsType, l.ID))
 	}
 
 	// Type-specific validations
 	switch opts := l.Options.(type) {
 	case options.HTTP:
-		if listenerType != options.TypeHTTP {
+		if l.Type != TypeHTTP {
 			errs = append(errs, fmt.Errorf(
 				"listener '%s' has HTTP options but type is '%s'",
-				l.ID, listenerType))
+				l.ID, l.GetTypeString()))
 		}
 
 		// Validate HTTP-specific options
@@ -66,10 +74,10 @@ func (l *Listener) Validate() error {
 		}
 
 	case options.GRPC:
-		if listenerType != options.TypeGRPC {
+		if l.Type != TypeGRPC {
 			errs = append(errs, fmt.Errorf(
 				"listener '%s' has gRPC options but type is '%s'",
-				l.ID, listenerType))
+				l.ID, l.GetTypeString()))
 		}
 
 		// Validate gRPC-specific options

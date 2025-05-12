@@ -25,6 +25,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "http1",
 				Address: ":8080",
+				Type:    TypeHTTP,
 				Options: options.NewHTTP(), // Use constructor for valid defaults
 			},
 			wantError: false,
@@ -34,6 +35,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "grpc1",
 				Address: ":9090",
+				Type:    TypeGRPC,
 				Options: options.NewGRPC(), // Use constructor for valid defaults
 			},
 			wantError: false,
@@ -43,6 +45,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "",
 				Address: ":8080",
+				Type:    TypeHTTP,
 				Options: options.HTTP{},
 			},
 			wantError:   true,
@@ -54,6 +57,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "test",
 				Address: "",
+				Type:    TypeHTTP,
 				Options: options.HTTP{},
 			},
 			wantError:   true,
@@ -64,6 +68,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "test",
 				Address: ":8080",
+				Type:    TypeUnspecified,
 				Options: nil, // No options means GetType() will return empty
 			},
 			wantError:   true,
@@ -74,17 +79,19 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "test",
 				Address: ":8080",
+				Type:    TypeUnspecified,
 				Options: invalidTypeOptions{}, // Use our invalid type options
 			},
 			wantError:   true,
 			errIs:       ErrInvalidListenerType,
-			errContains: "has invalid type",
+			errContains: "unknown options type",
 		},
 		{
 			name: "Nil Options",
 			listener: Listener{
 				ID:      "test",
 				Address: ":8080",
+				Type:    TypeUnspecified,
 				Options: nil,
 			},
 			wantError:   true,
@@ -95,6 +102,7 @@ func TestListener_Validate(t *testing.T) {
 			listener: Listener{
 				ID:      "test",
 				Address: ":8080",
+				Type:    TypeUnspecified,
 				Options: customOptions{},
 			},
 			wantError:   true,
@@ -172,7 +180,8 @@ func TestListener_ValidateMultipleErrors(t *testing.T) {
 	invalidListener := Listener{
 		ID:      "",              // Error 1: Empty ID
 		Address: "",              // Error 2: Empty Address
-		Options: customOptions{}, // Error 3: Unknown Options type
+		Type:    TypeUnspecified, // Error 3: Custom type
+		Options: customOptions{}, // Error 4: Unknown Options type
 	}
 
 	err := invalidListener.Validate()
@@ -196,6 +205,7 @@ func TestListener_ErrorJoining(t *testing.T) {
 	listener := Listener{
 		ID:      "",             // Error 1
 		Address: "",             // Error 2
+		Type:    TypeHTTP,       // Valid
 		Options: options.HTTP{}, // Valid
 	}
 

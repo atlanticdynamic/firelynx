@@ -76,30 +76,30 @@ func createTestDomainConfig() *config.Config {
 	// Create test HTTP routes
 	route1 := routes.Route{
 		AppID:      "echo-app",
-		Condition:  conditions.NewHTTP("/api/echo"),
+		Condition:  conditions.NewHTTP("/api/echo", "GET"),
 		StaticData: map[string]any{"version": "1.0"},
 	}
 
 	route2 := routes.Route{
 		AppID:      "script-app",
-		Condition:  conditions.NewHTTP("/api/script"),
+		Condition:  conditions.NewHTTP("/api/script", "GET"),
 		StaticData: map[string]any{"debug": true},
 	}
 
 	// Create test endpoints
 	endpoint1 := endpoints.Endpoint{
-		ID:          "main-api",
-		ListenerIDs: []string{"http-main"},
-		Routes:      routes.RouteCollection{route1, route2},
+		ID:         "main-api",
+		ListenerID: "http-main",
+		Routes:     routes.RouteCollection{route1, route2},
 	}
 
 	endpoint2 := endpoints.Endpoint{
-		ID:          "admin-api",
-		ListenerIDs: []string{"http-admin"},
+		ID:         "admin-api",
+		ListenerID: "http-admin",
 		Routes: routes.RouteCollection{
 			{
 				AppID:      "admin-app",
-				Condition:  conditions.NewHTTP("/admin"),
+				Condition:  conditions.NewHTTP("/admin", "GET"),
 				StaticData: map[string]any{"role": "admin"},
 			},
 		},
@@ -392,12 +392,12 @@ func TestConfigAdapter_ConvertToHTTPConfig_SkipNonHTTPListeners(t *testing.T) {
 		// Add endpoints that reference these listeners
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "grpc-api",
-				ListenerIDs: []string{"grpc-main"},
+				ID:         "grpc-api",
+				ListenerID: "grpc-main",
 			},
 			{
-				ID:          "main-api",
-				ListenerIDs: []string{"http-main"},
+				ID:         "main-api",
+				ListenerID: "http-main",
 			},
 		},
 	}
@@ -428,8 +428,8 @@ func TestConfigAdapter_ConvertToHTTPConfig_DefaultTimeouts(t *testing.T) {
 		// Add endpoint that references this listener
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "main-api",
-				ListenerIDs: []string{"http-main"},
+				ID:         "main-api",
+				ListenerID: "http-main",
 			},
 		},
 	}

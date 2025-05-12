@@ -10,43 +10,41 @@ func FromProto(route *pb.Route) Condition {
 		return nil
 	}
 
-	// Check for HTTP path condition
-	if path := route.GetHttpPath(); path != "" {
-		return NewHTTP(path)
+	// Handle HTTP rule
+	if httpRule := route.GetHttp(); httpRule != nil {
+		pathPrefix := ""
+		if httpRule.PathPrefix != nil {
+			pathPrefix = *httpRule.PathPrefix
+		}
+
+		method := ""
+		if httpRule.Method != nil {
+			method = *httpRule.Method
+		}
+
+		return NewHTTP(pathPrefix, method)
 	}
 
-	// Check for gRPC service condition
-	if service := route.GetGrpcService(); service != "" {
-		return NewGRPC(service)
+	// Handle gRPC rule
+	if grpcRule := route.GetGrpc(); grpcRule != nil {
+		service := ""
+		if grpcRule.Service != nil {
+			service = *grpcRule.Service
+		}
+
+		method := ""
+		if grpcRule.Method != nil {
+			method = *grpcRule.Method
+		}
+
+		return NewGRPC(service, method)
 	}
 
 	// No condition found
 	return nil
 }
 
-// HTTPToProto converts a HTTP condition to a pb.Route_Condition oneof field
-func HTTPToProto(h HTTP, route *pb.Route) {
-	if route == nil {
-		return
-	}
-
-	route.Condition = &pb.Route_HttpPath{
-		HttpPath: h.Path,
-	}
-}
-
-// GRPCToProto converts a GRPC condition to a pb.Route_Condition oneof field
-func GRPCToProto(g GRPC, route *pb.Route) {
-	if route == nil {
-		return
-	}
-
-	route.Condition = &pb.Route_GrpcService{
-		GrpcService: g.Service,
-	}
-}
-
-// ToProto converts a Condition to a pb.Route_Condition (oneof field)
+// ToProto converts a Condition to the appropriate protocol-specific rule
 func ToProto(cond Condition, route *pb.Route) {
 	if cond == nil || route == nil {
 		return
@@ -54,8 +52,21 @@ func ToProto(cond Condition, route *pb.Route) {
 
 	switch c := cond.(type) {
 	case HTTP:
-		HTTPToProto(c, route)
+		httpRule := &pb.HttpRule{
+			PathPrefix: &c.PathPrefix,
+		}
+		if c.Method != "" {
+			httpRule.Method = &c.Method
+		}
+		route.Rule = &pb.Route_Http{Http: httpRule}
+
 	case GRPC:
-		GRPCToProto(c, route)
+		grpcRule := &pb.GrpcRule{
+			Service: &c.Service,
+		}
+		if c.Method != "" {
+			grpcRule.Method = &c.Method
+		}
+		route.Rule = &pb.Route_Grpc{Grpc: grpcRule}
 	}
 }

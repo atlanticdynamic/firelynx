@@ -69,7 +69,7 @@ func (a *ConfigAdapter) ConvertToRoutingConfig(
 		a.logger.Debug("Processing endpoint",
 			"index", i,
 			"id", endpoint.ID,
-			"listener_ids", endpoint.ListenerIDs,
+			"listener_id", endpoint.ListenerID,
 			"num_routes", len(endpoint.Routes))
 
 		// Log all route conditions for debugging
@@ -110,11 +110,11 @@ func (a *ConfigAdapter) ConvertToRoutingConfig(
 			a.logger.Debug("Processing HTTP route",
 				"endpoint", endpoint.ID,
 				"index", j,
-				"path", httpRoute.Path,
+				"path", httpRoute.PathPrefix,
 				"app_id", httpRoute.AppID)
 
 			route := routing.Route{
-				Path:       httpRoute.Path,
+				Path:       httpRoute.PathPrefix,
 				AppID:      httpRoute.AppID,
 				StaticData: httpRoute.StaticData,
 			}
@@ -186,11 +186,8 @@ func (a *ConfigAdapter) ConvertToHTTPConfig(
 	listenerToEndpoint := make(map[string]string)
 	if a.domainConfig != nil {
 		for _, endpoint := range a.domainConfig.Endpoints {
-			for _, listenerID := range endpoint.ListenerIDs {
-				// Each listener can only be associated with one endpoint
-				// If there are conflicts, the last one wins
-				listenerToEndpoint[listenerID] = endpoint.ID
-			}
+			// Each listener can only be associated with one endpoint
+			listenerToEndpoint[endpoint.ListenerID] = endpoint.ID
 		}
 	}
 

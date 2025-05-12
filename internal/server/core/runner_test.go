@@ -36,12 +36,12 @@ func buildTestConfig() *config.Config {
 		},
 		Endpoints: []endpoints.Endpoint{
 			{
-				ID:          "test-endpoint",
-				ListenerIDs: []string{"test-listener"},
+				ID:         "test-endpoint",
+				ListenerID: "test-listener",
 				Routes: []routes.Route{
 					{
 						AppID:     "echo", // This matches the echo app registered in Runner.New()
-						Condition: conditions.NewHTTP("/echo"),
+						Condition: conditions.NewHTTP("/echo", "GET"),
 					},
 				},
 			},
@@ -203,12 +203,12 @@ func TestRunner_EndpointListenerAssociation(t *testing.T) {
 		},
 		Endpoints: []endpoints.Endpoint{
 			{
-				ID:          "echo_endpoint",
-				ListenerIDs: []string{"http_listener"},
+				ID:         "echo_endpoint",
+				ListenerID: "http_listener",
 				Routes: []routes.Route{
 					{
 						AppID:     "echo", // This matches the echo app registered in Runner.New()
-						Condition: conditions.NewHTTP("/echo"),
+						Condition: conditions.NewHTTP("/echo", "GET"),
 					},
 				},
 			},

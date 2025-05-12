@@ -3,6 +3,7 @@ version = "v1"
 [[listeners]]
 id = "http_listener"
 address = ":8080"
+type = "http"
 
 [listeners.http]
 read_timeout = "1s"
@@ -12,11 +13,12 @@ drain_timeout = "1s"
 
 [[endpoints]]
 id = "echo_endpoint"
-listener_ids = ["http_listener"]
+listener_id = "http_listener"
 
 [[endpoints.routes]]
 app_id = "echo_app"
-http_path = "/echo"
+[endpoints.routes.http]
+path_prefix = "/echo"
 
 [[apps]]
 id = "echo_app"

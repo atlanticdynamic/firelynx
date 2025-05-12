@@ -111,6 +111,7 @@ version = "v1"
 [[listeners]]
 id = "http_listener_1"
 address = ":8080"
+type = "http"
 
 [listeners.protocol_options.http]
 read_timeout = "30s"
@@ -119,6 +120,7 @@ write_timeout = "30s"
 [[listeners]]
 id = "http_listener_2"
 address = ":8081"
+type = "http"
 
 [listeners.http]
 read_timeout = "45s"
@@ -284,22 +286,23 @@ func TestTomlLoader_RoutesArrayHandling(t *testing.T) {
 		require.Len(t, config.Endpoints, 1, "Should have 1 endpoint")
 		endpoint := config.Endpoints[0]
 		assert.Equal(t, "echo_endpoint", endpoint.GetId(), "Wrong endpoint ID")
-		assert.Equal(t, []string{"http_listener"}, endpoint.ListenerIds, "Wrong listener IDs")
+		assert.Equal(t, "http_listener", *endpoint.ListenerId, "Wrong listener ID")
 
 		// Check the routes
 		require.Len(t, endpoint.Routes, 1, "Should have 1 route")
 		route := endpoint.Routes[0]
 		assert.Equal(t, "echo_app", route.GetAppId(), "Wrong app ID")
 
-		// THIS IS THE CRITICAL TEST - verify HTTP path is correctly parsed
-		httpPath := route.GetHttpPath()
-		t.Logf("HTTP Path: %q", httpPath)
-		assert.Equal(t, "/echo", httpPath, "HTTP path should be '/echo'")
-		assert.NotEmpty(t, httpPath, "HTTP path should not be empty")
+		// THIS IS THE CRITICAL TEST - verify HTTP rule is correctly parsed
+		httpRule := route.GetHttp()
+		require.NotNil(t, httpRule, "HTTP rule should not be nil")
+		t.Logf("HTTP Path: %q", *httpRule.PathPrefix)
+		assert.Equal(t, "/echo", *httpRule.PathPrefix, "HTTP path prefix should be '/echo'")
+		assert.NotEmpty(t, *httpRule.PathPrefix, "HTTP path prefix should not be empty")
 
-		// Verify condition is properly set
-		_, isHttpCondition := route.Condition.(*pbSettings.Route_HttpPath)
-		assert.True(t, isHttpCondition, "Condition should be HTTP path type")
+		// Verify rule is properly set
+		_, isHttpRule := route.Rule.(*pbSettings.Route_Http)
+		assert.True(t, isHttpRule, "Rule should be HTTP type")
 	})
 
 	// Test how routes are loaded with single route object (older format)
@@ -318,7 +321,11 @@ func TestTomlLoader_RoutesArrayHandling(t *testing.T) {
 		// Check the routes
 		t.Logf("Routes for single route object: %d routes", len(endpoint.Routes))
 		for i, route := range endpoint.Routes {
-			t.Logf("  Route %d: app_id=%s, http_path=%q", i, route.GetAppId(), route.GetHttpPath())
+			httpRule := route.GetHttp()
+			if httpRule != nil {
+				pathPrefix := *httpRule.PathPrefix
+				t.Logf("  Route %d: app_id=%s, http_path=%q", i, route.GetAppId(), pathPrefix)
+			}
 		}
 
 		// The current implementation might not be correctly handling this format
@@ -326,7 +333,13 @@ func TestTomlLoader_RoutesArrayHandling(t *testing.T) {
 		if len(endpoint.Routes) > 0 {
 			route := endpoint.Routes[0]
 			assert.Equal(t, "app1", route.GetAppId(), "Wrong app ID")
-			assert.Equal(t, "/test", route.GetHttpPath(), "Wrong HTTP path")
+
+			httpRule := route.GetHttp()
+			if httpRule != nil {
+				assert.Equal(t, "/test", *httpRule.PathPrefix, "Wrong HTTP path prefix")
+			} else {
+				t.Log("WARNING: Route has nil HTTP rule")
+			}
 		} else {
 			t.Log("WARNING: No routes were loaded from single route object format")
 		}
@@ -342,10 +355,12 @@ version = "v1"
 [[listeners]]
 # Missing ID
 address = ":8080"
+type = "http"
 
 [[listeners]]
 id = "listener2"
 # Missing address
+type = "http"
 `))
 
 		_, err := loader.LoadProto()
@@ -372,18 +387,20 @@ version = "v1"
 [[listeners]]
 id = "listener1"
 address = ":8080"
+type = "http"
 
 [[endpoints]]
 # Missing ID
-listener_ids = ["listener1"]
+listener_id = "listener1"
 
 [[endpoints.routes]]
 app_id = "app1"
-http_path = "/path"
+[endpoints.routes.http]
+path_prefix = "/path"
 
 [[endpoints]]
 id = "endpoint2"
-# Missing listener_ids
+# Missing listener_id
 `))
 
 		_, err := loader.LoadProto()
@@ -397,8 +414,8 @@ id = "endpoint2"
 		assert.Contains(
 			t,
 			err.Error(),
-			"endpoint 'endpoint2' has no listener IDs",
-			"Error should indicate missing listener IDs",
+			"endpoint 'endpoint2' has no listener ID",
+			"Error should indicate missing listener ID",
 		)
 	})
 
@@ -410,18 +427,20 @@ version = "v1"
 [[listeners]]
 id = "listener1"
 address = ":8080"
+type = "http"
 
 [[endpoints]]
 id = "endpoint1"
-listener_ids = ["listener1"]
+listener_id = "listener1"
 
 [[endpoints.routes]]
 # Missing app_id
-http_path = "/path"
+[endpoints.routes.http]
+path_prefix = "/path"
 
 [[endpoints.routes]]
 app_id = "app2"
-# Missing condition
+# Missing rule
 `))
 
 		_, err := loader.LoadProto()
@@ -435,8 +454,8 @@ app_id = "app2"
 		assert.Contains(
 			t,
 			err.Error(),
-			"has no condition",
-			"Error should indicate missing route condition",
+			"has no rule",
+			"Error should indicate missing route rule",
 		)
 	})
 

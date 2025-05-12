@@ -22,6 +22,10 @@ func (listeners ListenerCollection) ToProto() []*pb.Listener {
 			Address: protobaggins.StringToProto(l.Address),
 		}
 
+		// Convert the listener type
+		pbType := pb.ListenerType(l.Type)
+		pbListener.Type = &pbType
+
 		// Convert options
 		switch opts := l.Options.(type) {
 		case options.HTTP:
@@ -51,6 +55,11 @@ func FromProto(pbListeners []*pb.Listener) (ListenerCollection, error) {
 		listenerObj := Listener{
 			ID:      protobaggins.StringFromProto(l.Id),
 			Address: protobaggins.StringFromProto(l.Address),
+		}
+
+		// Convert the type field
+		if l.Type != nil {
+			listenerObj.Type = Type(*l.Type)
 		}
 
 		// Convert protocol-specific options

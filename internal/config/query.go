@@ -1,13 +1,10 @@
 package config
 
 import (
-	"slices"
-
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
-	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 )
 
 //
@@ -28,7 +25,7 @@ func (c *Config) GetListenerByID(id string) *listeners.Listener {
 func (c *Config) GetEndpointsForListener(listenerID string) []endpoints.Endpoint {
 	var result []endpoints.Endpoint
 	for _, ep := range c.Endpoints {
-		if slices.Contains(ep.ListenerIDs, listenerID) {
+		if ep.ListenerID == listenerID {
 			result = append(result, ep)
 		}
 	}
@@ -80,10 +77,10 @@ func (c *Config) GetAppsByType(evalType string) []apps.App {
 }
 
 // GetListenersByType returns all listeners of a specific type
-func (c *Config) GetListenersByType(listenerType options.Type) []listeners.Listener {
+func (c *Config) GetListenersByType(listenerType listeners.Type) []listeners.Listener {
 	var result []listeners.Listener
 	for _, l := range c.Listeners {
-		if l.GetType() == listenerType {
+		if l.Type == listenerType {
 			result = append(result, l)
 		}
 	}
@@ -92,12 +89,12 @@ func (c *Config) GetListenersByType(listenerType options.Type) []listeners.Liste
 
 // GetHTTPListeners returns only the listeners of HTTP type
 func (c *Config) GetHTTPListeners() []listeners.Listener {
-	return c.GetListenersByType(options.TypeHTTP)
+	return c.GetListenersByType(listeners.TypeHTTP)
 }
 
 // GetGRPCListeners returns only the listeners of GRPC type
 func (c *Config) GetGRPCListeners() []listeners.Listener {
-	return c.GetListenersByType(options.TypeGRPC)
+	return c.GetListenersByType(listeners.TypeGRPC)
 }
 
 //
@@ -108,7 +105,7 @@ func (c *Config) GetGRPCListeners() []listeners.Listener {
 func (c *Config) GetEndpointsByListenerID(listenerID string) []endpoints.Endpoint {
 	var result []endpoints.Endpoint
 	for _, ep := range c.Endpoints {
-		if slices.Contains(ep.ListenerIDs, listenerID) {
+		if ep.ListenerID == listenerID {
 			result = append(result, ep)
 		}
 	}

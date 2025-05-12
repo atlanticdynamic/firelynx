@@ -195,6 +195,7 @@ func TestGRPCIntegration(t *testing.T) {
 				{
 					Id:      &listenerId,
 					Address: &listenerAddr,
+					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{},
 					},

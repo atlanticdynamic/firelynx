@@ -91,6 +91,7 @@ func TestValidateListeners(t *testing.T) {
 		return listeners.Listener{
 			ID:      id,
 			Address: address,
+			Type:    listeners.TypeHTTP,
 			Options: options.HTTP{
 				ReadTimeout:  readTimeout,
 				WriteTimeout: 30 * time.Second,
@@ -213,12 +214,12 @@ func TestValidateEndpoints(t *testing.T) {
 			name: "Valid endpoints",
 			endpoints: endpoints.EndpointCollection{
 				{
-					ID:          "ep1",
-					ListenerIDs: []string{"http1", "grpc1"},
+					ID:         "ep1",
+					ListenerID: "http1",
 				},
 				{
-					ID:          "ep2",
-					ListenerIDs: []string{"valid1", "valid2"},
+					ID:         "ep2",
+					ListenerID: "valid1",
 				},
 			},
 			expectError: false,
@@ -227,12 +228,12 @@ func TestValidateEndpoints(t *testing.T) {
 			name: "Duplicate endpoint IDs",
 			endpoints: endpoints.EndpointCollection{
 				{
-					ID:          "ep1",
-					ListenerIDs: []string{"http1"},
+					ID:         "ep1",
+					ListenerID: "http1",
 				},
 				{
-					ID:          "ep1", // Duplicate ID
-					ListenerIDs: []string{"grpc1"},
+					ID:         "ep1", // Duplicate ID
+					ListenerID: "grpc1",
 				},
 			},
 			expectError: true,
@@ -242,8 +243,8 @@ func TestValidateEndpoints(t *testing.T) {
 			name: "Invalid listener reference",
 			endpoints: endpoints.EndpointCollection{
 				{
-					ID:          "ep1",
-					ListenerIDs: []string{"invalid1"}, // Not in validListenerIDs
+					ID:         "ep1",
+					ListenerID: "invalid1", // Not in validListenerIDs
 				},
 			},
 			expectError: true,
@@ -253,12 +254,12 @@ func TestValidateEndpoints(t *testing.T) {
 			name: "Multiple invalid references",
 			endpoints: endpoints.EndpointCollection{
 				{
-					ID:          "ep1",
-					ListenerIDs: []string{"invalid1", "invalid2"}, // Both invalid
+					ID:         "ep1",
+					ListenerID: "invalid1", // Invalid
 				},
 			},
 			expectError: true,
-			errorCount:  2,
+			errorCount:  1,
 		},
 	}
 
@@ -307,12 +308,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					},
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "echo-app", // References existing app
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", "GET"),
 								},
 							},
 						},
@@ -334,12 +335,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					},
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "non-existent-app", // References non-existent app
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", "GET"),
 								},
 							},
 						},
@@ -361,12 +362,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					},
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "", // Empty app ID - should be caught during endpoint validation
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", "GET"),
 								},
 							},
 						},
@@ -393,12 +394,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					},
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "invalid-app",
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", "GET"),
 								},
 							},
 						},
@@ -441,22 +442,22 @@ func TestValidateRouteConflicts(t *testing.T) {
 					Version: VersionLatest,
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "app1",
-									Condition: conditions.NewHTTP("/path1"),
+									Condition: conditions.NewHTTP("/path1", ""),
 								},
 							},
 						},
 						{
-							ID:          "ep2",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep2",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "app2",
-									Condition: conditions.NewHTTP("/path2"), // Different path
+									Condition: conditions.NewHTTP("/path2", ""), // Different path
 								},
 							},
 						},
@@ -472,22 +473,22 @@ func TestValidateRouteConflicts(t *testing.T) {
 					Version: VersionLatest,
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "app1",
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", "GET"),
 								},
 							},
 						},
 						{
-							ID:          "ep2",
-							ListenerIDs: []string{"l2"}, // Different listener
+							ID:         "ep2",
+							ListenerID: "l2", // Different listener
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "app2",
-									Condition: conditions.NewHTTP("/api"), // Same path is OK
+									Condition: conditions.NewHTTP("/api", "GET"), // Same path is OK
 								},
 							},
 						},
@@ -503,22 +504,25 @@ func TestValidateRouteConflicts(t *testing.T) {
 					Version: VersionLatest,
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "app1",
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", "GET"),
 								},
 							},
 						},
 						{
-							ID:          "ep2",
-							ListenerIDs: []string{"l1"}, // Same listener
+							ID:         "ep2",
+							ListenerID: "l1", // Same listener
 							Routes: routes.RouteCollection{
 								{
-									AppID:     "app2",
-									Condition: conditions.NewHTTP("/api"), // Same path - conflict!
+									AppID: "app2",
+									Condition: conditions.NewHTTP(
+										"/api",
+										"GET",
+									), // Same path - conflict!
 								},
 							},
 						},
@@ -534,23 +538,23 @@ func TestValidateRouteConflicts(t *testing.T) {
 					Version: VersionLatest,
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "app1",
-									Condition: conditions.NewGRPC("service.Test"),
+									Condition: conditions.NewGRPC("service.Test", "TestMethod"),
 								},
 							},
 						},
 						{
-							ID:          "ep2",
-							ListenerIDs: []string{"l1"}, // Same listener
+							ID:         "ep2",
+							ListenerID: "l1", // Same listener
 							Routes: routes.RouteCollection{
 								{
 									AppID: "app2",
 									Condition: conditions.NewGRPC(
-										"service.Test",
+										"service.Test", "TestMethod",
 									), // Same service - conflict!
 								},
 							},
@@ -567,24 +571,22 @@ func TestValidateRouteConflicts(t *testing.T) {
 					Version: VersionLatest,
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "ep1",
-							ListenerIDs: []string{"l1", "l2"},
+							ID:         "ep1",
+							ListenerID: "l1",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "app1",
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", "GET"),
 								},
 							},
 						},
 						{
-							ID:          "ep2",
-							ListenerIDs: []string{"l1", "l2"}, // Both listeners in common
+							ID:         "ep2",
+							ListenerID: "l1", // Same listener
 							Routes: routes.RouteCollection{
 								{
-									AppID: "app2",
-									Condition: conditions.NewHTTP(
-										"/api",
-									), // Conflict on both listeners
+									AppID:     "app2",
+									Condition: conditions.NewHTTP("/api", "GET"), // Conflict
 								},
 							},
 						},
@@ -635,6 +637,7 @@ func TestConfig_Validate(t *testing.T) {
 					{
 						ID:      "http1",
 						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
 						Options: options.HTTP{
 							ReadTimeout:  30 * time.Second,
 							WriteTimeout: 30 * time.Second,
@@ -645,12 +648,12 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Endpoints: endpoints.EndpointCollection{
 					{
-						ID:          "ep1",
-						ListenerIDs: []string{"http1"},
+						ID:         "ep1",
+						ListenerID: "http1",
 						Routes: routes.RouteCollection{
 							{
 								AppID:     "echo-app",
-								Condition: conditions.NewHTTP("/api"),
+								Condition: conditions.NewHTTP("/api", ""),
 							},
 						},
 					},
@@ -692,6 +695,7 @@ func TestConfig_Validate(t *testing.T) {
 					{
 						ID:      "", // Empty ID
 						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
 						Options: options.HTTP{
 							ReadTimeout:  30 * time.Second,
 							WriteTimeout: 30 * time.Second,
@@ -712,6 +716,7 @@ func TestConfig_Validate(t *testing.T) {
 					{
 						ID:      "http1",
 						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
 						Options: options.HTTP{
 							ReadTimeout:  30 * time.Second,
 							WriteTimeout: 30 * time.Second,
@@ -722,8 +727,8 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Endpoints: endpoints.EndpointCollection{
 					{
-						ID:          "ep1",
-						ListenerIDs: []string{"invalid"}, // Invalid listener reference
+						ID:         "ep1",
+						ListenerID: "invalid", // Invalid listener reference
 					},
 				},
 			},
@@ -738,6 +743,7 @@ func TestConfig_Validate(t *testing.T) {
 					{
 						ID:      "http1",
 						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
 						Options: options.HTTP{
 							ReadTimeout:  30 * time.Second,
 							WriteTimeout: 30 * time.Second,
@@ -748,22 +754,22 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Endpoints: endpoints.EndpointCollection{
 					{
-						ID:          "ep1",
-						ListenerIDs: []string{"http1"},
+						ID:         "ep1",
+						ListenerID: "http1",
 						Routes: routes.RouteCollection{
 							{
 								AppID:     "app1",
-								Condition: conditions.NewHTTP("/api"),
+								Condition: conditions.NewHTTP("/api", ""),
 							},
 						},
 					},
 					{
-						ID:          "ep2",
-						ListenerIDs: []string{"http1"},
+						ID:         "ep2",
+						ListenerID: "http1",
 						Routes: routes.RouteCollection{
 							{
 								AppID:     "app2",
-								Condition: conditions.NewHTTP("/api"), // Conflicting path
+								Condition: conditions.NewHTTP("/api", ""), // Conflicting path
 							},
 						},
 					},
@@ -790,6 +796,7 @@ func TestConfig_Validate(t *testing.T) {
 					{
 						ID:      "http1",
 						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
 						Options: options.HTTP{
 							ReadTimeout:  30 * time.Second,
 							WriteTimeout: 30 * time.Second,
@@ -800,12 +807,12 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Endpoints: endpoints.EndpointCollection{
 					{
-						ID:          "ep1",
-						ListenerIDs: []string{"http1"},
+						ID:         "ep1",
+						ListenerID: "http1",
 						Routes: routes.RouteCollection{
 							{
 								AppID:     "non-existent", // App doesn't exist
-								Condition: conditions.NewHTTP("/api"),
+								Condition: conditions.NewHTTP("/api", ""),
 							},
 						},
 					},
@@ -849,26 +856,26 @@ func TestCollectRouteReferences(t *testing.T) {
 		Version: VersionLatest,
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "ep1",
-				ListenerIDs: []string{"l1"},
+				ID:         "ep1",
+				ListenerID: "l1",
 				Routes: routes.RouteCollection{
 					{
 						AppID:     "app1",
-						Condition: conditions.NewHTTP("/path1"),
+						Condition: conditions.NewHTTP("/path1", ""),
 					},
 					{
 						AppID:     "app2",
-						Condition: conditions.NewHTTP("/path2"),
+						Condition: conditions.NewHTTP("/path2", ""),
 					},
 				},
 			},
 			{
-				ID:          "ep2",
-				ListenerIDs: []string{"l2"},
+				ID:         "ep2",
+				ListenerID: "l2",
 				Routes: routes.RouteCollection{
 					{
 						AppID:     "app3",
-						Condition: conditions.NewHTTP("/path3"),
+						Condition: conditions.NewHTTP("/path3", ""),
 					},
 				},
 			},

@@ -20,21 +20,21 @@ func TestEndpoint_Validate(t *testing.T) {
 		{
 			name: "Valid endpoint - no routes",
 			endpoint: Endpoint{
-				ID:          "endpoint1",
-				ListenerIDs: []string{"listener1"},
-				Routes:      []routes.Route{},
+				ID:         "endpoint1",
+				ListenerID: "listener1",
+				Routes:     []routes.Route{},
 			},
 			errExpected: false,
 		},
 		{
 			name: "Valid endpoint - with routes",
 			endpoint: Endpoint{
-				ID:          "endpoint2",
-				ListenerIDs: []string{"listener1"},
+				ID:         "endpoint2",
+				ListenerID: "listener1",
 				Routes: []routes.Route{
 					{
 						AppID:     "app1",
-						Condition: conditions.NewHTTP("/api/v1"),
+						Condition: conditions.NewHTTP("/api/v1", ""),
 					},
 				},
 			},
@@ -43,32 +43,32 @@ func TestEndpoint_Validate(t *testing.T) {
 		{
 			name: "Empty ID",
 			endpoint: Endpoint{
-				ID:          "",
-				ListenerIDs: []string{"listener1"},
-				Routes:      []routes.Route{},
+				ID:         "",
+				ListenerID: "listener1",
+				Routes:     []routes.Route{},
 			},
 			errExpected: true,
 			errContains: "empty ID",
 		},
 		{
-			name: "No listener IDs",
+			name: "Empty listener ID",
 			endpoint: Endpoint{
-				ID:          "endpoint3",
-				ListenerIDs: []string{},
-				Routes:      []routes.Route{},
+				ID:         "endpoint3",
+				ListenerID: "",
+				Routes:     []routes.Route{},
 			},
 			errExpected: true,
-			errContains: "no listener IDs",
+			errContains: "empty listener ID",
 		},
 		{
 			name: "Route with missing app ID",
 			endpoint: Endpoint{
-				ID:          "endpoint4",
-				ListenerIDs: []string{"listener1"},
+				ID:         "endpoint4",
+				ListenerID: "listener1",
 				Routes: []routes.Route{
 					{
 						AppID:     "",
-						Condition: conditions.NewHTTP("/api/v1"),
+						Condition: conditions.NewHTTP("/api/v1", ""),
 					},
 				},
 			},
@@ -78,8 +78,8 @@ func TestEndpoint_Validate(t *testing.T) {
 		{
 			name: "Route with missing condition",
 			endpoint: Endpoint{
-				ID:          "endpoint5",
-				ListenerIDs: []string{"listener1"},
+				ID:         "endpoint5",
+				ListenerID: "listener1",
 				Routes: []routes.Route{
 					{
 						AppID:     "app1",
@@ -93,16 +93,16 @@ func TestEndpoint_Validate(t *testing.T) {
 		{
 			name: "Duplicate route conditions",
 			endpoint: Endpoint{
-				ID:          "endpoint6",
-				ListenerIDs: []string{"listener1"},
+				ID:         "endpoint6",
+				ListenerID: "listener1",
 				Routes: []routes.Route{
 					{
 						AppID:     "app1",
-						Condition: conditions.NewHTTP("/api/v1"),
+						Condition: conditions.NewHTTP("/api/v1", ""),
 					},
 					{
 						AppID:     "app2",
-						Condition: conditions.NewHTTP("/api/v1"),
+						Condition: conditions.NewHTTP("/api/v1", ""),
 					},
 				},
 			},

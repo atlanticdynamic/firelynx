@@ -32,6 +32,7 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "http-listener",
 					Address: "127.0.0.1:8080",
+					Type:    TypeHTTP,
 					Options: options.HTTP{
 						ReadTimeout:  time.Second * 30,
 						WriteTimeout: time.Second * 45,
@@ -44,6 +45,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener"),
 					Address: proto.String("127.0.0.1:8080"),
+					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 30),
@@ -61,6 +63,7 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
+					Type:    TypeGRPC,
 					Options: options.GRPC{
 						MaxConnectionIdle:    time.Minute * 5,
 						MaxConnectionAge:     time.Minute * 30,
@@ -72,6 +75,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("grpc-listener"),
 					Address: proto.String("127.0.0.1:9090"),
+					Type:    pb.ListenerType_LISTENER_TYPE_GRPC.Enum(),
 					ProtocolOptions: &pb.Listener_Grpc{
 						Grpc: &pb.GrpcListenerOptions{
 							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
@@ -88,6 +92,7 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "http-listener-1",
 					Address: "127.0.0.1:8080",
+					Type:    TypeHTTP,
 					Options: options.HTTP{
 						ReadTimeout:  time.Second * 30,
 						WriteTimeout: time.Second * 45,
@@ -96,6 +101,7 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "http-listener-2",
 					Address: "127.0.0.1:8081",
+					Type:    TypeHTTP,
 					Options: options.HTTP{
 						ReadTimeout:  time.Second * 15,
 						WriteTimeout: time.Second * 20,
@@ -104,6 +110,7 @@ func TestToProto(t *testing.T) {
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
+					Type:    TypeGRPC,
 					Options: options.GRPC{
 						MaxConnectionIdle:    time.Minute * 5,
 						MaxConcurrentStreams: 100,
@@ -114,6 +121,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener-1"),
 					Address: proto.String("127.0.0.1:8080"),
+					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 30),
@@ -124,6 +132,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener-2"),
 					Address: proto.String("127.0.0.1:8081"),
+					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 15),
@@ -134,6 +143,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("grpc-listener"),
 					Address: proto.String("127.0.0.1:9090"),
+					Type:    pb.ListenerType_LISTENER_TYPE_GRPC.Enum(),
 					ProtocolOptions: &pb.Listener_Grpc{
 						Grpc: &pb.GrpcListenerOptions{
 							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
@@ -165,6 +175,7 @@ func TestToProto(t *testing.T) {
 				// Check ID and Address
 				assert.Equal(t, expectedListener.Id, actualListener.Id)
 				assert.Equal(t, expectedListener.Address, actualListener.Address)
+				assert.Equal(t, expectedListener.Type, actualListener.Type)
 
 				// Check protocol options
 				switch {
@@ -255,6 +266,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener"),
 					Address: proto.String("127.0.0.1:8080"),
+					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 30),
@@ -269,6 +281,7 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "http-listener",
 					Address: "127.0.0.1:8080",
+					Type:    TypeHTTP,
 					Options: options.HTTP{
 						ReadTimeout:  time.Second * 30,
 						WriteTimeout: time.Second * 45,
@@ -285,6 +298,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      proto.String("grpc-listener"),
 					Address: proto.String("127.0.0.1:9090"),
+					Type:    pb.ListenerType_LISTENER_TYPE_GRPC.Enum(),
 					ProtocolOptions: &pb.Listener_Grpc{
 						Grpc: &pb.GrpcListenerOptions{
 							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
@@ -298,6 +312,7 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
+					Type:    TypeGRPC,
 					Options: options.GRPC{
 						MaxConnectionIdle:    time.Minute * 5,
 						MaxConnectionAge:     time.Minute * 30,
@@ -313,6 +328,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener-1"),
 					Address: proto.String("127.0.0.1:8080"),
+					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 30),
@@ -323,6 +339,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      proto.String("grpc-listener"),
 					Address: proto.String("127.0.0.1:9090"),
+					Type:    pb.ListenerType_LISTENER_TYPE_GRPC.Enum(),
 					ProtocolOptions: &pb.Listener_Grpc{
 						Grpc: &pb.GrpcListenerOptions{
 							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
@@ -335,6 +352,7 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "http-listener-1",
 					Address: "127.0.0.1:8080",
+					Type:    TypeHTTP,
 					Options: options.HTTP{
 						ReadTimeout:  time.Second * 30,
 						WriteTimeout: time.Second * 45,
@@ -345,6 +363,7 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "grpc-listener",
 					Address: "127.0.0.1:9090",
+					Type:    TypeGRPC,
 					Options: options.GRPC{
 						MaxConnectionIdle:    time.Minute * 5,
 						MaxConcurrentStreams: 100,
@@ -372,6 +391,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      nil,
 					Address: nil,
+					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{},
 					},
@@ -381,6 +401,7 @@ func TestFromProto(t *testing.T) {
 				{
 					ID:      "",
 					Address: "",
+					Type:    TypeHTTP,
 					Options: options.NewHTTP(),
 				},
 			},
@@ -415,11 +436,11 @@ func TestFromProto(t *testing.T) {
 				// Check basic fields
 				assert.Equal(t, expectedListener.ID, actual.ID)
 				assert.Equal(t, expectedListener.Address, actual.Address)
-				assert.Equal(t, expectedListener.GetType(), actual.GetType())
+				assert.Equal(t, expectedListener.Type, actual.Type)
 
 				// Check options based on type
-				switch expectedListener.GetType() {
-				case options.TypeHTTP:
+				switch expectedListener.Type {
+				case TypeHTTP:
 					expectedOpts, _ := expectedListener.Options.(options.HTTP)
 					actualOpts, ok := actual.Options.(options.HTTP)
 					require.True(t, ok, "Expected HTTP options but got different type")
@@ -431,7 +452,7 @@ func TestFromProto(t *testing.T) {
 					assert.Equal(t, expectedOpts.IdleTimeout, actualOpts.IdleTimeout)
 					assert.Equal(t, expectedOpts.DrainTimeout, actualOpts.DrainTimeout)
 
-				case options.TypeGRPC:
+				case TypeGRPC:
 					expectedOpts, _ := expectedListener.Options.(options.GRPC)
 					actualOpts, ok := actual.Options.(options.GRPC)
 					require.True(t, ok, "Expected gRPC options but got different type")
@@ -494,6 +515,7 @@ func TestRoundTripConversion(t *testing.T) {
 		{
 			ID:      "http-listener",
 			Address: "127.0.0.1:8080",
+			Type:    TypeHTTP,
 			Options: options.HTTP{
 				ReadTimeout:  time.Second * 30,
 				WriteTimeout: time.Second * 45,
@@ -504,6 +526,7 @@ func TestRoundTripConversion(t *testing.T) {
 		{
 			ID:      "grpc-listener",
 			Address: "127.0.0.1:9090",
+			Type:    TypeGRPC,
 			Options: options.GRPC{
 				MaxConnectionIdle:    time.Minute * 5,
 				MaxConnectionAge:     time.Minute * 30,
@@ -527,7 +550,7 @@ func TestRoundTripConversion(t *testing.T) {
 		// Check basic fields
 		assert.Equal(t, orig.ID, actual.ID)
 		assert.Equal(t, orig.Address, actual.Address)
-		assert.Equal(t, orig.GetType(), actual.GetType())
+		assert.Equal(t, orig.Type, actual.Type)
 
 		// Check options
 		switch origOpts := orig.Options.(type) {

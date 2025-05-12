@@ -2,24 +2,18 @@
   "$id": "settings.v1alpha1.Endpoint.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Endpoint connects listeners to apps",
+  "description": "Endpoint connects: listener -\u003e routes -\u003e apps",
   "patternProperties": {
-    "^(listenerIds)$": {
-      "items": {
-        "type": "string"
-      },
-      "type": "array"
+    "^(listenerId)$": {
+      "type": "string"
     }
   },
   "properties": {
     "id": {
       "type": "string"
     },
-    "listener_ids": {
-      "items": {
-        "type": "string"
-      },
-      "type": "array"
+    "listener_id": {
+      "type": "string"
     },
     "routes": {
       "items": {

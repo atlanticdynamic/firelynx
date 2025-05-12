@@ -86,12 +86,12 @@ func TestConfigString(t *testing.T) {
 					Version: "v1",
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "test-endpoint",
-							ListenerIDs: []string{"http-listener"},
+							ID:         "test-endpoint",
+							ListenerID: "http-listener",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "echo-app",
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", ""),
 								},
 							},
 						},
@@ -157,12 +157,12 @@ func TestConfigString(t *testing.T) {
 					},
 					Endpoints: endpoints.EndpointCollection{
 						{
-							ID:          "test-endpoint",
-							ListenerIDs: []string{"http-listener"},
+							ID:         "test-endpoint",
+							ListenerID: "http-listener",
 							Routes: routes.RouteCollection{
 								{
 									AppID:     "echo-app",
-									Condition: conditions.NewHTTP("/api"),
+									Condition: conditions.NewHTTP("/api", ""),
 								},
 							},
 						},
@@ -234,12 +234,12 @@ func TestConfigTree(t *testing.T) {
 		},
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "test-endpoint",
-				ListenerIDs: []string{"http-listener"},
+				ID:         "test-endpoint",
+				ListenerID: "http-listener",
 				Routes: routes.RouteCollection{
 					{
 						AppID:     "echo-app",
-						Condition: conditions.NewHTTP("/api"),
+						Condition: conditions.NewHTTP("/api", ""),
 					},
 				},
 			},

@@ -169,8 +169,8 @@ func TestConvertToHTTPConfigWithNonHTTPListeners(t *testing.T) {
 		Listeners: domainListeners,
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "grpc-api",
-				ListenerIDs: []string{"grpc-listener"},
+				ID:         "grpc-api",
+				ListenerID: "grpc-listener",
 			},
 		},
 	}
@@ -210,8 +210,8 @@ func TestConvertToHTTPConfigWithMissingTimeouts(t *testing.T) {
 		Listeners: domainListeners,
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "http-api",
-				ListenerIDs: []string{"http-listener"},
+				ID:         "http-api",
+				ListenerID: "http-listener",
 			},
 		},
 	}

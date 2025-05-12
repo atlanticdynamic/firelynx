@@ -9,6 +9,7 @@ format = "text"
 [[listeners]]
 id = "http-default"
 address = ":8080"
+type = "http"
 
 [listeners.http]
 read_timeout = "5s"
@@ -16,15 +17,17 @@ write_timeout = "10s"
 
 [[endpoints]]
 id = "ep-default"
-listener_ids = ["http-default"]
+listener_id = "http-default"
 
 [[endpoints.routes]]
 app_id = "app-hello"
-http_path = "/hello"
+[endpoints.routes.http]
+path_prefix = "/hello"
 
 [[endpoints.routes]]
 app_id = "app-static"
-http_path = "/static"
+[endpoints.routes.http]
+path_prefix = "/static"
 
 [[apps]]
 id = "app-hello"

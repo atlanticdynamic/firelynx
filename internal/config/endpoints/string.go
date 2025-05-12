@@ -13,8 +13,8 @@ func (e *Endpoint) String() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Endpoint %s", e.ID)
 
-	if len(e.ListenerIDs) > 0 {
-		fmt.Fprintf(&b, " [Listeners: %s]", strings.Join(e.ListenerIDs, ","))
+	if e.ListenerID != "" {
+		fmt.Fprintf(&b, " [Listener: %s]", e.ListenerID)
 	}
 
 	fmt.Fprintf(&b, "\nRoutes: %d", len(e.Routes))
@@ -31,9 +31,11 @@ func (e *Endpoint) ToTree() *fancy.ComponentTree {
 	// Create an endpoint tree using styled endpoint ID
 	tree := fancy.NewComponentTree(styles.EndpointID(e.ID))
 
-	// Add listeners with consistent styling
-	if len(e.ListenerIDs) > 0 {
-		tree.AddChild(styles.ListenerRef(e.ListenerIDs))
+	// Add listener with consistent styling
+	if e.ListenerID != "" {
+		tree.AddChild(
+			styles.ListenerRef([]string{e.ListenerID}),
+		) // For compatibility with existing styles
 	}
 
 	// Add routes

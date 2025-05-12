@@ -21,25 +21,25 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 		{
 			name: "No Routes",
 			endpoint: Endpoint{
-				ID:          "endpoint1",
-				ListenerIDs: []string{"listener1"},
-				Routes:      []routes.Route{},
+				ID:         "endpoint1",
+				ListenerID: "listener1",
+				Routes:     []routes.Route{},
 			},
 			expectedCount: 0,
 		},
 		{
 			name: "No HTTP Routes",
 			endpoint: Endpoint{
-				ID:          "endpoint1",
-				ListenerIDs: []string{"listener1"},
+				ID:         "endpoint1",
+				ListenerID: "listener1",
 				Routes: []routes.Route{
 					{
 						AppID:     "app1",
-						Condition: conditions.NewGRPC("service.v1"),
+						Condition: conditions.NewGRPC("service.v1", ""),
 					},
 					{
 						AppID:     "app2",
-						Condition: conditions.NewGRPC("service.v2"),
+						Condition: conditions.NewGRPC("service.v2", ""),
 					},
 				},
 			},
@@ -48,16 +48,16 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 		{
 			name: "Single HTTP Route",
 			endpoint: Endpoint{
-				ID:          "endpoint1",
-				ListenerIDs: []string{"listener1"},
+				ID:         "endpoint1",
+				ListenerID: "listener1",
 				Routes: []routes.Route{
 					{
 						AppID:     "app1",
-						Condition: conditions.NewHTTP("/api/v1"),
+						Condition: conditions.NewHTTP("/api/v1", ""),
 					},
 					{
 						AppID:     "app2",
-						Condition: conditions.NewGRPC("service.v1"),
+						Condition: conditions.NewGRPC("service.v1", ""),
 					},
 				},
 			},
@@ -68,20 +68,20 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 		{
 			name: "Multiple HTTP Routes",
 			endpoint: Endpoint{
-				ID:          "endpoint1",
-				ListenerIDs: []string{"listener1"},
+				ID:         "endpoint1",
+				ListenerID: "listener1",
 				Routes: []routes.Route{
 					{
 						AppID:     "app1",
-						Condition: conditions.NewHTTP("/api/v1"),
+						Condition: conditions.NewHTTP("/api/v1", ""),
 					},
 					{
 						AppID:     "app2",
-						Condition: conditions.NewGRPC("service.v1"),
+						Condition: conditions.NewGRPC("service.v1", ""),
 					},
 					{
 						AppID:     "app3",
-						Condition: conditions.NewHTTP("/api/v2"),
+						Condition: conditions.NewHTTP("/api/v2", ""),
 					},
 				},
 			},
@@ -92,12 +92,12 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 		{
 			name: "HTTP Routes with Static Data",
 			endpoint: Endpoint{
-				ID:          "endpoint1",
-				ListenerIDs: []string{"listener1"},
+				ID:         "endpoint1",
+				ListenerID: "listener1",
 				Routes: []routes.Route{
 					{
 						AppID:     "app1",
-						Condition: conditions.NewHTTP("/api/v1"),
+						Condition: conditions.NewHTTP("/api/v1", ""),
 						StaticData: map[string]any{
 							"key1": "value1",
 						},
@@ -123,7 +123,7 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 				for i, path := range tc.expectedPaths {
 					found := false
 					for _, httpRoute := range result {
-						if httpRoute.Path == path && httpRoute.AppID == tc.expectedAppIDs[i] {
+						if httpRoute.PathPrefix == path && httpRoute.AppID == tc.expectedAppIDs[i] {
 							found = true
 							break
 						}
@@ -145,23 +145,23 @@ func TestEndpoints_CollectionOperations(t *testing.T) {
 	t.Parallel()
 
 	endpoint1 := Endpoint{
-		ID:          "endpoint1",
-		ListenerIDs: []string{"listener1"},
+		ID:         "endpoint1",
+		ListenerID: "listener1",
 		Routes: []routes.Route{
 			{
 				AppID:     "app1",
-				Condition: conditions.NewHTTP("/api/v1"),
+				Condition: conditions.NewHTTP("/api/v1", ""),
 			},
 		},
 	}
 
 	endpoint2 := Endpoint{
-		ID:          "endpoint2",
-		ListenerIDs: []string{"listener2"},
+		ID:         "endpoint2",
+		ListenerID: "listener2",
 		Routes: []routes.Route{
 			{
 				AppID:     "app2",
-				Condition: conditions.NewHTTP("/api/v2"),
+				Condition: conditions.NewHTTP("/api/v2", ""),
 			},
 		},
 	}

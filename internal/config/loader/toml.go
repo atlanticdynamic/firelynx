@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
@@ -118,6 +117,37 @@ func (l *tomlLoader) postProcessConfig(
 ) error {
 	errz := []error{}
 
+	// Process listener 'type' field
+	if listenersArray, ok := configMap["listeners"].([]any); ok {
+		for i, listenerObj := range listenersArray {
+			if i >= len(config.Listeners) {
+				break
+			}
+
+			listener := config.Listeners[i]
+			listenerMap, ok := listenerObj.(map[string]any)
+			if !ok {
+				errz = append(errz, fmt.Errorf("invalid listener format at index %d", i))
+				continue
+			}
+
+			// Set the type field directly
+			if typeVal, ok := listenerMap["type"].(string); ok {
+				var listenerType pbSettings.ListenerType
+				switch typeVal {
+				case "http":
+					listenerType = pbSettings.ListenerType_LISTENER_TYPE_HTTP
+				case "grpc":
+					listenerType = pbSettings.ListenerType_LISTENER_TYPE_GRPC
+				default:
+					listenerType = pbSettings.ListenerType_LISTENER_TYPE_UNSPECIFIED
+					errz = append(errz, fmt.Errorf("unsupported listener type: %s", typeVal))
+				}
+				listener.Type = &listenerType
+			}
+		}
+	}
+
 	if loggingMap, ok := configMap["logging"].(map[string]any); ok {
 		if config.Logging == nil {
 			config.Logging = &pbSettings.LogOptions{}
@@ -175,11 +205,9 @@ func (l *tomlLoader) postProcessConfig(
 				continue
 			}
 
-			// Convert single listener_id to array if needed
-			if len(endpoint.ListenerIds) == 0 {
-				if listenerId, ok := endpointMap["listener_id"].(string); ok {
-					endpoint.ListenerIds = []string{listenerId}
-				}
+			// Set the listener_id field directly
+			if listenerId, ok := endpointMap["listener_id"].(string); ok {
+				endpoint.ListenerId = &listenerId
 			}
 
 			// Note: We no longer process routes in the post-processing step, as they're already
@@ -217,8 +245,8 @@ func validateConfig(config *pbSettings.ServerConfig) error {
 			errz = append(errz, fmt.Errorf("endpoint at index %d has an empty ID", i))
 		}
 
-		if len(endpoint.ListenerIds) == 0 {
-			errz = append(errz, fmt.Errorf("endpoint '%s' has no listener IDs", *endpoint.Id))
+		if endpoint.ListenerId == nil || *endpoint.ListenerId == "" {
+			errz = append(errz, fmt.Errorf("endpoint '%s' has no listener ID", *endpoint.Id))
 		}
 
 		// Check that routes are properly configured
@@ -243,12 +271,16 @@ func validateConfig(config *pbSettings.ServerConfig) error {
 			// The mcp_resource field is not yet in the proto
 			// For now, we'll skip the condition check if the route belongs to an MCP listener
 			// This is a temporary workaround until we update the proto
-			isMcpEndpoint := slices.Contains(endpoint.ListenerIds, "mcp_listener")
+			isMcpEndpoint := endpoint.ListenerId != nil && *endpoint.ListenerId == "mcp_listener"
 
-			if !isMcpEndpoint && route.Condition == nil {
+			if !isMcpEndpoint && route.Rule == nil {
 				errz = append(
 					errz,
-					fmt.Errorf("route %d in endpoint '%s' has no condition", j, *endpoint.Id),
+					fmt.Errorf(
+						"route %d in endpoint '%s' has no rule (http/grpc)",
+						j,
+						*endpoint.Id,
+					),
 				)
 			}
 		}

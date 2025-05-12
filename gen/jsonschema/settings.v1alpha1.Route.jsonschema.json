@@ -7,12 +7,6 @@
     "^(app_id)$": {
       "type": "string"
     },
-    "^(grpc_service)$": {
-      "type": "string"
-    },
-    "^(http_path)$": {
-      "type": "string"
-    },
     "^(static_data)$": {
       "$ref": "settings.v1alpha1.StaticData.jsonschema.json"
     }
@@ -21,11 +15,11 @@
     "appId": {
       "type": "string"
     },
-    "grpcService": {
-      "type": "string"
+    "grpc": {
+      "$ref": "settings.v1alpha1.GrpcRule.jsonschema.json"
     },
-    "httpPath": {
-      "type": "string"
+    "http": {
+      "$ref": "settings.v1alpha1.HttpRule.jsonschema.json"
     },
     "staticData": {
       "$ref": "settings.v1alpha1.StaticData.jsonschema.json"

@@ -27,11 +27,11 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 			routes: RouteCollection{
 				{
 					AppID:     "app1",
-					Condition: conditions.NewGRPC("service.v1"),
+					Condition: conditions.NewGRPC("service.v1", ""),
 				},
 				{
 					AppID:     "app2",
-					Condition: conditions.NewGRPC("service.v2"),
+					Condition: conditions.NewGRPC("service.v2", ""),
 				},
 			},
 			expectedCount:  0,
@@ -42,11 +42,11 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 			routes: RouteCollection{
 				{
 					AppID:     "app1",
-					Condition: conditions.NewHTTP("/api/v1"),
+					Condition: conditions.NewHTTP("/api/v1", ""),
 				},
 				{
 					AppID:     "app2",
-					Condition: conditions.NewGRPC("service.v1"),
+					Condition: conditions.NewGRPC("service.v1", ""),
 				},
 			},
 			expectedCount:  1,
@@ -57,15 +57,15 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 			routes: RouteCollection{
 				{
 					AppID:     "app1",
-					Condition: conditions.NewHTTP("/api/v1"),
+					Condition: conditions.NewHTTP("/api/v1", "GET"),
 				},
 				{
 					AppID:     "app2",
-					Condition: conditions.NewGRPC("service.v1"),
+					Condition: conditions.NewGRPC("service.v1", ""),
 				},
 				{
 					AppID:     "app3",
-					Condition: conditions.NewHTTP("/api/v2"),
+					Condition: conditions.NewHTTP("/api/v2", ""),
 					StaticData: map[string]any{
 						"key1": "value1",
 					},
@@ -79,7 +79,7 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 			routes: RouteCollection{
 				{
 					AppID:     "app1",
-					Condition: conditions.NewHTTP("/api/v1"),
+					Condition: conditions.NewHTTP("/api/v1", ""),
 					StaticData: map[string]any{
 						"key1": "value1",
 					},
@@ -101,7 +101,7 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 			if tc.expectNonEmpty {
 				assert.NotEmpty(t, result)
 				for _, route := range result {
-					assert.NotEmpty(t, route.Path)
+					assert.NotEmpty(t, route.PathPrefix)
 					assert.NotEmpty(t, route.AppID)
 				}
 			} else {
@@ -122,21 +122,21 @@ func TestRoute_ToTree(t *testing.T) {
 			name: "HTTP Route",
 			route: Route{
 				AppID:     "app1",
-				Condition: conditions.NewHTTP("/api/v1"),
+				Condition: conditions.NewHTTP("/api/v1", "GET"),
 			},
 		},
 		{
 			name: "GRPC Route",
 			route: Route{
 				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1"),
+				Condition: conditions.NewGRPC("service.v1", ""),
 			},
 		},
 		{
 			name: "Route with Static Data",
 			route: Route{
 				AppID:     "app3",
-				Condition: conditions.NewHTTP("/api/v2"),
+				Condition: conditions.NewHTTP("/api/v2", ""),
 				StaticData: map[string]any{
 					"key1": "value1",
 				},

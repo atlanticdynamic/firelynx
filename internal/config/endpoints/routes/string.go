@@ -43,7 +43,27 @@ func (r *Route) String() string {
 // String returns a string representation of an HTTPRoute
 func (r HTTPRoute) String() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "HTTPRoute: %s -> %s", r.Path, r.AppID)
+	if r.Method != "" {
+		fmt.Fprintf(&b, "HTTPRoute: %s %s -> %s", r.Method, r.PathPrefix, r.AppID)
+	} else {
+		fmt.Fprintf(&b, "HTTPRoute: %s -> %s", r.PathPrefix, r.AppID)
+	}
+
+	if len(r.StaticData) > 0 {
+		fmt.Fprintf(&b, " (with StaticData)")
+	}
+
+	return b.String()
+}
+
+// String returns a string representation of a GRPCRoute
+func (r GRPCRoute) String() string {
+	var b strings.Builder
+	if r.Method != "" {
+		fmt.Fprintf(&b, "GRPCRoute: %s.%s -> %s", r.Service, r.Method, r.AppID)
+	} else {
+		fmt.Fprintf(&b, "GRPCRoute: %s -> %s", r.Service, r.AppID)
+	}
 
 	if len(r.StaticData) > 0 {
 		fmt.Fprintf(&b, " (with StaticData)")

@@ -42,10 +42,10 @@ func TestEmptyConfigToProto(t *testing.T) {
 	require.NotNil(t, result, "fromProto should return a non-nil result")
 }
 
-func TestEndpointWithEmptyListenerIDs(t *testing.T) {
+func TestEndpointWithMissingListenerID(t *testing.T) {
 	t.Parallel()
 
-	// Create a config with an endpoint that has empty listener IDs
+	// Create a config with an endpoint that has missing listener ID
 	version := "v1alpha1"
 	endpointID := "test-endpoint"
 
@@ -53,8 +53,8 @@ func TestEndpointWithEmptyListenerIDs(t *testing.T) {
 		Version: &version,
 		Endpoints: []*pb.Endpoint{
 			{
-				Id:          &endpointID,
-				ListenerIds: []string{}, // Empty listener IDs
+				Id:         &endpointID,
+				ListenerId: nil, // Missing listener ID
 			},
 		},
 	}
@@ -63,10 +63,15 @@ func TestEndpointWithEmptyListenerIDs(t *testing.T) {
 	config, err := NewFromProto(pbConfig)
 
 	// Verify that it fails with the expected error
-	assert.Error(t, err, "NewFromProto should return an error for endpoint with empty listener IDs")
+	assert.Error(
+		t,
+		err,
+		"NewFromProto should return an error for endpoint with missing listener ID",
+	)
 	assert.Nil(t, config, "Config should be nil when NewFromProto returns an error")
-	assert.True(t, strings.Contains(err.Error(), "empty listener IDs"),
-		"Error should mention empty listener IDs")
+	t.Logf("Actual error: %v", err)
+	assert.True(t, strings.Contains(err.Error(), "empty listener ID"),
+		"Error should mention empty listener ID")
 }
 
 func TestFullConfigToProto(t *testing.T) {
@@ -102,12 +107,12 @@ func TestFullConfigToProto(t *testing.T) {
 		},
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "http-endpoint",
-				ListenerIDs: []string{"http-listener"},
+				ID:         "http-endpoint",
+				ListenerID: "http-listener",
 				Routes: []routes.Route{
 					{
 						AppID:     "echo-app",
-						Condition: conditions.NewHTTP("/echo"),
+						Condition: conditions.NewHTTP("/echo", ""),
 						StaticData: map[string]any{
 							"header": "Content-Type: text/plain",
 						},
@@ -115,12 +120,12 @@ func TestFullConfigToProto(t *testing.T) {
 				},
 			},
 			{
-				ID:          "grpc-endpoint",
-				ListenerIDs: []string{"grpc-listener"},
+				ID:         "grpc-endpoint",
+				ListenerID: "grpc-listener",
 				Routes: []routes.Route{
 					{
 						AppID:     "script-app",
-						Condition: conditions.NewGRPC("example.Service"),
+						Condition: conditions.NewGRPC("example.Service", ""),
 					},
 				},
 			},
@@ -181,19 +186,19 @@ func TestFullConfigToProto(t *testing.T) {
 	// HTTP endpoint
 	httpEndpoint := findEndpointByID(pbConfig.Endpoints, "http-endpoint")
 	require.NotNil(t, httpEndpoint)
-	assert.Equal(t, []string{"http-listener"}, httpEndpoint.ListenerIds)
+	assert.Equal(t, "http-listener", *httpEndpoint.ListenerId)
 	require.Len(t, httpEndpoint.Routes, 1)
 	assert.Equal(t, "echo-app", *httpEndpoint.Routes[0].AppId)
-	assert.Equal(t, "/echo", httpEndpoint.Routes[0].GetHttpPath())
+	assert.Equal(t, "/echo", httpEndpoint.Routes[0].GetHttp().GetPathPrefix())
 	require.NotNil(t, httpEndpoint.Routes[0].StaticData)
 
 	// gRPC endpoint
 	grpcEndpoint := findEndpointByID(pbConfig.Endpoints, "grpc-endpoint")
 	require.NotNil(t, grpcEndpoint)
-	assert.Equal(t, []string{"grpc-listener"}, grpcEndpoint.ListenerIds)
+	assert.Equal(t, "grpc-listener", *grpcEndpoint.ListenerId)
 	require.Len(t, grpcEndpoint.Routes, 1)
 	assert.Equal(t, "script-app", *grpcEndpoint.Routes[0].AppId)
-	assert.Equal(t, "example.Service", grpcEndpoint.Routes[0].GetGrpcService())
+	assert.Equal(t, "example.Service", grpcEndpoint.Routes[0].GetGrpc().GetService())
 
 	// Verify apps
 	require.Len(t, pbConfig.Apps, 2)
@@ -239,12 +244,12 @@ func TestFullConfigRoundTrip(t *testing.T) {
 		},
 		Endpoints: endpoints.EndpointCollection{
 			{
-				ID:          "http-endpoint",
-				ListenerIDs: []string{"http-listener"},
+				ID:         "http-endpoint",
+				ListenerID: "http-listener",
 				Routes: []routes.Route{
 					{
 						AppID:     "echo-app",
-						Condition: conditions.NewHTTP("/echo"),
+						Condition: conditions.NewHTTP("/echo", ""),
 					},
 				},
 			},
@@ -288,7 +293,7 @@ func TestFullConfigRoundTrip(t *testing.T) {
 	// Verify endpoints
 	require.Len(t, resultConfig.Endpoints, 1)
 	assert.Equal(t, originalConfig.Endpoints[0].ID, resultConfig.Endpoints[0].ID)
-	assert.Equal(t, originalConfig.Endpoints[0].ListenerIDs, resultConfig.Endpoints[0].ListenerIDs)
+	assert.Equal(t, originalConfig.Endpoints[0].ListenerID, resultConfig.Endpoints[0].ListenerID)
 
 	require.Len(t, resultConfig.Endpoints[0].Routes, 1)
 	assert.Equal(

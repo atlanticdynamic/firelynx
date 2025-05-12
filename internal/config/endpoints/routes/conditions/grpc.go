@@ -1,4 +1,3 @@
-//nolint:dupl
 package conditions
 
 import (
@@ -11,20 +10,27 @@ import (
 // GRPC contains gRPC-specific route condition configuration
 type GRPC struct {
 	Service string
+	Method  string
 }
 
 // NewGRPC creates a new gRPC service condition
-func NewGRPC(service string) GRPC {
+func NewGRPC(service string, method string) GRPC {
 	return GRPC{
 		Service: service,
+		Method:  method,
 	}
 }
 
 // Type returns the condition type
 func (g GRPC) Type() Type { return TypeGRPC }
 
-// Value returns the service value
-func (g GRPC) Value() string { return g.Service }
+// Value returns a representative value
+func (g GRPC) Value() string {
+	if g.Method != "" {
+		return g.Service + "." + g.Method
+	}
+	return g.Service
+}
 
 // Validate checks if the gRPC condition is valid
 func (g GRPC) Validate() error {
@@ -46,12 +52,18 @@ func (g GRPC) Validate() error {
 
 // String returns a string representation of the gRPC condition
 func (g GRPC) String() string {
+	if g.Method != "" {
+		return fmt.Sprintf("gRPC: %s.%s", g.Service, g.Method)
+	}
 	return fmt.Sprintf("gRPC Service: %s", g.Service)
 }
 
 // ToTree returns a tree representation of the gRPC condition
 func (g GRPC) ToTree() *fancy.ComponentTree {
-	tree := fancy.NewComponentTree("gRPC Service Condition")
+	tree := fancy.NewComponentTree("gRPC Rule")
 	tree.AddChild(fmt.Sprintf("Service: %s", g.Service))
+	if g.Method != "" {
+		tree.AddChild(fmt.Sprintf("Method: %s", g.Method))
+	}
 	return tree
 }
