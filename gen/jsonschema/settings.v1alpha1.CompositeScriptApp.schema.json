@@ -1,5 +1,5 @@
 {
-  "$id": "settings.v1alpha1.AppCompositeScript.schema.json",
+  "$id": "settings.v1alpha1.CompositeScriptApp.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Composite script that combines multiple scripts",
@@ -25,6 +25,6 @@
       "$ref": "settings.v1alpha1.StaticData.schema.json"
     }
   },
-  "title": "App Composite Script",
+  "title": "Composite Script App",
   "type": "object"
 }

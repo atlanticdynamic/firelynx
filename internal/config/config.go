@@ -74,6 +74,7 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	config := &Config{
 		Version:  VersionLatest,
 		rawProto: pbConfig,
+		Apps:     apps.AppCollection{},
 	}
 
 	if pbConfig.Version != nil && *pbConfig.Version != "" {

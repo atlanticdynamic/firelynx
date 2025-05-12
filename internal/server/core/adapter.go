@@ -19,15 +19,15 @@ import (
 // ConfigAdapter converts domain config to package-specific configs for runtime components.
 // This is the only component that should have knowledge of domain config types.
 type ConfigAdapter struct {
-	domainConfig *config.Config
-	appRegistry  apps.Registry
-	logger       *slog.Logger
+	domainConfig  *config.Config
+	appCollection apps.Registry
+	logger        *slog.Logger
 }
 
 // NewConfigAdapter creates a new adapter for converting domain config to runtime configs.
 func NewConfigAdapter(
 	domainConfig *config.Config,
-	appRegistry apps.Registry,
+	appCollection apps.Registry,
 	logger *slog.Logger,
 ) *ConfigAdapter {
 	if logger == nil {
@@ -35,9 +35,9 @@ func NewConfigAdapter(
 	}
 
 	return &ConfigAdapter{
-		domainConfig: domainConfig,
-		appRegistry:  appRegistry,
-		logger:       logger,
+		domainConfig:  domainConfig,
+		appCollection: appCollection,
+		logger:        logger,
 	}
 }
 
@@ -163,7 +163,7 @@ func (a *ConfigAdapter) HTTPConfigCallback(routeRegistry *routing.Registry) http
 	return func() (*http.Config, error) {
 		if a.domainConfig == nil {
 			return &http.Config{
-				AppRegistry:   a.appRegistry,
+				AppRegistry:   a.appCollection,
 				RouteRegistry: routeRegistry,
 				Listeners:     []http.ListenerConfig{},
 			}, nil
@@ -239,7 +239,7 @@ func (a *ConfigAdapter) ConvertToHTTPConfig(
 
 	// Create HTTP config
 	result := &http.Config{
-		AppRegistry:   a.appRegistry,
+		AppRegistry:   a.appCollection,
 		RouteRegistry: routeRegistry,
 		Listeners:     httpListeners,
 	}

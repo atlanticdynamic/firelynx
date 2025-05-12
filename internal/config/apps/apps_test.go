@@ -171,6 +171,110 @@ func TestAppCollectionValidate(t *testing.T) {
 	}
 }
 
+func TestAppCollectionFindByID(t *testing.T) {
+	t.Parallel()
+
+	// Create a test collection
+	apps := AppCollection{
+		{
+			ID: "app1",
+			Config: &testAppConfig{
+				appType: "echo",
+				valid:   true,
+			},
+		},
+		{
+			ID: "app2",
+			Config: &testAppConfig{
+				appType: "script",
+				valid:   true,
+			},
+		},
+		{
+			ID: "app3",
+			Config: &testAppConfig{
+				appType: "composite",
+				valid:   true,
+			},
+		},
+	}
+
+	tests := []struct {
+		name          string
+		id            string
+		expectedID    string
+		expectNil     bool
+		expectPointer bool
+	}{
+		{
+			name:          "Find existing app (first)",
+			id:            "app1",
+			expectedID:    "app1",
+			expectNil:     false,
+			expectPointer: true,
+		},
+		{
+			name:          "Find existing app (middle)",
+			id:            "app2",
+			expectedID:    "app2",
+			expectNil:     false,
+			expectPointer: true,
+		},
+		{
+			name:          "Find existing app (last)",
+			id:            "app3",
+			expectedID:    "app3",
+			expectNil:     false,
+			expectPointer: true,
+		},
+		{
+			name:          "App not found",
+			id:            "non-existent",
+			expectedID:    "",
+			expectNil:     true,
+			expectPointer: false,
+		},
+		{
+			name:          "Empty ID",
+			id:            "",
+			expectedID:    "",
+			expectNil:     true,
+			expectPointer: false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := apps.FindByID(tc.id)
+
+			if tc.expectNil {
+				assert.Nil(t, app, "App should be nil")
+			} else {
+				assert.NotNil(t, app, "App should not be nil")
+				assert.Equal(t, tc.expectedID, app.ID, "App ID should match")
+
+				// Verify that it's a pointer to the app in the collection, not a copy
+				if tc.expectPointer {
+					// Modify the found app and check if the collection is updated
+					originalID := app.ID
+					app.ID = "modified"
+
+					// Check that the app in the collection was modified
+					directApp := apps.FindByID("modified")
+					assert.NotNil(t, directApp, "Modified app should be found")
+					assert.Equal(t, "modified", directApp.ID, "App ID should be modified")
+
+					// Restore the original ID for other tests
+					app.ID = originalID
+				}
+			}
+		})
+	}
+}
+
 func TestValidateRouteAppReferencesWithBuiltIns(t *testing.T) {
 	t.Parallel()
 

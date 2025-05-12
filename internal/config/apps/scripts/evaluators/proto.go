@@ -101,7 +101,7 @@ func (e *ExtismEvaluator) ToProto() *settingsv1alpha1.ExtismEvaluator {
 }
 
 // EvaluatorFromProto creates an appropriate Evaluator from its protocol buffer representation.
-func EvaluatorFromProto(proto *settingsv1alpha1.AppScript) (Evaluator, error) {
+func EvaluatorFromProto(proto *settingsv1alpha1.ScriptApp) (Evaluator, error) {
 	if proto == nil {
 		return nil, nil
 	}

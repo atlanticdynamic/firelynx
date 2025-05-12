@@ -1,5 +1,5 @@
 {
-  "$id": "settings.v1alpha1.AppScript.jsonschema.json",
+  "$id": "settings.v1alpha1.ScriptApp.jsonschema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Individual script application",
@@ -22,6 +22,6 @@
       "$ref": "settings.v1alpha1.StaticData.jsonschema.json"
     }
   },
-  "title": "App Script",
+  "title": "Script App",
   "type": "object"
 }

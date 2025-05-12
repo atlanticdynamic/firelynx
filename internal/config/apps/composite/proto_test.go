@@ -16,7 +16,7 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("empty proto", func(t *testing.T) {
-		proto := &settingsv1alpha1.AppCompositeScript{}
+		proto := &settingsv1alpha1.CompositeScriptApp{}
 		result, err := FromProto(proto)
 
 		assert.NoError(t, err)
@@ -26,7 +26,7 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("proto with script IDs", func(t *testing.T) {
-		proto := &settingsv1alpha1.AppCompositeScript{
+		proto := &settingsv1alpha1.CompositeScriptApp{
 			ScriptAppIds: []string{"script1", "script2"},
 		}
 		result, err := FromProto(proto)
@@ -39,7 +39,7 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("proto with static data", func(t *testing.T) {
 		// Create a proto with some sample static data
-		proto := &settingsv1alpha1.AppCompositeScript{
+		proto := &settingsv1alpha1.CompositeScriptApp{
 			// Empty static data, just to test conversion works
 			StaticData: &settingsv1alpha1.StaticData{},
 		}
@@ -65,8 +65,8 @@ func TestCompositeScript_ToProto(t *testing.T) {
 		script := &CompositeScript{}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.AppCompositeScript)
-		assert.True(t, ok, "Expected *settingsv1alpha1.AppCompositeScript type")
+		got, ok := result.(*settingsv1alpha1.CompositeScriptApp)
+		assert.True(t, ok, "Expected *settingsv1alpha1.CompositeScriptApp type")
 		assert.NotNil(t, got, "Expected non-nil proto message")
 		assert.Empty(t, got.ScriptAppIds)
 		assert.Nil(t, got.StaticData)
@@ -78,8 +78,8 @@ func TestCompositeScript_ToProto(t *testing.T) {
 		}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.AppCompositeScript)
-		assert.True(t, ok, "Expected *settingsv1alpha1.AppCompositeScript type")
+		got, ok := result.(*settingsv1alpha1.CompositeScriptApp)
+		assert.True(t, ok, "Expected *settingsv1alpha1.CompositeScriptApp type")
 		assert.Equal(t, []string{"script1", "script2"}, got.ScriptAppIds)
 		assert.Nil(t, got.StaticData)
 	})
@@ -93,8 +93,8 @@ func TestCompositeScript_ToProto(t *testing.T) {
 		}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.AppCompositeScript)
-		assert.True(t, ok, "Expected *settingsv1alpha1.AppCompositeScript type")
+		got, ok := result.(*settingsv1alpha1.CompositeScriptApp)
+		assert.True(t, ok, "Expected *settingsv1alpha1.CompositeScriptApp type")
 		assert.NotNil(t, got.StaticData)
 	})
 
@@ -108,8 +108,8 @@ func TestCompositeScript_ToProto(t *testing.T) {
 		}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.AppCompositeScript)
-		assert.True(t, ok, "Expected *settingsv1alpha1.AppCompositeScript type")
+		got, ok := result.(*settingsv1alpha1.CompositeScriptApp)
+		assert.True(t, ok, "Expected *settingsv1alpha1.CompositeScriptApp type")
 		assert.Equal(t, []string{"script1", "script2"}, got.ScriptAppIds)
 		assert.NotNil(t, got.StaticData)
 	})

@@ -37,7 +37,7 @@ test:
 
 ## test-e2e: Run end-to-end tests
 .PHONY: test-e2e
-test-e2e: build
+test-e2e:
 	go test -race -v -tags e2e ./test/e2e/...
 
 ## lint: Run golangci-lint code quality checks

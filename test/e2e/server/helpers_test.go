@@ -34,9 +34,12 @@ func runServerWithConfig(
 	ctx context.Context,
 	configPath, grpcAddr string,
 ) (context.CancelFunc, error) {
-	// Create a logger that writes to the test's log
+	// Create a logger that writes to the test's log with DEBUG level
 	var logBuf bytes.Buffer
-	testHandler := slog.NewTextHandler(&logBuf, nil)
+	handlerOptions := &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}
+	testHandler := slog.NewTextHandler(&logBuf, handlerOptions)
 	logger := slog.New(testHandler)
 
 	// Create a cancellable context

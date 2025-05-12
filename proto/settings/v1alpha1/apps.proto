@@ -7,20 +7,28 @@ import "settings/v1alpha1/static_data.proto";
 
 option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
+enum AppType {
+  APP_TYPE_UNSPECIFIED = 0;
+  APP_TYPE_SCRIPT = 1;
+  APP_TYPE_COMPOSITE_SCRIPT = 2;
+  APP_TYPE_ECHO = 3;
+}
+
 // App definitions (reusable across endpoints)
 message AppDefinition {
   string id = 1; // The unique name or identifier for the app
+  AppType type = 2 [default = APP_TYPE_UNSPECIFIED]; // The type of app
 
   // The configuration for the app
-  oneof app_config {
-    AppScript script = 3;
-    AppCompositeScript composite_script = 4;
+  oneof config {
+    ScriptApp script = 3;
+    CompositeScriptApp composite_script = 4;
     EchoApp echo = 5;
   }
 }
 
 // Individual script application
-message AppScript {
+message ScriptApp {
   StaticData static_data = 2;
   oneof evaluator {
     RisorEvaluator risor = 3;
@@ -45,8 +53,8 @@ message ExtismEvaluator {
 }
 
 // Composite script that combines multiple scripts
-message AppCompositeScript {
-  repeated string script_app_ids = 1; // IDs of script apps to run in sequence
+message CompositeScriptApp {
+  repeated string script_app_ids = 1; // IDs of ScriptApp to run in sequence
   StaticData static_data = 2;
 }
 

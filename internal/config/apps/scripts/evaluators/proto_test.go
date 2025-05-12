@@ -284,22 +284,22 @@ func TestExtismEvaluator_ToProto(t *testing.T) {
 
 func TestEvaluatorFromProto(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
-		proto := (*settingsv1alpha1.AppScript)(nil)
+		proto := (*settingsv1alpha1.ScriptApp)(nil)
 		got, err := EvaluatorFromProto(proto)
 		require.NoError(t, err)
 		assert.Nil(t, got)
 	})
 
 	t.Run("empty", func(t *testing.T) {
-		proto := &settingsv1alpha1.AppScript{}
+		proto := &settingsv1alpha1.ScriptApp{}
 		got, err := EvaluatorFromProto(proto)
 		require.Error(t, err)
 		assert.Nil(t, got)
 	})
 
 	t.Run("risor", func(t *testing.T) {
-		proto := &settingsv1alpha1.AppScript{
-			Evaluator: &settingsv1alpha1.AppScript_Risor{
+		proto := &settingsv1alpha1.ScriptApp{
+			Evaluator: &settingsv1alpha1.ScriptApp_Risor{
 				Risor: &settingsv1alpha1.RisorEvaluator{
 					Code: proto.String("print('hello')"),
 				},
@@ -314,8 +314,8 @@ func TestEvaluatorFromProto(t *testing.T) {
 	})
 
 	t.Run("starlark", func(t *testing.T) {
-		proto := &settingsv1alpha1.AppScript{
-			Evaluator: &settingsv1alpha1.AppScript_Starlark{
+		proto := &settingsv1alpha1.ScriptApp{
+			Evaluator: &settingsv1alpha1.ScriptApp_Starlark{
 				Starlark: &settingsv1alpha1.StarlarkEvaluator{
 					Code: proto.String("print('hello')"),
 				},
@@ -330,8 +330,8 @@ func TestEvaluatorFromProto(t *testing.T) {
 	})
 
 	t.Run("extism", func(t *testing.T) {
-		proto := &settingsv1alpha1.AppScript{
-			Evaluator: &settingsv1alpha1.AppScript_Extism{
+		proto := &settingsv1alpha1.ScriptApp{
+			Evaluator: &settingsv1alpha1.ScriptApp_Extism{
 				Extism: &settingsv1alpha1.ExtismEvaluator{
 					Code:       proto.String("base64content"),
 					Entrypoint: proto.String("handle_request"),

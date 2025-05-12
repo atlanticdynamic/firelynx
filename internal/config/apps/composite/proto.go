@@ -8,7 +8,7 @@ import (
 )
 
 // FromProto creates a CompositeScript from its protocol buffer representation.
-func FromProto(proto *settingsv1alpha1.AppCompositeScript) (*CompositeScript, error) {
+func FromProto(proto *settingsv1alpha1.CompositeScriptApp) (*CompositeScript, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -33,7 +33,7 @@ func (s *CompositeScript) ToProto() any {
 	}
 
 	// Create the protobuf message
-	proto := &settingsv1alpha1.AppCompositeScript{
+	proto := &settingsv1alpha1.CompositeScriptApp{
 		ScriptAppIds: s.ScriptAppIDs,
 	}
 

@@ -41,11 +41,11 @@ func WithContext(ctx context.Context) Option {
 	}
 }
 
-// WithAppRegistry sets a custom app registry for the Runner instance.
-func WithAppRegistry(registry apps.Registry) Option {
+// WithAppCollection sets a custom app collection for the Runner instance.
+func WithAppCollection(collection *apps.AppCollection) Option {
 	return func(r *Runner) {
-		if registry != nil {
-			r.appRegistry = registry
+		if collection != nil {
+			r.appCollection = collection
 		}
 	}
 }

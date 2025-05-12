@@ -1,10 +1,260 @@
 package config
 
 import (
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/config/logs"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// Tests will be updated to use the new subdirectory types
-func TestStringMigration(t *testing.T) {
-	t.Skip("Tests will be updated to use the new subdirectory types")
+func TestConfigString(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name           string
+		setupConfig    func() *Config
+		expectedSubstr []string
+	}{
+		{
+			name: "Empty config",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: "v1",
+				}
+			},
+			expectedSubstr: []string{
+				"Firelynx Config (v1)",
+			},
+		},
+		{
+			name: "Config with logging",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: "v1",
+					Logging: logs.Config{
+						Format: logs.FormatJSON,
+						Level:  logs.LevelInfo,
+					},
+				}
+			},
+			expectedSubstr: []string{
+				"Logging",
+				"Format: json",
+				"Level: info",
+			},
+		},
+		{
+			name: "Config with listeners",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: "v1",
+					Listeners: listeners.ListenerCollection{
+						{
+							ID:      "http-listener",
+							Address: "127.0.0.1:8080",
+							Options: options.HTTP{
+								ReadTimeout:  30 * time.Second,
+								WriteTimeout: 30 * time.Second,
+							},
+						},
+					},
+				}
+			},
+			expectedSubstr: []string{
+				"Listeners (1)",
+				"http-listener",
+				"127.0.0.1:8080",
+				"ReadTimeout: 30s",
+			},
+		},
+		{
+			name: "Config with endpoints",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: "v1",
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:          "test-endpoint",
+							ListenerIDs: []string{"http-listener"},
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "echo-app",
+									Condition: conditions.NewHTTP("/api"),
+								},
+							},
+						},
+					},
+				}
+			},
+			expectedSubstr: []string{
+				"Endpoints (1)",
+				"test-endpoint",
+				"Listeners: http-listener",
+				"Routes",
+				"Condition: http_path = /api",
+			},
+		},
+		{
+			name: "Config with apps",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: "v1",
+					Apps: apps.AppCollection{
+						{
+							ID:     "echo-app",
+							Config: &echo.EchoApp{Response: "Hello World"},
+						},
+						{
+							ID: "script-app",
+							Config: scripts.NewAppScript(
+								nil,
+								&evaluators.RisorEvaluator{
+									Code: "return { body: 'Hello' }",
+								},
+							),
+						},
+					},
+				}
+			},
+			expectedSubstr: []string{
+				"Apps (2)",
+				"echo-app",
+				"script-app",
+				"Type: Script",
+				"Evaluator: Risor",
+			},
+		},
+		{
+			name: "Full config",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: "v1",
+					Logging: logs.Config{
+						Format: logs.FormatJSON,
+						Level:  logs.LevelInfo,
+					},
+					Listeners: listeners.ListenerCollection{
+						{
+							ID:      "http-listener",
+							Address: "127.0.0.1:8080",
+							Options: options.HTTP{
+								ReadTimeout:  30 * time.Second,
+								WriteTimeout: 30 * time.Second,
+							},
+						},
+					},
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:          "test-endpoint",
+							ListenerIDs: []string{"http-listener"},
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "echo-app",
+									Condition: conditions.NewHTTP("/api"),
+								},
+							},
+						},
+					},
+					Apps: apps.AppCollection{
+						{
+							ID:     "echo-app",
+							Config: &echo.EchoApp{Response: "Hello World"},
+						},
+					},
+				}
+			},
+			expectedSubstr: []string{
+				"Firelynx Config (v1)",
+				"Logging",
+				"Format: json",
+				"Level: info",
+				"Listeners (1)",
+				"http-listener",
+				"Endpoints (1)",
+				"test-endpoint",
+				"Apps (1)",
+				"echo-app",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			config := tc.setupConfig()
+			result := config.String()
+
+			// Verify the result is not empty
+			require.NotEmpty(t, result)
+
+			// Verify it contains all expected substrings
+			for _, substr := range tc.expectedSubstr {
+				assert.True(t,
+					strings.Contains(result, substr),
+					"Expected string representation to contain '%s', but got:\n%s",
+					substr, result)
+			}
+		})
+	}
+}
+
+func TestConfigTree(t *testing.T) {
+	t.Parallel()
+
+	// Test that the ConfigTree function returns the same result as String
+	config := &Config{
+		Version: "v1",
+		Logging: logs.Config{
+			Format: logs.FormatJSON,
+			Level:  logs.LevelInfo,
+		},
+		Listeners: listeners.ListenerCollection{
+			{
+				ID:      "http-listener",
+				Address: "127.0.0.1:8080",
+				Options: options.HTTP{
+					ReadTimeout:  30 * time.Second,
+					WriteTimeout: 30 * time.Second,
+				},
+			},
+		},
+		Endpoints: endpoints.EndpointCollection{
+			{
+				ID:          "test-endpoint",
+				ListenerIDs: []string{"http-listener"},
+				Routes: routes.RouteCollection{
+					{
+						AppID:     "echo-app",
+						Condition: conditions.NewHTTP("/api"),
+					},
+				},
+			},
+		},
+		Apps: apps.AppCollection{
+			{
+				ID:     "echo-app",
+				Config: &echo.EchoApp{Response: "Hello World"},
+			},
+		},
+	}
+
+	// Verify that ConfigTree and String return the same result
+	stringResult := config.String()
+	treeResult := ConfigTree(config)
+
+	assert.Equal(t, stringResult, treeResult)
 }

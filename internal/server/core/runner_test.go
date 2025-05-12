@@ -12,6 +12,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
 	"github.com/stretchr/testify/assert"
 )
@@ -82,13 +83,18 @@ func TestRunner_New(t *testing.T) {
 	assert.NotNil(t, runner)
 	assert.Equal(t, "core.Runner", runner.String())
 
-	// Register an echo app for testing
+	// Create an echo app for testing
 	echoApp := echo.New("echo")
-	err = runner.appRegistry.RegisterApp(echoApp)
+
+	// Create app collection with the echo app
+	appCollection, err := apps.NewAppCollection([]apps.App{echoApp})
 	assert.NoError(t, err)
 
-	// Verify app registry has the echo app
-	app, found := runner.appRegistry.GetApp("echo")
+	// Set the app collection
+	runner.appCollection = appCollection
+
+	// Verify app collection has the echo app
+	app, found := runner.appCollection.GetApp("echo")
 	assert.True(t, found)
 	assert.NotNil(t, app)
 }
@@ -158,24 +164,23 @@ func TestRunner_WithApps(t *testing.T) {
 	runner, err := NewRunner(configCallback)
 	assert.NoError(t, err)
 
-	// Create a specialized echo app
+	// Create echo apps for testing
 	specialApp := echo.New("special")
-
-	// Register the app manually
-	err = runner.appRegistry.RegisterApp(specialApp)
-	assert.NoError(t, err)
-
-	// Create and register an echo app
 	echoApp := echo.New("echo")
-	err = runner.appRegistry.RegisterApp(echoApp)
+
+	// Create app collection with both apps
+	appCollection, err := apps.NewAppCollection([]apps.App{specialApp, echoApp})
 	assert.NoError(t, err)
 
-	// Verify both apps are registered
-	app1, found1 := runner.appRegistry.GetApp("echo")
+	// Set the app collection
+	runner.appCollection = appCollection
+
+	// Verify both apps are in the collection
+	app1, found1 := runner.appCollection.GetApp("echo")
 	assert.True(t, found1)
 	assert.NotNil(t, app1)
 
-	app2, found2 := runner.appRegistry.GetApp("special")
+	app2, found2 := runner.appCollection.GetApp("special")
 	assert.True(t, found2)
 	assert.NotNil(t, app2)
 }
@@ -218,6 +223,12 @@ func TestRunner_EndpointListenerAssociation(t *testing.T) {
 	// Create the runner
 	runner, err := NewRunner(configCallback)
 	assert.NoError(t, err)
+
+	// Create an echo app and add it to the runner
+	echoApp := echo.New("echo")
+	appCollection, err := apps.NewAppCollection([]apps.App{echoApp})
+	assert.NoError(t, err)
+	runner.appCollection = appCollection
 
 	// Boot the runner to initialize the config
 	err = runner.boot()

@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// setupLogger configures the default logger based on provided log level
-func setupLogger(logLevel string) {
+// SetupLogger configures the default logger based on provided log level
+func SetupLogger(logLevel string) {
 	level := slog.LevelInfo // Default level
 
 	// Parse log level

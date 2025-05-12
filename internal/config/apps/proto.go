@@ -14,6 +14,34 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// appTypeToProto converts from domain AppType to protobuf AppType enum
+func appTypeToProto(appType AppType) pb.AppType {
+	switch appType {
+	case AppTypeScript:
+		return pb.AppType_APP_TYPE_SCRIPT
+	case AppTypeComposite:
+		return pb.AppType_APP_TYPE_COMPOSITE_SCRIPT
+	case AppTypeEcho:
+		return pb.AppType_APP_TYPE_ECHO
+	default:
+		return pb.AppType_APP_TYPE_UNSPECIFIED
+	}
+}
+
+// appTypeFromProto converts from protobuf AppType enum to domain AppType
+func appTypeFromProto(pbAppType pb.AppType) AppType {
+	switch pbAppType {
+	case pb.AppType_APP_TYPE_SCRIPT:
+		return AppTypeScript
+	case pb.AppType_APP_TYPE_COMPOSITE_SCRIPT:
+		return AppTypeComposite
+	case pb.AppType_APP_TYPE_ECHO:
+		return AppTypeEcho
+	default:
+		return AppTypeUnknown
+	}
+}
+
 // ToProto converts the Apps collection to a slice of protobuf AppDefinition messages
 func (apps AppCollection) ToProto() []*pb.AppDefinition {
 	if len(apps) == 0 {
@@ -22,14 +50,29 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 
 	result := make([]*pb.AppDefinition, 0, len(apps))
 	for _, a := range apps {
+		// Get the app type based on the config type
+		var appType AppType
+		switch a.Config.(type) {
+		case *scripts.AppScript:
+			appType = AppTypeScript
+		case *composite.CompositeScript:
+			appType = AppTypeComposite
+		case *echo.EchoApp:
+			appType = AppTypeEcho
+		default:
+			appType = AppTypeUnknown
+		}
+
+		pbType := appTypeToProto(appType)
 		app := &pb.AppDefinition{
-			Id: proto.String(a.ID),
+			Id:   proto.String(a.ID),
+			Type: &pbType,
 		}
 
 		// Convert app config based on type
 		switch cfg := a.Config.(type) {
 		case *scripts.AppScript:
-			pbScript := &pb.AppScript{}
+			pbScript := &pb.ScriptApp{}
 
 			// Convert static data if present
 			if cfg.StaticData != nil {
@@ -40,26 +83,26 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 			if cfg.Evaluator != nil {
 				switch e := cfg.Evaluator.(type) {
 				case *evaluators.RisorEvaluator:
-					pbScript.Evaluator = &pb.AppScript_Risor{
+					pbScript.Evaluator = &pb.ScriptApp_Risor{
 						Risor: e.ToProto(),
 					}
 				case *evaluators.StarlarkEvaluator:
-					pbScript.Evaluator = &pb.AppScript_Starlark{
+					pbScript.Evaluator = &pb.ScriptApp_Starlark{
 						Starlark: e.ToProto(),
 					}
 				case *evaluators.ExtismEvaluator:
-					pbScript.Evaluator = &pb.AppScript_Extism{
+					pbScript.Evaluator = &pb.ScriptApp_Extism{
 						Extism: e.ToProto(),
 					}
 				}
 			}
 
-			app.AppConfig = &pb.AppDefinition_Script{
+			app.Config = &pb.AppDefinition_Script{
 				Script: pbScript,
 			}
 
 		case *composite.CompositeScript:
-			pbComposite := &pb.AppCompositeScript{
+			pbComposite := &pb.CompositeScriptApp{
 				ScriptAppIds: cfg.ScriptAppIDs,
 			}
 
@@ -68,13 +111,13 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 				pbComposite.StaticData = cfg.StaticData.ToProto()
 			}
 
-			app.AppConfig = &pb.AppDefinition_CompositeScript{
+			app.Config = &pb.AppDefinition_CompositeScript{
 				CompositeScript: pbComposite,
 			}
 
 		case *echo.EchoApp:
 			pbEcho := cfg.ToProto().(*pb.EchoApp)
-			app.AppConfig = &pb.AppDefinition_Echo{
+			app.Config = &pb.AppDefinition_Echo{
 				Echo: pbEcho,
 			}
 		}
@@ -118,6 +161,28 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 
 	app := App{
 		ID: pbApp.GetId(),
+	}
+
+	// Get app type from proto
+	appType := appTypeFromProto(pbApp.GetType())
+
+	// Validate app type and config alignment
+	switch appType {
+	case AppTypeScript:
+		if pbApp.GetScript() == nil {
+			return App{}, fmt.Errorf("app '%s' has type script but no script config", app.ID)
+		}
+	case AppTypeComposite:
+		if pbApp.GetCompositeScript() == nil {
+			return App{}, fmt.Errorf(
+				"app '%s' has type composite_script but no composite_script config",
+				app.ID,
+			)
+		}
+	case AppTypeEcho:
+		if pbApp.GetEcho() == nil {
+			return App{}, fmt.Errorf("app '%s' has type echo but no echo config", app.ID)
+		}
 	}
 
 	// Convert app config based on type

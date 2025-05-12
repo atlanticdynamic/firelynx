@@ -12,7 +12,6 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps/registry"
 	http "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
 	"github.com/robbyt/go-supervisor/supervisor"
@@ -41,8 +40,8 @@ func Version() string {
 // and its configuration lifecycle.
 type Runner struct {
 	// Required dependencies
-	appRegistry apps.Registry
-	logger      *slog.Logger
+	appCollection *apps.AppCollection
+	logger        *slog.Logger
 
 	// Internal state
 	configCallback func() config.Config
@@ -68,9 +67,15 @@ func NewRunner(
 	configCallback func() config.Config,
 	opts ...Option,
 ) (*Runner, error) {
+	// Create initial empty app collection
+	initialApps, err := apps.NewAppCollection([]apps.App{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create initial app collection: %w", err)
+	}
+
 	// Initialize with default options
 	runner := &Runner{
-		appRegistry:    registry.New(),
+		appCollection:  initialApps,
 		logger:         slog.Default().WithGroup("core.Runner"),
 		configCallback: configCallback,
 		serverErrors:   make(chan error, 10),
@@ -86,6 +91,50 @@ func NewRunner(
 	return runner, nil
 }
 
+// updateAppsFromConfig creates app instances from the current configuration
+// and updates the app collection with the new instances.
+func (r *Runner) updateAppsFromConfig() error {
+	// Skip if no configuration is available
+	if r.currentConfig == nil || len(r.currentConfig.Apps) == 0 {
+		// Create an empty app collection
+		emptyCollection, err := apps.NewAppCollection([]apps.App{})
+		if err != nil {
+			return fmt.Errorf("failed to create empty app collection: %w", err)
+		}
+		r.appCollection = emptyCollection
+		return nil
+	}
+
+	// Create app instances slice with initial capacity
+	validApps := make([]apps.App, 0, len(r.currentConfig.Apps))
+
+	// Process each app definition
+	for _, appDef := range r.currentConfig.Apps {
+		// Create app instance based on type
+		creator, exists := apps.AvailableAppImplementations[appDef.Config.Type()]
+		if !exists {
+			continue
+		}
+
+		app, err := creator(appDef.ID, appDef.Config)
+		if err != nil {
+			return fmt.Errorf("failed to create app %s: %w", appDef.ID, err)
+		}
+
+		validApps = append(validApps, app)
+	}
+
+	// Create new immutable app collection
+	newCollection, err := apps.NewAppCollection(validApps)
+	if err != nil {
+		return fmt.Errorf("failed to create app collection: %w", err)
+	}
+
+	// Update app collection reference
+	r.appCollection = newCollection
+	return nil
+}
+
 // boot initializes the runner configuration without starting it.
 // This is primarily used in tests to load the configuration without running services.
 func (r *Runner) boot() error {
@@ -99,9 +148,11 @@ func (r *Runner) boot() error {
 
 	// Get the initial configuration
 	domainConfig := r.configCallback()
+
 	r.currentConfig = &domainConfig
 
-	return nil
+	// Create app instances from the domain config
+	return r.updateAppsFromConfig()
 }
 
 // Run implements the supervisor.Runnable interface.
@@ -193,9 +244,16 @@ func (r *Runner) Reload() {
 
 	domainConfig := r.configCallback()
 
-	// Update the current config - this will be picked up by GetHTTPConfigCallback
-	// when the composite runner calls it
+	// Update the current config
 	r.currentConfig = &domainConfig
+
+	// Update apps from the new configuration
+	if err := r.updateAppsFromConfig(); err != nil {
+		r.logger.Error("Failed to update apps from config", "error", err)
+		r.serverErrors <- fmt.Errorf("failed to update apps during reload: %w", err)
+		return
+	}
+
 	r.logger.Debug("Configuration reloaded successfully")
 }
 
@@ -217,7 +275,7 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 		}
 
 		// Create a config adapter to handle conversion between domain and runtime models
-		adapter := NewConfigAdapter(r.currentConfig, r.appRegistry, r.logger)
+		adapter := NewConfigAdapter(r.currentConfig, r.appCollection, r.logger)
 
 		// Create or update the route registry if needed
 		if routeRegistry == nil {
@@ -225,7 +283,7 @@ func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
 			routingCallback := adapter.RoutingConfigCallback()
 
 			// Create a new route registry
-			routeRegistry = routing.NewRegistry(r.appRegistry, routingCallback, r.logger)
+			routeRegistry = routing.NewRegistry(r.appCollection, routingCallback, r.logger)
 
 			// Initial load of route configuration
 			if err := routeRegistry.Reload(); err != nil {

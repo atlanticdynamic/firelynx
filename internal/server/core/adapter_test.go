@@ -152,8 +152,8 @@ func TestNewConfigAdapter(t *testing.T) {
 	if adapter.domainConfig != domainConfig {
 		t.Errorf("Expected domainConfig to be set")
 	}
-	if adapter.appRegistry != appRegistry {
-		t.Errorf("Expected appRegistry to be set")
+	if adapter.appCollection != appRegistry {
+		t.Errorf("Expected appCollection to be set")
 	}
 	if adapter.logger != logger {
 		t.Errorf("Expected logger to be set")

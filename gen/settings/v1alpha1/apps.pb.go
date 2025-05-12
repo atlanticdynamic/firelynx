@@ -22,21 +22,79 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type AppType int32
+
+const (
+	AppType_APP_TYPE_UNSPECIFIED      AppType = 0
+	AppType_APP_TYPE_SCRIPT           AppType = 1
+	AppType_APP_TYPE_COMPOSITE_SCRIPT AppType = 2
+	AppType_APP_TYPE_ECHO             AppType = 3
+)
+
+// Enum value maps for AppType.
+var (
+	AppType_name = map[int32]string{
+		0: "APP_TYPE_UNSPECIFIED",
+		1: "APP_TYPE_SCRIPT",
+		2: "APP_TYPE_COMPOSITE_SCRIPT",
+		3: "APP_TYPE_ECHO",
+	}
+	AppType_value = map[string]int32{
+		"APP_TYPE_UNSPECIFIED":      0,
+		"APP_TYPE_SCRIPT":           1,
+		"APP_TYPE_COMPOSITE_SCRIPT": 2,
+		"APP_TYPE_ECHO":             3,
+	}
+)
+
+func (x AppType) Enum() *AppType {
+	p := new(AppType)
+	*p = x
+	return p
+}
+
+func (x AppType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AppType) Descriptor() protoreflect.EnumDescriptor {
+	return file_settings_v1alpha1_apps_proto_enumTypes[0].Descriptor()
+}
+
+func (AppType) Type() protoreflect.EnumType {
+	return &file_settings_v1alpha1_apps_proto_enumTypes[0]
+}
+
+func (x AppType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AppType.Descriptor instead.
+func (AppType) EnumDescriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{0}
+}
+
 // App definitions (reusable across endpoints)
 type AppDefinition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"` // The unique name or identifier for the app
+	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                           // The unique name or identifier for the app
+	Type  *AppType               `protobuf:"varint,2,opt,name=type,enum=settings.v1alpha1.AppType,def=0" json:"type,omitempty"` // The type of app
 	// The configuration for the app
 	//
-	// Types that are valid to be assigned to AppConfig:
+	// Types that are valid to be assigned to Config:
 	//
 	//	*AppDefinition_Script
 	//	*AppDefinition_CompositeScript
 	//	*AppDefinition_Echo
-	AppConfig     isAppDefinition_AppConfig `protobuf_oneof:"app_config"`
+	Config        isAppDefinition_Config `protobuf_oneof:"config"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
+
+// Default values for AppDefinition fields.
+const (
+	Default_AppDefinition_Type = AppType_APP_TYPE_UNSPECIFIED
+)
 
 func (x *AppDefinition) Reset() {
 	*x = AppDefinition{}
@@ -75,25 +133,32 @@ func (x *AppDefinition) GetId() string {
 	return ""
 }
 
-func (x *AppDefinition) GetAppConfig() isAppDefinition_AppConfig {
+func (x *AppDefinition) GetType() AppType {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return Default_AppDefinition_Type
+}
+
+func (x *AppDefinition) GetConfig() isAppDefinition_Config {
 	if x != nil {
-		return x.AppConfig
+		return x.Config
 	}
 	return nil
 }
 
-func (x *AppDefinition) GetScript() *AppScript {
+func (x *AppDefinition) GetScript() *ScriptApp {
 	if x != nil {
-		if x, ok := x.AppConfig.(*AppDefinition_Script); ok {
+		if x, ok := x.Config.(*AppDefinition_Script); ok {
 			return x.Script
 		}
 	}
 	return nil
 }
 
-func (x *AppDefinition) GetCompositeScript() *AppCompositeScript {
+func (x *AppDefinition) GetCompositeScript() *CompositeScriptApp {
 	if x != nil {
-		if x, ok := x.AppConfig.(*AppDefinition_CompositeScript); ok {
+		if x, ok := x.Config.(*AppDefinition_CompositeScript); ok {
 			return x.CompositeScript
 		}
 	}
@@ -102,63 +167,63 @@ func (x *AppDefinition) GetCompositeScript() *AppCompositeScript {
 
 func (x *AppDefinition) GetEcho() *EchoApp {
 	if x != nil {
-		if x, ok := x.AppConfig.(*AppDefinition_Echo); ok {
+		if x, ok := x.Config.(*AppDefinition_Echo); ok {
 			return x.Echo
 		}
 	}
 	return nil
 }
 
-type isAppDefinition_AppConfig interface {
-	isAppDefinition_AppConfig()
+type isAppDefinition_Config interface {
+	isAppDefinition_Config()
 }
 
 type AppDefinition_Script struct {
-	Script *AppScript `protobuf:"bytes,3,opt,name=script,oneof"`
+	Script *ScriptApp `protobuf:"bytes,3,opt,name=script,oneof"`
 }
 
 type AppDefinition_CompositeScript struct {
-	CompositeScript *AppCompositeScript `protobuf:"bytes,4,opt,name=composite_script,json=compositeScript,oneof"`
+	CompositeScript *CompositeScriptApp `protobuf:"bytes,4,opt,name=composite_script,json=compositeScript,oneof"`
 }
 
 type AppDefinition_Echo struct {
 	Echo *EchoApp `protobuf:"bytes,5,opt,name=echo,oneof"`
 }
 
-func (*AppDefinition_Script) isAppDefinition_AppConfig() {}
+func (*AppDefinition_Script) isAppDefinition_Config() {}
 
-func (*AppDefinition_CompositeScript) isAppDefinition_AppConfig() {}
+func (*AppDefinition_CompositeScript) isAppDefinition_Config() {}
 
-func (*AppDefinition_Echo) isAppDefinition_AppConfig() {}
+func (*AppDefinition_Echo) isAppDefinition_Config() {}
 
 // Individual script application
-type AppScript struct {
+type ScriptApp struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	StaticData *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
 	// Types that are valid to be assigned to Evaluator:
 	//
-	//	*AppScript_Risor
-	//	*AppScript_Starlark
-	//	*AppScript_Extism
-	Evaluator     isAppScript_Evaluator `protobuf_oneof:"evaluator"`
+	//	*ScriptApp_Risor
+	//	*ScriptApp_Starlark
+	//	*ScriptApp_Extism
+	Evaluator     isScriptApp_Evaluator `protobuf_oneof:"evaluator"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AppScript) Reset() {
-	*x = AppScript{}
+func (x *ScriptApp) Reset() {
+	*x = ScriptApp{}
 	mi := &file_settings_v1alpha1_apps_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AppScript) String() string {
+func (x *ScriptApp) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AppScript) ProtoMessage() {}
+func (*ScriptApp) ProtoMessage() {}
 
-func (x *AppScript) ProtoReflect() protoreflect.Message {
+func (x *ScriptApp) ProtoReflect() protoreflect.Message {
 	mi := &file_settings_v1alpha1_apps_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -170,73 +235,73 @@ func (x *AppScript) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AppScript.ProtoReflect.Descriptor instead.
-func (*AppScript) Descriptor() ([]byte, []int) {
+// Deprecated: Use ScriptApp.ProtoReflect.Descriptor instead.
+func (*ScriptApp) Descriptor() ([]byte, []int) {
 	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *AppScript) GetStaticData() *StaticData {
+func (x *ScriptApp) GetStaticData() *StaticData {
 	if x != nil {
 		return x.StaticData
 	}
 	return nil
 }
 
-func (x *AppScript) GetEvaluator() isAppScript_Evaluator {
+func (x *ScriptApp) GetEvaluator() isScriptApp_Evaluator {
 	if x != nil {
 		return x.Evaluator
 	}
 	return nil
 }
 
-func (x *AppScript) GetRisor() *RisorEvaluator {
+func (x *ScriptApp) GetRisor() *RisorEvaluator {
 	if x != nil {
-		if x, ok := x.Evaluator.(*AppScript_Risor); ok {
+		if x, ok := x.Evaluator.(*ScriptApp_Risor); ok {
 			return x.Risor
 		}
 	}
 	return nil
 }
 
-func (x *AppScript) GetStarlark() *StarlarkEvaluator {
+func (x *ScriptApp) GetStarlark() *StarlarkEvaluator {
 	if x != nil {
-		if x, ok := x.Evaluator.(*AppScript_Starlark); ok {
+		if x, ok := x.Evaluator.(*ScriptApp_Starlark); ok {
 			return x.Starlark
 		}
 	}
 	return nil
 }
 
-func (x *AppScript) GetExtism() *ExtismEvaluator {
+func (x *ScriptApp) GetExtism() *ExtismEvaluator {
 	if x != nil {
-		if x, ok := x.Evaluator.(*AppScript_Extism); ok {
+		if x, ok := x.Evaluator.(*ScriptApp_Extism); ok {
 			return x.Extism
 		}
 	}
 	return nil
 }
 
-type isAppScript_Evaluator interface {
-	isAppScript_Evaluator()
+type isScriptApp_Evaluator interface {
+	isScriptApp_Evaluator()
 }
 
-type AppScript_Risor struct {
+type ScriptApp_Risor struct {
 	Risor *RisorEvaluator `protobuf:"bytes,3,opt,name=risor,oneof"`
 }
 
-type AppScript_Starlark struct {
+type ScriptApp_Starlark struct {
 	Starlark *StarlarkEvaluator `protobuf:"bytes,4,opt,name=starlark,oneof"`
 }
 
-type AppScript_Extism struct {
+type ScriptApp_Extism struct {
 	Extism *ExtismEvaluator `protobuf:"bytes,5,opt,name=extism,oneof"`
 }
 
-func (*AppScript_Risor) isAppScript_Evaluator() {}
+func (*ScriptApp_Risor) isScriptApp_Evaluator() {}
 
-func (*AppScript_Starlark) isAppScript_Evaluator() {}
+func (*ScriptApp_Starlark) isScriptApp_Evaluator() {}
 
-func (*AppScript_Extism) isAppScript_Evaluator() {}
+func (*ScriptApp_Extism) isScriptApp_Evaluator() {}
 
 type RisorEvaluator struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -395,28 +460,28 @@ func (x *ExtismEvaluator) GetEntrypoint() string {
 }
 
 // Composite script that combines multiple scripts
-type AppCompositeScript struct {
+type CompositeScriptApp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ScriptAppIds  []string               `protobuf:"bytes,1,rep,name=script_app_ids,json=scriptAppIds" json:"script_app_ids,omitempty"` // IDs of script apps to run in sequence
+	ScriptAppIds  []string               `protobuf:"bytes,1,rep,name=script_app_ids,json=scriptAppIds" json:"script_app_ids,omitempty"` // IDs of ScriptApp to run in sequence
 	StaticData    *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AppCompositeScript) Reset() {
-	*x = AppCompositeScript{}
+func (x *CompositeScriptApp) Reset() {
+	*x = CompositeScriptApp{}
 	mi := &file_settings_v1alpha1_apps_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AppCompositeScript) String() string {
+func (x *CompositeScriptApp) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AppCompositeScript) ProtoMessage() {}
+func (*CompositeScriptApp) ProtoMessage() {}
 
-func (x *AppCompositeScript) ProtoReflect() protoreflect.Message {
+func (x *CompositeScriptApp) ProtoReflect() protoreflect.Message {
 	mi := &file_settings_v1alpha1_apps_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -428,19 +493,19 @@ func (x *AppCompositeScript) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AppCompositeScript.ProtoReflect.Descriptor instead.
-func (*AppCompositeScript) Descriptor() ([]byte, []int) {
+// Deprecated: Use CompositeScriptApp.ProtoReflect.Descriptor instead.
+func (*CompositeScriptApp) Descriptor() ([]byte, []int) {
 	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *AppCompositeScript) GetScriptAppIds() []string {
+func (x *CompositeScriptApp) GetScriptAppIds() []string {
 	if x != nil {
 		return x.ScriptAppIds
 	}
 	return nil
 }
 
-func (x *AppCompositeScript) GetStaticData() *StaticData {
+func (x *CompositeScriptApp) GetStaticData() *StaticData {
 	if x != nil {
 		return x.StaticData
 	}
@@ -496,15 +561,15 @@ var File_settings_v1alpha1_apps_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\n" +
-	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a#settings/v1alpha1/static_data.proto\"\xeb\x01\n" +
+	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a#settings/v1alpha1/static_data.proto\"\xad\x02\n" +
 	"\rAppDefinition\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x126\n" +
-	"\x06script\x18\x03 \x01(\v2\x1c.settings.v1alpha1.AppScriptH\x00R\x06script\x12R\n" +
-	"\x10composite_script\x18\x04 \x01(\v2%.settings.v1alpha1.AppCompositeScriptH\x00R\x0fcompositeScript\x120\n" +
-	"\x04echo\x18\x05 \x01(\v2\x1a.settings.v1alpha1.EchoAppH\x00R\x04echoB\f\n" +
-	"\n" +
-	"app_config\"\x95\x02\n" +
-	"\tAppScript\x12>\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12D\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x1a.settings.v1alpha1.AppType:\x14APP_TYPE_UNSPECIFIEDR\x04type\x126\n" +
+	"\x06script\x18\x03 \x01(\v2\x1c.settings.v1alpha1.ScriptAppH\x00R\x06script\x12R\n" +
+	"\x10composite_script\x18\x04 \x01(\v2%.settings.v1alpha1.CompositeScriptAppH\x00R\x0fcompositeScript\x120\n" +
+	"\x04echo\x18\x05 \x01(\v2\x1a.settings.v1alpha1.EchoAppH\x00R\x04echoB\b\n" +
+	"\x06config\"\x95\x02\n" +
+	"\tScriptApp\x12>\n" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
 	"staticData\x129\n" +
 	"\x05risor\x18\x03 \x01(\v2!.settings.v1alpha1.RisorEvaluatorH\x00R\x05risor\x12B\n" +
@@ -522,12 +587,17 @@ const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\n" +
 	"entrypoint\x18\x02 \x01(\tR\n" +
 	"entrypoint\"z\n" +
-	"\x12AppCompositeScript\x12$\n" +
+	"\x12CompositeScriptApp\x12$\n" +
 	"\x0escript_app_ids\x18\x01 \x03(\tR\fscriptAppIds\x12>\n" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
 	"staticData\"%\n" +
 	"\aEchoApp\x12\x1a\n" +
-	"\bresponse\x18\x01 \x01(\tR\bresponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
+	"\bresponse\x18\x01 \x01(\tR\bresponse*j\n" +
+	"\aAppType\x12\x18\n" +
+	"\x14APP_TYPE_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fAPP_TYPE_SCRIPT\x10\x01\x12\x1d\n" +
+	"\x19APP_TYPE_COMPOSITE_SCRIPT\x10\x02\x12\x11\n" +
+	"\rAPP_TYPE_ECHO\x10\x03B;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_apps_proto_rawDescOnce sync.Once
@@ -541,34 +611,37 @@ func file_settings_v1alpha1_apps_proto_rawDescGZIP() []byte {
 	return file_settings_v1alpha1_apps_proto_rawDescData
 }
 
+var file_settings_v1alpha1_apps_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_settings_v1alpha1_apps_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_settings_v1alpha1_apps_proto_goTypes = []any{
-	(*AppDefinition)(nil),       // 0: settings.v1alpha1.AppDefinition
-	(*AppScript)(nil),           // 1: settings.v1alpha1.AppScript
-	(*RisorEvaluator)(nil),      // 2: settings.v1alpha1.RisorEvaluator
-	(*StarlarkEvaluator)(nil),   // 3: settings.v1alpha1.StarlarkEvaluator
-	(*ExtismEvaluator)(nil),     // 4: settings.v1alpha1.ExtismEvaluator
-	(*AppCompositeScript)(nil),  // 5: settings.v1alpha1.AppCompositeScript
-	(*EchoApp)(nil),             // 6: settings.v1alpha1.EchoApp
-	(*StaticData)(nil),          // 7: settings.v1alpha1.StaticData
-	(*durationpb.Duration)(nil), // 8: google.protobuf.Duration
+	(AppType)(0),                // 0: settings.v1alpha1.AppType
+	(*AppDefinition)(nil),       // 1: settings.v1alpha1.AppDefinition
+	(*ScriptApp)(nil),           // 2: settings.v1alpha1.ScriptApp
+	(*RisorEvaluator)(nil),      // 3: settings.v1alpha1.RisorEvaluator
+	(*StarlarkEvaluator)(nil),   // 4: settings.v1alpha1.StarlarkEvaluator
+	(*ExtismEvaluator)(nil),     // 5: settings.v1alpha1.ExtismEvaluator
+	(*CompositeScriptApp)(nil),  // 6: settings.v1alpha1.CompositeScriptApp
+	(*EchoApp)(nil),             // 7: settings.v1alpha1.EchoApp
+	(*StaticData)(nil),          // 8: settings.v1alpha1.StaticData
+	(*durationpb.Duration)(nil), // 9: google.protobuf.Duration
 }
 var file_settings_v1alpha1_apps_proto_depIdxs = []int32{
-	1,  // 0: settings.v1alpha1.AppDefinition.script:type_name -> settings.v1alpha1.AppScript
-	5,  // 1: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.AppCompositeScript
-	6,  // 2: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.EchoApp
-	7,  // 3: settings.v1alpha1.AppScript.static_data:type_name -> settings.v1alpha1.StaticData
-	2,  // 4: settings.v1alpha1.AppScript.risor:type_name -> settings.v1alpha1.RisorEvaluator
-	3,  // 5: settings.v1alpha1.AppScript.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
-	4,  // 6: settings.v1alpha1.AppScript.extism:type_name -> settings.v1alpha1.ExtismEvaluator
-	8,  // 7: settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
-	8,  // 8: settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
-	7,  // 9: settings.v1alpha1.AppCompositeScript.static_data:type_name -> settings.v1alpha1.StaticData
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	0,  // 0: settings.v1alpha1.AppDefinition.type:type_name -> settings.v1alpha1.AppType
+	2,  // 1: settings.v1alpha1.AppDefinition.script:type_name -> settings.v1alpha1.ScriptApp
+	6,  // 2: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.CompositeScriptApp
+	7,  // 3: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.EchoApp
+	8,  // 4: settings.v1alpha1.ScriptApp.static_data:type_name -> settings.v1alpha1.StaticData
+	3,  // 5: settings.v1alpha1.ScriptApp.risor:type_name -> settings.v1alpha1.RisorEvaluator
+	4,  // 6: settings.v1alpha1.ScriptApp.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
+	5,  // 7: settings.v1alpha1.ScriptApp.extism:type_name -> settings.v1alpha1.ExtismEvaluator
+	9,  // 8: settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
+	9,  // 9: settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
+	8,  // 10: settings.v1alpha1.CompositeScriptApp.static_data:type_name -> settings.v1alpha1.StaticData
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_apps_proto_init() }
@@ -583,22 +656,23 @@ func file_settings_v1alpha1_apps_proto_init() {
 		(*AppDefinition_Echo)(nil),
 	}
 	file_settings_v1alpha1_apps_proto_msgTypes[1].OneofWrappers = []any{
-		(*AppScript_Risor)(nil),
-		(*AppScript_Starlark)(nil),
-		(*AppScript_Extism)(nil),
+		(*ScriptApp_Risor)(nil),
+		(*ScriptApp_Starlark)(nil),
+		(*ScriptApp_Extism)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_apps_proto_rawDesc), len(file_settings_v1alpha1_apps_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_settings_v1alpha1_apps_proto_goTypes,
 		DependencyIndexes: file_settings_v1alpha1_apps_proto_depIdxs,
+		EnumInfos:         file_settings_v1alpha1_apps_proto_enumTypes,
 		MessageInfos:      file_settings_v1alpha1_apps_proto_msgTypes,
 	}.Build()
 	File_settings_v1alpha1_apps_proto = out.File
