@@ -54,8 +54,6 @@ func TestAppValidate(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			err := tc.app.Validate()
 
 			if tc.expectError {
@@ -158,8 +156,6 @@ func TestAppCollectionValidate(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			err := tc.apps.Validate()
 
 			if tc.expectError {
@@ -246,8 +242,6 @@ func TestAppCollectionFindByID(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			app := apps.FindByID(tc.id)
 
 			if tc.expectNil {
@@ -320,8 +314,6 @@ func TestValidateRouteAppReferencesWithBuiltIns(t *testing.T) {
 	for _, tc := range tests {
 		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			err := tc.apps.ValidateRouteAppReferencesWithBuiltIns(tc.routes, tc.builtInAppIDs)
 
 			if tc.expectError {
