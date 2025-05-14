@@ -1,0 +1,41 @@
+version = "v1"
+
+[[listeners]]
+id = "http_listener"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "1s"
+write_timeout = "1s"
+idle_timeout = "1s"
+drain_timeout = "1s"
+
+[[endpoints]]
+id = "mixed_endpoint"
+listener_id = "http_listener"
+
+[[endpoints.routes]]
+app_id = "echo_app"
+[endpoints.routes.http]
+path_prefix = "/echo1"
+
+[[endpoints.routes]]
+app_id = "echo_app"
+[endpoints.routes.http]
+path_prefix = "/echo2"
+
+[[endpoints.routes]]
+app_id = "grpc_app"
+[endpoints.routes.grpc]
+service = "test.Service"
+
+[[apps]]
+id = "echo_app"
+[apps.echo]
+response = "Test response"
+
+[[apps]]
+id = "grpc_app"
+[apps.echo]
+response = "GRPC response"

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -120,10 +121,12 @@ func clientGetAction(ctx context.Context, cmd *cli.Command) error {
 		return nil
 	}
 
-	// Print the configuration to stdout if no output path was provided
-	if err := firelynxClient.PrintConfig(config); err != nil {
+	// Format and print the configuration to stdout if no output path was provided
+	configStr, err := firelynxClient.FormatConfig(config)
+	if err != nil {
 		return cli.Exit(err.Error(), 1)
 	}
+	fmt.Println(configStr)
 
 	return nil
 }

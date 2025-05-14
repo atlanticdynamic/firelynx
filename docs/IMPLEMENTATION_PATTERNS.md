@@ -20,7 +20,7 @@ The firelynx server consists of these key components:
       │                         │
       ▼                         ▼
 ┌───────────────┐      ┌─────────────────┐
-│ Config Manager│      │  Server Core    │
+│ Config Manager│      │Transaction Mgr  │
 │               │◄────►│                 │
 └───────────────┘      └─────────────────┘
 ```
@@ -30,7 +30,7 @@ The firelynx server consists of these key components:
 1. **CLI Layer**: Handles command-line arguments, creates components, and coordinates lifecycle
 2. **Component Coordinator**: Manages component communication and lifecycle using contexts and channels
 3. **Config Manager**: Handles configuration loading, validation, and updates via gRPC
-4. **Server Core**: Processes configuration and implements server functionality
+4. **Transaction Manager**: Manages configuration transactions and implements adapter functionality
 
 ## Client-Server Data Flow
 
@@ -110,21 +110,27 @@ func (cm *ConfigManager) UpdateConfig(ctx context.Context, req *pb.UpdateConfigR
 }
 ```
 
-## ServerCore Pattern
+## Transaction Manager Pattern
 
-The ServerCore implements these key responsibilities:
+The Transaction Manager implements these key responsibilities:
 
-1. **Configuration Processing**: Process configurations received from ConfigManager
-2. **Reload Handling**: Handle configuration changes with proper locking
-3. **Lifecycle Management**: Manage server component lifecycle with context
+1. **Transaction Management**: Manage the lifecycle of configuration transactions
+2. **Configuration Processing**: Process configurations received from ConfigManager
+3. **Two-Phase Commit**: Coordinate preparation and commit phases for config updates
+4. **Adapter Functionality**: Provide component-specific adapters for the domain config
+5. **Lifecycle Management**: Manage component lifecycle with context
 
 Example implementation pattern:
 
 ```go
-// ServerCore implements the core server functionality
-type ServerCore struct {
+// TransactionManager implements transaction management for configuration changes
+type TransactionManager struct {
     logger     *slog.Logger
     configFunc func() *pb.ServerConfig
+    
+    // For transaction management
+    subscribers map[string]Subscriber
+    subLock     sync.RWMutex
     
     // For concurrent operations
     reloadLock sync.Mutex
@@ -134,19 +140,23 @@ type ServerCore struct {
     cancel     context.CancelFunc
 }
 
-// Reload handles configuration updates
-func (s *ServerCore) Reload() error {
-    s.reloadLock.Lock()
-    defer s.reloadLock.Unlock()
+// Reload handles configuration updates with two-phase commit
+func (t *TransactionManager) Reload() error {
+    t.reloadLock.Lock()
+    defer t.reloadLock.Unlock()
     
     // Get latest configuration
-    config := s.configFunc()
+    config := t.configFunc()
     
-    // Process the configuration
-    if err := s.processConfig(config); err != nil {
-        return err
+    // Create transaction
+    transaction := NewConfigTransaction(config)
+    
+    // Phase 1: Preparation
+    if err := t.prepareAll(transaction); err != nil {
+        return t.rollback(err)
     }
     
+    // Phase 2: Commit happens via Reload chain
     return nil
 }
 ```

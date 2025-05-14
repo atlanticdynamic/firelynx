@@ -2,12 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
-	"github.com/atlanticdynamic/firelynx/internal/server/cfgrpc"
-	"github.com/atlanticdynamic/firelynx/internal/server/core"
-	"github.com/robbyt/go-supervisor/supervisor"
+	"github.com/atlanticdynamic/firelynx/cmd/firelynx/server"
 	"github.com/urfave/cli/v3"
 )
 
@@ -29,50 +26,13 @@ var serverCmd = &cli.Command{
 	Action: func(ctx context.Context, cmd *cli.Command) error {
 		configPath := cmd.String("config")
 		listenAddr := cmd.String("listen")
-
-		// Require at least one of --config or --listen
 		if configPath == "" && listenAddr == "" {
-			return cli.Exit("Either --config or --listen flag is required", 1)
+			return cli.Exit("either --config or --listen flag is required", 1)
 		}
 
-		logger := slog.Default()
-
-		cManager, err := cfgrpc.New(
-			cfgrpc.WithLogger(logger.With("component", "cfgrpc")),
-			cfgrpc.WithListenAddr(listenAddr),
-			cfgrpc.WithConfigPath(configPath),
-		)
-		if err != nil {
-			return cli.Exit(fmt.Errorf("failed to create config manager: %w", err), 1)
+		if err := server.Run(ctx, slog.Default(), configPath, listenAddr); err != nil {
+			return cli.Exit(err.Error(), 1)
 		}
-
-		serverCore, err := core.New(
-			core.WithLogger(logger.With("component", "core")),
-			core.WithConfigCallback(cManager.GetConfigClone),
-		)
-		if err != nil {
-			return cli.Exit(fmt.Errorf("failed to create server core: %w", err), 1)
-		}
-
-		// Create a list of runnables to manage, order is important
-		runnables := []supervisor.Runnable{
-			cManager,
-			serverCore,
-		}
-
-		super, err := supervisor.New(
-			supervisor.WithRunnables(runnables...),
-			supervisor.WithLogHandler(slog.Default().Handler()),
-			supervisor.WithContext(ctx),
-		)
-		if err != nil {
-			return cli.Exit(fmt.Errorf("failed to create supervisor: %w", err), 1)
-		}
-		if err := super.Run(); err != nil {
-			return cli.Exit(fmt.Errorf("failed to run server: %w", err), 1)
-		}
-
-		logger.Info("Server shutdown complete")
 		return nil
 	},
 }

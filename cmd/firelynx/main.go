@@ -22,7 +22,7 @@ func main() {
 				Value:   "info",
 				Aliases: []string{"log"},
 				Action: func(ctx context.Context, cmd *cli.Command, v string) error {
-					setupLogger(v)
+					SetupLogger(v)
 					return nil
 				},
 			},

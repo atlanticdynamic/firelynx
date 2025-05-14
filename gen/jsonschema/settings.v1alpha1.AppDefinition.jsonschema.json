@@ -1,0 +1,46 @@
+{
+  "$id": "settings.v1alpha1.AppDefinition.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "App definitions (reusable across endpoints)",
+  "patternProperties": {
+    "^(composite_script)$": {
+      "$ref": "settings.v1alpha1.CompositeScriptApp.jsonschema.json"
+    }
+  },
+  "properties": {
+    "compositeScript": {
+      "$ref": "settings.v1alpha1.CompositeScriptApp.jsonschema.json"
+    },
+    "echo": {
+      "$ref": "settings.v1alpha1.EchoApp.jsonschema.json"
+    },
+    "id": {
+      "type": "string"
+    },
+    "script": {
+      "$ref": "settings.v1alpha1.ScriptApp.jsonschema.json"
+    },
+    "type": {
+      "anyOf": [
+        {
+          "enum": [
+            "APP_TYPE_UNSPECIFIED",
+            "APP_TYPE_SCRIPT",
+            "APP_TYPE_COMPOSITE_SCRIPT",
+            "APP_TYPE_ECHO"
+          ],
+          "title": "App Type",
+          "type": "string"
+        },
+        {
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "title": "App Definition",
+  "type": "object"
+}

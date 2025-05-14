@@ -1,13 +1,24 @@
 package config
 
 import (
-	"google.golang.org/protobuf/types/known/durationpb"
+	"errors"
+	"fmt"
+	"io"
+
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/loader"
+	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
+	"github.com/atlanticdynamic/firelynx/internal/config/logs"
+	"github.com/atlanticdynamic/firelynx/internal/config/version"
 )
 
 // Configuration version constants
 const (
 	// VersionLatest is the latest supported configuration version
-	VersionLatest = "v1"
+	VersionLatest = version.Version
 
 	// VersionUnknown is used when a version is not specified
 	VersionUnknown = "unknown"
@@ -16,197 +27,146 @@ const (
 // Config represents the complete server configuration
 type Config struct {
 	Version   string
-	Logging   LoggingConfig
-	Listeners []Listener
-	Endpoints []Endpoint
-	Apps      []App
+	Logging   logs.Config
+	Listeners listeners.ListenerCollection
+	Endpoints endpoints.EndpointCollection
+	Apps      apps.AppCollection
 
 	// Keep reference to raw protobuf for debugging
 	rawProto any
 }
 
-// Listener represents a network listener configuration
-type Listener struct {
-	ID      string
-	Address string
-	Type    ListenerType
-	Options ListenerOptions
+// NewConfig loads configuration from a TOML file path, converts it to the domain model, and validates it.
+func NewConfig(filePath string) (*Config, error) {
+	// Get loader from file
+	ld, err := loader.NewLoaderFromFilePath(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	// use the loader implementation to return a protobuf object
+	protoConfig, err := ld.LoadProto()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	config, err := NewFromProto(protoConfig)
+	if err != nil {
+		// Error during conversion
+		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+	}
+
+	// Validate the domain config
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
+	}
+
+	return config, nil
 }
 
-// ListenerType represents the protocol used by a listener
-type ListenerType string
+// NewFromProto creates a domain Config from a protobuf ServerConfig with proper initialization.
+// This is the recommended function for converting from protobuf to domain model as it handles
+// defaults, validation, and proper error collection.
+func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
+	if pbConfig == nil {
+		return nil, fmt.Errorf("nil protobuf config")
+	}
 
-// Constants for ListenerType
-const (
-	ListenerTypeHTTP ListenerType = "http"
-	ListenerTypeGRPC ListenerType = "grpc"
-)
+	// Create a new domain config
+	config := &Config{
+		Version:  VersionLatest,
+		rawProto: pbConfig,
+		Apps:     apps.AppCollection{},
+	}
 
-// ListenerOptions represents protocol-specific options for listeners
-type ListenerOptions interface {
-	Type() ListenerType
-}
+	if pbConfig.Version != nil && *pbConfig.Version != "" {
+		config.Version = *pbConfig.Version
+	}
 
-// HTTPListenerOptions contains HTTP-specific listener configuration
-type HTTPListenerOptions struct {
-	ReadTimeout  *durationpb.Duration
-	WriteTimeout *durationpb.Duration
-	DrainTimeout *durationpb.Duration
-}
+	if pbConfig.Logging != nil {
+		config.Logging = logs.FromProto(pbConfig.Logging)
+	}
 
-func (h HTTPListenerOptions) Type() ListenerType { return ListenerTypeHTTP }
+	if pbConfig.Listeners != nil {
+		listeners, err := listeners.FromProto(pbConfig.Listeners)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+		}
+		config.Listeners = listeners
+	}
 
-// GRPCListenerOptions contains gRPC-specific listener configuration
-type GRPCListenerOptions struct {
-	MaxConnectionIdle    *durationpb.Duration
-	MaxConnectionAge     *durationpb.Duration
-	MaxConcurrentStreams int
-}
+	if pbConfig.Endpoints != nil {
+		// Convert endpoints using endpoints package's FromProto function
+		endpointsList, err := endpoints.FromProto(pbConfig.Endpoints)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+		}
+		config.Endpoints = endpointsList
+	}
 
-func (g GRPCListenerOptions) Type() ListenerType { return ListenerTypeGRPC }
-
-// Endpoint represents a routing configuration for incoming requests
-type Endpoint struct {
-	ID          string
-	ListenerIDs []string
-	Routes      []Route
-}
-
-// Route represents a rule for directing traffic to an application
-type Route struct {
-	AppID      string
-	StaticData map[string]any
-	Condition  RouteCondition
-}
-
-// RouteCondition represents a matching condition for a route
-type RouteCondition interface {
-	Type() string
-	Value() string
-}
-
-// HTTPPathCondition matches requests based on HTTP path
-type HTTPPathCondition struct {
-	Path string
-}
-
-func (h HTTPPathCondition) Type() string  { return "http_path" }
-func (h HTTPPathCondition) Value() string { return h.Path }
-
-// GRPCServiceCondition matches requests based on gRPC service name
-type GRPCServiceCondition struct {
-	Service string
-}
-
-func (g GRPCServiceCondition) Type() string  { return "grpc_service" }
-func (g GRPCServiceCondition) Value() string { return g.Service }
-
-// MCPResourceCondition matches requests based on MCP resource
-type MCPResourceCondition struct {
-	Resource string
-}
-
-func (m MCPResourceCondition) Type() string  { return "mcp_resource" }
-func (m MCPResourceCondition) Value() string { return m.Resource }
-
-// App represents an application definition
-type App struct {
-	ID     string
-	Config AppConfig
-}
-
-// AppConfig represents application-specific configuration
-type AppConfig interface {
-	Type() string
-}
-
-// StaticDataMergeMode represents strategies for merging static data
-type StaticDataMergeMode string
-
-// Constants for StaticDataMergeMode
-const (
-	StaticDataMergeModeUnspecified StaticDataMergeMode = ""
-	StaticDataMergeModeLast        StaticDataMergeMode = "last"
-	StaticDataMergeModeUnique      StaticDataMergeMode = "unique"
-)
-
-// StaticData represents configuration data passed to applications
-type StaticData struct {
-	Data      map[string]any
-	MergeMode StaticDataMergeMode
-}
-
-// ScriptApp represents a script-based application
-type ScriptApp struct {
-	StaticData StaticData
-	Evaluator  ScriptEvaluator
-}
-
-func (s ScriptApp) Type() string { return "script" }
-
-// ScriptEvaluator represents a script execution engine
-type ScriptEvaluator interface {
-	Type() string
-}
-
-// RisorEvaluator executes Risor scripts
-type RisorEvaluator struct {
-	Code    string
-	Timeout *durationpb.Duration
-}
-
-func (r RisorEvaluator) Type() string { return "risor" }
-
-// StarlarkEvaluator executes Starlark scripts
-type StarlarkEvaluator struct {
-	Code    string
-	Timeout *durationpb.Duration
-}
-
-func (s StarlarkEvaluator) Type() string { return "starlark" }
-
-// ExtismEvaluator executes WebAssembly scripts
-type ExtismEvaluator struct {
-	Code       string
-	Entrypoint string
-}
-
-func (e ExtismEvaluator) Type() string { return "extism" }
-
-// CompositeScriptApp represents an application composed of multiple scripts
-type CompositeScriptApp struct {
-	ScriptAppIDs []string
-	StaticData   StaticData
-}
-
-func (c CompositeScriptApp) Type() string { return "composite_script" }
-
-// FindListener finds a listener by ID
-func (c *Config) FindListener(id string) *Listener {
-	for i, listener := range c.Listeners {
-		if listener.ID == id {
-			return &c.Listeners[i]
+	var appErrz []error
+	if len(pbConfig.Apps) > 0 {
+		appDefinitions, err := apps.FromProto(pbConfig.Apps)
+		if err != nil {
+			appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
+		} else {
+			config.Apps = appDefinitions
 		}
 	}
-	return nil
+
+	return config, errors.Join(appErrz...)
 }
 
-// FindEndpoint finds an endpoint by ID
-func (c *Config) FindEndpoint(id string) *Endpoint {
-	for i, endpoint := range c.Endpoints {
-		if endpoint.ID == id {
-			return &c.Endpoints[i]
-		}
+// NewConfigFromBytes loads configuration from TOML bytes, converts it to the domain model, and validates it.
+func NewConfigFromBytes(data []byte) (*Config, error) {
+	// Create a TOML loader from bytes using a function literal that returns the interface
+	ld, err := loader.NewLoaderFromBytes(data, func(d []byte) loader.Loader {
+		return toml.NewTomlLoader(d)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
-	return nil
+
+	// Load the config into protobuf
+	protoConfig, err := ld.LoadProto()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	config, err := NewFromProto(protoConfig)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+	}
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
+	}
+
+	return config, nil
 }
 
-// FindApp finds an application by ID
-func (c *Config) FindApp(id string) *App {
-	for i, app := range c.Apps {
-		if app.ID == id {
-			return &c.Apps[i]
-		}
+// NewConfigFromReader loads configuration from an io.Reader providing TOML data, converts it, and validates it.
+func NewConfigFromReader(reader io.Reader) (*Config, error) {
+	// Create a TOML loader from reader using a function literal that returns the interface
+	ld, err := loader.NewLoaderFromReader(reader, func(d []byte) loader.Loader {
+		return toml.NewTomlLoader(d)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
 	}
-	return nil
+
+	// Load the config into protobuf
+	protoConfig, err := ld.LoadProto()
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
+	}
+
+	config, err := NewFromProto(protoConfig)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+	}
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
+	}
+
+	return config, nil
 }

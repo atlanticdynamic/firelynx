@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -82,7 +83,7 @@ address = ":9090"
 `
 		reader := strings.NewReader(tomlConfig)
 		loader, err := NewLoaderFromReader(reader, func(data []byte) Loader {
-			return NewTomlLoader(data)
+			return toml.NewTomlLoader(data)
 		})
 		require.NoError(t, err, "Failed to create loader from reader")
 		require.NotNil(t, loader, "Loader should not be nil")
@@ -120,7 +121,7 @@ address = ":9090"
 		// Create a reader that returns an error
 		errReader := &errorReader{err: assert.AnError}
 		_, err := NewLoaderFromReader(errReader, func(data []byte) Loader {
-			return NewTomlLoader(data)
+			return toml.NewTomlLoader(data)
 		})
 		require.Error(t, err, "Expected error from reader")
 		assert.ErrorIs(t, err, ErrFailedToLoadConfig)
@@ -140,7 +141,7 @@ level = "debug"
 `)
 
 		loader, err := NewLoaderFromBytes(configBytes, func(data []byte) Loader {
-			return NewTomlLoader(data)
+			return toml.NewTomlLoader(data)
 		})
 		require.NoError(t, err, "Failed to create loader from bytes")
 		require.NotNil(t, loader, "Loader should not be nil")
@@ -173,7 +174,7 @@ func TestLoaderFunc(t *testing.T) {
 	// Create a custom loader implementation using a lambda
 	customLoader := func(data []byte) Loader {
 		// We can add custom processing logic here
-		return NewTomlLoader(data)
+		return toml.NewTomlLoader(data)
 	}
 
 	// Create a loader with custom implementation

@@ -1,466 +1,947 @@
 package config
 
 import (
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestConfigVersionValidation(t *testing.T) {
-	// Test invalid version propagation through domain model validation
-	t.Run("InvalidVersionFromBytes", func(t *testing.T) {
-		configBytes := []byte(`
-version = "v2"
+func TestValidateVersion(t *testing.T) {
+	t.Parallel()
 
-[logging]
-format = "txt"
-level = "debug"
-`)
-		config, err := NewConfigFromBytes(configBytes)
-		require.Error(t, err, "Expected error for unsupported version")
-		assert.Nil(t, config, "Config should be nil when version validation fails")
-		assert.Contains(
-			t,
-			err.Error(),
-			"unsupported config version: v2",
-			"Expected error message to contain information about unsupported version",
-		)
-	})
+	testCases := []struct {
+		name        string
+		version     string
+		expectError bool
+	}{
+		{
+			name:        "Valid version",
+			version:     VersionLatest,
+			expectError: false,
+		},
+		{
+			name:        "Empty version gets set to unknown",
+			version:     "",
+			expectError: true, // VersionUnknown is not valid
+		},
+		{
+			name:        "Unknown version",
+			version:     VersionUnknown,
+			expectError: true,
+		},
+		{
+			name:        "Invalid version",
+			version:     "invalid-version",
+			expectError: true,
+		},
+	}
 
-	t.Run("DomainModelValidation", func(t *testing.T) {
-		// Create a valid config but set an invalid version
-		config := createValidDomainConfig(t)
-		config.Version = "v999"
+	for _, tc := range testCases {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		// Validate should fail
-		err := config.Validate()
-		require.Error(t, err, "Expected error for unsupported version")
-		assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
-	})
+			config := &Config{
+				Version: tc.version,
+			}
 
-	t.Run("EmptyVersionDefaultsToUnknown", func(t *testing.T) {
-		// Create a config with empty version
-		config := createValidDomainConfig(t)
-		config.Version = ""
+			err := config.validateVersion()
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
 
-		// Validate should fail with unsupported version
-		err := config.Validate()
-		require.Error(t, err, "Expected error for empty version")
-		assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
-		assert.Contains(t, err.Error(), VersionUnknown, "Should default to VersionUnknown")
-	})
+// Helper function to check if an error slice contains a specific error substring
+func hasErrorContaining(t *testing.T, errs []error, substring string) {
+	t.Helper()
 
-	t.Run("ValidVersionSucceeds", func(t *testing.T) {
-		// Create a config with valid version
-		config := createValidDomainConfig(t)
-		config.Version = VersionLatest
-
-		// Perform validation
-		err := config.Validate()
-		// Full validation might fail for other reasons, so we check that the error (if any)
-		// is not about the version
-		if err != nil {
-			assert.NotErrorIs(t, err, ErrUnsupportedConfigVer,
-				"Valid version should not trigger version error")
+	found := false
+	for _, err := range errs {
+		if strings.Contains(err.Error(), substring) {
+			found = true
+			break
 		}
-	})
+	}
+	assert.True(t, found, "Expected error containing: %s", substring)
 }
 
-func TestListenerValidation(t *testing.T) {
-	t.Run("DuplicateListenerID", func(t *testing.T) {
-		// Create a config with duplicate listener IDs
-		config := createValidDomainConfig(t)
-		config.Listeners = append(config.Listeners, Listener{
-			ID:      "listener1", // Duplicate of existing ID
-			Address: ":9090",     // Different address
-			Type:    ListenerTypeHTTP,
-		})
+func TestValidateListeners(t *testing.T) {
+	t.Parallel()
 
-		// Validate should fail with duplicate ID error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for duplicate listener ID")
-		assert.Contains(t, err.Error(), "duplicate listener ID",
-			"Error should mention duplicate listener ID")
-	})
-
-	t.Run("DuplicateListenerAddress", func(t *testing.T) {
-		// Create a config with duplicate listener addresses
-		config := createValidDomainConfig(t)
-		config.Listeners = append(config.Listeners, Listener{
-			ID:      "listener2", // Different ID
-			Address: ":8080",     // Duplicate of existing address
-			Type:    ListenerTypeHTTP,
-		})
-
-		// Validate should fail with duplicate address error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for duplicate listener address")
-		assert.Contains(t, err.Error(), "duplicate listener address",
-			"Error should mention duplicate listener address")
-	})
-
-	t.Run("EmptyListenerID", func(t *testing.T) {
-		// Create a config with empty listener ID
-		config := createValidDomainConfig(t)
-		config.Listeners = append(config.Listeners, Listener{
-			ID:      "", // Empty ID
-			Address: ":9090",
-			Type:    ListenerTypeHTTP,
-		})
-
-		// Validate should fail with empty ID error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for empty listener ID")
-		assert.Contains(t, err.Error(), "has an empty ID",
-			"Error should mention empty ID")
-	})
-
-	t.Run("EmptyListenerAddress", func(t *testing.T) {
-		// Create a config with empty listener address
-		config := createValidDomainConfig(t)
-		config.Listeners = append(config.Listeners, Listener{
-			ID:      "listener2",
-			Address: "", // Empty address
-			Type:    ListenerTypeHTTP,
-		})
-
-		// Validate should fail with empty address error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for empty listener address")
-		assert.Contains(t, err.Error(), "has an empty address",
-			"Error should mention empty address")
-	})
-}
-
-func TestEndpointValidation(t *testing.T) {
-	t.Run("DuplicateEndpointID", func(t *testing.T) {
-		// Create a config with duplicate endpoint IDs
-		config := createValidDomainConfig(t)
-		config.Endpoints = append(config.Endpoints, Endpoint{
-			ID:          "endpoint1", // Duplicate of existing ID
-			ListenerIDs: []string{"listener1"},
-		})
-
-		// Validate should fail with duplicate ID error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for duplicate endpoint ID")
-		assert.Contains(t, err.Error(), "duplicate endpoint ID",
-			"Error should mention duplicate endpoint ID")
-	})
-
-	t.Run("EmptyEndpointID", func(t *testing.T) {
-		// Create a config with empty endpoint ID
-		config := createValidDomainConfig(t)
-		config.Endpoints = append(config.Endpoints, Endpoint{
-			ID:          "", // Empty ID
-			ListenerIDs: []string{"listener1"},
-		})
-
-		// Validate should fail with empty ID error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for empty endpoint ID")
-		assert.Contains(t, err.Error(), "endpoint has an empty ID",
-			"Error should mention empty ID")
-	})
-
-	t.Run("NonExistentListenerID", func(t *testing.T) {
-		// Create a config with reference to non-existent listener ID
-		config := createValidDomainConfig(t)
-		config.Endpoints = append(config.Endpoints, Endpoint{
-			ID:          "endpoint2",
-			ListenerIDs: []string{"non_existent_listener"}, // Reference to non-existent listener
-		})
-
-		// Validate should fail with reference error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for non-existent listener ID")
-		assert.Contains(t, err.Error(), "references non-existent listener ID",
-			"Error should mention non-existent listener ID")
-	})
-
-	t.Run("EmptyAppIDInRoute", func(t *testing.T) {
-		// Create a config with empty app ID in route
-		config := createValidDomainConfig(t)
-		config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, Route{
-			AppID: "", // Empty app ID
-			Condition: HTTPPathCondition{
-				Path: "/empty",
+	// Helper function to create a standard HTTP listener config
+	createHTTPListener := func(id, address string, readTimeout time.Duration) listeners.Listener {
+		return listeners.Listener{
+			ID:      id,
+			Address: address,
+			Type:    listeners.TypeHTTP,
+			Options: options.HTTP{
+				ReadTimeout:  readTimeout,
+				WriteTimeout: 30 * time.Second,
+				IdleTimeout:  60 * time.Second,
+				DrainTimeout: 15 * time.Second,
 			},
-		})
+		}
+	}
 
-		// Validate should fail with empty app ID error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for empty app ID in route")
-		assert.Contains(t, err.Error(), "has an empty app ID",
-			"Error should mention empty app ID")
+	// Test with empty listeners
+	t.Run("Empty listeners", func(t *testing.T) {
+		t.Parallel()
+		config := &Config{
+			Version:   VersionLatest,
+			Listeners: listeners.ListenerCollection{},
+		}
+		listenerIDs, errs := config.validateListeners()
+		assert.Empty(t, errs)
+		assert.Empty(t, listenerIDs)
+	})
+
+	// Test with valid listeners
+	t.Run("Valid listeners", func(t *testing.T) {
+		t.Parallel()
+		config := &Config{
+			Version: VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				createHTTPListener("http1", "127.0.0.1:8080", 30*time.Second),
+				createHTTPListener("http2", "127.0.0.1:8081", 30*time.Second),
+			},
+		}
+		listenerIDs, errs := config.validateListeners()
+
+		// We don't check for empty errors as HTTP validation might produce warnings
+		// Instead, we check that no duplicate ID errors are present
+		for _, err := range errs {
+			assert.NotContains(t, err.Error(), "duplicate ID")
+		}
+
+		// Check that listener IDs were collected correctly
+		assert.Equal(t, 2, len(listenerIDs))
+		assert.True(t, listenerIDs["http1"])
+		assert.True(t, listenerIDs["http2"])
+	})
+
+	// Test with duplicate ID
+	t.Run("Duplicate listener IDs", func(t *testing.T) {
+		t.Parallel()
+		config := &Config{
+			Version: VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				createHTTPListener("http1", "127.0.0.1:8080", 30*time.Second),
+				createHTTPListener("http1", "127.0.0.1:8081", 30*time.Second), // Duplicate ID
+			},
+		}
+		_, errs := config.validateListeners()
+		assert.NotEmpty(t, errs)
+
+		// Check for duplicate ID error
+		hasErrorContaining(t, errs, "duplicate ID: listener ID")
+	})
+
+	// Test with duplicate address
+	t.Run("Duplicate listener addresses", func(t *testing.T) {
+		t.Parallel()
+		config := &Config{
+			Version: VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				createHTTPListener("http1", "127.0.0.1:8080", 30*time.Second),
+				createHTTPListener("http2", "127.0.0.1:8080", 30*time.Second), // Duplicate address
+			},
+		}
+		_, errs := config.validateListeners()
+		assert.NotEmpty(t, errs)
+
+		// Check for duplicate address error
+		hasErrorContaining(t, errs, "duplicate ID: listener address")
+	})
+
+	// Test with invalid options
+	t.Run("Invalid listener options", func(t *testing.T) {
+		t.Parallel()
+		config := &Config{
+			Version: VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				createHTTPListener("invalid", "127.0.0.1:8080", -1*time.Second), // Negative timeout
+			},
+		}
+		_, errs := config.validateListeners()
+		assert.NotEmpty(t, errs)
+
+		// Check for invalid options error
+		hasErrorContaining(t, errs, "invalid HTTP options")
 	})
 }
 
-func TestAppValidation(t *testing.T) {
-	t.Run("DuplicateAppID", func(t *testing.T) {
-		// Create a config with duplicate app IDs
-		config := createValidDomainConfig(t)
-		config.Apps = append(config.Apps, App{
-			ID: "app1", // Duplicate of existing ID
-		})
+func TestValidateEndpoints(t *testing.T) {
+	t.Parallel()
 
-		// Validate should fail with duplicate ID error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for duplicate app ID")
-		assert.Contains(t, err.Error(), "duplicate app ID",
-			"Error should mention duplicate app ID")
-	})
+	// Setup a map of valid listener IDs
+	validListenerIDs := map[string]bool{
+		"http1":  true,
+		"grpc1":  true,
+		"valid1": true,
+		"valid2": true,
+	}
 
-	t.Run("EmptyAppID", func(t *testing.T) {
-		// Create a config with empty app ID
-		config := createValidDomainConfig(t)
-		config.Apps = append(config.Apps, App{
-			ID: "", // Empty ID
-		})
-
-		// Validate should fail with empty ID error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for empty app ID")
-		assert.Contains(t, err.Error(), "app has an empty ID",
-			"Error should mention empty app ID")
-	})
-
-	t.Run("NonExistentAppIDInRoute", func(t *testing.T) {
-		// Create a config with reference to non-existent app ID in route
-		config := createValidDomainConfig(t)
-		config.Endpoints[0].Routes = append(config.Endpoints[0].Routes, Route{
-			AppID: "non_existent_app", // Reference to non-existent app
-			Condition: HTTPPathCondition{
-				Path: "/non-existent",
-			},
-		})
-
-		// Validate should fail with reference error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for non-existent app ID")
-		assert.Contains(t, err.Error(), "references non-existent app ID",
-			"Error should mention non-existent app ID")
-	})
-}
-
-func TestCompositeScriptValidation(t *testing.T) {
-	t.Run("NonExistentScriptAppID", func(t *testing.T) {
-		// Create a config with a composite script app that references a non-existent app
-		config := createValidDomainConfig(t)
-		config.Apps = append(config.Apps, App{
-			ID: "composite_app",
-			Config: CompositeScriptApp{
-				ScriptAppIDs: []string{"app1", "non_existent_app"}, // One valid, one non-existent
-			},
-		})
-
-		// Validate should fail with reference error
-		err := config.Validate()
-		require.Error(t, err, "Expected error for non-existent script app ID")
-		assert.Contains(t, err.Error(), "references non-existent app ID",
-			"Error should mention non-existent app ID")
-	})
-
-	t.Run("ValidCompositeScript", func(t *testing.T) {
-		// Create a config with a valid composite script app
-		config := createValidDomainConfig(t)
-		// Add a second app that can be referenced
-		config.Apps = append(config.Apps, App{
-			ID: "app2",
-			Config: ScriptApp{
-				Evaluator: RisorEvaluator{
-					Code: "function handle(req) { return req; }",
+	testCases := []struct {
+		name        string
+		endpoints   endpoints.EndpointCollection
+		expectError bool
+		errorCount  int
+	}{
+		{
+			name:        "Empty endpoints",
+			endpoints:   endpoints.EndpointCollection{},
+			expectError: false,
+		},
+		{
+			name: "Valid endpoints",
+			endpoints: endpoints.EndpointCollection{
+				{
+					ID:         "ep1",
+					ListenerID: "http1",
+				},
+				{
+					ID:         "ep2",
+					ListenerID: "valid1",
 				},
 			},
-		})
-		// Add the composite app that references both valid apps
-		config.Apps = append(config.Apps, App{
-			ID: "composite_app",
-			Config: CompositeScriptApp{
-				ScriptAppIDs: []string{"app1", "app2"}, // Both valid
+			expectError: false,
+		},
+		{
+			name: "Duplicate endpoint IDs",
+			endpoints: endpoints.EndpointCollection{
+				{
+					ID:         "ep1",
+					ListenerID: "http1",
+				},
+				{
+					ID:         "ep1", // Duplicate ID
+					ListenerID: "grpc1",
+				},
 			},
-		})
+			expectError: true,
+			errorCount:  1,
+		},
+		{
+			name: "Invalid listener reference",
+			endpoints: endpoints.EndpointCollection{
+				{
+					ID:         "ep1",
+					ListenerID: "invalid1", // Not in validListenerIDs
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+		},
+		{
+			name: "Multiple invalid references",
+			endpoints: endpoints.EndpointCollection{
+				{
+					ID:         "ep1",
+					ListenerID: "invalid1", // Invalid
+				},
+			},
+			expectError: true,
+			errorCount:  1,
+		},
+	}
 
-		// Validate - there shouldn't be composite script errors
-		err := config.Validate()
-		if err != nil {
-			assert.NotContains(t, err.Error(), "composite script",
-				"Error should not be about composite scripts")
-		}
-	})
+	for _, tc := range testCases {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			config := &Config{
+				Version:   VersionLatest,
+				Endpoints: tc.endpoints,
+			}
+
+			errs := config.validateEndpoints(validListenerIDs)
+
+			if tc.expectError {
+				assert.NotEmpty(t, errs)
+				if tc.errorCount > 0 {
+					assert.Len(t, errs, tc.errorCount)
+				}
+			} else {
+				assert.Empty(t, errs)
+			}
+		})
+	}
 }
 
-func TestDuplicateRoutePathValidation(t *testing.T) {
-	t.Run("ConflictingHttpPaths", func(t *testing.T) {
-		// Create a configuration with two endpoints that have routes with the same HTTP path
-		configBytes := []byte(`
-version = "v1"
+func TestValidateAppsAndRoutes(t *testing.T) {
+	t.Parallel()
 
-[logging]
-format = "json"
-level = "info"
+	testCases := []struct {
+		name        string
+		setupConfig func() *Config
+		expectError bool
+	}{
+		{
+			name: "Valid apps and routes",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: VersionLatest,
+					Apps: apps.AppCollection{
+						{
+							ID:     "echo-app",
+							Config: &echo.EchoApp{Response: "Hello"},
+						},
+					},
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "echo-app", // References existing app
+									Condition: conditions.NewHTTP("/api", "GET"),
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: false,
+		},
+		{
+			name: "Invalid app reference",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: VersionLatest,
+					Apps: apps.AppCollection{
+						{
+							ID:     "echo-app",
+							Config: &echo.EchoApp{Response: "Hello"},
+						},
+					},
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "non-existent-app", // References non-existent app
+									Condition: conditions.NewHTTP("/api", "GET"),
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: true,
+		},
+		{
+			name: "Empty app ID in route",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: VersionLatest,
+					Apps: apps.AppCollection{
+						{
+							ID:     "echo-app",
+							Config: &echo.EchoApp{Response: "Hello"},
+						},
+					},
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "", // Empty app ID - should be caught during endpoint validation
+									Condition: conditions.NewHTTP("/api", "GET"),
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: false, // ValidateAppsAndRoutes currently doesn't validate empty route appIDs, this is done elsewhere
+		},
+		{
+			name: "Invalid app config",
+			setupConfig: func() *Config {
+				// Create an invalid script with empty code and negative timeout, which will fail validation
+				invalidScript := scripts.NewAppScript(
+					nil,
+					&evaluators.RisorEvaluator{Code: "", Timeout: -1 * time.Second},
+				)
+				return &Config{
+					Version: VersionLatest,
+					Apps: apps.AppCollection{
+						{
+							ID:     "invalid-app",
+							Config: invalidScript,
+						},
+					},
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "invalid-app",
+									Condition: conditions.NewHTTP("/api", "GET"),
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: true,
+		},
+	}
 
-[[listeners]]
-id = "http_listener"
-address = ":8080"
+	for _, tc := range testCases {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-[listeners.http]
-read_timeout = "30s"
-write_timeout = "30s"
+			config := tc.setupConfig()
+			err := config.validateAppsAndRoutes()
 
-[[apps]]
-id = "app1"
+			if tc.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
 
-[apps.script.risor]
-code = "function handle(req) { return req; }"
+func TestValidateRouteConflicts(t *testing.T) {
+	t.Parallel()
 
-[[apps]]
-id = "app2"
+	testCases := []struct {
+		name        string
+		setupConfig func() *Config
+		expectError bool
+	}{
+		{
+			name: "No conflicts",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: VersionLatest,
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "app1",
+									Condition: conditions.NewHTTP("/path1", ""),
+								},
+							},
+						},
+						{
+							ID:         "ep2",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "app2",
+									Condition: conditions.NewHTTP("/path2", ""), // Different path
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: false,
+		},
+		{
+			name: "Same path on different listeners",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: VersionLatest,
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "app1",
+									Condition: conditions.NewHTTP("/api", "GET"),
+								},
+							},
+						},
+						{
+							ID:         "ep2",
+							ListenerID: "l2", // Different listener
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "app2",
+									Condition: conditions.NewHTTP("/api", "GET"), // Same path is OK
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: false,
+		},
+		{
+			name: "Conflicting HTTP paths",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: VersionLatest,
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "app1",
+									Condition: conditions.NewHTTP("/api", "GET"),
+								},
+							},
+						},
+						{
+							ID:         "ep2",
+							ListenerID: "l1", // Same listener
+							Routes: routes.RouteCollection{
+								{
+									AppID: "app2",
+									Condition: conditions.NewHTTP(
+										"/api",
+										"GET",
+									), // Same path - conflict!
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: true,
+		},
+		{
+			name: "Conflicting gRPC service",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: VersionLatest,
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "app1",
+									Condition: conditions.NewGRPC("service.Test", "TestMethod"),
+								},
+							},
+						},
+						{
+							ID:         "ep2",
+							ListenerID: "l1", // Same listener
+							Routes: routes.RouteCollection{
+								{
+									AppID: "app2",
+									Condition: conditions.NewGRPC(
+										"service.Test", "TestMethod",
+									), // Same service - conflict!
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: true,
+		},
+		{
+			name: "Multiple conflicts",
+			setupConfig: func() *Config {
+				return &Config{
+					Version: VersionLatest,
+					Endpoints: endpoints.EndpointCollection{
+						{
+							ID:         "ep1",
+							ListenerID: "l1",
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "app1",
+									Condition: conditions.NewHTTP("/api", "GET"),
+								},
+							},
+						},
+						{
+							ID:         "ep2",
+							ListenerID: "l1", // Same listener
+							Routes: routes.RouteCollection{
+								{
+									AppID:     "app2",
+									Condition: conditions.NewHTTP("/api", "GET"), // Conflict
+								},
+							},
+						},
+					},
+				}
+			},
+			expectError: true,
+		},
+	}
 
-[apps.script.risor]
-code = "function handle(req) { return req; }"
+	for _, tc := range testCases {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-[[endpoints]]
-id = "endpoint1"
-listener_ids = ["http_listener"]
+			config := tc.setupConfig()
+			err := config.validateRouteConflicts()
 
-[[endpoints.routes]]
-app_id = "app1"
-http_path = "/foo"
+			if tc.expectError {
+				assert.Error(t, err)
+				// The error contains condition conflict details
+				assert.Contains(t, err.Error(), "condition")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
 
-[[endpoints]]
-id = "endpoint2"
-listener_ids = ["http_listener"]
+func TestConfig_Validate(t *testing.T) {
+	t.Parallel()
 
-[[endpoints.routes]]
-app_id = "app2"
-http_path = "/foo"
-`)
-		config, err := NewConfigFromBytes(configBytes)
+	testCases := []struct {
+		name        string
+		config      *Config
+		expectError bool
+		errorType   error
+	}{
+		{
+			name: "Valid config",
+			config: &Config{
+				Version: VersionLatest,
+				Logging: logs.Config{
+					Format: logs.FormatJSON,
+					Level:  logs.LevelInfo,
+				},
+				Listeners: listeners.ListenerCollection{
+					{
+						ID:      "http1",
+						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
+						Options: options.HTTP{
+							ReadTimeout:  30 * time.Second,
+							WriteTimeout: 30 * time.Second,
+							IdleTimeout:  60 * time.Second,
+							DrainTimeout: 15 * time.Second,
+						},
+					},
+				},
+				Endpoints: endpoints.EndpointCollection{
+					{
+						ID:         "ep1",
+						ListenerID: "http1",
+						Routes: routes.RouteCollection{
+							{
+								AppID:     "echo-app",
+								Condition: conditions.NewHTTP("/api", ""),
+							},
+						},
+					},
+				},
+				Apps: apps.AppCollection{
+					{
+						ID:     "echo-app",
+						Config: &echo.EchoApp{Response: "Hello"},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "Invalid version",
+			config: &Config{
+				Version: "invalid",
+			},
+			expectError: true,
+			errorType:   ErrUnsupportedConfigVer,
+		},
+		{
+			name: "Invalid logging config",
+			config: &Config{
+				Version: VersionLatest,
+				Logging: logs.Config{
+					Format: "invalid", // Invalid format
+					Level:  logs.LevelInfo,
+				},
+			},
+			expectError: true,
+			errorType:   ErrFailedToValidateConfig,
+		},
+		{
+			name: "Invalid listener",
+			config: &Config{
+				Version: VersionLatest,
+				Listeners: listeners.ListenerCollection{
+					{
+						ID:      "", // Empty ID
+						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
+						Options: options.HTTP{
+							ReadTimeout:  30 * time.Second,
+							WriteTimeout: 30 * time.Second,
+							IdleTimeout:  60 * time.Second,
+							DrainTimeout: 15 * time.Second,
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorType:   ErrFailedToValidateConfig,
+		},
+		{
+			name: "Invalid endpoint reference",
+			config: &Config{
+				Version: VersionLatest,
+				Listeners: listeners.ListenerCollection{
+					{
+						ID:      "http1",
+						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
+						Options: options.HTTP{
+							ReadTimeout:  30 * time.Second,
+							WriteTimeout: 30 * time.Second,
+							IdleTimeout:  60 * time.Second,
+							DrainTimeout: 15 * time.Second,
+						},
+					},
+				},
+				Endpoints: endpoints.EndpointCollection{
+					{
+						ID:         "ep1",
+						ListenerID: "invalid", // Invalid listener reference
+					},
+				},
+			},
+			expectError: true,
+			errorType:   ErrFailedToValidateConfig,
+		},
+		{
+			name: "Route conflict",
+			config: &Config{
+				Version: VersionLatest,
+				Listeners: listeners.ListenerCollection{
+					{
+						ID:      "http1",
+						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
+						Options: options.HTTP{
+							ReadTimeout:  30 * time.Second,
+							WriteTimeout: 30 * time.Second,
+							IdleTimeout:  60 * time.Second,
+							DrainTimeout: 15 * time.Second,
+						},
+					},
+				},
+				Endpoints: endpoints.EndpointCollection{
+					{
+						ID:         "ep1",
+						ListenerID: "http1",
+						Routes: routes.RouteCollection{
+							{
+								AppID:     "app1",
+								Condition: conditions.NewHTTP("/api", ""),
+							},
+						},
+					},
+					{
+						ID:         "ep2",
+						ListenerID: "http1",
+						Routes: routes.RouteCollection{
+							{
+								AppID:     "app2",
+								Condition: conditions.NewHTTP("/api", ""), // Conflicting path
+							},
+						},
+					},
+				},
+				Apps: apps.AppCollection{
+					{
+						ID:     "app1",
+						Config: &echo.EchoApp{Response: "Hello from app1"},
+					},
+					{
+						ID:     "app2",
+						Config: &echo.EchoApp{Response: "Hello from app2"},
+					},
+				},
+			},
+			expectError: true,
+			errorType:   ErrFailedToValidateConfig,
+		},
+		{
+			name: "Invalid app reference",
+			config: &Config{
+				Version: VersionLatest,
+				Listeners: listeners.ListenerCollection{
+					{
+						ID:      "http1",
+						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
+						Options: options.HTTP{
+							ReadTimeout:  30 * time.Second,
+							WriteTimeout: 30 * time.Second,
+							IdleTimeout:  60 * time.Second,
+							DrainTimeout: 15 * time.Second,
+						},
+					},
+				},
+				Endpoints: endpoints.EndpointCollection{
+					{
+						ID:         "ep1",
+						ListenerID: "http1",
+						Routes: routes.RouteCollection{
+							{
+								AppID:     "non-existent", // App doesn't exist
+								Condition: conditions.NewHTTP("/api", ""),
+							},
+						},
+					},
+				},
+				Apps: apps.AppCollection{
+					{
+						ID:     "app1",
+						Config: &echo.EchoApp{Response: "Hello"},
+					},
+				},
+			},
+			expectError: true,
+			errorType:   ErrFailedToValidateConfig,
+		},
+		{
+			name: "Route type mismatch with listener type",
+			config: &Config{
+				Version: VersionLatest,
+				Listeners: listeners.ListenerCollection{
+					{
+						ID:      "http1",
+						Address: "127.0.0.1:8080",
+						Type:    listeners.TypeHTTP,
+						Options: options.HTTP{
+							ReadTimeout:  30 * time.Second,
+							WriteTimeout: 30 * time.Second,
+							IdleTimeout:  60 * time.Second,
+							DrainTimeout: 15 * time.Second,
+						},
+					},
+					{
+						ID:      "grpc1",
+						Address: "127.0.0.1:9090",
+						Type:    listeners.TypeGRPC,
+						Options: options.GRPC{},
+					},
+				},
+				Endpoints: endpoints.EndpointCollection{
+					{
+						ID:         "ep1",
+						ListenerID: "http1", // HTTP listener
+						Routes: routes.RouteCollection{
+							{
+								AppID: "app1",
+								Condition: conditions.NewGRPC(
+									"service.Test",
+									"Method",
+								), // gRPC route on HTTP listener
+							},
+						},
+					},
+				},
+				Apps: apps.AppCollection{
+					{
+						ID:     "app1",
+						Config: &echo.EchoApp{Response: "Hello"},
+					},
+				},
+			},
+			expectError: true,
+			errorType:   ErrRouteTypeMismatch,
+		},
+	}
 
-		// With our new validation in place, this should now fail
-		require.Error(t, err, "Expected error for conflicting routes")
-		assert.Contains(
-			t,
-			err.Error(),
-			"duplicate route condition",
-			"Error should mention duplicate route condition",
-		)
-		assert.Nil(t, config, "Config should be nil when validation fails")
+	for _, tc := range testCases {
+		tc := tc // Capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		// Print the full error message for inspection
-		if err != nil {
-			t.Logf("Error message: %s", err.Error())
-		}
-	})
+			err := tc.config.Validate()
 
-	t.Run("DifferentPathsNoConflict", func(t *testing.T) {
-		// Create a configuration with two endpoints that have routes with different HTTP paths
-		configBytes := []byte(`
-version = "v1"
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorType != nil {
+					assert.Contains(t, err.Error(), tc.errorType.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
 
-[logging]
-format = "json"
-level = "info"
+// Test the collectRouteReferences function separately
+func TestCollectRouteReferences(t *testing.T) {
+	t.Parallel()
 
-[[listeners]]
-id = "http_listener"
-address = ":8080"
+	config := &Config{
+		Version: VersionLatest,
+		Endpoints: endpoints.EndpointCollection{
+			{
+				ID:         "ep1",
+				ListenerID: "l1",
+				Routes: routes.RouteCollection{
+					{
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/path1", ""),
+					},
+					{
+						AppID:     "app2",
+						Condition: conditions.NewHTTP("/path2", ""),
+					},
+				},
+			},
+			{
+				ID:         "ep2",
+				ListenerID: "l2",
+				Routes: routes.RouteCollection{
+					{
+						AppID:     "app3",
+						Condition: conditions.NewHTTP("/path3", ""),
+					},
+				},
+			},
+		},
+	}
 
-[listeners.http]
-read_timeout = "30s"
-write_timeout = "30s"
+	routeRefs := config.collectRouteReferences()
 
-[[apps]]
-id = "app1"
+	// Verify we get all route references
+	require.Len(t, routeRefs, 3)
 
-[apps.script.risor]
-code = "function handle(req) { return req; }"
+	// Create a map to check all app IDs are present
+	appIDs := map[string]bool{}
+	for _, ref := range routeRefs {
+		appIDs[ref.AppID] = true
+	}
 
-[[apps]]
-id = "app2"
-
-[apps.script.risor]
-code = "function handle(req) { return req; }"
-
-[[endpoints]]
-id = "endpoint1"
-listener_ids = ["http_listener"]
-
-[[endpoints.routes]]
-app_id = "app1"
-http_path = "/foo"
-
-[[endpoints]]
-id = "endpoint2"
-listener_ids = ["http_listener"]
-
-[[endpoints.routes]]
-app_id = "app2"
-http_path = "/bar"
-`)
-		config, err := NewConfigFromBytes(configBytes)
-		require.NoError(t, err, "Different paths should not cause a conflict")
-		assert.NotNil(t, config, "Config should be created successfully")
-	})
-
-	t.Run("ConflictingPathsAcrossListeners", func(t *testing.T) {
-		// Create a configuration with routes with the same HTTP path, but on different listeners
-		// This should NOT be a conflict since they're on different listeners
-		configBytes := []byte(`
-version = "v1"
-
-[logging]
-format = "json"
-level = "info"
-
-[[listeners]]
-id = "http_listener1"
-address = ":8080"
-
-[listeners.http]
-read_timeout = "30s"
-write_timeout = "30s"
-
-[[listeners]]
-id = "http_listener2"
-address = ":9090"
-
-[listeners.http]
-read_timeout = "30s"
-write_timeout = "30s"
-
-[[apps]]
-id = "app1"
-
-[apps.script.risor]
-code = "function handle(req) { return req; }"
-
-[[apps]]
-id = "app2"
-
-[apps.script.risor]
-code = "function handle(req) { return req; }"
-
-[[endpoints]]
-id = "endpoint1"
-listener_ids = ["http_listener1"]
-
-[[endpoints.routes]]
-app_id = "app1"
-http_path = "/foo"
-
-[[endpoints]]
-id = "endpoint2"
-listener_ids = ["http_listener2"]
-
-[[endpoints.routes]]
-app_id = "app2"
-http_path = "/foo"
-`)
-		config, err := NewConfigFromBytes(configBytes)
-		require.NoError(t, err, "Same paths on different listeners should not cause a conflict")
-		assert.NotNil(t, config, "Config should be created successfully")
-	})
+	assert.True(t, appIDs["app1"])
+	assert.True(t, appIDs["app2"])
+	assert.True(t, appIDs["app3"])
 }

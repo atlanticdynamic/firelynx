@@ -3,11 +3,66 @@ package config
 import (
 	"errors"
 	"fmt"
+
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 )
+
+// Validatable defines an interface for objects that can validate themselves.
+// Any struct that implements this interface can be validated as part of
+// a validation chain.
+type Validatable interface {
+	// Validate performs validation on the object and returns an error if validation fails.
+	// The error should contain specific information about what validation checks failed.
+	// If multiple validations fail, all errors should be combined using errors.Join().
+	Validate() error
+}
 
 // Validate performs comprehensive validation of the configuration
 func (c *Config) Validate() error {
 	// Validate version
+	if err := c.validateVersion(); err != nil {
+		return err
+	}
+
+	var errs []error
+
+	// Validate logging
+	if err := c.Logging.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("logging config: %w", err))
+	}
+
+	// Validate listeners and collect their IDs for reference validation
+	listenerIds, listenerErrs := c.validateListeners()
+	errs = append(errs, listenerErrs...)
+
+	// Validate endpoints and their references to listeners
+	endpointErrs := c.validateEndpoints(listenerIds)
+	errs = append(errs, endpointErrs...)
+
+	// Validate apps and route references
+	if err := c.validateAppsAndRoutes(); err != nil {
+		errs = append(errs, err)
+	}
+
+	// Check for route conflicts across endpoints
+	if err := c.validateRouteConflicts(); err != nil {
+		errs = append(errs, fmt.Errorf("%w: %w", ErrRouteConflict, err))
+	}
+
+	// If we have errors, wrap them with the main validation error
+	joinedErrs := errors.Join(errs...)
+	if joinedErrs != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToValidateConfig, joinedErrs)
+	}
+
+	return nil
+}
+
+// validateVersion validates the config version is supported
+func (c *Config) validateVersion() error {
 	if c.Version == "" {
 		c.Version = VersionUnknown
 	}
@@ -15,189 +70,240 @@ func (c *Config) Validate() error {
 	switch c.Version {
 	case VersionLatest:
 		// Supported version
+		return nil
 	default:
 		return fmt.Errorf("%w: %s", ErrUnsupportedConfigVer, c.Version)
 	}
+}
 
-	errz := []error{}
-
+// validateListeners validates all listeners and checks for duplicates
+// Returns a map of valid listener IDs and a slice of validation errors
+func (c *Config) validateListeners() (map[string]bool, []error) {
+	var errs []error
 	listenerIds := make(map[string]bool, len(c.Listeners))
 	listenerAddrs := make(map[string]bool, len(c.Listeners))
-	for _, listener := range c.Listeners {
-		if listener.ID == "" {
-			errz = append(errz, fmt.Errorf("listener has an empty ID"))
-			continue
+
+	for i, listener := range c.Listeners {
+		// Validate each listener with its own validation logic
+		if err := listener.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("listener at index %d: %w", i, err))
 		}
 
-		addr := listener.Address
-		if addr == "" {
-			errz = append(errz, fmt.Errorf("listener '%s' has an empty address", listener.ID))
-			continue
-		}
-		if listenerAddrs[addr] {
-			// We found a duplicate address, add error and continue checking other listeners
-			errz = append(errz, fmt.Errorf("duplicate listener address: %s", addr))
-		} else {
-			// Record this address to check for future duplicates
-			listenerAddrs[addr] = true
+		// Check for duplicate IDs
+		if listener.ID != "" {
+			if listenerIds[listener.ID] {
+				errs = append(errs, fmt.Errorf("%w: listener ID '%s'",
+					ErrDuplicateID, listener.ID))
+			} else {
+				listenerIds[listener.ID] = true
+			}
 		}
 
-		id := listener.ID
-		if listenerIds[id] {
-			// We found a duplicate ID, add error and continue checking other listeners
-			errz = append(errz, fmt.Errorf("duplicate listener ID: %s", id))
-		} else {
-			// Record this ID to check for future duplicates
-			listenerIds[id] = true
+		// Check for duplicate addresses
+		if listener.Address != "" {
+			if listenerAddrs[listener.Address] {
+				errs = append(errs, fmt.Errorf("%w: listener address '%s'",
+					ErrDuplicateID, listener.Address))
+			} else {
+				listenerAddrs[listener.Address] = true
+			}
 		}
 	}
 
-	// Check all endpoint IDs are unique
+	return listenerIds, errs
+}
+
+// validateEndpoints validates all endpoints and their references to listeners
+// Returns a slice of validation errors
+func (c *Config) validateEndpoints(listenerIds map[string]bool) []error {
+	var errs []error
 	endpointIds := make(map[string]bool, len(c.Endpoints))
-	for _, endpoint := range c.Endpoints {
-		if endpoint.ID == "" {
-			errz = append(errz, fmt.Errorf("endpoint has an empty ID"))
-			continue
+
+	// Create a map of listener IDs to listener types for route type validation
+	listenerTypeMap := make(map[string]listeners.Type)
+	for _, listener := range c.Listeners {
+		listenerTypeMap[listener.ID] = listener.Type
+	}
+
+	for i, ep := range c.Endpoints {
+		// Validate each endpoint with its own validation logic
+		if err := ep.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("endpoint at index %d: %w", i, err))
 		}
 
-		id := endpoint.ID
-		if endpointIds[id] {
-			// We found a duplicate ID, add error and continue checking other endpoints
-			errz = append(errz, fmt.Errorf("duplicate endpoint ID: %s", id))
-		} else {
-			// Record this ID to check for future duplicates
-			endpointIds[id] = true
+		// Check for duplicate endpoint IDs
+		if ep.ID != "" {
+			if endpointIds[ep.ID] {
+				errs = append(errs, fmt.Errorf("%w: endpoint ID '%s'",
+					ErrDuplicateID, ep.ID))
+			} else {
+				endpointIds[ep.ID] = true
+			}
 		}
 
-		// Check all referenced listener IDs exist
-		for _, listenerId := range endpoint.ListenerIDs {
-			if !listenerIds[listenerId] {
-				errz = append(errz, fmt.Errorf(
-					"endpoint '%s' references non-existent listener ID: %s",
-					id,
-					listenerId,
+		// Validate listener reference
+		if ep.ListenerID != "" {
+			// Check if listener exists
+			if !listenerIds[ep.ListenerID] {
+				errs = append(errs, fmt.Errorf(
+					"%w: endpoint '%s' references non-existent listener ID '%s'",
+					ErrListenerNotFound,
+					ep.ID,
+					ep.ListenerID,
 				))
-			}
-		}
-
-		// Validate routes
-		for i, route := range endpoint.Routes {
-			if route.AppID == "" {
-				errz = append(
-					errz,
-					fmt.Errorf("route %d in endpoint '%s' has an empty app ID", i, id),
-				)
+			} else {
+				// Validate route types match listener type
+				routeTypeErrs := c.validateRouteTypesMatchListenerType(ep, listenerTypeMap)
+				errs = append(errs, routeTypeErrs...)
 			}
 		}
 	}
 
-	// Check all app IDs are unique
-	appIds := make(map[string]bool)
-	for _, app := range c.Apps {
-		if app.ID == "" {
-			errz = append(errz, fmt.Errorf("app has an empty ID"))
-			continue
-		}
+	return errs
+}
 
-		id := app.ID
-		if appIds[id] {
-			// We found a duplicate ID, add error and continue checking other apps
-			errz = append(errz, fmt.Errorf("duplicate app ID: %s", id))
-		} else {
-			// Record this ID to check for future duplicates
-			appIds[id] = true
-		}
+// validateRouteTypesMatchListenerType ensures that routes in an endpoint have rule types
+// that are compatible with the listener type the endpoint is attached to.
+//
+// This validation enforces semantic correctness at configuration load time to prevent
+// runtime errors, ensuring that:
+// 1. HTTP routes (Route.rule of type HttpRule) are only attached to HTTP listeners
+// 2. gRPC routes (Route.rule of type GrpcRule) are only attached to gRPC listeners
+//
+// Failed validation will prevent the configuration from being accepted, ensuring
+// runtime components only receive semantically valid configurations.
+func (c *Config) validateRouteTypesMatchListenerType(
+	endpoint endpoints.Endpoint,
+	listenerTypeMap map[string]listeners.Type,
+) []error {
+	var errs []error
+
+	// Get the listener type for this endpoint
+	listenerType, exists := listenerTypeMap[endpoint.ListenerID]
+	if !exists {
+		return errs // Listener ID validation is handled elsewhere
 	}
 
-	// Check all referenced app IDs exist
-	for _, endpoint := range c.Endpoints {
-		for i, route := range endpoint.Routes {
-			if route.AppID == "" {
-				continue // Already checked above
-			}
-			appId := route.AppID
-			if !appIds[appId] {
-				errz = append(
-					errz,
-					fmt.Errorf("route %d in endpoint '%s' references non-existent app ID: %s",
-						i, endpoint.ID, appId),
-				)
-			}
-		}
+	// Define which condition types are compatible with which listener types
+	compatibleTypes := map[listeners.Type][]conditions.Type{
+		listeners.TypeHTTP: {conditions.TypeHTTP},
+		listeners.TypeGRPC: {conditions.TypeGRPC},
 	}
 
-	// Check composite scripts reference valid app IDs
-	for _, app := range c.Apps {
-		composite, ok := app.Config.(CompositeScriptApp)
-		if !ok {
-			continue
+	// Validate that all routes in this endpoint have a compatible type with the listener
+	for j, route := range endpoint.Routes {
+		if route.Condition == nil {
+			continue // Skip routes without conditions, they'll fail other validations
 		}
 
-		for i, scriptAppId := range composite.ScriptAppIDs {
-			if !appIds[scriptAppId] {
-				errz = append(errz, fmt.Errorf(
-					"composite script '%s' references non-existent app ID at index %d: %s",
-					app.ID,
-					i,
-					scriptAppId,
-				))
+		condType := route.Condition.Type()
+
+		// Check if the condition type is compatible with the listener type
+		validTypes := compatibleTypes[listenerType]
+		isCompatible := false
+
+		for _, validType := range validTypes {
+			if condType == validType {
+				isCompatible = true
+				break
 			}
 		}
+
+		if !isCompatible {
+			errs = append(errs, fmt.Errorf(
+				"%w: endpoint '%s' (route index %d) with condition type '%s' is attached to listener '%s' of type '%s'",
+				ErrRouteTypeMismatch,
+				endpoint.ID,
+				j,
+				condType,
+				endpoint.ListenerID,
+				listenerType,
+			))
+		}
 	}
 
-	// Check for route conflicts across endpoints
-	if err := c.validateRouteConflicts(); err != nil {
-		errz = append(errz, err)
+	return errs
+}
+
+// validateAppsAndRoutes validates apps and their references from routes
+func (c *Config) validateAppsAndRoutes() error {
+	var errs []error
+
+	// Validate apps
+	if err := c.Apps.Validate(); err != nil {
+		errs = append(errs, err)
 	}
 
-	return errors.Join(errz...)
+	// Create slice of route refs for app validation
+	routeRefs := c.collectRouteReferences()
+
+	// Validate route references to apps against built-in app IDs
+	if err := c.Apps.ValidateRouteAppReferencesWithBuiltIns(routeRefs, serverApps.GetBuiltInAppIDs()); err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+// collectRouteReferences collects app references from all routes
+func (c *Config) collectRouteReferences() []struct{ AppID string } {
+	routeRefs := make([]struct{ AppID string }, 0)
+	for _, ep := range c.Endpoints {
+		for _, route := range ep.Routes {
+			routeRefs = append(routeRefs, struct{ AppID string }{AppID: route.AppID})
+		}
+	}
+	return routeRefs
 }
 
 // validateRouteConflicts checks for duplicate routes across endpoints on the same listener
 func (c *Config) validateRouteConflicts() error {
-	var errz []error
+	var errs []error
 
 	// Map to track route conditions by listener: listener ID -> condition string -> endpoint ID
 	routeMap := make(map[string]map[string]string)
 
-	for _, endpoint := range c.Endpoints {
-		// For each listener this endpoint is attached to
-		for _, listenerID := range endpoint.ListenerIDs {
-			// Initialize map for this listener if needed
-			if _, exists := routeMap[listenerID]; !exists {
-				routeMap[listenerID] = make(map[string]string)
+	for _, ep := range c.Endpoints {
+		// Get listener ID for this endpoint
+		listenerID := ep.ListenerID
+		if listenerID == "" {
+			continue // Skip endpoints without a valid listener ID
+		}
+
+		// Initialize map for this listener if needed
+		if _, exists := routeMap[listenerID]; !exists {
+			routeMap[listenerID] = make(map[string]string)
+		}
+
+		// Check each route for conflicts
+		for _, route := range ep.Routes {
+			// Skip nil conditions - they're validated elsewhere
+			if route.Condition == nil {
+				continue
 			}
 
-			// Check each route for conflicts
-			for _, route := range endpoint.Routes {
-				// Skip nil conditions - they're validated elsewhere
-				if route.Condition == nil {
-					continue
-				}
+			// Generate a condition key in the format "type:value"
+			conditionKey := fmt.Sprintf(
+				"%s:%s",
+				route.Condition.Type(),
+				route.Condition.Value(),
+			)
 
-				// Generate a condition key in the format "type:value"
-				conditionKey := fmt.Sprintf(
-					"%s:%s",
-					route.Condition.Type(),
-					route.Condition.Value(),
-				)
-
-				// Check if this condition is already used on this listener
-				if existingEndpointID, exists := routeMap[listenerID][conditionKey]; exists {
-					errz = append(errz, fmt.Errorf(
-						"duplicate route condition '%s' on listener '%s': used by both endpoint '%s' and '%s'",
-						conditionKey,
-						listenerID,
-						existingEndpointID,
-						endpoint.ID,
-					))
-				} else {
-					// Register this condition
-					routeMap[listenerID][conditionKey] = endpoint.ID
-				}
+			// Check if this condition is already used on this listener
+			if existingEndpointID, exists := routeMap[listenerID][conditionKey]; exists {
+				errs = append(errs, fmt.Errorf(
+					"condition '%s' on listener '%s' is used by both endpoint '%s' and '%s'",
+					conditionKey,
+					listenerID,
+					existingEndpointID,
+					ep.ID,
+				))
+			} else {
+				// Register this condition
+				routeMap[listenerID][conditionKey] = ep.ID
 			}
 		}
 	}
 
-	return errors.Join(errz...)
+	return errors.Join(errs...)
 }

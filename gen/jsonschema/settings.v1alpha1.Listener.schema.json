@@ -1,0 +1,40 @@
+{
+  "$id": "settings.v1alpha1.Listener.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Listener configures a protocol/socket layer service (there could be multiple)",
+  "properties": {
+    "address": {
+      "type": "string"
+    },
+    "grpc": {
+      "$ref": "settings.v1alpha1.GrpcListenerOptions.schema.json"
+    },
+    "http": {
+      "$ref": "settings.v1alpha1.HttpListenerOptions.schema.json"
+    },
+    "id": {
+      "type": "string"
+    },
+    "type": {
+      "anyOf": [
+        {
+          "enum": [
+            "LISTENER_TYPE_UNSPECIFIED",
+            "LISTENER_TYPE_HTTP",
+            "LISTENER_TYPE_GRPC"
+          ],
+          "title": "Listener Type",
+          "type": "string"
+        },
+        {
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "type": "integer"
+        }
+      ]
+    }
+  },
+  "title": "Listener",
+  "type": "object"
+}

@@ -1,0 +1,9 @@
+{
+  "$id": "settings.v1alpha1.GetConfigRequest.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Request to get the current server configuration",
+  "properties": {},
+  "title": "Get Config Request",
+  "type": "object"
+}

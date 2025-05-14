@@ -143,20 +143,19 @@ func (c *Client) SaveConfig(config *pb.ServerConfig, outputPath string) error {
 	return nil
 }
 
-// PrintConfig prints a configuration to stdout
-func (c *Client) PrintConfig(config *pb.ServerConfig) error {
+// FormatConfig formats a configuration as a TOML string
+func (c *Client) FormatConfig(config *pb.ServerConfig) (string, error) {
 	// Convert to TOML
 	tomlBytes, err := toml.Marshal(config)
 	if err != nil {
-		return fmt.Errorf("failed to convert config to TOML: %w", err)
+		return "", fmt.Errorf("failed to convert config to TOML: %w", err)
 	}
 
-	fmt.Println(string(tomlBytes))
-	return nil
+	return string(tomlBytes), nil
 }
 
 // connect establishes a connection to the server
-func (c *Client) connect(ctx context.Context) (*grpc.ClientConn, error) {
+func (c *Client) connect(_ context.Context) (*grpc.ClientConn, error) {
 	// For now, we'll use insecure connections for simplicity
 	// In a production environment, you'd want to use proper TLS
 	addr := c.serverAddr
@@ -198,7 +197,6 @@ func (c *Client) connect(ctx context.Context) (*grpc.ClientConn, error) {
 				return net.Dial("unix", socketAddr)
 			}),
 		)
-
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedNetwork, network)
 	}
