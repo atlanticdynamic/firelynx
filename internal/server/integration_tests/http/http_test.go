@@ -1,7 +1,6 @@
 package http_test
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,9 +8,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,22 +20,32 @@ import (
 // to avoid import cycles.
 func TestIntegration_RouteRegistry_HTTPHandler(t *testing.T) {
 	// Create a mock app registry with test apps
-	appRegistry := &testAppRegistry{
-		apps: map[string]apps.App{},
-	}
+	appRegistry := mocks.NewMockRegistry()
 
-	// Create test apps
-	echoApp := &appThatReturns{
-		id:      "echo-app",
-		message: "Echo API Response",
-	}
-	adminApp := &appThatReturns{
-		id:      "admin-app",
-		message: "Admin API Response",
-	}
+	// Create mock apps
+	echoApp := mocks.NewMockApp("echo-app")
+	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			w := args.Get(1).(http.ResponseWriter)
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("Echo API Response"))
+			require.NoError(t, err)
+		})
 
-	appRegistry.apps["echo-app"] = echoApp
-	appRegistry.apps["admin-app"] = adminApp
+	adminApp := mocks.NewMockApp("admin-app")
+	adminApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil).
+		Run(func(args mock.Arguments) {
+			w := args.Get(1).(http.ResponseWriter)
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("Admin API Response"))
+			require.NoError(t, err)
+		})
+
+	// Setup the registry's GetApp method to return the appropriate app
+	appRegistry.On("GetApp", "echo-app").Return(echoApp, true)
+	appRegistry.On("GetApp", "admin-app").Return(adminApp, true)
 
 	// Create logger
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -209,46 +219,4 @@ func TestIntegration_RouteRegistry_HTTPHandler(t *testing.T) {
 			assert.Contains(t, string(body), tt.wantResponse)
 		})
 	}
-}
-
-// appThatReturns implements apps.App for testing
-type appThatReturns struct {
-	id      string
-	message string
-}
-
-func (a *appThatReturns) ID() string {
-	return a.id
-}
-
-func (a *appThatReturns) HandleHTTP(
-	ctx context.Context,
-	w http.ResponseWriter,
-	r *http.Request,
-	data map[string]any,
-) error {
-	// Write the message and return
-	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(a.message))
-	return err
-}
-
-// testAppRegistry implements apps.Registry for testing
-type testAppRegistry struct {
-	apps map[string]apps.App
-}
-
-func (r *testAppRegistry) GetApp(id string) (apps.App, bool) {
-	app, ok := r.apps[id]
-	return app, ok
-}
-
-func (r *testAppRegistry) RegisterApp(app apps.App) error {
-	r.apps[app.ID()] = app
-	return nil
-}
-
-func (r *testAppRegistry) UnregisterApp(id string) error {
-	delete(r.apps, id)
-	return nil
 }

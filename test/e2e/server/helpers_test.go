@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -157,4 +158,20 @@ func loadConfigFromTemplate(t *testing.T, templatePath string, data TemplateData
 	require.NoError(t, err, "Failed to process template")
 
 	return toml.NewTomlLoader(configContent)
+}
+
+// sendHUPSignalToProcess sends a SIGHUP signal to trigger config reload
+// The go-supervisor will handle the signal and call Reload() on all Reloadable components
+func sendHUPSignalToProcess(t *testing.T) {
+	t.Helper()
+	// Get the current process PID (which includes the test and the server)
+	pid := os.Getpid()
+
+	// Send SIGHUP to the current process, which will be handled by go-supervisor
+	proc, err := os.FindProcess(pid)
+	require.NoError(t, err, "Failed to find process")
+
+	t.Logf("Sending SIGHUP signal to process %d to trigger config reload", pid)
+	err = proc.Signal(syscall.SIGHUP)
+	require.NoError(t, err, "Failed to send SIGHUP signal")
 }

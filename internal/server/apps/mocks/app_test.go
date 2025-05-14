@@ -21,8 +21,8 @@ func TestMockApp(t *testing.T) {
 	// Create a mock app with preset ID
 	mockApp := mocks.NewMockApp("test-app")
 
-	// Verify ID is set correctly
-	assert.Equal(t, "test-app", mockApp.ID())
+	// Verify String is set correctly
+	assert.Equal(t, "test-app", mockApp.String())
 
 	// Test HandleHTTP behavior
 	ctx := context.Background()
@@ -46,7 +46,7 @@ func TestMockApp(t *testing.T) {
 
 	// Test with custom behavior
 	customMock := &mocks.MockApp{}
-	customMock.On("ID").Return("custom-id")
+	customMock.On("String").Return("custom-id")
 	customMock.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			// Extract arguments
@@ -58,8 +58,8 @@ func TestMockApp(t *testing.T) {
 		}).
 		Return(nil)
 
-	// Verify ID
-	assert.Equal(t, "custom-id", customMock.ID())
+	// Verify String
+	assert.Equal(t, "custom-id", customMock.String())
 
 	// Test HandleHTTP custom behavior
 	newRecorder := httptest.NewRecorder()

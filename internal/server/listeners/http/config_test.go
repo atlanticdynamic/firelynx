@@ -9,6 +9,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -142,53 +143,194 @@ func TestConfig_Validate(t *testing.T) {
 }
 
 func TestListenerConfig_Validate(t *testing.T) {
-	// Test valid config with routes
-	validConfig := ListenerConfig{
-		ID:      "test1",
-		Address: ":8080",
-		Routes: []RouteConfig{
-			{
-				Path:  "/test",
-				AppID: "test-app",
+	tests := []struct {
+		name        string
+		config      ListenerConfig
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid config with endpoint ID",
+			config: ListenerConfig{
+				ID:         "test-listener",
+				Address:    "localhost:8080",
+				EndpointID: "endpoint1",
 			},
+			wantErr: false,
+		},
+		{
+			name: "valid config with routes",
+			config: ListenerConfig{
+				ID:      "test-listener",
+				Address: "localhost:8080",
+				Routes: []RouteConfig{
+					{
+						Path:  "/api",
+						AppID: "app1",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing ID",
+			config: ListenerConfig{
+				Address:    "localhost:8080",
+				EndpointID: "endpoint1",
+			},
+			wantErr:     true,
+			errContains: "ID cannot be empty",
+		},
+		{
+			name: "missing address",
+			config: ListenerConfig{
+				ID:         "test-listener",
+				EndpointID: "endpoint1",
+			},
+			wantErr:     true,
+			errContains: "address cannot be empty",
+		},
+		{
+			name: "negative timeouts",
+			config: ListenerConfig{
+				ID:           "test-listener",
+				Address:      "localhost:8080",
+				EndpointID:   "endpoint1",
+				ReadTimeout:  -1 * time.Second,
+				WriteTimeout: -1 * time.Second,
+				IdleTimeout:  -1 * time.Second,
+				DrainTimeout: -1 * time.Second,
+			},
+			wantErr:     true,
+			errContains: "invalid",
+		},
+		{
+			name: "missing both endpoint ID and routes",
+			config: ListenerConfig{
+				ID:      "test-listener",
+				Address: "localhost:8080",
+			},
+			wantErr:     true,
+			errContains: "either EndpointID or Routes must be provided",
+		},
+		{
+			name: "invalid route",
+			config: ListenerConfig{
+				ID:      "test-listener",
+				Address: "localhost:8080",
+				Routes: []RouteConfig{
+					{
+						// Missing path
+						AppID: "app1",
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "path cannot be empty",
+		},
+		{
+			name: "valid with timeouts",
+			config: ListenerConfig{
+				ID:           "test1",
+				Address:      ":8080",
+				ReadTimeout:  30 * time.Second,
+				WriteTimeout: 30 * time.Second,
+				IdleTimeout:  30 * time.Second,
+				DrainTimeout: 30 * time.Second,
+				Routes: []RouteConfig{
+					{
+						Path:  "/test",
+						AppID: "test-app",
+					},
+				},
+			},
+			wantErr: false,
 		},
 	}
-	assert.NoError(t, validConfig.Validate())
 
-	// Test missing ID
-	missingID := ListenerConfig{
-		Address: ":8080",
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
-	assert.Error(t, missingID.Validate())
-	assert.Contains(t, missingID.Validate().Error(), "ID cannot be empty")
+}
 
-	// Test missing address
-	missingAddress := ListenerConfig{
-		ID: "test1",
-		Routes: []RouteConfig{
-			{
-				Path:  "/test",
-				AppID: "test-app",
+func TestIsUsingRouteRegistry(t *testing.T) {
+	// Test with route registry
+	t.Run("with route registry", func(t *testing.T) {
+		config := &Config{
+			RouteRegistry: &routing.Registry{},
+		}
+		assert.True(t, config.IsUsingRouteRegistry())
+	})
+
+	// Test without route registry
+	t.Run("without route registry", func(t *testing.T) {
+		config := &Config{
+			AppRegistry: mocks.NewMockRegistry(),
+		}
+		assert.False(t, config.IsUsingRouteRegistry())
+	})
+}
+
+func TestRegistryBackwardCompatibility(t *testing.T) {
+	mockReg := mocks.NewMockRegistry()
+	config := &Config{
+		AppRegistry: mockReg,
+	}
+
+	// Test that Registry() returns AppRegistry for backward compatibility
+	assert.Equal(t, mockReg, config.Registry())
+}
+
+func TestRouteConfigValidate(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      RouteConfig
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid config",
+			config: RouteConfig{
+				Path:  "/api",
+				AppID: "app1",
 			},
+			wantErr: false,
+		},
+		{
+			name: "missing path",
+			config: RouteConfig{
+				AppID: "app1",
+			},
+			wantErr:     true,
+			errContains: "path cannot be empty",
+		},
+		{
+			name: "missing app ID",
+			config: RouteConfig{
+				Path: "/api",
+			},
+			wantErr:     true,
+			errContains: "appID cannot be empty",
 		},
 	}
-	assert.Error(t, missingAddress.Validate())
-	assert.Contains(t, missingAddress.Validate().Error(), "address cannot be empty")
 
-	// Test with timeouts
-	configWithTimeouts := ListenerConfig{
-		ID:           "test1",
-		Address:      ":8080",
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  30 * time.Second,
-		DrainTimeout: 30 * time.Second,
-		Routes: []RouteConfig{
-			{
-				Path:  "/test",
-				AppID: "test-app",
-			},
-		},
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
-	assert.NoError(t, configWithTimeouts.Validate())
 }

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -266,15 +267,32 @@ func TestConfigFileReload(t *testing.T) {
 	// Ensure file is synced to disk
 	syncFileToStorage(t, newConfigPath)
 
+	// Debug: Check the original file content before replacing
+	originalContent, err := os.ReadFile(configPath)
+	require.NoError(t, err, "Failed to read original config file")
+	t.Logf(
+		"Original config file contains routes for path prefixes: %s",
+		findPathPrefixes(string(originalContent)),
+	)
+
 	// Now replace the original file by moving the new one
 	// This ensures a complete file replacement which is more reliably detected
 	err = os.Rename(newConfigPath, configPath)
 	require.NoError(t, err, "Failed to replace config file")
 
+	// Debug: Verify the file was updated correctly
+	updatedFileContent, err := os.ReadFile(configPath)
+	require.NoError(t, err, "Failed to read updated config file")
+	t.Logf(
+		"Updated config file contains routes for path prefixes: %s",
+		findPathPrefixes(string(updatedFileContent)),
+	)
+
 	// Ensure the replaced file is synced to disk
 	syncFileToStorage(t, configPath)
+	sendHUPSignalToProcess(t)
 
-	// Test the new route (file watcher should detect changes)
+	// Test the new route after sending SIGHUP to trigger reload
 	t.Run("New route responds after config reload", func(t *testing.T) {
 		url := fmt.Sprintf("http://localhost:%s/new-path", httpPort)
 
@@ -294,17 +312,34 @@ func TestConfigFileReload(t *testing.T) {
 			defer resp.Body.Close()
 
 			if resp.StatusCode != http.StatusOK {
+				t.Logf("Received non-OK status: %d", resp.StatusCode)
 				return false
 			}
 
 			var echoResp map[string]interface{}
 			if err := json.NewDecoder(resp.Body).Decode(&echoResp); err != nil {
+				t.Logf("Failed to decode response: %v", err)
 				return false
 			}
+
+			t.Logf("Response from new-path: app_id=%v, path=%v",
+				echoResp["app_id"], echoResp["path"])
 
 			return echoResp["app_id"] == "echo_app" && echoResp["path"] == "/new-path"
 		}, 10*time.Second, 500*time.Millisecond, "New route never became available after config reload")
 	})
+}
+
+// findPathPrefixes searches for path_prefix entries in a TOML config string
+func findPathPrefixes(content string) string {
+	var paths []string
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "path_prefix") {
+			paths = append(paths, strings.TrimSpace(line))
+		}
+	}
+	return strings.Join(paths, ", ")
 }
 
 // syncFileToStorage ensures file changes are flushed to stable storage
@@ -315,13 +350,13 @@ func syncFileToStorage(t *testing.T, path string) {
 		t.Logf("Failed to open file for sync: %v", err)
 		return
 	}
-	err = file.Close()
-	if err != nil {
-		t.Logf("Failed to close file for sync: %v", err)
-	}
 
 	if err = file.Sync(); err != nil {
 		t.Logf("Failed to sync file: %v", err)
+	}
+
+	if err = file.Close(); err != nil {
+		t.Logf("Failed to close file for sync: %v", err)
 	}
 
 	// Also sync the parent directory to ensure file metadata is updated
@@ -331,12 +366,12 @@ func syncFileToStorage(t *testing.T, path string) {
 		t.Logf("Failed to open directory for sync: %v", err)
 		return
 	}
-	err = dir.Close()
-	if err != nil {
-		t.Logf("Failed to close directory for sync: %v", err)
-	}
 
 	if err = dir.Sync(); err != nil {
 		t.Logf("Failed to sync directory: %v", err)
+	}
+
+	if err = dir.Close(); err != nil {
+		t.Logf("Failed to close directory for sync: %v", err)
 	}
 }

@@ -26,6 +26,7 @@ var (
 	_ supervisor.Runnable     = (*Runner)(nil)
 	_ supervisor.ReloadSender = (*Runner)(nil)
 	_ supervisor.Stateable    = (*Runner)(nil)
+	_ supervisor.Reloadable   = (*Runner)(nil)
 )
 
 type Runner struct {
@@ -218,6 +219,70 @@ func (r *Runner) Stop() {
 	}
 }
 
+// Reload reloads the configuration from disk if a configuration file path is provided.
+// This method is called by the supervisor when a SIGHUP signal is received.
+func (r *Runner) Reload() {
+	r.logger.Info("Reloading configuration from disk...")
+
+	// Transition to reloading state
+	if err := r.fsm.Transition(finitestate.StatusReloading); err != nil {
+		r.logger.Error("Failed to transition to reloading state", "error", err)
+		return
+	}
+
+	// If we have a config path, reload from disk
+	if r.configPath != "" {
+		// Log the file path being reloaded for debugging
+		r.logger.Debug("Attempting to reload config from path", "path", r.configPath)
+
+		if err := r.LoadInitialConfig(); err != nil {
+			r.logger.Error("Failed to reload configuration from disk", "error", err)
+
+			// Try to return to running state
+			if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
+				r.logger.Error("Failed to transition back to running state", "error", err)
+
+				// If can't transition back to running, go to error state
+				if errState := r.fsm.Transition(finitestate.StatusError); errState != nil {
+					r.logger.Error("Failed to transition to error state", "error", errState)
+				}
+			}
+			return
+		}
+
+		// Log the loaded configuration details for debugging
+		r.configMu.RLock()
+		if r.config != nil {
+			// Log endpoint routes for debugging
+			for i, endpoint := range r.config.Endpoints {
+				r.logger.Info("Reloaded endpoint config",
+					"index", i,
+					"id", endpoint.ID,
+					"routes", len(endpoint.Routes))
+
+				// Get HTTP routes in a structured format
+				httpRoutes := endpoint.Routes.GetStructuredHTTPRoutes()
+				for j, httpRoute := range httpRoutes {
+					r.logger.Info("Reloaded HTTP route",
+						"endpoint", endpoint.ID,
+						"route_idx", j,
+						"path", httpRoute.PathPrefix)
+				}
+			}
+		}
+		r.configMu.RUnlock()
+
+		r.logger.Info("Configuration reloaded successfully from disk", "path", r.configPath)
+	} else {
+		r.logger.Debug("No config path provided, skipping reload")
+	}
+
+	// Return to running state
+	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
+		r.logger.Error("Failed to transition back to running state", "error", err)
+	}
+}
+
 // GetPbConfigClone returns the current domain config converted to a protobuf message.
 // If the domain config is nil, a minimal valid config is returned rather than nil
 // to simplify client code.
@@ -273,9 +338,9 @@ func (r *Runner) GetReloadTrigger() <-chan struct{} {
 	return r.reloadCh
 }
 
-// notifyConfigChange sends a notification to the reload channel
+// triggerReload sends a notification to the reload channel
 // to inform subscribers that the configuration has changed
-func (r *Runner) notifyConfigChange() {
+func (r *Runner) triggerReload() {
 	select {
 	case r.reloadCh <- struct{}{}:
 		r.logger.Debug("Reload notification sent")
@@ -362,7 +427,7 @@ func (r *Runner) UpdateConfig(
 	r.configMu.Unlock()
 
 	// Notify subscribers about the config change
-	r.notifyConfigChange()
+	r.triggerReload()
 
 	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
 		r.logger.Error("Failed to transition to running state", "error", err)

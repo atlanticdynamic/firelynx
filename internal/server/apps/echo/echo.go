@@ -20,8 +20,8 @@ func New(id string) *App {
 	}
 }
 
-// ID returns the unique identifier of the application
-func (a *App) ID() string {
+// String returns the unique identifier of the application
+func (a *App) String() string {
 	return a.id
 }
 

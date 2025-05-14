@@ -13,8 +13,9 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 // buildTestConfig creates a minimal config with an HTTP listener and a route
@@ -83,10 +84,11 @@ func TestRunner_New(t *testing.T) {
 	assert.NotNil(t, runner)
 	assert.Equal(t, "core.Runner", runner.String())
 
-	// Create an echo app for testing
-	echoApp := echo.New("echo")
+	// Create a mock app for testing
+	echoApp := mocks.NewMockApp("echo")
+	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
-	// Create app collection with the echo app
+	// Create app collection with the mock app
 	appCollection, err := apps.NewAppCollection([]apps.App{echoApp})
 	assert.NoError(t, err)
 
@@ -164,11 +166,15 @@ func TestRunner_WithApps(t *testing.T) {
 	runner, err := NewRunner(configCallback)
 	assert.NoError(t, err)
 
-	// Create echo apps for testing
-	specialApp := echo.New("special")
-	echoApp := echo.New("echo")
+	// Create mock apps for testing
+	specialApp := mocks.NewMockApp("special")
+	specialApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
 
-	// Create app collection with both apps
+	echoApp := mocks.NewMockApp("echo")
+	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Create app collection with both mock apps
 	appCollection, err := apps.NewAppCollection([]apps.App{specialApp, echoApp})
 	assert.NoError(t, err)
 
@@ -224,8 +230,9 @@ func TestRunner_EndpointListenerAssociation(t *testing.T) {
 	runner, err := NewRunner(configCallback)
 	assert.NoError(t, err)
 
-	// Create an echo app and add it to the runner
-	echoApp := echo.New("echo")
+	// Create a mock echo app and add it to the runner
+	echoApp := mocks.NewMockApp("echo")
+	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	appCollection, err := apps.NewAppCollection([]apps.App{echoApp})
 	assert.NoError(t, err)
 	runner.appCollection = appCollection

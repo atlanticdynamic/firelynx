@@ -264,7 +264,7 @@ type testApp struct {
 	lastData     map[string]any
 }
 
-func (a *testApp) ID() string {
+func (a *testApp) String() string {
 	return a.id
 }
 
@@ -314,7 +314,7 @@ func (r *testAppRegistry) GetApp(id string) (apps.App, bool) {
 }
 
 func (r *testAppRegistry) RegisterApp(app apps.App) error {
-	r.apps[app.ID()] = app
+	r.apps[app.String()] = app
 	return nil
 }
 

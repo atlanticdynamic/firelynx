@@ -24,7 +24,7 @@ func (r *testAppRegistry) RegisterApp(app apps.App) error {
 	if r.apps == nil {
 		r.apps = make(map[string]apps.App)
 	}
-	r.apps[app.ID()] = app
+	r.apps[app.String()] = app
 	return nil
 }
 
@@ -38,7 +38,7 @@ type testApp struct {
 	id string
 }
 
-func (a *testApp) ID() string {
+func (a *testApp) String() string {
 	return a.id
 }
 

@@ -16,12 +16,12 @@ import (
 func TestNewEchoApp(t *testing.T) {
 	app := New("test-echo-app")
 	require.NotNil(t, app, "EchoApp should not be nil") // Use require for essential checks
-	assert.Equal(t, "test-echo-app", app.ID(), "App ID should match")
+	assert.Equal(t, "test-echo-app", app.String(), "App ID should match")
 }
 
 func TestEchoApp_ID(t *testing.T) {
 	app := &App{id: "test-echo-id"}
-	assert.Equal(t, "test-echo-id", app.ID())
+	assert.Equal(t, "test-echo-id", app.String())
 }
 
 func TestEchoApp_HandleHTTP(t *testing.T) {

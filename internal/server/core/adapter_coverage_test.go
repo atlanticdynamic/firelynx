@@ -10,6 +10,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	http "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
 	"github.com/stretchr/testify/assert"
@@ -62,7 +63,7 @@ func TestRoutingConfigCallbackWithNilConfig(t *testing.T) {
 
 func TestHTTPConfigCallbackWithNilConfig(t *testing.T) {
 	// Setup
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	adapter := NewConfigAdapter(nil, appRegistry, nil)
 	routeRegistry := routing.NewRegistry(appRegistry, adapter.RoutingConfigCallback(), nil)
 
@@ -95,7 +96,7 @@ func TestConvertToHTTPConfigWithNoEndpoints(t *testing.T) {
 		},
 	}
 
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	routeRegistry := routing.NewRegistry(appRegistry, nil, nil)
 
 	// Create adapter with logger to test logging path
@@ -118,7 +119,7 @@ func TestConvertToHTTPConfigWithNoEndpoints(t *testing.T) {
 func TestConvertToHTTPConfigWithFullConfig(t *testing.T) {
 	// Setup
 	domainConfig := createTestDomainConfig()
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	routeRegistry := routing.NewRegistry(appRegistry, nil, nil)
 
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)
@@ -175,7 +176,7 @@ func TestConvertToHTTPConfigWithNonHTTPListeners(t *testing.T) {
 		},
 	}
 
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	routeRegistry := routing.NewRegistry(appRegistry, nil, nil)
 
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)
@@ -216,7 +217,7 @@ func TestConvertToHTTPConfigWithMissingTimeouts(t *testing.T) {
 		},
 	}
 
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	routeRegistry := routing.NewRegistry(appRegistry, nil, nil)
 
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)

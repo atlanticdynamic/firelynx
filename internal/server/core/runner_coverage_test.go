@@ -12,36 +12,9 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// mockAppRegistry for testing
-type testAppRegistry struct {
-	apps map[string]apps.App
-}
-
-func newTestAppRegistry() *testAppRegistry {
-	return &testAppRegistry{
-		apps: make(map[string]apps.App),
-	}
-}
-
-func (r *testAppRegistry) GetApp(id string) (apps.App, bool) {
-	app, ok := r.apps[id]
-	return app, ok
-}
-
-func (r *testAppRegistry) RegisterApp(app apps.App) error {
-	r.apps[app.ID()] = app
-	return nil
-}
-
-func (r *testAppRegistry) UnregisterApp(id string) error {
-	delete(r.apps, id)
-	return nil
-}
 
 // Create a mock config callback function
 func createTestConfigCallback(cfg *config.Config, err error) func() config.Config {
@@ -71,9 +44,6 @@ func TestRunnerReload(t *testing.T) {
 			},
 		},
 	}
-
-	// Create a mock app registry - not used in this test case but kept for reference
-	_ = newTestAppRegistry()
 
 	// Test successful reload
 	t.Run("successful reload", func(t *testing.T) {

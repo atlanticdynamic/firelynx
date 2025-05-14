@@ -10,63 +10,30 @@ import (
 	"testing"
 	"time"
 
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing/matcher"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-// mockApp implements the apps.App interface for testing
-type mockApp struct {
-	id string
-}
+// Helper function to create a mock registry with apps
+func setupMockRegistry(appIDs ...string) *mocks.MockRegistry {
+	mockRegistry := mocks.NewMockRegistry()
 
-func (m *mockApp) ID() string {
-	return m.id
-}
-
-func (m *mockApp) HandleHTTP(
-	ctx context.Context,
-	w http.ResponseWriter,
-	r *http.Request,
-	data map[string]any,
-) error {
-	return nil
-}
-
-// mockAppRegistry implements apps.Registry for testing
-type mockAppRegistry struct {
-	apps map[string]apps.App
-}
-
-func newMockAppRegistry() *mockAppRegistry {
-	return &mockAppRegistry{
-		apps: make(map[string]apps.App),
+	for _, id := range appIDs {
+		mockApp := mocks.NewMockApp(id)
+		mockApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			Return(nil)
+		mockRegistry.On("GetApp", id).Return(mockApp, true)
 	}
-}
 
-func (r *mockAppRegistry) GetApp(id string) (apps.App, bool) {
-	app, ok := r.apps[id]
-	return app, ok
-}
-
-func (r *mockAppRegistry) RegisterApp(app apps.App) error {
-	r.apps[app.ID()] = app
-	return nil
-}
-
-func (r *mockAppRegistry) UnregisterApp(id string) error {
-	delete(r.apps, id)
-	return nil
-}
-
-func (r *mockAppRegistry) addMockApp(id string) {
-	r.apps[id] = &mockApp{id: id}
+	return mockRegistry
 }
 
 func TestNewRegistry(t *testing.T) {
 	// Setup
-	appRegistry := newMockAppRegistry()
+	appRegistry := setupMockRegistry()
 	configCallback := func() (*RoutingConfig, error) {
 		return &RoutingConfig{}, nil
 	}
@@ -92,9 +59,7 @@ func TestNewRegistry(t *testing.T) {
 
 func TestRegistry_Run(t *testing.T) {
 	// Setup
-	appRegistry := newMockAppRegistry()
-	appRegistry.addMockApp("app1")
-	appRegistry.addMockApp("app2")
+	appRegistry := setupMockRegistry("app1", "app2")
 
 	configCallback := func() (*RoutingConfig, error) {
 		return &RoutingConfig{
@@ -142,7 +107,7 @@ func TestRegistry_Run(t *testing.T) {
 
 func TestRegistry_Run_ConfigError(t *testing.T) {
 	// Setup with a failing config callback
-	appRegistry := newMockAppRegistry()
+	appRegistry := setupMockRegistry()
 	configError := errors.New("config error")
 	configCallback := func() (*RoutingConfig, error) {
 		return nil, configError
@@ -163,8 +128,7 @@ func TestRegistry_Run_ConfigError(t *testing.T) {
 
 func TestRegistry_Reload(t *testing.T) {
 	// Setup
-	appRegistry := newMockAppRegistry()
-	appRegistry.addMockApp("app1")
+	appRegistry := setupMockRegistry("app1")
 
 	// Use a variable to change the config between calls
 	var returnedConfig *RoutingConfig
@@ -228,12 +192,18 @@ func TestRegistry_Reload(t *testing.T) {
 }
 
 func TestRegistry_ResolveRoute(t *testing.T) {
-	// Setup app registry
-	appRegistry := newMockAppRegistry()
-	app1 := &mockApp{id: "app1"}
-	app2 := &mockApp{id: "app2"}
-	appRegistry.apps["app1"] = app1
-	appRegistry.apps["app2"] = app2
+	// Setup app registry with mock apps
+	appRegistry := mocks.NewMockRegistry()
+	app1 := mocks.NewMockApp("app1")
+	app2 := mocks.NewMockApp("app2")
+
+	// Setup mock behaviors
+	app1.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	app2.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	// Setup the registry's GetApp method to return the appropriate app
+	appRegistry.On("GetApp", "app1").Return(app1, true)
+	appRegistry.On("GetApp", "app2").Return(app2, true)
 
 	// Setup registry with logger
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -380,7 +350,7 @@ func TestRegistry_ResolveRoute(t *testing.T) {
 }
 
 func TestRegistry_ResolveRoute_NotInitialized(t *testing.T) {
-	registry := NewRegistry(newMockAppRegistry(), nil, nil)
+	registry := NewRegistry(mocks.NewMockRegistry(), nil, nil)
 	// Not initialized yet
 
 	req := createTestRequest(t, "/api/v1")
@@ -402,8 +372,7 @@ func createTestRequest(t *testing.T, path string) *http.Request {
 // configuration similar to what's used in the E2E tests.
 func TestRegistry_EndpointListenerConnection(t *testing.T) {
 	// Setup app registry with mock app
-	appRegistry := newMockAppRegistry()
-	appRegistry.addMockApp("echo_app")
+	appRegistry := setupMockRegistry("echo_app")
 
 	// Create a route configuration like the one in E2E tests
 	config := &RoutingConfig{

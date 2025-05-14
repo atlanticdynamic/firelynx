@@ -16,13 +16,13 @@ type MockApp struct {
 func NewMockApp(id string) *MockApp {
 	mockApp := &MockApp{}
 	if id != "" {
-		mockApp.On("ID").Return(id)
+		mockApp.On("String").Return(id)
 	}
 	return mockApp
 }
 
-// ID returns the mocked unique identifier of the application
-func (m *MockApp) ID() string {
+// String returns the mocked unique identifier of the application
+func (m *MockApp) String() string {
 	args := m.Called()
 	return args.String(0)
 }

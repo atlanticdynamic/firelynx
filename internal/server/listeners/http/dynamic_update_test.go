@@ -366,7 +366,7 @@ type dynamicTestApp struct {
 	lastDataMu   sync.Mutex // Protects lastData from concurrent access
 }
 
-func (a *dynamicTestApp) ID() string {
+func (a *dynamicTestApp) String() string {
 	return a.id
 }
 
@@ -421,7 +421,7 @@ func (r *dynamicTestAppRegistry) GetApp(id string) (apps.App, bool) {
 }
 
 func (r *dynamicTestAppRegistry) RegisterApp(app apps.App) error {
-	r.apps[app.ID()] = app
+	r.apps[app.String()] = app
 	return nil
 }
 

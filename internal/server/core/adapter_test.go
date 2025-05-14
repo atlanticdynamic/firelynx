@@ -1,9 +1,7 @@
 package core
 
 import (
-	"context"
 	"log/slog"
-	"net/http"
 	"os"
 	"reflect"
 	"testing"
@@ -15,61 +13,13 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	serverhttp "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
-
-// mockApp implements apps.App for testing
-type mockApp struct {
-	id string
-}
-
-func (m *mockApp) ID() string {
-	return m.id
-}
-
-func (m *mockApp) HandleHTTP(
-	ctx context.Context,
-	w http.ResponseWriter,
-	r *http.Request,
-	data map[string]any,
-) error {
-	return nil
-}
-
-// mockAppRegistry implements apps.Registry for testing
-type mockAppRegistry struct {
-	apps map[string]apps.App
-}
-
-func newMockAppRegistry() *mockAppRegistry {
-	registry := &mockAppRegistry{
-		apps: make(map[string]apps.App),
-	}
-	// Add some apps
-	registry.apps["echo-app"] = &mockApp{id: "echo-app"}
-	registry.apps["script-app"] = &mockApp{id: "script-app"}
-	registry.apps["admin-app"] = &mockApp{id: "admin-app"}
-	return registry
-}
-
-func (r *mockAppRegistry) GetApp(id string) (apps.App, bool) {
-	app, ok := r.apps[id]
-	return app, ok
-}
-
-func (r *mockAppRegistry) RegisterApp(app apps.App) error {
-	r.apps[app.ID()] = app
-	return nil
-}
-
-func (r *mockAppRegistry) UnregisterApp(id string) error {
-	delete(r.apps, id)
-	return nil
-}
 
 // createTestDomainConfig creates a test domain config with endpoints and listeners
 func createTestDomainConfig() *config.Config {
@@ -139,7 +89,7 @@ func createTestDomainConfig() *config.Config {
 func TestNewConfigAdapter(t *testing.T) {
 	// Setup
 	domainConfig := createTestDomainConfig()
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
 	// Test
@@ -163,7 +113,7 @@ func TestNewConfigAdapter(t *testing.T) {
 func TestConfigAdapter_ConvertToRoutingConfig(t *testing.T) {
 	// Setup
 	domainConfig := createTestDomainConfig()
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)
 
 	// Create expected result
@@ -212,7 +162,7 @@ func TestConfigAdapter_ConvertToRoutingConfig(t *testing.T) {
 
 func TestConfigAdapter_ConvertToRoutingConfig_EmptyEndpoints(t *testing.T) {
 	// Setup with empty endpoints
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	adapter := NewConfigAdapter(&config.Config{
 		Endpoints: endpoints.EndpointCollection{},
 	}, appRegistry, nil)
@@ -232,7 +182,7 @@ func TestConfigAdapter_ConvertToRoutingConfig_EmptyEndpoints(t *testing.T) {
 func TestConfigAdapter_RoutingConfigCallback(t *testing.T) {
 	// Setup
 	domainConfig := createTestDomainConfig()
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)
 
 	// Get the callback function
@@ -289,7 +239,23 @@ func TestConfigAdapter_RoutingConfigCallback(t *testing.T) {
 func TestConfigAdapter_ConvertToHTTPConfig(t *testing.T) {
 	// Setup
 	domainConfig := createTestDomainConfig()
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
+
+	// Setup the mock app and registry behavior for all apps used in the test
+	echoApp := mocks.NewMockApp("echo-app")
+	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	appRegistry.On("GetApp", "echo-app").Return(echoApp, true)
+
+	scriptApp := mocks.NewMockApp("script-app")
+	scriptApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+	appRegistry.On("GetApp", "script-app").Return(scriptApp, true)
+
+	adminApp := mocks.NewMockApp("admin-app")
+	adminApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+	appRegistry.On("GetApp", "admin-app").Return(adminApp, true)
+
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)
 
 	// Create route registry for test
@@ -335,7 +301,23 @@ func TestConfigAdapter_ConvertToHTTPConfig(t *testing.T) {
 func TestConfigAdapter_HTTPConfigCallback(t *testing.T) {
 	// Setup
 	domainConfig := createTestDomainConfig()
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
+
+	// Setup the mock app and registry behavior for all apps used in the test
+	echoApp := mocks.NewMockApp("echo-app")
+	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	appRegistry.On("GetApp", "echo-app").Return(echoApp, true)
+
+	scriptApp := mocks.NewMockApp("script-app")
+	scriptApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+	appRegistry.On("GetApp", "script-app").Return(scriptApp, true)
+
+	adminApp := mocks.NewMockApp("admin-app")
+	adminApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil)
+	appRegistry.On("GetApp", "admin-app").Return(adminApp, true)
+
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)
 
 	// Create route registry for test
@@ -402,7 +384,13 @@ func TestConfigAdapter_ConvertToHTTPConfig_SkipNonHTTPListeners(t *testing.T) {
 		},
 	}
 
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
+
+	// Setup the mock app and registry behavior
+	mainApp := mocks.NewMockApp("main-app")
+	mainApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	appRegistry.On("GetApp", "main-app").Return(mainApp, true)
+
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)
 	routeRegistry := routing.NewRegistry(appRegistry, adapter.RoutingConfigCallback(), nil)
 
@@ -434,7 +422,7 @@ func TestConfigAdapter_ConvertToHTTPConfig_DefaultTimeouts(t *testing.T) {
 		},
 	}
 
-	appRegistry := newMockAppRegistry()
+	appRegistry := mocks.NewMockRegistry()
 	adapter := NewConfigAdapter(domainConfig, appRegistry, nil)
 	routeRegistry := routing.NewRegistry(appRegistry, adapter.RoutingConfigCallback(), nil)
 
