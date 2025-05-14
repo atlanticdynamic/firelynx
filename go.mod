@@ -9,7 +9,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-supervisor v0.0.3
 	github.com/stretchr/testify v1.10.0
-	google.golang.org/grpc v1.72.0
+	google.golang.org/grpc v1.72.1
 	google.golang.org/protobuf v1.36.6
 )
 
