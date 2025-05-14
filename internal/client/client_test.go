@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -92,7 +93,7 @@ func TestSaveConfig(t *testing.T) {
 	})
 
 	// Create a test config
-	version := "v1"
+	version := version.Version
 	format := pb.LogFormat_LOG_FORMAT_JSON
 	level := pb.LogLevel_LOG_LEVEL_INFO
 	testConfig := &pb.ServerConfig{

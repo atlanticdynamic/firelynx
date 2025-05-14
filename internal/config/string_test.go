@@ -15,6 +15,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/config/logs"
+	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,18 +32,18 @@ func TestConfigString(t *testing.T) {
 			name: "Empty config",
 			setupConfig: func() *Config {
 				return &Config{
-					Version: "v1",
+					Version: version.Version,
 				}
 			},
 			expectedSubstr: []string{
-				"Firelynx Config (v1)",
+				"Firelynx Config (" + version.Version + ")",
 			},
 		},
 		{
 			name: "Config with logging",
 			setupConfig: func() *Config {
 				return &Config{
-					Version: "v1",
+					Version: version.Version,
 					Logging: logs.Config{
 						Format: logs.FormatJSON,
 						Level:  logs.LevelInfo,
@@ -59,7 +60,7 @@ func TestConfigString(t *testing.T) {
 			name: "Config with listeners",
 			setupConfig: func() *Config {
 				return &Config{
-					Version: "v1",
+					Version: version.Version,
 					Listeners: listeners.ListenerCollection{
 						{
 							ID:      "http-listener",
@@ -83,7 +84,7 @@ func TestConfigString(t *testing.T) {
 			name: "Config with endpoints",
 			setupConfig: func() *Config {
 				return &Config{
-					Version: "v1",
+					Version: version.Version,
 					Endpoints: endpoints.EndpointCollection{
 						{
 							ID:         "test-endpoint",
@@ -110,7 +111,7 @@ func TestConfigString(t *testing.T) {
 			name: "Config with apps",
 			setupConfig: func() *Config {
 				return &Config{
-					Version: "v1",
+					Version: version.Version,
 					Apps: apps.AppCollection{
 						{
 							ID:     "echo-app",
@@ -140,7 +141,7 @@ func TestConfigString(t *testing.T) {
 			name: "Full config",
 			setupConfig: func() *Config {
 				return &Config{
-					Version: "v1",
+					Version: version.Version,
 					Logging: logs.Config{
 						Format: logs.FormatJSON,
 						Level:  logs.LevelInfo,
@@ -176,7 +177,7 @@ func TestConfigString(t *testing.T) {
 				}
 			},
 			expectedSubstr: []string{
-				"Firelynx Config (v1)",
+				"Firelynx Config (" + version.Version + ")",
 				"Logging",
 				"Format: json",
 				"Level: info",
@@ -217,7 +218,7 @@ func TestConfigTree(t *testing.T) {
 
 	// Test that the ConfigTree function returns the same result as String
 	config := &Config{
-		Version: "v1",
+		Version: version.Version,
 		Logging: logs.Config{
 			Format: logs.FormatJSON,
 			Level:  logs.LevelInfo,

@@ -7,11 +7,13 @@ package cfgservice
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice/server"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"google.golang.org/grpc/codes"
@@ -19,13 +21,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Interface guard: ensure Runner implements supervisor.Runnable
+// Interface guard: ensure Runner implements required interfaces
 var (
 	_ supervisor.Runnable     = (*Runner)(nil)
 	_ supervisor.ReloadSender = (*Runner)(nil)
+	_ supervisor.Stateable    = (*Runner)(nil)
 )
 
 type Runner struct {
+	// Embed the UnimplementedConfigServiceServer for gRPC compatibility
 	pb.UnimplementedConfigServiceServer
 
 	logger   *slog.Logger
@@ -42,6 +46,8 @@ type Runner struct {
 
 	// For triggering a reload when a new config is received
 	reloadCh chan struct{}
+
+	fsm finitestate.Machine
 }
 
 // NewRunner creates a new Runner instance with the provided functional options.
@@ -61,6 +67,14 @@ func NewRunner(opts ...Option) (*Runner, error) {
 		return nil, errors.New("either a config path or a listen address must be provided")
 	}
 
+	// Initialize the finite state machine
+	fsmLogger := r.logger.WithGroup("fsm")
+	fsm, err := finitestate.New(fsmLogger.Handler())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create state machine: %w", err)
+	}
+	r.fsm = fsm
+
 	return r, nil
 }
 
@@ -76,10 +90,17 @@ func (r *Runner) String() string {
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting Runner")
 
+	if err := r.fsm.Transition(finitestate.StatusBooting); err != nil {
+		return fmt.Errorf("failed to transition to booting state: %w", err)
+	}
+
 	r.grpcLock.RLock()
 	grpcServer := r.grpcServer
 	r.grpcLock.RUnlock()
 	if grpcServer != nil {
+		if err := r.fsm.Transition(finitestate.StatusError); err != nil {
+			r.logger.Error("Failed to transition to error state", "error", err)
+		}
 		return errors.New("gRPC server is already running")
 	}
 
@@ -90,15 +111,37 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 	r.configMu.Unlock()
 
-	// Load initial configuration if path is provided
+	// Load initial configuration if path is provided and not already loaded
 	if r.configPath != "" {
-		if err := r.loadInitialConfig(); err != nil {
-			r.logger.Error("Failed to load initial configuration", "error", err)
-			// If we don't have a listen address, fail immediately
-			if r.listenAddr == "" {
-				return err
+		r.configMu.RLock()
+		// Check if config has actual content, not just an empty placeholder
+		hasContent := r.config != nil &&
+			(len(r.config.Listeners) > 0 || len(r.config.Endpoints) > 0 || len(r.config.Apps) > 0)
+		r.configMu.RUnlock()
+
+		if !hasContent {
+			r.logger.Debug("No meaningful config content detected, loading from disk")
+			if err := r.LoadInitialConfig(); err != nil {
+				r.logger.Error("Failed to load initial configuration", "error", err)
+
+				if stateErr := r.fsm.Transition(finitestate.StatusError); stateErr != nil {
+					r.logger.Error("Failed to transition to error state", "error", stateErr)
+				}
+
+				// If we don't have a listen address, fail immediately
+				if r.listenAddr == "" {
+					return err
+				}
+				// Otherwise continue with the empty config
+				// Reset state to allow transition to running later
+				if stateErr := r.fsm.SetState(finitestate.StatusBooting); stateErr != nil {
+					r.logger.Error("Failed to reset state to booting", "error", stateErr)
+				} else {
+					r.logger.Debug("Reset state to booting successfully")
+				}
 			}
-			// Otherwise continue with the empty config
+		} else {
+			r.logger.Debug("Config with content already loaded, skipping initial load")
 		}
 	}
 
@@ -107,6 +150,9 @@ func (r *Runner) Run(ctx context.Context) error {
 		var err error
 		grpcServer, err = server.NewGRPCManager(r.logger, r.listenAddr, r)
 		if err != nil {
+			if stateErr := r.fsm.Transition(finitestate.StatusError); stateErr != nil {
+				r.logger.Error("Failed to transition to error state", "error", stateErr)
+			}
 			return err
 		}
 
@@ -115,6 +161,9 @@ func (r *Runner) Run(ctx context.Context) error {
 		r.grpcLock.Lock()
 		if err = grpcServer.Start(ctx); err != nil {
 			r.grpcLock.Unlock()
+			if stateErr := r.fsm.Transition(finitestate.StatusError); stateErr != nil {
+				r.logger.Error("Failed to transition to error state", "error", stateErr)
+			}
 			return err
 		}
 		// store the started server, for graceful shutdown later
@@ -122,8 +171,16 @@ func (r *Runner) Run(ctx context.Context) error {
 		r.grpcLock.Unlock()
 	}
 
+	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
+		return fmt.Errorf("failed to transition to running state: %w", err)
+	}
+
 	// Block until context is done
 	<-ctx.Done()
+
+	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
+		r.logger.Error("Failed to transition to stopping state", "error", err)
+	}
 	r.logger.Info("Runner shutting down")
 
 	return nil
@@ -137,6 +194,13 @@ func (r *Runner) Stop() {
 	defer r.configMu.Unlock()
 	r.logger.Debug("Stopping Runner")
 
+	// Transition to stopping state
+	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
+		r.logger.Error("Failed to transition to stopping state", "error", err)
+		// Continue with shutdown despite the state transition error
+	}
+
+	// Stop the gRPC server if it's running
 	r.grpcLock.RLock()
 	grpcServer := r.grpcServer
 	r.grpcLock.RUnlock()
@@ -147,9 +211,11 @@ func (r *Runner) Stop() {
 		r.grpcLock.Unlock()
 		r.logger.Info("gRPC server stopped")
 	}
-	// When used with the supervisor, the supervisor will cancel the context
-	// passed to Run, which will cause Run to return
-	// TODO: add local context
+
+	// Transition to stopped state
+	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
+		r.logger.Error("Failed to transition to stopped state", "error", err)
+	}
 }
 
 // GetPbConfigClone returns the current domain config converted to a protobuf message.
@@ -184,10 +250,17 @@ func (r *Runner) GetDomainConfig() config.Config {
 
 	if r.config == nil {
 		// Return a minimal valid config if none exists
+		r.logger.Warn("GetDomainConfig: config is nil, returning minimal default")
 		return config.Config{
 			Version: config.VersionLatest,
 		}
 	}
+
+	// Debug log the config details
+	r.logger.Debug("GetDomainConfig: returning config",
+		"listeners", len(r.config.Listeners),
+		"endpoints", len(r.config.Endpoints),
+		"apps", len(r.config.Apps))
 
 	// Return a copy by value
 	return *r.config
@@ -200,8 +273,20 @@ func (r *Runner) GetReloadTrigger() <-chan struct{} {
 	return r.reloadCh
 }
 
-// loadInitialConfig attempts to load configuration from disk at startup.
-func (r *Runner) loadInitialConfig() error {
+// notifyConfigChange sends a notification to the reload channel
+// to inform subscribers that the configuration has changed
+func (r *Runner) notifyConfigChange() {
+	select {
+	case r.reloadCh <- struct{}{}:
+		r.logger.Debug("Reload notification sent")
+	default:
+		r.logger.Warn("Reload notification channel full, skipping notification")
+	}
+}
+
+// LoadInitialConfig attempts to load configuration from disk.
+// This can be called explicitly to load config before starting the runner.
+func (r *Runner) LoadInitialConfig() error {
 	r.logger.Info("Loading initial configuration", "path", r.configPath)
 
 	// Use the config package's NewConfig which already handles loading and validation
@@ -209,6 +294,23 @@ func (r *Runner) loadInitialConfig() error {
 	if err != nil {
 		r.logger.Error("Failed to load or validate initial configuration", "error", err)
 		return err
+	}
+
+	// Log details of the loaded config
+	if domainConfig != nil {
+		r.logger.Debug("Domain config loaded details",
+			"listeners", len(domainConfig.Listeners),
+			"endpoints", len(domainConfig.Endpoints),
+			"apps", len(domainConfig.Apps))
+
+		// Log first listener if available
+		if len(domainConfig.Listeners) > 0 {
+			listener := domainConfig.Listeners[0]
+			r.logger.Debug("First listener details",
+				"id", listener.ID,
+				"address", listener.Address,
+				"type", listener.Type)
+		}
 	}
 
 	// Store the domain config directly
@@ -221,7 +323,6 @@ func (r *Runner) loadInitialConfig() error {
 }
 
 // UpdateConfig handles requests to update the configuration via gRPC.
-// It performs validation in domain model space before accepting the update.
 func (r *Runner) UpdateConfig(
 	ctx context.Context,
 	req *pb.UpdateConfigRequest,
@@ -232,29 +333,46 @@ func (r *Runner) UpdateConfig(
 		return nil, status.Error(codes.InvalidArgument, "No configuration provided")
 	}
 
-	// Validate the configuration by converting to domain model and validating
+	if err := r.fsm.Transition(finitestate.StatusReloading); err != nil {
+		r.logger.Error("Failed to transition to reloading state", "error", err)
+		return nil, status.Errorf(
+			codes.FailedPrecondition,
+			"service not in a state that can accept configuration updates",
+		)
+	}
+
 	domainConfig, err := config.NewFromProto(req.Config)
 	if err != nil {
+		if errState := r.fsm.Transition(finitestate.StatusError); errState != nil {
+			r.logger.Error("Failed to transition to error state", "error", errState)
+		}
 		return nil, status.Errorf(codes.InvalidArgument, "conversion error: %v", err)
 	}
 
 	if err := domainConfig.Validate(); err != nil {
 		r.logger.Warn("Configuration validation failed", "error", err)
+		if errState := r.fsm.Transition(finitestate.StatusError); errState != nil {
+			r.logger.Error("Failed to transition to error state", "error", errState)
+		}
 		return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
 	}
 
-	// Update the configuration with the validated domain config
 	r.configMu.Lock()
 	r.config = domainConfig
 	r.configMu.Unlock()
 
-	// Trigger a reload notification
-	select {
-	case r.reloadCh <- struct{}{}:
-		r.logger.Info("Reload notification sent")
-	default:
-		// TODO: consider removing the default case to provide back pressure instead of dropping reload triggers
-		r.logger.Warn("Reload notification channel full, skipping")
+	// Notify subscribers about the config change
+	r.notifyConfigChange()
+
+	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
+		r.logger.Error("Failed to transition to running state", "error", err)
+		if errState := r.fsm.Transition(finitestate.StatusError); errState != nil {
+			r.logger.Error("Failed to transition to error state", "error", errState)
+		}
+		return nil, status.Errorf(
+			codes.Internal,
+			"configuration updated but service failed to return to running state",
+		)
 	}
 
 	success := true

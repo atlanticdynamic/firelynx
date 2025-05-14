@@ -13,6 +13,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -115,7 +116,7 @@ func setupTestConfig() *Config {
 
 	// Create the final config
 	config := &Config{
-		Version:   "v1",
+		Version:   version.Version,
 		Listeners: listeners.ListenerCollection{httpListener, grpcListener},
 		Endpoints: endpoints.EndpointCollection{
 			httpEndpoint,

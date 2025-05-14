@@ -20,6 +20,7 @@ import (
 var (
 	_ supervisor.Runnable   = (*Runner)(nil)
 	_ supervisor.Reloadable = (*Runner)(nil)
+	_ supervisor.Stateable  = (*Runner)(nil)
 )
 
 // Runner manages HTTP listener instances based on configuration
@@ -83,7 +84,7 @@ func (r *Runner) String() string {
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting HTTP listener manager")
 
-	// Run the composite runner which will handle all HTTP listeners
+	// Just delegate to the composite runner
 	return r.runner.Run(ctx)
 }
 
@@ -128,6 +129,23 @@ func (r *Runner) getRunnerConfig() (*composite.Config[*wrapper.HttpServer], erro
 	httpConfig, err := r.configCallback()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get HTTP config: %w", err)
+	}
+
+	// Log the config we received
+	if httpConfig != nil {
+		r.logger.Debug("Received HTTP config from callback",
+			"listeners", len(httpConfig.Listeners))
+
+		// Log details of first listener
+		if len(httpConfig.Listeners) > 0 {
+			listener := httpConfig.Listeners[0]
+			r.logger.Debug("First HTTP listener details",
+				"id", listener.ID,
+				"address", listener.Address,
+				"endpoint_id", listener.EndpointID)
+		}
+	} else {
+		r.logger.Warn("Received nil HTTP config from callback")
 	}
 
 	// Convert to composite runner config format

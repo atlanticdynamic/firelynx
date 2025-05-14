@@ -10,13 +10,15 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
+	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
 	"github.com/atlanticdynamic/firelynx/internal/config/logs"
+	"github.com/atlanticdynamic/firelynx/internal/config/version"
 )
 
 // Configuration version constants
 const (
 	// VersionLatest is the latest supported configuration version
-	VersionLatest = "v1"
+	VersionLatest = version.Version
 
 	// VersionUnknown is used when a version is not specified
 	VersionUnknown = "unknown"
@@ -119,7 +121,7 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 func NewConfigFromBytes(data []byte) (*Config, error) {
 	// Create a TOML loader from bytes using a function literal that returns the interface
 	ld, err := loader.NewLoaderFromBytes(data, func(d []byte) loader.Loader {
-		return loader.NewTomlLoader(d)
+		return toml.NewTomlLoader(d)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)
@@ -146,7 +148,7 @@ func NewConfigFromBytes(data []byte) (*Config, error) {
 func NewConfigFromReader(reader io.Reader) (*Config, error) {
 	// Create a TOML loader from reader using a function literal that returns the interface
 	ld, err := loader.NewLoaderFromReader(reader, func(d []byte) loader.Loader {
-		return loader.NewTomlLoader(d)
+		return toml.NewTomlLoader(d)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToLoadConfig, err)

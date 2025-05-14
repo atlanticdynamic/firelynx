@@ -7,6 +7,7 @@ format = "text"
 [[listeners]]
 id = "http_listener"
 address = "{{.HTTPAddr}}"
+type = "http"
 
 [listeners.http]
 read_timeout = "1s"
@@ -16,18 +17,20 @@ drain_timeout = "1s"
 
 [[endpoints]]
 id = "echo_endpoint"
-listener_ids = ["http_listener"]
+listener_id = "http_listener"
 
 [[endpoints.routes]]
 app_id = "echo_app"
-http_path = "/echo"
+[endpoints.routes.http]
+path_prefix = "/echo"
 
 [[endpoints.routes]]
 app_id = "echo_app"
-http_path = "/new-path"
+[endpoints.routes.http]
+path_prefix = "/new-path"
 
 [[apps]]
 id = "echo_app"
-
+type = "echo"
 [apps.echo]
 response = "This is a test echo response"

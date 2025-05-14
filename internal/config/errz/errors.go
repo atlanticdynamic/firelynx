@@ -45,3 +45,39 @@ var (
 	ErrEmptyCode        = errors.New("empty code")
 	ErrEmptyEntrypoint  = errors.New("empty entrypoint")
 )
+
+// TOML loader specific errors
+var (
+	// ErrLoader is the base error type for all loader errors
+	ErrLoader = errors.New("config loader error")
+
+	// ErrTomlLoader is the base error type for TOML loader errors
+	ErrTomlLoader = errors.New("TOML loader error")
+
+	// ErrNoSourceData is returned when no source data is provided to the loader
+	ErrNoSourceData = errors.New("no source data provided")
+
+	// ErrJsonConversion is returned when TOML to JSON conversion fails
+	ErrJsonConversion = errors.New("failed to convert TOML to JSON")
+
+	// ErrUnmarshalProto is returned when JSON to proto unmarshaling fails
+	ErrUnmarshalProto = errors.New("failed to unmarshal proto")
+
+	// ErrPostProcessConfig is returned when post-processing config fails
+	ErrPostProcessConfig = errors.New("failed to post-process config")
+
+	// ErrInvalidListenerFormat is returned when a listener has invalid format
+	ErrInvalidListenerFormat = errors.New("invalid listener format")
+
+	// ErrUnsupportedListenerType is returned when a listener type is unsupported
+	ErrUnsupportedListenerType = errors.New("unsupported listener type")
+
+	// ErrInvalidEndpointFormat is returned when an endpoint has invalid format
+	ErrInvalidEndpointFormat = errors.New("invalid endpoint format")
+
+	// ErrUnsupportedLogFormat is returned when a log format is unsupported
+	ErrUnsupportedLogFormat = errors.New("unsupported log format")
+
+	// ErrUnsupportedLogLevel is returned when a log level is unsupported
+	ErrUnsupportedLogLevel = errors.New("unsupported log level")
+)

@@ -65,6 +65,16 @@ func (a *ConfigAdapter) ConvertToRoutingConfig(
 	a.logger.Debug("Converting domain endpoints to routing config",
 		"num_endpoints", len(domainEndpoints))
 
+	// Log domain config state
+	if a.domainConfig != nil {
+		a.logger.Debug("Domain config available",
+			"endpoints", len(a.domainConfig.Endpoints),
+			"listeners", len(a.domainConfig.Listeners),
+			"apps", len(a.domainConfig.Apps))
+	} else {
+		a.logger.Warn("Domain config is nil during conversion")
+	}
+
 	for i, endpoint := range domainEndpoints {
 		a.logger.Debug("Processing endpoint",
 			"index", i,
@@ -95,6 +105,17 @@ func (a *ConfigAdapter) ConvertToRoutingConfig(
 			"endpoint", endpoint.ID,
 			"num_http_routes", len(httpRoutes),
 			"total_routes", len(endpoint.Routes))
+
+		// Detailed debug on HTTP route conversion
+		if len(httpRoutes) == 0 && len(endpoint.Routes) > 0 {
+			for j, route := range endpoint.Routes {
+				a.logger.Debug("Route failed HTTP conversion check",
+					"endpoint", endpoint.ID,
+					"route_index", j,
+					"app_id", route.AppID,
+					"route_object", fmt.Sprintf("%#v", route))
+			}
+		}
 
 		// If we have no HTTP routes, log more details about the routes
 		if len(httpRoutes) == 0 && len(endpoint.Routes) > 0 {

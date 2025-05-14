@@ -9,6 +9,8 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/version"
+	"github.com/atlanticdynamic/firelynx/internal/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +28,7 @@ func TestGetConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set a test configuration
-	version := "v1"
+	version := version.Version
 	testPbConfig := &pb.ServerConfig{
 		Version: &version,
 	}
@@ -58,7 +60,7 @@ func TestGetConfigClone(t *testing.T) {
 		require.NoError(t, err)
 
 		// Set a test configuration
-		version := "v1"
+		version := version.Version
 		testPbConfig := &pb.ServerConfig{
 			Version: &version,
 		}
@@ -112,7 +114,7 @@ func TestUpdateConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Set initial version
-		version := "v1"
+		version := version.Version
 		initialPbConfig := &pb.ServerConfig{
 			Version: &version,
 		}
@@ -124,6 +126,12 @@ func TestUpdateConfig(t *testing.T) {
 		r.configMu.Lock()
 		r.config = initialDomainConfig
 		r.configMu.Unlock()
+
+		// Initialize FSM state to Running
+		err = r.fsm.Transition(finitestate.StatusBooting)
+		require.NoError(t, err)
+		err = r.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(t, err)
 
 		// Create valid update request
 		listenerId := "http_listener"
@@ -171,13 +179,19 @@ func TestUpdateConfig(t *testing.T) {
 		// Verify domain config was stored (not the protobuf)
 		r.configMu.RLock()
 		assert.NotNil(t, r.config)
-		assert.Equal(t, "v1", r.config.Version)
+		assert.Equal(t, version, r.config.Version)
 		r.configMu.RUnlock()
 	})
 
 	t.Run("nil_config", func(t *testing.T) {
 		// Create a Runner instance
 		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		require.NoError(t, err)
+
+		// Initialize FSM state to Running
+		err = r.fsm.Transition(finitestate.StatusBooting)
+		require.NoError(t, err)
+		err = r.fsm.Transition(finitestate.StatusRunning)
 		require.NoError(t, err)
 
 		// Call UpdateConfig with nil request
@@ -193,18 +207,26 @@ func TestUpdateConfig(t *testing.T) {
 		assert.Nil(t, resp)
 	})
 
-	t.Run("invalid_version", func(t *testing.T) {
+	// testInvalidVersionConfig is a helper function to test invalid version configurations
+	testInvalidVersionConfig := func(t *testing.T, versionValue string, description string) {
+		t.Helper()
+
 		// Create a Runner instance
 		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
 
-		// Set up an invalid version
-		invalidVersion := "v2"
+		// Initialize FSM state to Running
+		err = r.fsm.Transition(finitestate.StatusBooting)
+		require.NoError(t, err)
+		err = r.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(t, err)
+
+		// Set up the invalid version
 		invalidConfig := &pb.ServerConfig{
-			Version: &invalidVersion,
+			Version: &versionValue,
 		}
 
-		// Call UpdateConfig with invalid version
+		// Call UpdateConfig with the invalid version
 		resp, err := r.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
 			Config: invalidConfig,
 		})
@@ -216,31 +238,14 @@ func TestUpdateConfig(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, st.Code())
 		assert.Contains(t, st.Message(), "validation error")
 		assert.Nil(t, resp)
+	}
+
+	t.Run("invalid_version", func(t *testing.T) {
+		testInvalidVersionConfig(t, "v2", "unsupported version")
 	})
 
 	t.Run("invalid_format", func(t *testing.T) {
-		// Create a Runner instance
-		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
-		require.NoError(t, err)
-
-		// Set up an invalid version (not even a valid format)
-		invalidVersion := "invalid-version"
-		invalidConfig := &pb.ServerConfig{
-			Version: &invalidVersion,
-		}
-
-		// Call UpdateConfig with invalid version format
-		resp, err := r.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
-			Config: invalidConfig,
-		})
-
-		// Should get validation error
-		require.Error(t, err)
-		st, ok := status.FromError(err)
-		require.True(t, ok, "Error should be a gRPC status error")
-		assert.Equal(t, codes.InvalidArgument, st.Code())
-		assert.Contains(t, st.Message(), "validation error")
-		assert.Nil(t, resp)
+		testInvalidVersionConfig(t, "invalid-version", "invalid version format")
 	})
 
 	t.Run("multiple_updates", func(t *testing.T) {
@@ -249,7 +254,7 @@ func TestUpdateConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Set initial version
-		version := "v1"
+		version := version.Version
 		initialPbConfig := &pb.ServerConfig{
 			Version: &version,
 		}
@@ -261,6 +266,12 @@ func TestUpdateConfig(t *testing.T) {
 		r.configMu.Lock()
 		r.config = initialDomainConfig
 		r.configMu.Unlock()
+
+		// Initialize FSM state to Running
+		err = r.fsm.Transition(finitestate.StatusBooting)
+		require.NoError(t, err)
+		err = r.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(t, err)
 
 		// Prepare test configs
 		configs := []*pb.ServerConfig{
@@ -319,6 +330,11 @@ func TestUpdateConfig(t *testing.T) {
 // Test that the reload channel emits correctly
 func TestReloadNotification(t *testing.T) {
 	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	require.NoError(t, err)
+
+	err = r.fsm.Transition(finitestate.StatusBooting)
+	require.NoError(t, err)
+	err = r.fsm.Transition(finitestate.StatusRunning)
 	require.NoError(t, err)
 
 	// Get the reload channel
@@ -392,6 +408,11 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	err = r.fsm.Transition(finitestate.StatusBooting)
+	require.NoError(t, err)
+	err = r.fsm.Transition(finitestate.StatusRunning)
+	require.NoError(t, err)
+
 	// Create valid config for update
 	version := "v1"
 	validConfig := &pb.ServerConfig{
@@ -421,6 +442,11 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 // TestHandlingInvalidVersionConfig tests configs with invalid versions
 func TestHandlingInvalidVersionConfig(t *testing.T) {
 	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	require.NoError(t, err)
+
+	err = r.fsm.Transition(finitestate.StatusBooting)
+	require.NoError(t, err)
+	err = r.fsm.Transition(finitestate.StatusRunning)
 	require.NoError(t, err)
 
 	// Create a config with an invalid version pattern

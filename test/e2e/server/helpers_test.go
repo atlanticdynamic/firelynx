@@ -16,6 +16,7 @@ import (
 
 	serverCmd "github.com/atlanticdynamic/firelynx/cmd/firelynx/server"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
+	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,6 +35,7 @@ func runServerWithConfig(
 	ctx context.Context,
 	configPath, grpcAddr string,
 ) (context.CancelFunc, error) {
+	t.Helper()
 	// Create a logger that writes to the test's log with DEBUG level
 	var logBuf bytes.Buffer
 	handlerOptions := &slog.HandlerOptions{
@@ -87,8 +89,12 @@ func runServerWithConfig(
 
 // writeConfigFile writes a config file from a template with the given data
 func writeConfigFile(t *testing.T, templatePath, outputPath string, data TemplateData) {
+	t.Helper()
 	configContent, err := ProcessTemplate(templatePath, data)
 	require.NoError(t, err, "Failed to process template")
+
+	// Debug print the processed template
+	// t.Logf("Processed template content for %s:\n%s", templatePath, string(configContent))
 
 	err = os.WriteFile(outputPath, configContent, 0o644)
 	require.NoError(t, err, "Failed to write config file")
@@ -96,6 +102,7 @@ func writeConfigFile(t *testing.T, templatePath, outputPath string, data Templat
 
 // waitForHTTPEndpoint checks if an HTTP endpoint is responding and retries until it succeeds or times out
 func waitForHTTPEndpoint(t *testing.T, url string, timeout, retryInterval time.Duration) bool {
+	t.Helper()
 	httpClient := &http.Client{Timeout: 2 * time.Second}
 
 	return assert.Eventually(t, func() bool {
@@ -118,9 +125,12 @@ func waitForHTTPEndpoint(t *testing.T, url string, timeout, retryInterval time.D
 
 // createTempConfig creates a temporary directory and configures it with the given template
 func createTempConfig(t *testing.T, templatePath string, data TemplateData) (string, string) {
+	t.Helper()
 	// Create a temporary directory for the config file
 	tempDir := t.TempDir()
-	configPath := filepath.Join(tempDir, "config.toml")
+
+	// Use test name in config file for easier identification in logs
+	configPath := filepath.Join(tempDir, fmt.Sprintf("%s.toml", t.Name()))
 
 	// Write the configuration file
 	writeConfigFile(t, templatePath, configPath, data)
@@ -130,6 +140,7 @@ func createTempConfig(t *testing.T, templatePath string, data TemplateData) (str
 
 // getTestHTTPAndGRPCAddresses returns test HTTP and gRPC addresses using random ports
 func getTestHTTPAndGRPCAddresses(t *testing.T) (string, string) {
+	t.Helper()
 	httpPort := testutil.GetRandomPort(t)
 	grpcPort := testutil.GetRandomPort(t)
 
@@ -141,8 +152,9 @@ func getTestHTTPAndGRPCAddresses(t *testing.T) (string, string) {
 
 // loadConfigFromTemplate loads a configuration from a template file with the given data
 func loadConfigFromTemplate(t *testing.T, templatePath string, data TemplateData) loader.Loader {
+	t.Helper()
 	configContent, err := ProcessTemplate(templatePath, data)
 	require.NoError(t, err, "Failed to process template")
 
-	return loader.NewTomlLoader(configContent)
+	return toml.NewTomlLoader(configContent)
 }

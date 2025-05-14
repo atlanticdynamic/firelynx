@@ -23,6 +23,7 @@ var (
 type RunnableReloadable interface {
 	supervisor.Runnable
 	supervisor.Reloadable
+	supervisor.Stateable
 }
 
 // ServerOption configures a ServerWrapper

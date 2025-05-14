@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -96,10 +97,20 @@ func TestGRPCServer(t *testing.T) {
 	require.NoError(t, err, "Failed to start firelynx server")
 	defer cleanup()
 
-	// Create a client to send configuration
-	firelynxClient := client.New(client.Config{
+	// Create a client to use for checking server readiness
+	testClient := client.New(client.Config{
 		ServerAddr: grpcAddr,
 	})
+
+	// Wait for gRPC server to be ready by attempting to get config
+	assert.Eventually(t, func() bool {
+		_, err := testClient.GetConfig(ctx)
+		if err != nil {
+			t.Logf("Server not ready yet: %v", err)
+			return false
+		}
+		return true
+	}, 5*time.Second, 200*time.Millisecond, "gRPC server never became ready to accept requests")
 
 	// Create the config
 	configLoader := loadConfigFromTemplate(t, "testdata/config.tmpl", TemplateData{
@@ -107,7 +118,7 @@ func TestGRPCServer(t *testing.T) {
 	})
 
 	// Send configuration to the server
-	err = firelynxClient.ApplyConfig(ctx, configLoader)
+	err = testClient.ApplyConfig(ctx, configLoader)
 	require.NoError(t, err, "Failed to apply configuration")
 
 	// Extract HTTP port from address for URL construction
@@ -153,7 +164,7 @@ func TestGRPCServer(t *testing.T) {
 	})
 
 	// Send the updated configuration
-	err = firelynxClient.ApplyConfig(ctx, updatedLoader)
+	err = testClient.ApplyConfig(ctx, updatedLoader)
 	require.NoError(t, err, "Failed to apply updated configuration")
 
 	// Test the new route
@@ -198,7 +209,7 @@ func TestConfigFileReload(t *testing.T) {
 	httpAddr, _ := getTestHTTPAndGRPCAddresses(t)
 
 	// Create a temporary directory and write the config file
-	_, configPath := createTempConfig(t, "testdata/config.tmpl", TemplateData{
+	tempDir, configPath := createTempConfig(t, "testdata/config.tmpl", TemplateData{
 		HTTPAddr: httpAddr,
 	})
 
@@ -246,8 +257,22 @@ func TestConfigFileReload(t *testing.T) {
 	})
 	require.NoError(t, err, "Failed to process template")
 
-	err = os.WriteFile(configPath, updatedContent, 0o644)
+	// Create a new file instead of updating the existing one
+	// This is more likely to trigger filesystem notification on all platforms
+	newConfigPath := filepath.Join(tempDir, "updated_config.toml")
+	err = os.WriteFile(newConfigPath, updatedContent, 0o644)
 	require.NoError(t, err, "Failed to write updated config file")
+
+	// Ensure file is synced to disk
+	syncFileToStorage(t, newConfigPath)
+
+	// Now replace the original file by moving the new one
+	// This ensures a complete file replacement which is more reliably detected
+	err = os.Rename(newConfigPath, configPath)
+	require.NoError(t, err, "Failed to replace config file")
+
+	// Ensure the replaced file is synced to disk
+	syncFileToStorage(t, configPath)
 
 	// Test the new route (file watcher should detect changes)
 	t.Run("New route responds after config reload", func(t *testing.T) {
@@ -280,4 +305,38 @@ func TestConfigFileReload(t *testing.T) {
 			return echoResp["app_id"] == "echo_app" && echoResp["path"] == "/new-path"
 		}, 10*time.Second, 500*time.Millisecond, "New route never became available after config reload")
 	})
+}
+
+// syncFileToStorage ensures file changes are flushed to stable storage
+func syncFileToStorage(t *testing.T, path string) {
+	t.Helper()
+	file, err := os.Open(path)
+	if err != nil {
+		t.Logf("Failed to open file for sync: %v", err)
+		return
+	}
+	err = file.Close()
+	if err != nil {
+		t.Logf("Failed to close file for sync: %v", err)
+	}
+
+	if err = file.Sync(); err != nil {
+		t.Logf("Failed to sync file: %v", err)
+	}
+
+	// Also sync the parent directory to ensure file metadata is updated
+	dirPath := filepath.Dir(path)
+	dir, err := os.Open(dirPath)
+	if err != nil {
+		t.Logf("Failed to open directory for sync: %v", err)
+		return
+	}
+	err = dir.Close()
+	if err != nil {
+		t.Logf("Failed to close directory for sync: %v", err)
+	}
+
+	if err = dir.Sync(); err != nil {
+		t.Logf("Failed to sync directory: %v", err)
+	}
 }

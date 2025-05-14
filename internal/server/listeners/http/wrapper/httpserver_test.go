@@ -38,6 +38,23 @@ func (m *mockRunnable) Reload() {
 	m.Called()
 }
 
+// Implement the Stateable interface methods
+
+func (m *mockRunnable) GetState() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+func (m *mockRunnable) IsRunning() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+func (m *mockRunnable) GetStateChan(ctx context.Context) <-chan string {
+	args := m.Called(ctx)
+	return args.Get(0).(chan string)
+}
+
 // createTestHandler creates a simple http handler for testing
 func createTestHandler(statusCode int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -195,6 +212,12 @@ func TestHttpServer_ManagedMethods(t *testing.T) {
 	ctx := context.Background()
 	mockRunner.On("Run", ctx).Return(nil)
 
+	// Set up state related method expectations
+	mockStateChan := make(chan string)
+	mockRunner.On("GetState").Return("Running").Maybe()
+	mockRunner.On("IsRunning").Return(true).Maybe()
+	mockRunner.On("GetStateChan", mock.Anything).Return(mockStateChan).Maybe()
+
 	// Test Run method
 	err = server.Run(ctx)
 	assert.NoError(t, err)
@@ -205,6 +228,12 @@ func TestHttpServer_ManagedMethods(t *testing.T) {
 	server.runner = mockRunner
 	mockRunner.On("Stop").Return()
 
+	// Set up state related method expectations
+	mockStateChan = make(chan string)
+	mockRunner.On("GetState").Return("Stopped").Maybe()
+	mockRunner.On("IsRunning").Return(false).Maybe()
+	mockRunner.On("GetStateChan", mock.Anything).Return(mockStateChan).Maybe()
+
 	// Test Stop method
 	server.Stop()
 	mockRunner.AssertExpectations(t)
@@ -213,6 +242,12 @@ func TestHttpServer_ManagedMethods(t *testing.T) {
 	mockRunner = new(mockRunnable)
 	server.runner = mockRunner
 	mockRunner.On("Reload").Return()
+
+	// Set up state related method expectations
+	mockStateChan = make(chan string)
+	mockRunner.On("GetState").Return("Running").Maybe()
+	mockRunner.On("IsRunning").Return(true).Maybe()
+	mockRunner.On("GetStateChan", mock.Anything).Return(mockStateChan).Maybe()
 
 	// Test Reload method
 	server.Reload()
@@ -230,6 +265,12 @@ func TestHttpServer_UpdateRoutes(t *testing.T) {
 	mockRunner := new(mockRunnable)
 	server.runner = mockRunner
 	mockRunner.On("Reload").Return() // UpdateRoutes calls Reload
+
+	// Set up state related method expectations
+	mockStateChan := make(chan string)
+	mockRunner.On("GetState").Return("Running").Maybe()
+	mockRunner.On("IsRunning").Return(true).Maybe()
+	mockRunner.On("GetStateChan", mock.Anything).Return(mockStateChan).Maybe()
 
 	// Update routes
 	newRoutes := []httpserver.Route{

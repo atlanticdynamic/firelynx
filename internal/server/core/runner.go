@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	http "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
@@ -21,6 +22,7 @@ import (
 var (
 	_ supervisor.Runnable   = (*Runner)(nil)
 	_ supervisor.Reloadable = (*Runner)(nil)
+	_ supervisor.Stateable  = (*Runner)(nil)
 )
 
 // These are injected by goreleaser and correspond to the version of the build.
@@ -59,6 +61,9 @@ type Runner struct {
 	// Parent context handling
 	parentCtx    context.Context
 	parentCancel context.CancelFunc
+
+	// State management
+	fsm finitestate.Machine
 }
 
 // NewRunner creates a new core runner that coordinates configuration and services.
@@ -87,6 +92,14 @@ func NewRunner(
 	for _, opt := range opts {
 		opt(runner)
 	}
+
+	// Initialize the finite state machine
+	fsmLogger := runner.logger.WithGroup("fsm")
+	fsm, err := finitestate.New(fsmLogger.Handler())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create state machine: %w", err)
+	}
+	runner.fsm = fsm
 
 	return runner, nil
 }
@@ -146,8 +159,15 @@ func (r *Runner) boot() error {
 		return errors.New("config callback is nil")
 	}
 
-	// Get the initial configuration
+	// Debug log for config callback
+	r.logger.Debug("Getting initial configuration from callback")
 	domainConfig := r.configCallback()
+
+	// Debug log for config state
+	r.logger.Debug("Retrieved configuration details",
+		"endpoints", len(domainConfig.Endpoints),
+		"listeners", len(domainConfig.Listeners),
+		"apps", len(domainConfig.Apps))
 
 	r.currentConfig = &domainConfig
 
@@ -159,6 +179,10 @@ func (r *Runner) boot() error {
 // It initializes and starts all server components, blocking until
 // the context is cancelled or Stop is called.
 func (r *Runner) Run(ctx context.Context) error {
+	if err := r.fsm.Transition(finitestate.StatusBooting); err != nil {
+		return fmt.Errorf("failed to transition to booting state: %w", err)
+	}
+
 	// Create a cancellable context
 	r.mutex.Lock()
 	runCtx, cancel := context.WithCancel(ctx)
@@ -171,11 +195,24 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	// Load the initial configuration
 	if err := r.boot(); err != nil {
+		if stateErr := r.fsm.Transition(finitestate.StatusError); stateErr != nil {
+			r.logger.Error("Failed to transition to error state", "error", stateErr)
+		}
 		return fmt.Errorf("failed to initialize configuration: %w", err)
+	}
+
+	// Transition to running state
+	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
+		return fmt.Errorf("failed to transition to running state: %w", err)
 	}
 
 	// Block until the context is cancelled
 	<-ctx.Done()
+
+	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
+		r.logger.Error("Failed to transition to stopping state", "error", err)
+	}
+
 	return ctx.Err()
 }
 
@@ -208,6 +245,12 @@ func (r *Runner) Stop() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
+	// Transition to stopping state
+	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
+		r.logger.Error("Failed to transition to stopping state", "error", err)
+		// Continue with shutdown despite the state transition error
+	}
+
 	// Signal stop to error monitor
 	close(r.stopCh)
 
@@ -218,6 +261,11 @@ func (r *Runner) Stop() {
 
 	// Wait for all goroutines to exit
 	r.wg.Wait()
+
+	// Transition to stopped state
+	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
+		r.logger.Error("Failed to transition to stopped state", "error", err)
+	}
 }
 
 // SetConfigProvider sets the callback used to get the current configuration.
@@ -235,10 +283,19 @@ func (r *Runner) Reload() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
+	// Transition to reloading state
+	if err := r.fsm.Transition(finitestate.StatusReloading); err != nil {
+		r.logger.Error("Failed to transition to reloading state", "error", err)
+		// Continue with reload despite the state transition error
+	}
+
 	// Get latest configuration
 	if r.configCallback == nil {
 		r.logger.Error("Cannot reload configuration", "error", "config callback is nil")
 		r.serverErrors <- errors.New("config callback is nil during reload")
+		if err := r.fsm.Transition(finitestate.StatusError); err != nil {
+			r.logger.Error("Failed to transition to error state", "error", err)
+		}
 		return
 	}
 
@@ -251,6 +308,18 @@ func (r *Runner) Reload() {
 	if err := r.updateAppsFromConfig(); err != nil {
 		r.logger.Error("Failed to update apps from config", "error", err)
 		r.serverErrors <- fmt.Errorf("failed to update apps during reload: %w", err)
+		if err := r.fsm.Transition(finitestate.StatusError); err != nil {
+			r.logger.Error("Failed to transition to error state", "error", err)
+		}
+		return
+	}
+
+	// Transition back to running state
+	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
+		r.logger.Error("Failed to transition back to running state", "error", err)
+		if err := r.fsm.Transition(finitestate.StatusError); err != nil {
+			r.logger.Error("Failed to transition to error state", "error", err)
+		}
 		return
 	}
 

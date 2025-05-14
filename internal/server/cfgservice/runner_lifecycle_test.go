@@ -131,7 +131,7 @@ func TestRun(t *testing.T) {
 	})
 }
 
-// TestLoadInitialConfig tests the loadInitialConfig method
+// TestLoadInitialConfig tests the LoadInitialConfig method
 func TestLoadInitialConfig(t *testing.T) {
 	t.Parallel()
 	t.Run("success", func(t *testing.T) {
@@ -150,8 +150,8 @@ func TestLoadInitialConfig(t *testing.T) {
 		// Set logger to discard output for cleaner test logs
 		r.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
-		// Directly call loadInitialConfig
-		err = r.loadInitialConfig()
+		// Directly call LoadInitialConfig
+		err = r.LoadInitialConfig()
 		assert.NoError(t, err)
 
 		// Check that config was loaded

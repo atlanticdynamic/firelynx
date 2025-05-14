@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -12,7 +13,7 @@ import (
 func TestNewFromProtoWithEmptyApps(t *testing.T) {
 	// Create a minimal protobuf config with no apps
 	pbConfig := &pb.ServerConfig{
-		Version: proto.String("v1"),
+		Version: proto.String(version.Version),
 	}
 
 	// Convert to domain config
@@ -27,10 +28,9 @@ func TestNewFromProtoWithEmptyApps(t *testing.T) {
 
 func TestNewFromProtoWithNonEmptyApps(t *testing.T) {
 	// Create protobuf config with one app
-	version := "v1"
 	echoResponse := "test response"
 	pbConfig := &pb.ServerConfig{
-		Version: &version,
+		Version: proto.String(version.Version),
 		Apps: []*pb.AppDefinition{
 			{
 				Id: proto.String("echo_app"),

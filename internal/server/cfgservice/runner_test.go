@@ -8,6 +8,7 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -140,6 +141,12 @@ func TestGRPCIntegration(t *testing.T) {
 	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 	require.NoError(t, err)
 
+	// Initialize the state properly for testing
+	err = r.fsm.Transition(finitestate.StatusBooting)
+	require.NoError(t, err)
+	err = r.fsm.Transition(finitestate.StatusRunning)
+	require.NoError(t, err)
+
 	// Set initial configuration
 	version := "v1"
 	initialPbConfig := &pb.ServerConfig{
@@ -221,6 +228,12 @@ func TestGRPCIntegration(t *testing.T) {
 func TestReloadChannel(t *testing.T) {
 	// Create a Runner instance
 	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
+	require.NoError(t, err)
+
+	// Initialize the state properly for testing
+	err = r.fsm.Transition(finitestate.StatusBooting)
+	require.NoError(t, err)
+	err = r.fsm.Transition(finitestate.StatusRunning)
 	require.NoError(t, err)
 
 	// Get the reload channel

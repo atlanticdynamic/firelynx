@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice"
 	"github.com/atlanticdynamic/firelynx/internal/server/core"
 	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
@@ -29,8 +30,18 @@ func Run(
 		return fmt.Errorf("failed to create config manager: %w", err)
 	}
 
+	// Debug wrapper for the config callback to log what's being passed
+	configCallback := func() config.Config {
+		cfg := cManager.GetDomainConfig()
+		logger.Debug("Core runner config callback",
+			"listeners", len(cfg.Listeners),
+			"endpoints", len(cfg.Endpoints),
+			"apps", len(cfg.Apps))
+		return cfg
+	}
+
 	serverCore, err := core.NewRunner(
-		cManager.GetDomainConfig,
+		configCallback,
 		core.WithLogHandler(logHandler),
 	)
 	if err != nil {
@@ -47,6 +58,9 @@ func Run(
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP listener runner: %w", err)
 	}
+
+	// No need to explicitly pre-load config now that we use proper Stateable interface
+	// The supervisor will ensure components are ready before dependent components use them
 
 	// Order is important here- the config manager must be started first,
 	// then the server core, and then any others.
