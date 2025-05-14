@@ -22,7 +22,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps/registry"
+	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/core"
 	httpRunner "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
@@ -107,7 +107,7 @@ func TestHTTPReloadWithDirectUpdate(t *testing.T) {
 	}
 
 	// Create the application registry
-	appRegistry, err := registry.New()
+	appRegistry, err := serverApps.NewAppCollection([]serverApps.App{})
 	require.NoError(t, err, "Failed to create app registry")
 
 	// Create the route registry
@@ -370,7 +370,7 @@ response = "This is a test echo response"
 	configProvider = newTestConfigProvider(cfg)
 
 	// Create the application registry
-	appRegistry, err := registry.New()
+	appRegistry, err := serverApps.NewAppCollection([]serverApps.App{})
 	require.NoError(t, err, "Failed to create app registry")
 
 	// Create the route registry
