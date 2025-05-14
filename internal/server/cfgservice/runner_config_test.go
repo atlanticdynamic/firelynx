@@ -10,7 +10,7 @@ import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
-	"github.com/atlanticdynamic/firelynx/internal/finitestate"
+	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

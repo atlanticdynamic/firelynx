@@ -3,7 +3,7 @@ package cfgservice
 import (
 	"context"
 
-	"github.com/atlanticdynamic/firelynx/internal/finitestate"
+	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 )
 
 // IsRunning returns true if the runner is in the Running state

@@ -7,8 +7,8 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice"
-	"github.com/atlanticdynamic/firelynx/internal/server/core"
 	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
+	"github.com/atlanticdynamic/firelynx/internal/server/transmgr"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
 
@@ -40,9 +40,9 @@ func Run(
 		return cfg
 	}
 
-	serverCore, err := core.NewRunner(
+	serverCore, err := transmgr.NewRunner(
 		configCallback,
-		core.WithLogHandler(logHandler),
+		transmgr.WithLogHandler(logHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create server core: %w", err)

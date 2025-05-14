@@ -13,8 +13,8 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice/server"
+	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

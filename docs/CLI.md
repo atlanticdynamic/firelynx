@@ -180,15 +180,15 @@ func runServer(configPath, listenAddr string) error {
         ConfigPath: configPath,
     })
     
-    // Create the server core
-    serverCore := core.New(core.Config{
-        Logger:     logger.With("component", "server_core"),
+    // Create the transaction manager
+    transactionMgr := transmgr.New(transmgr.Config{
+        Logger:     logger.With("component", "transaction_manager"),
         ConfigFunc: configManager.GetCurrentConfig,
     })
     
     // Run the components with goroutines
     go configManager.Run(ctx)
-    go serverCore.Run(ctx)
+    go transactionMgr.Run(ctx)
     
     // Wait for context to be canceled
     <-ctx.Done()

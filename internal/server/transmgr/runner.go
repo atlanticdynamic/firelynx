@@ -1,6 +1,7 @@
-// Package core provides adapters between domain config and runtime components.
+// Package transmgr implements the transaction manager for configuration updates
+// and adapters between domain config and runtime components.
 // This is the ONLY package that should import from internal/config.
-package core
+package transmgr
 
 import (
 	"context"
@@ -81,7 +82,7 @@ func NewRunner(
 	// Initialize with default options
 	runner := &Runner{
 		appCollection:  initialApps,
-		logger:         slog.Default().WithGroup("core.Runner"),
+		logger:         slog.Default().WithGroup("transmgr.Runner"),
 		configCallback: configCallback,
 		serverErrors:   make(chan error, 10),
 		stopCh:         make(chan struct{}),
@@ -236,12 +237,12 @@ func (r *Runner) monitorErrors(ctx context.Context) {
 
 // String returns the name of this runnable component.
 func (r *Runner) String() string {
-	return "core.Runner"
+	return "transmgr.Runner"
 }
 
 // Stop gracefully stops all server components.
 func (r *Runner) Stop() {
-	r.logger.Info("Stopping core runner")
+	r.logger.Info("Stopping transaction manager")
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 

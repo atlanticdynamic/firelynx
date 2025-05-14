@@ -148,6 +148,7 @@ make test
 - [CLI](docs/CLI.md): Command-line interface documentation
 - [Hot Reload](docs/HOT_RELOAD.md): Hot reload system design
 - [Error Handling](docs/ERROR_HANDLING.md): Error handling strategy
+- [Config Transaction](CONFIG_SAGA_PATTERN_PLAN.md): Atomic configuration changes with two-phase commit
 
 ## License
 
