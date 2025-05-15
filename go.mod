@@ -6,6 +6,7 @@ require github.com/urfave/cli/v3 v3.3.3
 
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.1.1
 	github.com/robbyt/go-loglater v0.0.0-20250515043801-f292398691ea

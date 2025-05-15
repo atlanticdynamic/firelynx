@@ -1,10 +1,14 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/gofrs/uuid/v5"
+	"google.golang.org/grpc/metadata"
 )
 
 // parseListenAddr determines the network type and address from a listen string.
@@ -58,4 +62,22 @@ func cleanupUnixSocket(socketPath string, logger *slog.Logger) error {
 	// File does not exist, no cleanup needed.
 	logger.Debug("No existing unix socket found, no cleanup needed", "path", socketPath)
 	return nil
+}
+
+// ExtractRequestID extracts a request ID from the gRPC context metadata.
+// It first tries to find common request ID headers in the metadata.
+// If none are found, it generates a new UUID using the V6 format.
+func ExtractRequestID(ctx context.Context) string {
+	// Try to extract request ID from common metadata keys
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		// Check common request ID header variations
+		for _, key := range []string{"request-id", "x-request-id", "requestid"} {
+			if values := md.Get(key); len(values) > 0 && values[0] != "" {
+				return values[0]
+			}
+		}
+	}
+
+	// If no request ID found in metadata, generate a new UUID
+	return uuid.Must(uuid.NewV6()).String()
 }

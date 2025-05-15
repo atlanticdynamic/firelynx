@@ -3,6 +3,8 @@ package transaction
 import (
 	"errors"
 	"fmt"
+
+	"github.com/gofrs/uuid/v5"
 )
 
 var (
@@ -57,7 +59,7 @@ func NewValidationError(field, message string, err error) *ValidationError {
 // TransactionError wraps an error related to transaction processing
 type TransactionError struct {
 	Phase    string
-	ID       TransactionID
+	ID       uuid.UUID
 	Message  string
 	Original error
 }
@@ -82,7 +84,7 @@ func (te *TransactionError) Unwrap() error {
 }
 
 // NewTransactionError creates a new transaction error
-func NewTransactionError(id TransactionID, phase, message string, err error) *TransactionError {
+func NewTransactionError(id uuid.UUID, phase, message string, err error) *TransactionError {
 	return &TransactionError{
 		ID:       id,
 		Phase:    phase,

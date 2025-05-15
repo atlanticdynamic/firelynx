@@ -1,6 +1,10 @@
 package cfgservice
 
-import "context"
+import (
+	"context"
+
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
+)
 
 // GRPCServer defines the interface for a GRPC server that can be started and stopped
 type GRPCServer interface {
@@ -14,4 +18,26 @@ type GRPCServer interface {
 
 	// GetListenAddress returns the actual address the server is listening on
 	GetListenAddress() string
+}
+
+// TransactionStorage defines the interface for storing and retrieving configuration transactions
+type TransactionStorage interface {
+	// StorageWriter operations
+
+	// Add adds a transaction to the storage
+	Add(tx *transaction.ConfigTransaction) error
+
+	// SetCurrent sets the current active transaction
+	SetCurrent(tx *transaction.ConfigTransaction)
+
+	// StorageReader operations
+
+	// GetAll returns all transactions in the storage
+	GetAll() []*transaction.ConfigTransaction
+
+	// GetByID returns a transaction by ID or nil if not found
+	GetByID(id string) *transaction.ConfigTransaction
+
+	// GetCurrent returns the current active transaction
+	GetCurrent() *transaction.ConfigTransaction
 }

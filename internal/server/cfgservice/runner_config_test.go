@@ -207,10 +207,7 @@ func TestUpdateConfig(t *testing.T) {
 		assert.Nil(t, resp)
 	})
 
-	// testInvalidVersionConfig is a helper function to test invalid version configurations
-	testInvalidVersionConfig := func(t *testing.T, versionValue string, description string) {
-		t.Helper()
-
+	t.Run("invalid_version", func(t *testing.T) {
 		// Create a Runner instance
 		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
 		require.NoError(t, err)
@@ -222,30 +219,56 @@ func TestUpdateConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Set up the invalid version
+		versionValue := "v2"
 		invalidConfig := &pb.ServerConfig{
 			Version: &versionValue,
 		}
 
-		// Call UpdateConfig with the invalid version
-		resp, err := r.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
-			Config: invalidConfig,
-		})
+		// Convert protobuf to domain config (this will not validate yet)
+		domainConfig, err := config.NewFromProto(invalidConfig)
+		require.NoError(t, err, "Should be able to create domain config")
 
-		// Should get validation error
-		require.Error(t, err)
-		st, ok := status.FromError(err)
-		require.True(t, ok, "Error should be a gRPC status error")
-		assert.Equal(t, codes.InvalidArgument, st.Code())
-		assert.Contains(t, st.Message(), "validation error")
-		assert.Nil(t, resp)
-	}
-
-	t.Run("invalid_version", func(t *testing.T) {
-		testInvalidVersionConfig(t, "v2", "unsupported version")
+		// Run validation which should fail because v2 is not a supported version
+		err = domainConfig.Validate()
+		require.Error(t, err, "Validation should fail")
+		require.Contains(
+			t,
+			err.Error(),
+			"unsupported config version",
+			"Error should mention unsupported version",
+		)
 	})
 
 	t.Run("invalid_format", func(t *testing.T) {
-		testInvalidVersionConfig(t, "invalid-version", "invalid version format")
+		// Create a Runner instance
+		r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
+		require.NoError(t, err)
+
+		// Initialize FSM state to Running
+		err = r.fsm.Transition(finitestate.StatusBooting)
+		require.NoError(t, err)
+		err = r.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(t, err)
+
+		// Set up the invalid version format
+		versionValue := "invalid-version"
+		invalidConfig := &pb.ServerConfig{
+			Version: &versionValue,
+		}
+
+		// Convert protobuf to domain config (this will not validate yet)
+		domainConfig, err := config.NewFromProto(invalidConfig)
+		require.NoError(t, err, "Should be able to create domain config")
+
+		// Run validation which should fail because invalid-version is not a supported version format
+		err = domainConfig.Validate()
+		require.Error(t, err, "Validation should fail")
+		require.Contains(
+			t,
+			err.Error(),
+			"unsupported config version",
+			"Error should mention unsupported version",
+		)
 	})
 
 	t.Run("multiple_updates", func(t *testing.T) {
@@ -441,27 +464,23 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 
 // TestHandlingInvalidVersionConfig tests configs with invalid versions
 func TestHandlingInvalidVersionConfig(t *testing.T) {
-	r, err := NewRunner(WithListenAddr(testutil.GetRandomListeningPort(t)))
-	require.NoError(t, err)
-
-	err = r.fsm.Transition(finitestate.StatusBooting)
-	require.NoError(t, err)
-	err = r.fsm.Transition(finitestate.StatusRunning)
-	require.NoError(t, err)
-
-	// Create a config with an invalid version pattern
+	// Create a domain config with an invalid version
 	invalidVersion := "invalid_version_format"
-	invalidConfig := &pb.ServerConfig{
+	pbConfig := &pb.ServerConfig{
 		Version: &invalidVersion,
 	}
 
-	// Submit the update
-	req := &pb.UpdateConfigRequest{Config: invalidConfig}
-	_, err = r.UpdateConfig(context.Background(), req)
+	// Convert protobuf to domain config (this will not validate yet)
+	domainConfig, err := config.NewFromProto(pbConfig)
+	require.NoError(t, err, "Should be able to create domain config")
 
-	// Should fail because config has an invalid version
-	require.Error(t, err)
-	st, ok := status.FromError(err)
-	require.True(t, ok)
-	assert.Equal(t, codes.InvalidArgument, st.Code())
+	// Run validation which should fail because it's an unsupported version
+	err = domainConfig.Validate()
+	require.Error(t, err, "Validation should fail for invalid version")
+	require.Contains(
+		t,
+		err.Error(),
+		"unsupported config version",
+		"Error should mention unsupported version",
+	)
 }

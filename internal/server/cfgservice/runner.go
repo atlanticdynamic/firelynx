@@ -14,6 +14,7 @@ import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice/server"
+	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice/txstorage"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"google.golang.org/grpc/codes"
@@ -49,6 +50,9 @@ type Runner struct {
 	reloadCh chan struct{}
 
 	fsm finitestate.Machine
+
+	// Transaction storage for configuration history
+	txStorage TransactionStorage
 }
 
 // NewRunner creates a new Runner instance with the provided functional options.
@@ -75,6 +79,13 @@ func NewRunner(opts ...Option) (*Runner, error) {
 		return nil, fmt.Errorf("failed to create state machine: %w", err)
 	}
 	r.fsm = fsm
+
+	// Initialize transaction storage if not provided
+	if r.txStorage == nil {
+		r.txStorage = txstorage.NewTransactionStorage(
+			txstorage.WithAsyncCleanup(true),
+		)
+	}
 
 	return r, nil
 }
@@ -357,31 +368,34 @@ func (r *Runner) LoadInitialConfig() error {
 	// Use the config package's NewConfig which already handles loading and validation
 	domainConfig, err := config.NewConfig(r.configPath)
 	if err != nil {
-		r.logger.Error("Failed to load or validate initial configuration", "error", err)
 		return err
 	}
 
-	// Log details of the loaded config
-	if domainConfig != nil {
-		r.logger.Debug("Domain config loaded details",
-			"listeners", len(domainConfig.Listeners),
-			"endpoints", len(domainConfig.Endpoints),
-			"apps", len(domainConfig.Apps))
-
-		// Log first listener if available
-		if len(domainConfig.Listeners) > 0 {
-			listener := domainConfig.Listeners[0]
-			r.logger.Debug("First listener details",
-				"id", listener.ID,
-				"address", listener.Address,
-				"type", listener.Type)
-		}
+	// Create a transaction for this configuration
+	tx, err := r.createFileTransaction(r.configPath, domainConfig)
+	if err != nil {
+		return err
 	}
 
-	// Store the domain config directly
-	r.configMu.Lock()
-	r.config = domainConfig
-	r.configMu.Unlock()
+	// Log details of the loaded config - use runner's logger since this is runner-level operation
+	r.logger.Debug("Domain config loaded details",
+		"listeners", len(domainConfig.Listeners),
+		"endpoints", len(domainConfig.Endpoints),
+		"apps", len(domainConfig.Apps))
+
+	// Log first listener if available
+	if len(domainConfig.Listeners) > 0 {
+		listener := domainConfig.Listeners[0]
+		r.logger.Debug("First listener details",
+			"id", listener.ID,
+			"address", listener.Address,
+			"type", listener.Type)
+	}
+
+	// Process the transaction through its complete lifecycle
+	if err := r.processTransaction(tx); err != nil {
+		return fmt.Errorf("failed to process configuration transaction: %w", err)
+	}
 
 	r.logger.Info("Initial configuration loaded successfully")
 	return nil
@@ -398,52 +412,46 @@ func (r *Runner) UpdateConfig(
 		return nil, status.Error(codes.InvalidArgument, "No configuration provided")
 	}
 
-	if err := r.fsm.Transition(finitestate.StatusReloading); err != nil {
-		r.logger.Error("Failed to transition to reloading state", "error", err)
-		return nil, status.Errorf(
-			codes.FailedPrecondition,
-			"service not in a state that can accept configuration updates",
-		)
-	}
-
+	// Convert protobuf to domain config
 	domainConfig, err := config.NewFromProto(req.Config)
 	if err != nil {
-		if errState := r.fsm.Transition(finitestate.StatusError); errState != nil {
-			r.logger.Error("Failed to transition to error state", "error", errState)
-		}
-		return nil, status.Errorf(codes.InvalidArgument, "conversion error: %v", err)
+		// Return a failed response with the submitted config
+		success := false
+		return &pb.UpdateConfigResponse{
+			Success: &success,
+			Error:   proto.String(fmt.Sprintf("conversion error: %v", err)),
+			Config:  req.Config, // Return the invalid submitted config to help with corrections
+		}, nil
 	}
 
-	if err := domainConfig.Validate(); err != nil {
-		r.logger.Warn("Configuration validation failed", "error", err)
-		if errState := r.fsm.Transition(finitestate.StatusError); errState != nil {
-			r.logger.Error("Failed to transition to error state", "error", errState)
-		}
-		return nil, status.Errorf(codes.InvalidArgument, "validation error: %v", err)
+	// Create a transaction for this API request
+	tx, err := r.createAPITransaction(ctx, domainConfig)
+	if err != nil {
+		success := false
+		return &pb.UpdateConfigResponse{
+			Success: &success,
+			Error:   proto.String(fmt.Sprintf("transaction creation failed: %v", err)),
+			Config:  req.Config, // Return the invalid submitted config
+		}, nil
 	}
 
-	r.configMu.Lock()
-	r.config = domainConfig
-	r.configMu.Unlock()
-
-	// Notify subscribers about the config change
-	r.triggerReload()
-
-	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
-		r.logger.Error("Failed to transition to running state", "error", err)
-		if errState := r.fsm.Transition(finitestate.StatusError); errState != nil {
-			r.logger.Error("Failed to transition to error state", "error", errState)
-		}
-		return nil, status.Errorf(
-			codes.Internal,
-			"configuration updated but service failed to return to running state",
-		)
+	// Process the transaction through its complete lifecycle
+	if err := r.processTransaction(tx); err != nil {
+		success := false
+		return &pb.UpdateConfigResponse{
+			Success: &success,
+			Error:   proto.String(fmt.Sprintf("transaction processing failed: %v", err)),
+			Config:  req.Config, // Return the invalid submitted config
+		}, nil
 	}
+
+	// Get the validated config with any defaults that might have been applied
+	validatedConfig := tx.GetConfig().ToProto()
 
 	success := true
 	return &pb.UpdateConfigResponse{
 		Success: &success,
-		Config:  r.GetPbConfigClone(),
+		Config:  validatedConfig, // Return the validated config with any defaults filled in
 	}, nil
 }
 
