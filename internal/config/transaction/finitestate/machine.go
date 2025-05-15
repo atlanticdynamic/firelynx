@@ -1,35 +1,61 @@
 // Package finitestate provides a finite state machine to track the
 // configuration transaction lifecycle.
 //
-// Configuration Lifecycle:
-//  1. Received - Raw configuration received (from file, gRPC call, CLI, etc.)
-//  2. Parsed - Successfully parsed into domain model objects
-//  3. Validated - All validation rules passed
-//  4. Adapted - Component-specific adapter views generated for consumption by runtime components
-//     (This state allows multiple adapter creations for different components while
-//     maintaining the same logical transaction state)
-//  5. Activated - Configuration applied to running components
+// Configuration Transaction Lifecycle:
+//  1. Created - Configuration transaction is initialized
+//  2. Validating - Validation is in progress
+//  3. Validated - Successfully passed validation
+//  4. Invalid - Failed validation
+//  5. Preparing - Components are preparing for the configuration change
+//  6. Prepared - All components are ready for the configuration change
+//  7. Committing - Configuration is being committed
+//  8. Committed - Configuration has been successfully committed
+//  9. Completed - Transaction is fully completed (terminal state)
 //
-// Error states:
-// - Rejected - Failed validation or semantic rules
-// - Error - Processing error occurred
+// Error and rollback states:
+//   - Rolling Back - Transaction is being rolled back
+//   - Rolled Back - Transaction has been successfully rolled back (terminal state)
+//   - Failed - Processing error occurred (terminal state)
 package finitestate
 
 import (
 	"context"
 	"log/slog"
+
+	"github.com/robbyt/go-fsm"
 )
 
-// State constants for the transaction lifecycle
+// Transaction state constants
 const (
-	StateReceived  = "Received"
-	StateParsed    = "Parsed"
-	StateValidated = "Validated"
-	StateAdapted   = "Adapted"
-	StateActivated = "Activated"
-	StateRejected  = "Rejected"
-	StateError     = "Error"
+	StateCreated     = "created"
+	StateValidating  = "validating"
+	StateValidated   = "validated"
+	StateInvalid     = "invalid"
+	StatePreparing   = "preparing"
+	StatePrepared    = "prepared"
+	StateCommitting  = "committing"
+	StateCommitted   = "committed"
+	StateCompleted   = "completed"
+	StateRollingBack = "rolling_back"
+	StateRolledBack  = "rolled_back"
+	StateFailed      = "failed"
 )
+
+// TransactionTransitions defines the valid state transitions for a configuration transaction.
+var TransactionTransitions = map[string][]string{
+	StateCreated:     {StateValidating, StateFailed},
+	StateValidating:  {StateValidated, StateInvalid, StateFailed},
+	StateValidated:   {StatePreparing, StateFailed},
+	StateInvalid:     {},
+	StatePreparing:   {StatePrepared, StateRollingBack, StateFailed},
+	StatePrepared:    {StateCommitting, StateRollingBack, StateFailed},
+	StateCommitting:  {StateCommitted, StateRollingBack, StateFailed},
+	StateCommitted:   {StateCompleted, StateRollingBack, StateFailed},
+	StateCompleted:   {},
+	StateRollingBack: {StateRolledBack, StateFailed},
+	StateRolledBack:  {},
+	StateFailed:      {},
+}
 
 // Machine defines the interface for the finite state machine that tracks
 // the configuration transaction lifecycle.
@@ -54,9 +80,7 @@ type Machine interface {
 	GetStateChan(ctx context.Context) <-chan string
 }
 
-// New creates a new finite state machine with the specified logger
+// New creates a new finite state machine with the specified logger using transaction state transitions.
 func New(handler slog.Handler) (Machine, error) {
-	// This is just a skeleton for now
-	// Will be implemented when we start the actual transaction implementation
-	return nil, nil
+	return fsm.New(handler, StateCreated, TransactionTransitions)
 }

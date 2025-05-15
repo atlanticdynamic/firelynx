@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.1.1
+	github.com/robbyt/go-loglater v0.0.0-20250515043801-f292398691ea
 	github.com/robbyt/go-supervisor v0.0.3
 	github.com/robbyt/protobaggins v0.1.0
 	github.com/stretchr/testify v1.10.0
