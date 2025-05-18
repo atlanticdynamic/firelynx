@@ -61,9 +61,9 @@ func (r *Runner) processTransaction(tx *transaction.ConfigTransaction) error {
 		return err
 	}
 
-	// 2. Begin preparation phase
-	if err := tx.BeginPreparation(); err != nil {
-		r.logger.Error("Failed to begin transaction preparation",
+	// 2. Begin execution phase
+	if err := tx.BeginExecution(); err != nil {
+		r.logger.Error("Failed to begin transaction execution",
 			"id", tx.ID,
 			"source", tx.Source,
 			"error", err)
@@ -71,19 +71,10 @@ func (r *Runner) processTransaction(tx *transaction.ConfigTransaction) error {
 	}
 
 	// Future: Here we would distribute the configuration to all subscribers
-	// for their preparation phase. For now, we'll just mark it prepared immediately.
+	// for their execution phase. For now, we'll just mark it succeeded immediately.
 
-	if err := tx.MarkPrepared(); err != nil {
-		r.logger.Error("Failed to mark transaction as prepared",
-			"id", tx.ID,
-			"source", tx.Source,
-			"error", err)
-		return err
-	}
-
-	// 3. Begin commit phase
-	if err := tx.BeginCommit(); err != nil {
-		r.logger.Error("Failed to begin transaction commit",
+	if err := tx.MarkSucceeded(); err != nil {
+		r.logger.Error("Failed to mark transaction as succeeded",
 			"id", tx.ID,
 			"source", tx.Source,
 			"error", err)
@@ -94,21 +85,19 @@ func (r *Runner) processTransaction(tx *transaction.ConfigTransaction) error {
 	r.configMu.Lock()
 	r.config = tx.GetConfig()
 	r.txStorage.SetCurrent(tx)
-	// Notify subscribers about the config change while still holding the lock
-	r.triggerReload()
 	r.configMu.Unlock()
 
-	// 4. Mark the transaction as committed
-	if err := tx.MarkCommitted(); err != nil {
-		r.logger.Error("Failed to mark transaction as committed",
+	// Begin the reload phase
+	if err := tx.BeginReload(); err != nil {
+		r.logger.Error("Failed to begin transaction reload",
 			"id", tx.ID,
 			"source", tx.Source,
 			"error", err)
-		// Note: At this point we're in a tricky situation since we've already
-		// updated the configuration. In a true saga, we would need to roll back.
-		// For now, we'll just log the error but not attempt to roll back.
 		return err
 	}
+
+	// Notify subscribers about the config change AFTER releasing the lock to avoid deadlocks
+	r.triggerReload()
 
 	// 5. Mark the transaction as completed
 	if err := tx.MarkCompleted(); err != nil {

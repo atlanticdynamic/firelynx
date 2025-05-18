@@ -105,7 +105,7 @@ func (l *Listener) GetEndpointIDs(config any) []string {
 	return nil
 }
 
-// GetHTTPOptions safely extracts HTTPOptions from a Listener
+// GetHTTPOptions extracts HTTPOptions from a Listener
 func (l *Listener) GetHTTPOptions() (options.HTTP, bool) {
 	if l.Options == nil || l.Options.Type() != options.TypeHTTP {
 		return options.HTTP{}, false

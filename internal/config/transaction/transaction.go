@@ -4,6 +4,7 @@
 package transaction
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync/atomic"
@@ -41,6 +42,9 @@ type ConfigTransaction struct {
 	// State management
 	fsm finitestate.Machine
 
+	// Participant tracking
+	participants *ParticipantCollection
+
 	// Logging with history tracking
 	logger       *slog.Logger
 	logCollector *loglater.LogCollector
@@ -49,8 +53,8 @@ type ConfigTransaction struct {
 	domainConfig *config.Config
 
 	// Validation state
-	validationErrors []error
-	IsValid          atomic.Bool
+	terminalErrors []error
+	IsValid        atomic.Bool
 }
 
 // New creates a new ConfigTransaction with the given source information
@@ -63,7 +67,7 @@ func New(
 	txID := uuid.Must(uuid.NewV6())
 
 	// Create state machine for this transaction
-	sm, err := finitestate.New(handler)
+	sm, err := finitestate.NewSagaMachine(handler)
 	if err != nil {
 		return nil, fmt.Errorf("%s failed to create state machine: %w", txID, err)
 	}
@@ -76,24 +80,36 @@ func New(
 		"sourceDetail", sourceDetail,
 		"requestID", requestID)
 
+	// Create participant collection
+	participants := NewParticipantCollection(handler)
+
 	tx := &ConfigTransaction{
-		ID:               txID,
-		Source:           source,
-		SourceDetail:     sourceDetail,
-		RequestID:        requestID,
-		CreatedAt:        time.Now(),
-		fsm:              sm,
-		logger:           logger,
-		logCollector:     logCollector,
-		domainConfig:     cfg,
-		validationErrors: []error{},
-		IsValid:          atomic.Bool{},
+		ID:             txID,
+		Source:         source,
+		SourceDetail:   sourceDetail,
+		RequestID:      requestID,
+		CreatedAt:      time.Now(),
+		fsm:            sm,
+		participants:   participants,
+		logger:         logger,
+		logCollector:   logCollector,
+		domainConfig:   cfg,
+		terminalErrors: []error{},
+		IsValid:        atomic.Bool{},
 	}
 
 	// Log the transaction creation
-	tx.logger.Info("Transaction created")
+	tx.logger.Debug("Transaction created")
 
 	return tx, nil
+}
+
+func (tx *ConfigTransaction) String() string {
+	return fmt.Sprintf("Transaction ID: %s, State: %s", tx.GetTransactionID(), tx.GetState())
+}
+
+func (tx *ConfigTransaction) GetTransactionID() string {
+	return tx.ID.String()
 }
 
 // GetState returns the current state of the transaction
@@ -101,57 +117,100 @@ func (tx *ConfigTransaction) GetState() string {
 	return tx.fsm.GetState()
 }
 
-// BeginPreparation marks the transaction as being prepared
-func (tx *ConfigTransaction) BeginPreparation() error {
+// BeginValidation marks the transaction as being validated
+func (tx *ConfigTransaction) BeginValidation() error {
+	err := tx.fsm.Transition(finitestate.StateValidating)
+	if err != nil {
+		tx.logger.Error("Failed to transition to validating state", "error", err)
+		return err
+	}
+
+	tx.logger.Debug("Transaction validation started", "state", finitestate.StateValidating)
+	return nil
+}
+
+// MarkValidated marks the transaction as validated and ready for execution
+func (tx *ConfigTransaction) MarkValidated() error {
 	if !tx.IsValid.Load() {
-		tx.logger.Error("Cannot prepare invalid transaction", "state", tx.GetState())
-		return ErrInvalidTransaction
+		return tx.MarkInvalid(errors.New("transaction validation failed"))
 	}
 
-	err := tx.fsm.Transition(finitestate.StatePreparing)
+	err := tx.fsm.Transition(finitestate.StateValidated)
 	if err != nil {
-		tx.logger.Error("Failed to transition to preparing state", "error", err)
+		tx.logger.Error("Failed to transition to validated state", "error", err)
 		return err
 	}
 
-	tx.logger.Info("Transaction preparation started", "state", finitestate.StatePreparing)
+	tx.logger.Debug("Transaction validated successfully", "state", finitestate.StateValidated)
 	return nil
 }
 
-// MarkPrepared marks the transaction as prepared and ready for commit
+// MarkInvalid marks the transaction as invalid due to validation errors
+func (tx *ConfigTransaction) MarkInvalid(err error) error {
+	tx.terminalErrors = append(tx.terminalErrors, err)
+
+	fErr := tx.fsm.Transition(finitestate.StateInvalid)
+	if fErr != nil {
+		tx.logger.Error("Failed to transition to invalid state",
+			"error", fErr,
+			"originalError", err)
+		return fErr
+	}
+
+	tx.logger.Error("Transaction validation failed",
+		"state", finitestate.StateInvalid,
+		"error", err)
+	return nil
+}
+
+// BeginExecution marks the transaction as being executed
+func (tx *ConfigTransaction) BeginExecution() error {
+	currentState := tx.GetState()
+	if currentState != finitestate.StateValidated {
+		tx.logger.Error("Cannot execute non validated transaction", "state", currentState)
+		return ErrNotValidated
+	}
+
+	err := tx.fsm.Transition(finitestate.StateExecuting)
+	if err != nil {
+		tx.logger.Error("Failed to transition to executing state", "error", err)
+		return err
+	}
+
+	tx.logger.Debug("Transaction execution started", "state", finitestate.StateExecuting)
+	return nil
+}
+
+// MarkSucceeded marks the transaction as successfully executed
+func (tx *ConfigTransaction) MarkSucceeded() error {
+	err := tx.fsm.Transition(finitestate.StateSucceeded)
+	if err != nil {
+		tx.logger.Error("Failed to transition to succeeded state", "error", err)
+		return err
+	}
+
+	tx.logger.Debug("Transaction executed successfully", "state", finitestate.StateSucceeded)
+	return nil
+}
+
+// BeginPreparation is a legacy method that maps to BeginExecution
+func (tx *ConfigTransaction) BeginPreparation() error {
+	return tx.BeginExecution()
+}
+
+// MarkPrepared is a legacy method that maps to MarkSucceeded
 func (tx *ConfigTransaction) MarkPrepared() error {
-	err := tx.fsm.Transition(finitestate.StatePrepared)
-	if err != nil {
-		tx.logger.Error("Failed to transition to prepared state", "error", err)
-		return err
-	}
-
-	tx.logger.Info("Transaction prepared successfully", "state", finitestate.StatePrepared)
-	return nil
+	return tx.MarkSucceeded()
 }
 
-// BeginCommit marks the transaction as being committed
+// BeginCommit is a legacy method that maps to BeginExecution
 func (tx *ConfigTransaction) BeginCommit() error {
-	err := tx.fsm.Transition(finitestate.StateCommitting)
-	if err != nil {
-		tx.logger.Error("Failed to transition to committing state", "error", err)
-		return err
-	}
-
-	tx.logger.Info("Transaction commit started", "state", finitestate.StateCommitting)
-	return nil
+	return tx.BeginExecution()
 }
 
-// MarkCommitted marks the transaction as successfully committed
+// MarkCommitted is a legacy method that maps to MarkSucceeded
 func (tx *ConfigTransaction) MarkCommitted() error {
-	err := tx.fsm.Transition(finitestate.StateCommitted)
-	if err != nil {
-		tx.logger.Error("Failed to transition to committed state", "error", err)
-		return err
-	}
-
-	tx.logger.Info("Transaction committed successfully", "state", finitestate.StateCommitted)
-	return nil
+	return tx.MarkSucceeded()
 }
 
 // MarkCompleted marks the transaction as fully completed
@@ -162,7 +221,7 @@ func (tx *ConfigTransaction) MarkCompleted() error {
 		return err
 	}
 
-	tx.logger.Info(
+	tx.logger.Debug(
 		"Transaction completed successfully",
 		"state",
 		finitestate.StateCompleted,
@@ -172,33 +231,58 @@ func (tx *ConfigTransaction) MarkCompleted() error {
 	return nil
 }
 
-// BeginRollback marks the transaction as being rolled back
-func (tx *ConfigTransaction) BeginRollback() error {
-	err := tx.fsm.Transition(finitestate.StateRollingBack)
+// BeginReload marks the transaction as being reloaded
+func (tx *ConfigTransaction) BeginReload() error {
+	err := tx.fsm.Transition(finitestate.StateReloading)
 	if err != nil {
-		tx.logger.Error("Failed to transition to rolling back state", "error", err)
+		tx.logger.Error("Failed to transition to reloading state", "error", err)
 		return err
 	}
 
-	tx.logger.Info(
-		"Transaction rollback started",
-		"state",
-		finitestate.StateRollingBack,
-		"fromState",
-		tx.GetState(),
-	)
+	tx.logger.Debug("Transaction reload started", "state", finitestate.StateReloading)
 	return nil
 }
 
-// MarkRolledBack marks the transaction as successfully rolled back
-func (tx *ConfigTransaction) MarkRolledBack() error {
-	err := tx.fsm.Transition(finitestate.StateRolledBack)
+// BeginCompensation marks the transaction as being compensated (rolled back)
+func (tx *ConfigTransaction) BeginCompensation() error {
+	// The FSM state transitions should enforce that only Failed state can transition to Compensating
+	err := tx.fsm.Transition(finitestate.StateCompensating)
 	if err != nil {
-		tx.logger.Error("Failed to transition to rolled back state", "error", err)
+		tx.logger.Error("Failed to transition to compensating state", "error", err)
 		return err
 	}
 
-	tx.logger.Info("Transaction rolled back successfully", "state", finitestate.StateRolledBack)
+	tx.logger.Debug("Transaction compensation started", "state", finitestate.StateCompensating)
+	return nil
+}
+
+// MarkCompensated marks the transaction as successfully compensated (rolled back)
+func (tx *ConfigTransaction) MarkCompensated() error {
+	err := tx.fsm.Transition(finitestate.StateCompensated)
+	if err != nil {
+		tx.logger.Error("Failed to transition to compensated state", "error", err)
+		return err
+	}
+
+	tx.logger.Debug("Transaction compensated successfully", "state", finitestate.StateCompensated)
+	return nil
+}
+
+// MarkError marks the transaction as in an unrecoverable error state
+func (tx *ConfigTransaction) MarkError(err error) error {
+	transErr := tx.fsm.Transition(finitestate.StateError)
+	if transErr != nil {
+		tx.logger.Error("Failed to transition to error state",
+			"error", transErr,
+			"originalError", err)
+		return transErr
+	}
+
+	tx.terminalErrors = append(tx.terminalErrors, err)
+
+	tx.logger.Error("Transaction encountered unrecoverable error",
+		"state", finitestate.StateError,
+		"error", err)
 	return nil
 }
 
@@ -213,15 +297,24 @@ func (tx *ConfigTransaction) MarkFailed(err error) error {
 	}
 
 	// Only update state after successful transition
-	tx.validationErrors = append(tx.validationErrors, err)
-
+	tx.terminalErrors = append(tx.terminalErrors, err)
 	tx.logger.Error("Transaction failed", "state", finitestate.StateFailed, "error", err)
 	return nil
 }
 
+// BeginRollback is a legacy method that maps to BeginCompensation
+func (tx *ConfigTransaction) BeginRollback() error {
+	return tx.BeginCompensation()
+}
+
+// MarkRolledBack is a legacy method that maps to MarkCompensated
+func (tx *ConfigTransaction) MarkRolledBack() error {
+	return tx.MarkCompensated()
+}
+
 // GetErrors returns all validation errors for this transaction
 func (tx *ConfigTransaction) GetErrors() []error {
-	return tx.validationErrors
+	return tx.terminalErrors
 }
 
 // GetConfig returns the configuration associated with this transaction
@@ -237,4 +330,24 @@ func (tx *ConfigTransaction) PlaybackLogs(handler slog.Handler) error {
 // GetTotalDuration returns the total duration of the transaction so far
 func (tx *ConfigTransaction) GetTotalDuration() time.Duration {
 	return time.Since(tx.CreatedAt)
+}
+
+// RegisterParticipant registers a new participant in this transaction
+func (tx *ConfigTransaction) RegisterParticipant(name string) error {
+	return tx.participants.AddParticipant(name)
+}
+
+// GetParticipants returns the participant collection for this transaction
+func (tx *ConfigTransaction) GetParticipants() *ParticipantCollection {
+	return tx.participants
+}
+
+// GetParticipantStates returns a map of participant names to their current states
+func (tx *ConfigTransaction) GetParticipantStates() map[string]string {
+	return tx.participants.GetParticipantStates()
+}
+
+// GetParticipantErrors returns a map of participant names to their errors
+func (tx *ConfigTransaction) GetParticipantErrors() map[string]error {
+	return tx.participants.GetParticipantErrors()
 }

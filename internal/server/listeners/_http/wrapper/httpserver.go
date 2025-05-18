@@ -246,6 +246,9 @@ func (s *HttpServer) ReloadWithConfig(config any) {
 }
 
 // processConfigUpdate processes a configuration update and returns true if routes were updated
+//
+// Deprecated: This method will be removed in a future version. The functionality will be moved into ReloadWithConfig.
+// Use ReloadWithConfig directly instead.
 func (s *HttpServer) processConfigUpdate(config any) bool {
 	// Handle different config types
 	switch typedConfig := config.(type) {
@@ -266,6 +269,8 @@ func (s *HttpServer) processConfigUpdate(config any) bool {
 }
 
 // processMapConfig processes a map-based configuration update
+//
+// Deprecated: This method will be removed in a future version. Pass a []httpserver.Route object to ReloadWithConfig instead.
 func (s *HttpServer) processMapConfig(configMap map[string]any) bool {
 	s.logger.Debug("Processing map config during reload", "id", s.id)
 

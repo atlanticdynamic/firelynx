@@ -2,25 +2,32 @@
 
 The `transaction` package implements the Config Saga pattern, providing clear ownership and tracking of configuration throughout its entire lifecycle.
 
-## Purpose
+## Architectural Context
 
-This package addresses several architectural challenges:
+- **Configuration as a Saga**: Treating configuration changes as a distributed "meta" transaction with compensation
+- **Comprehensive Observability**: Capturing metadata for every stage of the process
 
-1. **Lifecycle Management**: Tracks configuration from reception to activation
-2. **Metadata Preservation**: Retains source info, validation state, and processing history
-3. **Component Isolation**: Provides adapters so components only access what they need
-4. **Validation Enforcement**: Ensures configuration is validated before runtime use
+## Integration with System Architecture
 
-## Design Goals
+### Component Lifecycle Integration
 
-- **Single Source of Truth**: One central object manages configuration state
-- **Reduced Coupling**: Components depend on adapters instead of direct config types
-- **Immutability**: Component-specific views are immutable for thread safety
-- **Clear Validation**: Runtime components can easily verify validation state
-- **Rich Diagnostics**: Preserves history for improved troubleshooting
+The transaction system works alongside the `supervisor` package's lifecycle management. Components that receive configuration implement the `SagaParticipant` interface from `txmgr`, which integrates with:
 
-## Core Components
+- **Supervisor Runnables**: Leveraging the standard lifecycle (Run, Stop) for components
+- **Stateable Components**: Tracking readiness and operational state during transitions
+- **Coordinated Execution**: Ensuring configuration changes propagate in dependency order
 
-- **ConfigTransaction**: Central object representing configuration's lifecycle
-- **Adapters**: Component-specific views limiting dependencies
-- **Validation Gate**: Mechanism that prevents using unvalidated configuration
+### Error Recovery Model
+
+When configuration changes fail in any component, the orchestrator can:
+
+1. Identify exactly which component failed
+2. Roll back successful components in reverse order before final commit
+3. Restore the system to its previous consistent state
+4. Preserve detailed diagnostic information for troubleshooting
+
+This eliminates partial updates which could leave the system in an inconsistent state.
+
+## Practical Usage
+
+The `SagaOrchestrator` in the `txmgr` package uses this framework to coordinate configuration changes across all system components, ensuring consistent transitions between configuration states.

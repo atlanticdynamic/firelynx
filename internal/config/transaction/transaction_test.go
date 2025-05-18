@@ -42,7 +42,7 @@ func TestNew(t *testing.T) {
 		assert.NotNil(t, tx.logger)
 		assert.NotNil(t, tx.logCollector)
 		assert.False(t, tx.IsValid.Load())
-		assert.Empty(t, tx.validationErrors)
+		assert.Empty(t, tx.terminalErrors)
 	})
 }
 
@@ -58,17 +58,14 @@ func TestTransactionLifecycle(t *testing.T) {
 		assert.Equal(t, finitestate.StateValidated, tx.GetState())
 		assert.True(t, tx.IsValid.Load())
 
-		require.NoError(t, tx.BeginPreparation())
-		assert.Equal(t, finitestate.StatePreparing, tx.GetState())
+		require.NoError(t, tx.BeginExecution())
+		assert.Equal(t, finitestate.StateExecuting, tx.GetState())
 
-		require.NoError(t, tx.MarkPrepared())
-		assert.Equal(t, finitestate.StatePrepared, tx.GetState())
+		require.NoError(t, tx.MarkSucceeded())
+		assert.Equal(t, finitestate.StateSucceeded, tx.GetState())
 
-		require.NoError(t, tx.BeginCommit())
-		assert.Equal(t, finitestate.StateCommitting, tx.GetState())
-
-		require.NoError(t, tx.MarkCommitted())
-		assert.Equal(t, finitestate.StateCommitted, tx.GetState())
+		require.NoError(t, tx.BeginReload())
+		assert.Equal(t, finitestate.StateReloading, tx.GetState())
 
 		require.NoError(t, tx.MarkCompleted())
 		assert.Equal(t, finitestate.StateCompleted, tx.GetState())
@@ -89,35 +86,39 @@ func TestTransactionLifecycle(t *testing.T) {
 		require.NoError(t, tx.setStateInvalid(validationErrs))
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
-		assert.Len(t, tx.validationErrors, 2)
+		assert.Len(t, tx.terminalErrors, 2)
 
-		err := tx.BeginPreparation()
-		assert.ErrorIs(t, err, ErrInvalidTransaction)
+		err := tx.BeginExecution()
+		assert.ErrorIs(t, err, ErrNotValidated)
 	})
 
-	t.Run("validates rollback path", func(t *testing.T) {
+	t.Run("validates compensation path", func(t *testing.T) {
 		tx, _ := setupTest(t)
 
 		require.NoError(t, tx.RunValidation())
-		require.NoError(t, tx.BeginPreparation())
-		require.NoError(t, tx.MarkPrepared())
+		require.NoError(t, tx.BeginExecution())
 
-		require.NoError(t, tx.BeginRollback())
-		assert.Equal(t, finitestate.StateRollingBack, tx.GetState())
+		testErr := errors.New("something bad happened")
+		require.NoError(t, tx.MarkFailed(testErr))
+		assert.Equal(t, finitestate.StateFailed, tx.GetState())
 
-		require.NoError(t, tx.MarkRolledBack())
-		assert.Equal(t, finitestate.StateRolledBack, tx.GetState())
+		require.NoError(t, tx.BeginCompensation())
+		assert.Equal(t, finitestate.StateCompensating, tx.GetState())
+
+		require.NoError(t, tx.MarkCompensated())
+		assert.Equal(t, finitestate.StateCompensated, tx.GetState())
 	})
 
 	t.Run("validates failure path", func(t *testing.T) {
 		tx, _ := setupTest(t)
 
 		require.NoError(t, tx.RunValidation())
+		require.NoError(t, tx.BeginExecution())
 
 		testErr := errors.New("something bad happened")
 		require.NoError(t, tx.MarkFailed(testErr))
 		assert.Equal(t, finitestate.StateFailed, tx.GetState())
-		assert.Contains(t, tx.validationErrors, testErr)
+		assert.Contains(t, tx.terminalErrors, testErr)
 	})
 }
 
@@ -157,10 +158,8 @@ func TestLogCollection(t *testing.T) {
 		tx, handler := setupTest(t)
 
 		require.NoError(t, tx.RunValidation())
-		require.NoError(t, tx.BeginPreparation())
-		require.NoError(t, tx.MarkPrepared())
-		require.NoError(t, tx.BeginCommit())
-		require.NoError(t, tx.MarkCommitted())
+		require.NoError(t, tx.BeginExecution())
+		require.NoError(t, tx.MarkSucceeded())
 		require.NoError(t, tx.MarkCompleted())
 
 		err := tx.PlaybackLogs(handler)

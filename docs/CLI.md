@@ -181,7 +181,7 @@ func runServer(configPath, listenAddr string) error {
     })
     
     // Create the transaction manager
-    transactionMgr := transmgr.New(transmgr.Config{
+    transactionMgr := txmgr.New(txmgr.Config{
         Logger:     logger.With("component", "transaction_manager"),
         ConfigFunc: configManager.GetCurrentConfig,
     })

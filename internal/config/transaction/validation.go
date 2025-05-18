@@ -23,6 +23,7 @@ func (tx *ConfigTransaction) RunValidation() error {
 	}
 	tx.logger.Debug("Validation started", "state", finitestate.StateValidating)
 
+	// Perform actual validation
 	err = tx.domainConfig.Validate()
 	if err != nil {
 		return tx.setStateInvalid([]error{err})
@@ -64,7 +65,7 @@ func (tx *ConfigTransaction) setStateInvalid(errs []error) error {
 	}
 
 	tx.IsValid.Store(false)
-	tx.validationErrors = errs
+	tx.terminalErrors = errs
 	tx.logger.Warn(
 		"Validation failed",
 		"errors", errs,

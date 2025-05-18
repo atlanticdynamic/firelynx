@@ -173,9 +173,6 @@ func TestAsyncCleanup(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		// Wait for cleanup to run
-		time.Sleep(interval * 2)
-
 		// Should be cleaned up to just one transaction
 		assert.Eventually(t, func() bool {
 			return len(storage.GetAll()) == 1

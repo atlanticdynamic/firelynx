@@ -25,7 +25,6 @@ import (
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	httpRunner "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
-	"github.com/atlanticdynamic/firelynx/internal/server/transmgr"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/robbyt/go-supervisor/supervisor"
 	"github.com/stretchr/testify/assert"
@@ -114,11 +113,11 @@ func TestHTTPReloadWithDirectUpdate(t *testing.T) {
 	routeRegistry := routing.NewRouteRegistry()
 
 	// Create the transaction manager
-	coreRunner, err := transmgr.NewRunner(
+	coreRunner, err := txmgr.NewRunner(
 		configCallback,
-		transmgr.WithLogHandler(logger.Handler()),
-		transmgr.WithAppRegistry(appRegistry),
-		transmgr.WithRouteRegistry(routeRegistry),
+		txmgr.WithLogHandler(logger.Handler()),
+		txmgr.WithAppRegistry(appRegistry),
+		txmgr.WithRouteRegistry(routeRegistry),
 	)
 	require.NoError(t, err, "Failed to create server core")
 
@@ -377,11 +376,11 @@ response = "This is a test echo response"
 	routeRegistry := routing.NewRouteRegistry()
 
 	// Create the transaction manager
-	coreRunner, err := transmgr.NewRunner(
+	coreRunner, err := txmgr.NewRunner(
 		configProvider.getConfig,
-		transmgr.WithLogHandler(logger.Handler()),
-		transmgr.WithAppRegistry(appRegistry),
-		transmgr.WithRouteRegistry(routeRegistry),
+		txmgr.WithLogHandler(logger.Handler()),
+		txmgr.WithAppRegistry(appRegistry),
+		txmgr.WithRouteRegistry(routeRegistry),
 	)
 	require.NoError(t, err, "Failed to create server core")
 

@@ -1,6 +1,6 @@
 // Package core provides adapters between domain config and runtime components.
 // This is the ONLY package that should import from internal/config.
-package transmgr
+package txmgr
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package transmgr
+package txmgr
 
 import (
 	"context"

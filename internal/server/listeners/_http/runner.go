@@ -66,7 +66,7 @@ func NewRunner(
 		return manager.getRunnerConfig()
 	}
 
-	runner, err := composite.NewRunner[*wrapper.HttpServer](runnerConfigCallback)
+	runner, err := composite.NewRunner(runnerConfigCallback)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create composite runner: %w", err)
 	}

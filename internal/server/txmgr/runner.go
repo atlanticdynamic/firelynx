@@ -1,7 +1,13 @@
-// Package transmgr implements the transaction manager for configuration updates
+// Package txmgr implements the transaction manager for configuration updates
 // and adapters between domain config and runtime components.
-// This is the ONLY package that should import from internal/config.
-package transmgr
+//
+// HTTP Listener Rewrite Plan:
+// According to the HTTP listener rewrite plan, HTTP-specific configuration logic
+// in this package will be moved to the HTTP listener package where it will implement 
+// the SagaParticipant interface. This will allow each SagaParticipant to handle 
+// its own configuration extraction and management, keeping this package focused
+// on orchestration rather than HTTP-specific details.
+package txmgr
 
 import (
 	"context"
@@ -14,8 +20,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
-	http "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
-	"github.com/atlanticdynamic/firelynx/internal/server/routing"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
 
@@ -39,8 +43,12 @@ func Version() string {
 	return fmt.Sprintf("version %s (commit %s) built by %s on %s", version, commit, builtBy, date)
 }
 
-// Runner implements the core server coordinator that manages the HTTP server
-// and its configuration lifecycle.
+// Runner implements the core server coordinator that manages configuration
+// lifecycle and app collection.
+//
+// Note: The HTTP-specific references in this comment are outdated. According to the
+// HTTP listener rewrite plan, HTTP server management functionality will be moved 
+// to the HTTP listener package as a dedicated SagaParticipant implementation.
 type Runner struct {
 	// Required dependencies
 	appCollection *apps.AppCollection
@@ -82,7 +90,7 @@ func NewRunner(
 	// Initialize with default options
 	runner := &Runner{
 		appCollection:  initialApps,
-		logger:         slog.Default().WithGroup("transmgr.Runner"),
+		logger:         slog.Default().WithGroup("txmgr.Runner"),
 		configCallback: configCallback,
 		serverErrors:   make(chan error, 10),
 		stopCh:         make(chan struct{}),
@@ -237,7 +245,7 @@ func (r *Runner) monitorErrors(ctx context.Context) {
 
 // String returns the name of this runnable component.
 func (r *Runner) String() string {
-	return "transmgr.Runner"
+	return "txmgr.Runner"
 }
 
 // Stop gracefully stops all server components.
@@ -325,50 +333,6 @@ func (r *Runner) Reload() {
 	}
 
 	r.logger.Debug("Configuration reloaded successfully")
-}
-
-// GetHTTPConfigCallback returns a configuration callback for the HTTP runner.
-// This callback provides HTTP-specific configuration derived from the main domain config.
-func (r *Runner) GetHTTPConfigCallback() http.ConfigCallback {
-	// Create a shared route registry for the HTTP server
-	var routeRegistry *routing.Registry
-
-	return func() (*http.Config, error) {
-		r.mutex.Lock()
-		defer r.mutex.Unlock()
-
-		// Handle the case where we don't have a configuration yet
-		if r.currentConfig == nil {
-			// For consistency with tests, return an error when configuration is nil
-			// This ensures callers properly handle the case where configuration isn't ready
-			return nil, fmt.Errorf("no configuration available")
-		}
-
-		// Create a config adapter to handle conversion between domain and runtime models
-		adapter := NewConfigAdapter(r.currentConfig, r.appCollection, r.logger)
-
-		// Create or update the route registry if needed
-		if routeRegistry == nil {
-			// Create a routing callback using the adapter
-			routingCallback := adapter.RoutingConfigCallback()
-
-			// Create a new route registry
-			routeRegistry = routing.NewRegistry(r.appCollection, routingCallback, r.logger)
-
-			// Initial load of route configuration
-			if err := routeRegistry.Reload(); err != nil {
-				return nil, fmt.Errorf("failed to load route registry: %w", err)
-			}
-		} else {
-			// Reload the existing registry with new configuration
-			if err := routeRegistry.Reload(); err != nil {
-				return nil, fmt.Errorf("failed to reload route registry: %w", err)
-			}
-		}
-
-		// Get HTTP configuration from adapter
-		return adapter.HTTPConfigCallback(routeRegistry)()
-	}
 }
 
 // PollConfig starts the background polling of configuration every interval.

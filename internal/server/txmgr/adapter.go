@@ -1,6 +1,12 @@
-// Package core provides adapters between domain config and runtime components.
-// This is the ONLY package that should import from internal/config.
-package transmgr
+// Package txmgr provides transaction management for configuration changes.
+//
+// HTTP Listener Rewrite Plan:
+// According to the HTTP listener rewrite plan, HTTP-specific configuration logic 
+// in this file (particularly ConvertToRoutingConfig) will be moved to the HTTP 
+// listener package. Each SagaParticipant will implement its own configuration 
+// extraction, keeping this package focused on orchestrating the configuration 
+// transaction process rather than handling HTTP-specific details.
+package txmgr
 
 import (
 	"fmt"
@@ -9,10 +15,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
-	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
-	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	http "github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/routing"
 )
 
@@ -25,6 +28,10 @@ type ConfigAdapter struct {
 }
 
 // NewConfigAdapter creates a new adapter for converting domain config to runtime configs.
+//
+// Deprecated: The HTTP-specific functionality in this adapter is deprecated and will be moved
+// to the HTTP listener package as part of the HTTP listener rewrite plan. After the rewrite,
+// this adapter will only handle app instance creation and generic configuration tasks.
 func NewConfigAdapter(
 	domainConfig *config.Config,
 	appCollection apps.Registry,
@@ -43,6 +50,10 @@ func NewConfigAdapter(
 
 // RoutingConfigCallback returns a callback function that provides routing configuration.
 // This follows the established pattern from the HTTP server refactoring.
+//
+// Deprecated: This method will be removed once HTTP-specific logic is moved to the
+// HTTP listener package as part of the HTTP listener rewrite plan. Each SagaParticipant
+// should handle its own config extraction.
 func (a *ConfigAdapter) RoutingConfigCallback() routing.ConfigCallback {
 	return func() (*routing.RoutingConfig, error) {
 		if a.domainConfig == nil {
@@ -55,6 +66,12 @@ func (a *ConfigAdapter) RoutingConfigCallback() routing.ConfigCallback {
 
 // ConvertToRoutingConfig converts domain config endpoints to routing package config.
 // This is the bridge between domain config and runtime components.
+//
+// Deprecated: This function contains HTTP-specific route processing logic that should be
+// moved to the HTTP listener package. According to the HTTP listener rewrite plan
+// (internal/server/listeners/http/rewrite.md), each SagaParticipant should handle its
+// own config extraction. This function will be removed once the HTTP listener rewrite
+// is complete.
 func (a *ConfigAdapter) ConvertToRoutingConfig(
 	domainEndpoints endpoints.EndpointCollection,
 ) (*routing.RoutingConfig, error) {
@@ -166,6 +183,9 @@ func (a *ConfigAdapter) ConvertToRoutingConfig(
 }
 
 // Helper function to get route condition types for debugging
+//
+// Deprecated: This function will be removed once HTTP-specific logic is moved to the
+// HTTP listener package as part of the HTTP listener rewrite plan.
 func getRouteTypes(routes routes.RouteCollection) []string {
 	types := make([]string, 0, len(routes))
 	for _, route := range routes {
@@ -178,94 +198,10 @@ func getRouteTypes(routes routes.RouteCollection) []string {
 	return types
 }
 
-// HTTPConfigCallback returns a callback function that provides HTTP configuration.
-// This callback integrates the routing registry with the HTTP server.
-func (a *ConfigAdapter) HTTPConfigCallback(routeRegistry *routing.Registry) http.ConfigCallback {
-	return func() (*http.Config, error) {
-		if a.domainConfig == nil {
-			return &http.Config{
-				AppRegistry:   a.appCollection,
-				RouteRegistry: routeRegistry,
-				Listeners:     []http.ListenerConfig{},
-			}, nil
-		}
-
-		return a.ConvertToHTTPConfig(a.domainConfig.Listeners, routeRegistry)
-	}
-}
-
-// ConvertToHTTPConfig converts domain config listeners to HTTP package config.
-func (a *ConfigAdapter) ConvertToHTTPConfig(
-	domainListeners listeners.ListenerCollection,
-	routeRegistry *routing.Registry,
-) (*http.Config, error) {
-	// Create HTTP listeners based on domain config
-	httpListeners := make([]http.ListenerConfig, 0)
-
-	// Create lookup map from listener ID to endpoint ID
-	// We need to find which endpoint uses each listener
-	listenerToEndpoint := make(map[string]string)
-	if a.domainConfig != nil {
-		for _, endpoint := range a.domainConfig.Endpoints {
-			// Each listener can only be associated with one endpoint
-			listenerToEndpoint[endpoint.ListenerID] = endpoint.ID
-		}
-	}
-
-	for _, listener := range domainListeners {
-		// Skip non-HTTP listeners
-		httpOptions, ok := listener.Options.(options.HTTP)
-		if !ok {
-			continue
-		}
-
-		// Get the endpoint ID for this listener
-		endpointID, exists := listenerToEndpoint[listener.ID]
-		if !exists {
-			a.logger.Warn("Listener has no associated endpoint",
-				"listener", listener.ID)
-			continue // Skip listeners without endpoints
-		}
-
-		// Create HTTP listener config
-		httpListener := http.ListenerConfig{
-			ID:           listener.ID,
-			Address:      listener.Address,
-			EndpointID:   endpointID, // Map to found endpoint ID
-			ReadTimeout:  httpOptions.ReadTimeout,
-			WriteTimeout: httpOptions.WriteTimeout,
-			IdleTimeout:  httpOptions.IdleTimeout,
-			DrainTimeout: httpOptions.DrainTimeout,
-		}
-
-		// Use sensible defaults for timeouts if not specified
-		if httpListener.ReadTimeout <= 0 {
-			httpListener.ReadTimeout = http.DefaultReadTimeout
-		}
-		if httpListener.WriteTimeout <= 0 {
-			httpListener.WriteTimeout = http.DefaultWriteTimeout
-		}
-		if httpListener.IdleTimeout <= 0 {
-			httpListener.IdleTimeout = http.DefaultIdleTimeout
-		}
-		if httpListener.DrainTimeout <= 0 {
-			httpListener.DrainTimeout = http.DefaultDrainTimeout
-		}
-
-		httpListeners = append(httpListeners, httpListener)
-	}
-
-	// Create HTTP config
-	result := &http.Config{
-		AppRegistry:   a.appCollection,
-		RouteRegistry: routeRegistry,
-		Listeners:     httpListeners,
-	}
-
-	return result, nil
-}
-
 // SetDomainConfig updates the domain config used by this adapter.
+//
+// Deprecated: This method is part of the deprecated HTTP-specific functionality in this adapter
+// and will be moved to the HTTP listener package as part of the HTTP listener rewrite plan.
 func (a *ConfigAdapter) SetDomainConfig(domainConfig *config.Config) {
 	a.domainConfig = domainConfig
 }
