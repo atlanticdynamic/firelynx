@@ -20,24 +20,8 @@ type GRPCServer interface {
 	GetListenAddress() string
 }
 
-// TransactionStorage defines the interface for storing and retrieving configuration transactions
-type TransactionStorage interface {
-	// StorageWriter operations
-
-	// Add adds a transaction to the storage
-	Add(tx *transaction.ConfigTransaction) error
-
-	// SetCurrent sets the current active transaction
-	SetCurrent(tx *transaction.ConfigTransaction)
-
-	// StorageReader operations
-
-	// GetAll returns all transactions in the storage
-	GetAll() []*transaction.ConfigTransaction
-
-	// GetByID returns a transaction by ID or nil if not found
-	GetByID(id string) *transaction.ConfigTransaction
-
+// TransactionStorage defines the interface for retrieving configuration transactions
+type transactionStorage interface {
 	// GetCurrent returns the current active transaction
 	GetCurrent() *transaction.ConfigTransaction
 }

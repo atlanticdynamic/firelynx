@@ -47,7 +47,7 @@ type Runner struct {
 	fsm finitestate.Machine
 
 	// Transaction storage for configuration history
-	txStorage TransactionStorage
+	txStorage transactionStorage
 
 	// Last loaded config, for skipping Reload if the config hasn't changed
 	lastLoadedCfg   *config.Config
@@ -239,25 +239,12 @@ func (r *Runner) GetDomainConfig() config.Config {
 }
 
 // createAPITransaction creates a new transaction from an API request.
-// The transaction is added to storage but not yet validated.
-// It extracts the request ID from the context or generates a new one.
 func (r *Runner) createAPITransaction(
 	ctx context.Context,
 	cfg *config.Config,
 ) (*transaction.ConfigTransaction, error) {
-	// Extract request ID from context or generate a new one
 	requestID := server.ExtractRequestID(ctx)
-
-	tx, err := transaction.FromAPI(requestID, cfg, r.logger.Handler())
-	if err != nil {
-		return nil, err
-	}
-
-	if err := r.txStorage.Add(tx); err != nil {
-		return nil, err
-	}
-
-	return tx, nil
+	return transaction.FromAPI(requestID, cfg, r.logger.Handler())
 }
 
 // GetReloadTrigger implements the supervisor.ReloadSender interface.
