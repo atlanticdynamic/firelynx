@@ -34,6 +34,7 @@ func Run(
 
 	// Build list of runnables based on provided arguments
 	var runnables []supervisor.Runnable
+	var configProviders []txmgr.ConfigChannelProvider
 
 	// Create cfgfileloader if configPath is provided
 	if configPath != "" {
@@ -46,13 +47,13 @@ func Run(
 			return fmt.Errorf("failed to create config file loader: %w", err)
 		}
 		runnables = append(runnables, cfgFileLoader)
+		configProviders = append(configProviders, cfgFileLoader)
 	}
 
 	// Create cfgservice if listenAddr is provided
 	if listenAddr != "" {
 		cfgService, err := cfgservice.NewRunner(
 			listenAddr,
-			txmgrOrchestrator,
 			cfgservice.WithLogHandler(logHandler),
 			cfgservice.WithContext(ctx),
 		)
@@ -60,11 +61,26 @@ func Run(
 			return fmt.Errorf("failed to create config service: %w", err)
 		}
 		runnables = append(runnables, cfgService)
+		configProviders = append(configProviders, cfgService)
 	}
 
-	// Create the core txmgr runner (needs a config provider)
-	// TODO: This will need to be updated to get config from the appropriate source
+	// Ensure at least one config provider is available
+	if len(configProviders) == 0 {
+		return fmt.Errorf(
+			"no configuration source specified: provide either a config file path or a gRPC listen address",
+		)
+	}
+
+	// Optionally combine the config providers into a single channel, if there are more than one
+	configProvider, err := fanInOrDirect(ctx, configProviders)
+	if err != nil {
+		return fmt.Errorf("failed to create config provider: %w", err)
+	}
+
+	// Create the core txmgr runner
 	serverCore, err := txmgr.NewRunner(
+		txmgrOrchestrator,
+		configProvider,
 		func() config.Config { return config.Config{} }, // Placeholder - needs to be connected to config sources
 		txmgr.WithLogHandler(logHandler),
 		txmgr.WithContext(ctx),

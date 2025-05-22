@@ -9,7 +9,6 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,15 +17,9 @@ func TestRun(t *testing.T) {
 	t.Parallel()
 
 	t.Run("basic_functionality", func(t *testing.T) {
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-		mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-		mockOrchestrator.On("RegisterParticipant", mock.Anything).Return(nil)
-
 		// Create a Runner instance with a listen address
 		r, err := NewRunner(
 			testutil.GetRandomListeningPort(t),
-			mockOrchestrator,
 		)
 		require.NoError(t, err)
 
@@ -46,16 +39,10 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("with_invalid_address", func(t *testing.T) {
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-		mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-		mockOrchestrator.On("RegisterParticipant", mock.Anything).Return(nil)
-
 		// Create a Runner with an invalid listen address that will cause NewGRPCManager to fail
 		listenAddr := "invalid:address:with:too:many:colons"
 		r, err := NewRunner(
 			listenAddr,
-			mockOrchestrator,
 		)
 		require.NoError(t, err)
 
@@ -72,15 +59,9 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("with_custom_logger", func(t *testing.T) {
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-		mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-		mockOrchestrator.On("RegisterParticipant", mock.Anything).Return(nil)
-
 		// Create a Runner instance with custom logger
 		r, err := NewRunner(
 			testutil.GetRandomListeningPort(t),
-			mockOrchestrator,
 			WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
 		)
 		require.NoError(t, err)
@@ -101,13 +82,9 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("stop_before_run", func(t *testing.T) {
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-
 		// Create a Runner instance
 		r, err := NewRunner(
 			testutil.GetRandomListeningPort(t),
-			mockOrchestrator,
 		)
 		require.NoError(t, err)
 

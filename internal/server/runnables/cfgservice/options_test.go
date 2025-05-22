@@ -138,8 +138,6 @@ func TestWithGRPCServer(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	orchestrator := new(MockConfigOrchestrator)
-
 	tests := []struct {
 		name        string
 		listenAddr  string
@@ -159,12 +157,6 @@ func TestNew(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "nil orchestrator",
-			listenAddr:  "localhost:8080",
-			options:     []Option{},
-			expectError: true,
-		},
-		{
 			name:       "with logger options",
 			listenAddr: "localhost:8080",
 			options: []Option{
@@ -177,14 +169,7 @@ func TestNew(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			var testOrchestrator ConfigOrchestrator
-			if tc.name == "nil orchestrator" {
-				testOrchestrator = nil
-			} else {
-				testOrchestrator = orchestrator
-			}
-
-			runner, err := NewRunner(tc.listenAddr, testOrchestrator, tc.options...)
+			runner, err := NewRunner(tc.listenAddr, tc.options...)
 
 			if tc.expectError {
 				assert.Error(t, err)

@@ -9,12 +9,10 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,16 +21,9 @@ import (
 
 func testInvalidVersionConfig(t *testing.T, versionValue string) {
 	t.Helper()
-	// Create a mock orchestrator
-	mockOrchestrator := new(MockConfigOrchestrator)
-	mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-	mockOrchestrator.On("GetTransactionStatus", mock.Anything).
-		Return(map[string]interface{}{}, nil)
-
 	// Create a Runner instance
 	r, err := NewRunner(
 		testutil.GetRandomListeningPort(t),
-		mockOrchestrator,
 	)
 	require.NoError(t, err)
 
@@ -66,14 +57,9 @@ func testInvalidVersionConfig(t *testing.T, versionValue string) {
 func TestGetConfig(t *testing.T) {
 	t.Parallel()
 
-	// Create a mock orchestrator
-	mockOrchestrator := new(MockConfigOrchestrator)
-	mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-
 	// Create a Runner instance
 	r, err := NewRunner(
 		testutil.GetRandomListeningPort(t),
-		mockOrchestrator,
 	)
 	require.NoError(t, err)
 
@@ -106,15 +92,8 @@ func TestGetConfigClone(t *testing.T) {
 	t.Parallel()
 
 	t.Run("normal_case", func(t *testing.T) {
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-		mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-		mockOrchestrator.On("GetTransactionStatus", mock.Anything).
-			Return(map[string]interface{}{}, nil)
-
 		r, err := NewRunner(
 			testutil.GetRandomListeningPort(t),
-			mockOrchestrator,
 		)
 		require.NoError(t, err)
 
@@ -147,15 +126,8 @@ func TestGetConfigClone(t *testing.T) {
 	})
 
 	t.Run("with_nil_config", func(t *testing.T) {
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-		mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-		mockOrchestrator.On("GetTransactionStatus", mock.Anything).
-			Return(map[string]interface{}{}, nil)
-
 		r, err := NewRunner(
 			testutil.GetRandomListeningPort(t),
-			mockOrchestrator,
 		)
 		require.NoError(t, err)
 
@@ -180,24 +152,15 @@ func TestUpdateConfig(t *testing.T) {
 		// Create a Runner instance first
 		r, err := NewRunner(
 			testutil.GetRandomListeningPort(t),
-			&MockConfigOrchestrator{},
 		)
 		require.NoError(t, err)
 
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-		mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).
-			Run(func(args mock.Arguments) {
-				// Simulate successful transaction completion by setting it as current
-				tx := args.Get(1).(*transaction.ConfigTransaction)
-				r.txStorage.SetCurrent(tx)
-			}).
-			Return(nil)
-		mockOrchestrator.On("GetTransactionStatus", mock.Anything).
-			Return(map[string]interface{}{}, nil)
-
-		// Update the runner's orchestrator
-		r.orchestrator = mockOrchestrator
+		// Set up a config channel consumer to verify transactions are broadcast
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		configChan := r.GetConfigChan()
+		consumer := newConfigChannelConsumer(t, configChan)
+		consumer.start(ctx)
 
 		// Set initial version
 		version := version.Version
@@ -251,38 +214,24 @@ func TestUpdateConfig(t *testing.T) {
 		assert.Equal(t, *validConfig.Version, *validResp.Config.Version)
 		assert.Equal(t, len(validConfig.Listeners), len(validResp.Config.Listeners))
 
-		// Verify that the internal config was updated
-		result := r.GetPbConfigClone()
-		// Just verify the basic fields - the conversion may add extra fields
-		assert.Equal(t, *validConfig.Version, *result.Version, "Version should match")
-		assert.Equal(
-			t,
-			len(validConfig.Listeners),
-			len(result.Listeners),
-			"Should have same number of listeners",
-		)
-
 		// Verify domain config was stored (not the protobuf)
 		r.lastLoadedCfgMu.Lock()
 		assert.NotNil(t, r.lastLoadedCfg)
 		assert.Equal(t, version, r.lastLoadedCfg.Version)
 		r.lastLoadedCfgMu.Unlock()
 
-		// Verify orchestrator was called
-		mockOrchestrator.AssertCalled(t, "ProcessTransaction", mock.Anything, mock.Anything)
+		// Verify transaction was broadcast via the channel
+		tx := consumer.waitForTransaction(500 * time.Millisecond)
+		require.NotNil(t, tx, "Should have received transaction via channel")
+		require.NotNil(t, tx.GetConfig())
+		assert.Equal(t, version, tx.GetConfig().Version)
+		assert.Equal(t, 1, len(tx.GetConfig().Listeners))
 	})
 
 	t.Run("nil_config", func(t *testing.T) {
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-		mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-		mockOrchestrator.On("GetTransactionStatus", mock.Anything).
-			Return(map[string]interface{}{}, nil)
-
 		// Create a Runner instance
 		r, err := NewRunner(
 			testutil.GetRandomListeningPort(t),
-			mockOrchestrator,
 		)
 		require.NoError(t, err)
 
@@ -314,25 +263,18 @@ func TestUpdateConfig(t *testing.T) {
 	})
 
 	t.Run("multiple_updates", func(t *testing.T) {
-		// Create a mock orchestrator
-		mockOrchestrator := new(MockConfigOrchestrator)
-		mockOrchestrator.On("GetTransactionStatus", mock.Anything).
-			Return(map[string]interface{}{}, nil)
-
 		// Create a Runner instance
 		r, err := NewRunner(
 			testutil.GetRandomListeningPort(t),
-			mockOrchestrator,
 		)
 		require.NoError(t, err)
 
-		// Set up the mock to simulate successful transaction processing
-		mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).
-			Run(func(args mock.Arguments) {
-				tx := args.Get(1).(*transaction.ConfigTransaction)
-				r.txStorage.SetCurrent(tx)
-			}).
-			Return(nil)
+		// Set up a config channel consumer to verify transactions are broadcast
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		configChan := r.GetConfigChan()
+		consumer := newConfigChannelConsumer(t, configChan)
+		consumer.start(ctx)
 
 		// Set initial version
 		version := version.Version
@@ -393,32 +335,20 @@ func TestUpdateConfig(t *testing.T) {
 			require.NoError(t, err, "Update %d should succeed", i)
 			assert.NotNil(t, resp)
 			assert.True(t, *resp.Success)
-
-			// Verify the update took effect
-			clone := r.GetPbConfigClone()
-			// Just verify basic fields since we're converting domain→pbuf
-			assert.Equal(t, *cfg.Version, *clone.Version, "Version should match")
-			assert.Equal(
-				t,
-				len(cfg.Listeners),
-				len(clone.Listeners),
-				"Listeners count should match",
-			)
 		}
+
+		// Verify multiple transactions were broadcast
+		assert.Eventually(t, func() bool {
+			return consumer.getTransactionCount() == len(configs)
+		}, 500*time.Millisecond, 10*time.Millisecond, "Should have received all transactions")
 	})
 }
 
 // TestReloadNotification_Direct tests the reload notification using direct calls
 func TestReloadNotification_Direct(t *testing.T) {
-	// Create a mock orchestrator
-	mockOrchestrator := new(MockConfigOrchestrator)
-	mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-	mockOrchestrator.On("GetTransactionStatus", mock.Anything).Return(map[string]interface{}{}, nil)
-
 	// Create a simple Runner without complex transactions
 	r, err := NewRunner(
 		testutil.GetRandomListeningPort(t),
-		mockOrchestrator,
 	)
 	require.NoError(t, err)
 
@@ -476,18 +406,19 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	// Create a mock orchestrator
-	mockOrchestrator := new(MockConfigOrchestrator)
-	mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).Return(nil)
-	mockOrchestrator.On("GetTransactionStatus", mock.Anything).Return(map[string]interface{}{}, nil)
-
 	// Create Runner with custom logger
 	r, err := NewRunner(
 		testutil.GetRandomListeningPort(t),
-		mockOrchestrator,
 		WithLogger(logger),
 	)
 	require.NoError(t, err)
+
+	// Set up a config channel consumer to verify transactions are broadcast
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	configChan := r.GetConfigChan()
+	consumer := newConfigChannelConsumer(t, configChan)
+	consumer.start(ctx)
 
 	err = r.fsm.Transition(finitestate.StatusBooting)
 	require.NoError(t, err)
@@ -519,8 +450,9 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 	// Verify logger was used by checking that the output buffer contains something
 	assert.NotEmpty(t, buf.String(), "Logger should have output something")
 
-	// Verify orchestrator was called
-	mockOrchestrator.AssertCalled(t, "ProcessTransaction", mock.Anything, mock.Anything)
+	// Verify transaction was broadcast via the channel
+	tx := consumer.waitForTransaction(500 * time.Millisecond)
+	require.NotNil(t, tx, "Should have received transaction via channel")
 }
 
 // TestHandlingInvalidVersionConfig tests configs with invalid versions

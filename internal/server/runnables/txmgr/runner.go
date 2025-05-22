@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/robbyt/go-supervisor/supervisor"
@@ -43,6 +44,11 @@ func Version() string {
 	return fmt.Sprintf("version %s (commit %s) built by %s on %s", version, commit, builtBy, date)
 }
 
+// ConfigChannelProvider defines the interface for getting a channel of validated config transactions
+type ConfigChannelProvider interface {
+	GetConfigChan() <-chan *transaction.ConfigTransaction
+}
+
 // Runner implements the core server coordinator that manages configuration
 // lifecycle and app collection.
 //
@@ -53,6 +59,10 @@ type Runner struct {
 	// Required dependencies
 	appCollection *apps.AppCollection
 	logger        *slog.Logger
+
+	// Configuration transaction management
+	sagaOrchestrator *SagaOrchestrator
+	configProvider   ConfigChannelProvider
 
 	// Internal state
 	configCallback func() config.Config
@@ -78,9 +88,17 @@ type Runner struct {
 // NewRunner creates a new core runner that coordinates configuration and services.
 // It follows the functional options pattern for configuration.
 func NewRunner(
+	sagaOrchestrator *SagaOrchestrator,
+	configProvider ConfigChannelProvider,
 	configCallback func() config.Config,
 	opts ...Option,
 ) (*Runner, error) {
+	if sagaOrchestrator == nil {
+		return nil, errors.New("saga orchestrator cannot be nil")
+	}
+	if configProvider == nil {
+		return nil, errors.New("config provider cannot be nil")
+	}
 	// Create initial empty app collection
 	initialApps, err := apps.NewAppCollection([]apps.App{})
 	if err != nil {
@@ -89,12 +107,14 @@ func NewRunner(
 
 	// Initialize with default options
 	runner := &Runner{
-		appCollection:  initialApps,
-		logger:         slog.Default().WithGroup("txmgr.Runner"),
-		configCallback: configCallback,
-		serverErrors:   make(chan error, 10),
-		stopCh:         make(chan struct{}),
-		parentCtx:      context.Background(),
+		appCollection:    initialApps,
+		logger:           slog.Default().WithGroup("txmgr.Runner"),
+		sagaOrchestrator: sagaOrchestrator,
+		configProvider:   configProvider,
+		configCallback:   configCallback,
+		serverErrors:     make(chan error, 10),
+		stopCh:           make(chan struct{}),
+		parentCtx:        context.Background(),
 	}
 
 	// Apply options
@@ -202,6 +222,10 @@ func (r *Runner) Run(ctx context.Context) error {
 	r.wg.Add(1)
 	go r.monitorErrors(runCtx)
 
+	// Start monitoring config transactions from cfgservice
+	r.wg.Add(1)
+	go r.monitorConfigTransactions(runCtx)
+
 	// Load the initial configuration
 	if err := r.boot(); err != nil {
 		if stateErr := r.fsm.Transition(finitestate.StatusError); stateErr != nil {
@@ -238,6 +262,41 @@ func (r *Runner) monitorErrors(ctx context.Context) {
 		case err := <-r.serverErrors:
 			if err != nil {
 				r.logger.Error("Server error", "error", err)
+			}
+		}
+	}
+}
+
+// monitorConfigTransactions watches for validated config transactions from cfgservice
+// and processes them through the saga orchestrator.
+func (r *Runner) monitorConfigTransactions(ctx context.Context) {
+	defer r.wg.Done()
+
+	configChan := r.configProvider.GetConfigChan()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-r.stopCh:
+			return
+		case tx, ok := <-configChan:
+			if !ok {
+				r.logger.Info("Config channel closed, stopping config transaction monitoring")
+				return
+			}
+			if tx == nil {
+				continue
+			}
+
+			r.logger.Debug("Received validated config transaction", "id", tx.ID)
+
+			// Process the transaction through the saga orchestrator
+			if err := r.sagaOrchestrator.ProcessTransaction(ctx, tx); err != nil {
+				r.logger.Error("Failed to process config transaction via saga orchestrator",
+					"id", tx.ID, "error", err)
+				r.serverErrors <- fmt.Errorf("saga processing failed for transaction %s: %w", tx.ID, err)
+			} else {
+				r.logger.Info("Successfully processed config transaction via saga orchestrator", "id", tx.ID)
 			}
 		}
 	}

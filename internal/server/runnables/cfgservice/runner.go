@@ -53,10 +53,6 @@ type Runner struct {
 	lastLoadedCfg   *config.Config
 	lastLoadedCfgMu sync.Mutex
 
-	// Optional saga orchestrator for coordinating configuration changes
-	// If nil, transactions are processed locally
-	orchestrator ConfigOrchestrator
-
 	// parentCtx is the optional parent context
 	parentCtx context.Context
 
@@ -69,25 +65,20 @@ type Runner struct {
 	subscriberCounter atomic.Uint64
 }
 
-// NewRunner creates a new Runner instance with required listenAddr, ConfigOrchestrator and optional configuration.
+// NewRunner creates a new Runner instance with required listenAddr and optional configuration.
 func NewRunner(
 	listenAddr string,
-	orchestrator ConfigOrchestrator,
 	opts ...Option,
 ) (*Runner, error) {
 	if listenAddr == "" {
 		return nil, errors.New("listen address cannot be empty")
 	}
-	if orchestrator == nil {
-		return nil, errors.New("config orchestrator cannot be nil")
-	}
 
 	r := &Runner{
-		logger:       slog.Default(),
-		listenAddr:   listenAddr,
-		reloadCh:     make(chan struct{}, 1),
-		orchestrator: orchestrator,
-		parentCtx:    context.Background(),
+		logger:     slog.Default(),
+		listenAddr: listenAddr,
+		reloadCh:   make(chan struct{}, 1),
+		parentCtx:  context.Background(),
 	}
 
 	// Initialize the finite state machine
@@ -247,6 +238,28 @@ func (r *Runner) GetDomainConfig() config.Config {
 	return *cfg
 }
 
+// createAPITransaction creates a new transaction from an API request.
+// The transaction is added to storage but not yet validated.
+// It extracts the request ID from the context or generates a new one.
+func (r *Runner) createAPITransaction(
+	ctx context.Context,
+	cfg *config.Config,
+) (*transaction.ConfigTransaction, error) {
+	// Extract request ID from context or generate a new one
+	requestID := server.ExtractRequestID(ctx)
+
+	tx, err := transaction.FromAPI(requestID, cfg, r.logger.Handler())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.txStorage.Add(tx); err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
 // GetReloadTrigger implements the supervisor.ReloadSender interface.
 // It exposes a channel that receives notifications whenever the configuration
 // is updated, allowing systems to react to configuration changes without polling.
@@ -302,22 +315,19 @@ func (r *Runner) UpdateConfig(
 		}, nil
 	}
 
-	// Process the transaction through its complete lifecycle
-	if err := r.processTransaction(ctx, tx); err != nil {
-		logger.Warn("Failed to process config transaction", "error", err)
+	// Validate the transaction (but don't orchestrate it)
+	if err := tx.RunValidation(); err != nil {
+		logger.Warn("Failed to validate config transaction", "error", err)
 		success := false
 		return &pb.UpdateConfigResponse{
 			Success: &success,
-			Error:   proto.String(fmt.Sprintf("transaction processing failed: %v", err)),
+			Error:   proto.String(fmt.Sprintf("transaction validation failed: %v", err)),
 			Config:  req.Config, // Return the invalid submitted config
 		}, nil
 	}
 
-	// Broadcast the successful transaction to subscribers
+	// Broadcast the validated transaction to subscribers
 	r.broadcastConfigTransaction(tx)
-
-	// Trigger reload notification for ReloadSender interface
-	r.triggerReload()
 
 	// Get the validated config with any defaults that might have been applied
 	validatedConfig := tx.GetConfig().ToProto()

@@ -10,8 +10,45 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/stretchr/testify/assert"
 )
+
+// MockConfigProvider implements ConfigChannelProvider for testing
+type MockConfigProvider struct {
+	ch chan *transaction.ConfigTransaction
+}
+
+func NewMockConfigProvider() *MockConfigProvider {
+	return &MockConfigProvider{
+		ch: make(chan *transaction.ConfigTransaction, 1),
+	}
+}
+
+func (m *MockConfigProvider) GetConfigChan() <-chan *transaction.ConfigTransaction {
+	return m.ch
+}
+
+func (m *MockConfigProvider) SendTransaction(tx *transaction.ConfigTransaction) {
+	select {
+	case m.ch <- tx:
+	default:
+	}
+}
+
+// createTestRunner creates a runner with mock dependencies for testing
+func createTestRunner(
+	t *testing.T,
+	callback func() config.Config,
+	opts ...Option,
+) (*Runner, error) {
+	t.Helper()
+	txStorage := txstorage.NewTransactionStorage()
+	sagaOrchestrator := NewSagaOrchestrator(txStorage, slog.Default().Handler())
+	configProvider := NewMockConfigProvider()
+	return NewRunner(sagaOrchestrator, configProvider, callback, opts...)
+}
 
 func TestNewRunnerMinimalOptions(t *testing.T) {
 	// Create a minimal runner with just a config callback
@@ -20,7 +57,7 @@ func TestNewRunnerMinimalOptions(t *testing.T) {
 	}
 
 	// Create the runner
-	runner, err := NewRunner(callback)
+	runner, err := createTestRunner(t, callback)
 	assert.NoError(t, err)
 	assert.NotNil(t, runner)
 }
@@ -35,10 +72,7 @@ func TestRunnerOptionsFull(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 	// Create the runner with all options
-	runner, err := NewRunner(
-		callback,
-		WithLogger(logger),
-	)
+	runner, err := createTestRunner(t, callback, WithLogger(logger))
 	assert.NoError(t, err)
 	assert.NotNil(t, runner)
 }
@@ -55,7 +89,7 @@ func TestRunnerBoot(t *testing.T) {
 	}
 
 	// Create the runner
-	runner, err := NewRunner(callback)
+	runner, err := createTestRunner(t, callback)
 	assert.NoError(t, err)
 	assert.NotNil(t, runner)
 
@@ -66,7 +100,7 @@ func TestRunnerBoot(t *testing.T) {
 
 func TestRunnerBootConfigError(t *testing.T) {
 	// Create a runner with a nil config callback
-	runner, err := NewRunner(nil)
+	runner, err := createTestRunner(t, nil)
 	assert.NoError(t, err)
 	assert.NotNil(t, runner)
 
@@ -88,7 +122,7 @@ func TestRunnerRunLifecycle(t *testing.T) {
 	}
 
 	// Create the runner
-	runner, err := NewRunner(callback)
+	runner, err := createTestRunner(t, callback)
 	assert.NoError(t, err)
 	assert.NotNil(t, runner)
 
@@ -133,7 +167,7 @@ func TestRunnerReload(t *testing.T) {
 	}
 
 	// Create the runner
-	runner, err := NewRunner(callback)
+	runner, err := createTestRunner(t, callback)
 	assert.NoError(t, err)
 
 	ctx := t.Context()
@@ -175,7 +209,7 @@ func TestRunnerPollConfig(t *testing.T) {
 	}
 
 	// Create the runner
-	runner, err := NewRunner(callback)
+	runner, err := createTestRunner(t, callback)
 	assert.NoError(t, err)
 
 	// Start the runner

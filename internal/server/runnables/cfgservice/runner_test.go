@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -42,45 +43,85 @@ func (m *MockGRPCServer) GetListenAddress() string {
 	return args.String(0)
 }
 
-// MockConfigOrchestrator implements the ConfigOrchestrator interface for testing
-type MockConfigOrchestrator struct {
-	mock.Mock
+// configChannelConsumer is a test helper to consume transactions from GetConfigChan
+type configChannelConsumer struct {
+	t            *testing.T
+	ch           <-chan *transaction.ConfigTransaction
+	transactions []*transaction.ConfigTransaction
+	mu           sync.Mutex
 }
 
-// ProcessTransaction implements the ConfigOrchestrator interface
-func (m *MockConfigOrchestrator) ProcessTransaction(
-	ctx context.Context,
-	tx *transaction.ConfigTransaction,
-) error {
-	args := m.Called(ctx, tx)
-	return args.Error(0)
+func newConfigChannelConsumer(
+	t *testing.T,
+	ch <-chan *transaction.ConfigTransaction,
+) *configChannelConsumer {
+	t.Helper()
+	return &configChannelConsumer{
+		t:            t,
+		ch:           ch,
+		transactions: make([]*transaction.ConfigTransaction, 0),
+	}
 }
 
-// RegisterParticipant implements the ConfigOrchestrator interface
-func (m *MockConfigOrchestrator) RegisterParticipant(participant SagaParticipant) error {
-	args := m.Called(participant)
-	return args.Error(0)
+func (c *configChannelConsumer) start(ctx context.Context) {
+	c.t.Helper()
+	go func() {
+		for {
+			select {
+			case tx, ok := <-c.ch:
+				if !ok {
+					return
+				}
+				c.mu.Lock()
+				c.transactions = append(c.transactions, tx)
+				c.mu.Unlock()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
-// GetTransactionStatus implements the ConfigOrchestrator interface
-func (m *MockConfigOrchestrator) GetTransactionStatus(txID string) (map[string]interface{}, error) {
-	args := m.Called(txID)
-	return args.Get(0).(map[string]interface{}), args.Error(1)
+func (c *configChannelConsumer) getTransactions() []*transaction.ConfigTransaction {
+	c.t.Helper()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]*transaction.ConfigTransaction{}, c.transactions...)
+}
+
+func (c *configChannelConsumer) waitForTransaction(
+	timeout time.Duration,
+) *transaction.ConfigTransaction {
+	c.t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		txs := c.getTransactions()
+		if len(txs) > 0 {
+			return txs[len(txs)-1]
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	c.t.Fatal("timeout waiting for transaction")
+	return nil
+}
+
+func (c *configChannelConsumer) getTransactionCount() int {
+	c.t.Helper()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.transactions)
 }
 
 // TestRunner_New tests the creation of a new Runner
 func TestRunner_New(t *testing.T) {
-	mockOrchestrator := new(MockConfigOrchestrator)
-
 	t.Run("minimal config with listen address", func(t *testing.T) {
 		listenAddr := testutil.GetRandomListeningPort(t)
-		r, err := NewRunner(listenAddr, mockOrchestrator)
+		r, err := NewRunner(listenAddr)
 		require.NoError(t, err)
 		assert.NotNil(t, r)
 		assert.NotNil(t, r.logger)
 		assert.NotNil(t, r.reloadCh)
 		assert.Equal(t, listenAddr, r.listenAddr)
-		assert.Equal(t, mockOrchestrator, r.orchestrator)
 	})
 
 	t.Run("with custom logger", func(t *testing.T) {
@@ -88,7 +129,6 @@ func TestRunner_New(t *testing.T) {
 		customLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
 		r, err := NewRunner(
 			listenAddr,
-			mockOrchestrator,
 			WithLogger(customLogger),
 		)
 		require.NoError(t, err)
@@ -102,7 +142,6 @@ func TestRunner_New(t *testing.T) {
 		mockServer := new(MockGRPCServer)
 		r, err := NewRunner(
 			listenAddr,
-			mockOrchestrator,
 			WithGRPCServer(mockServer),
 		)
 		require.NoError(t, err)
@@ -112,29 +151,19 @@ func TestRunner_New(t *testing.T) {
 	})
 
 	t.Run("with empty listen address", func(t *testing.T) {
-		r, err := NewRunner("", mockOrchestrator)
+		r, err := NewRunner("")
 		assert.Error(t, err)
 		assert.Nil(t, r)
 		assert.Contains(t, err.Error(), "listen address cannot be empty")
-	})
-
-	t.Run("with nil orchestrator", func(t *testing.T) {
-		listenAddr := testutil.GetRandomListeningPort(t)
-		r, err := NewRunner(listenAddr, nil)
-		assert.Error(t, err)
-		assert.Nil(t, r)
-		assert.Contains(t, err.Error(), "config orchestrator cannot be nil")
 	})
 }
 
 // TestStop tests the Stop method of Runner
 func TestStop(t *testing.T) {
-	mockOrchestrator := new(MockConfigOrchestrator)
-
 	t.Run("with grpc server", func(t *testing.T) {
 		// Create a Runner instance
 		listenAddr := testutil.GetRandomListeningPort(t)
-		r, err := NewRunner(listenAddr, mockOrchestrator)
+		r, err := NewRunner(listenAddr)
 		require.NoError(t, err)
 
 		// Start the runner in a goroutine
@@ -176,7 +205,7 @@ func TestStop(t *testing.T) {
 
 	t.Run("with nil server", func(t *testing.T) {
 		listenAddr := testutil.GetRandomListeningPort(t)
-		r, err := NewRunner(listenAddr, mockOrchestrator)
+		r, err := NewRunner(listenAddr)
 		require.NoError(t, err)
 
 		// Transition to running state to simulate a started runner
@@ -195,10 +224,8 @@ func TestStop(t *testing.T) {
 
 // TestString tests the String method of Runner
 func TestString(t *testing.T) {
-	mockOrchestrator := new(MockConfigOrchestrator)
-
 	listenAddr := testutil.GetRandomListeningPort(t)
-	r, err := NewRunner(listenAddr, mockOrchestrator)
+	r, err := NewRunner(listenAddr)
 	require.NoError(t, err)
 
 	// Check that String returns expected value
@@ -220,20 +247,8 @@ func TestGRPCIntegration(t *testing.T) {
 
 	listenAddr := testutil.GetRandomListeningPort(t)
 
-	// Create a mock orchestrator
-	mockOrchestrator := new(MockConfigOrchestrator)
-
-	r, err := NewRunner(listenAddr, mockOrchestrator)
+	r, err := NewRunner(listenAddr)
 	require.NoError(t, err)
-
-	// Set up the mock to simulate successful transaction completion
-	mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			// Simulate successful transaction completion by setting it as current
-			tx := args.Get(1).(*transaction.ConfigTransaction)
-			r.txStorage.SetCurrent(tx)
-		}).
-		Return(nil)
 
 	// Initialize the state properly for testing
 	err = r.fsm.Transition(finitestate.StatusBooting)
@@ -300,76 +315,6 @@ func TestGRPCIntegration(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, *updateResp.Success)
 
-	// Test GetConfig again to verify update
-	getResp, err = client.GetConfig(ctx, &pb.GetConfigRequest{})
-	require.NoError(t, err)
-	assert.Equal(t, version, *getResp.Config.Version)
-	assert.Equal(t, 1, len(getResp.Config.Listeners))
-
-	// Verify orchestrator was called
-	mockOrchestrator.AssertCalled(t, "ProcessTransaction", mock.Anything, mock.Anything)
-
 	// Clean up
 	server.Stop()
-}
-
-// TestReloadChannel tests the reload notification channel
-func TestReloadChannel(t *testing.T) {
-	// Create a mock orchestrator
-	mockOrchestrator := new(MockConfigOrchestrator)
-
-	// Create a Runner instance
-	listenAddr := testutil.GetRandomListeningPort(t)
-	r, err := NewRunner(listenAddr, mockOrchestrator)
-	require.NoError(t, err)
-
-	// Set up the mock to simulate successful transaction processing
-	mockOrchestrator.On("ProcessTransaction", mock.Anything, mock.Anything).
-		Run(func(args mock.Arguments) {
-			tx := args.Get(1).(*transaction.ConfigTransaction)
-			r.txStorage.SetCurrent(tx)
-		}).
-		Return(nil)
-
-	// Initialize the state properly for testing
-	err = r.fsm.Transition(finitestate.StatusBooting)
-	require.NoError(t, err)
-	err = r.fsm.Transition(finitestate.StatusRunning)
-	require.NoError(t, err)
-
-	// Get the reload channel
-	reloadCh := r.GetReloadTrigger()
-
-	// Create update request with new configuration
-	version := "v1"
-	pbConfig := &pb.ServerConfig{
-		Version: &version,
-	}
-	req := &pb.UpdateConfigRequest{
-		Config: pbConfig,
-	}
-
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Setup a goroutine to call UpdateConfig
-	go func() {
-		// We're only testing the notification, not the response
-		resp, err := r.UpdateConfig(ctx, req)
-		if err != nil {
-			t.Logf("UpdateConfig error (expected in tests): %v", err)
-		}
-		if resp == nil {
-			t.Logf("UpdateConfig returned nil response (expected in tests)")
-		}
-	}()
-
-	// Wait for reload notification
-	select {
-	case <-reloadCh:
-		// Success - reload notification received
-	case <-ctx.Done():
-		t.Fatal("Timeout waiting for reload notification")
-	}
 }

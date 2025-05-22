@@ -3,13 +3,38 @@ package txmgr
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// MockConfigProviderCoverage implements ConfigChannelProvider for testing
+type MockConfigProviderCoverage struct {
+	ch chan *transaction.ConfigTransaction
+}
+
+func (m *MockConfigProviderCoverage) GetConfigChan() <-chan *transaction.ConfigTransaction {
+	return m.ch
+}
+
+// createTestRunnerCoverage creates a runner with mock dependencies for testing
+func createTestRunnerCoverage(
+	t *testing.T,
+	callback func() config.Config,
+	opts ...Option,
+) (*Runner, error) {
+	t.Helper()
+	txStorage := txstorage.NewTransactionStorage()
+	sagaOrchestrator := NewSagaOrchestrator(txStorage, slog.Default().Handler())
+	configProvider := &MockConfigProviderCoverage{ch: make(chan *transaction.ConfigTransaction, 1)}
+	return NewRunner(sagaOrchestrator, configProvider, callback, opts...)
+}
 
 func TestRunnerString(t *testing.T) {
 	// Create a runner with a config callback
@@ -18,7 +43,7 @@ func TestRunnerString(t *testing.T) {
 	}
 
 	// Create the runner
-	runner, err := NewRunner(callback)
+	runner, err := createTestRunnerCoverage(t, callback)
 	require.NoError(t, err)
 
 	// Check that String() returns a non-empty string
@@ -28,7 +53,7 @@ func TestRunnerString(t *testing.T) {
 
 func TestRunnerSetConfigProvider(t *testing.T) {
 	// Create a runner with a nil config callback
-	runner, err := NewRunner(nil)
+	runner, err := createTestRunnerCoverage(t, nil)
 	require.NoError(t, err)
 
 	// Define a new callback
@@ -60,7 +85,7 @@ func TestRunnerSetConfigProvider(t *testing.T) {
 
 func TestRunnerStop(t *testing.T) {
 	// Create a runner
-	runner, err := NewRunner(func() config.Config {
+	runner, err := createTestRunnerCoverage(t, func() config.Config {
 		return config.Config{}
 	})
 	require.NoError(t, err)

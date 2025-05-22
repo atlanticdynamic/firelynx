@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
-	"github.com/robbyt/go-supervisor/supervisor"
 )
 
 // GRPCServer defines the interface for a GRPC server that can be started and stopped
@@ -41,33 +40,4 @@ type TransactionStorage interface {
 
 	// GetCurrent returns the current active transaction
 	GetCurrent() *transaction.ConfigTransaction
-}
-
-// SagaParticipant defines the interface for components participating
-// in configuration transactions. This is a copy of the interface defined in txmgr
-// to avoid import cycles.
-type SagaParticipant interface {
-	supervisor.Runnable
-	supervisor.Stateable
-
-	// ExecuteConfig processes a validated configuration transaction
-	// by preparing the component to apply the changes
-	ExecuteConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
-
-	// CompensateConfig reverts changes made during ExecuteConfig
-	// when a transaction fails
-	CompensateConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
-
-	// ApplyPendingConfig applies the pending configuration prepared during ExecuteConfig
-	ApplyPendingConfig(ctx context.Context) error
-}
-
-// ConfigOrchestrator defines the interface that cfgservice needs from a saga orchestrator
-// This allows decoupling from the specific implementation in txmgr
-type ConfigOrchestrator interface {
-	// ProcessTransaction processes a validated transaction through the saga lifecycle
-	ProcessTransaction(ctx context.Context, tx *transaction.ConfigTransaction) error
-
-	// GetTransactionStatus returns the current status of a transaction
-	GetTransactionStatus(txID string) (map[string]interface{}, error)
 }
