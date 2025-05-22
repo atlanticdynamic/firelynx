@@ -10,6 +10,12 @@
 // - Listener: Represents a single listener with an ID, address, and protocol-specific options
 // - ListenerCollection: A slice of Listener objects with validation and conversion methods
 //
+// Relationship with Endpoints:
+// To find endpoints for a specific listener, use the methods in the config package:
+//   - config.GetEndpointsForListener(listenerID string)
+//   - config.GetEndpointsByListenerID(listenerID string)
+//   - config.GetEndpointIDsForListener(listenerID string)
+//
 // Thread Safety:
 // The listener configuration objects are not thread-safe and should be protected when
 // accessed concurrently. These objects are typically loaded during startup or configuration
@@ -83,26 +89,6 @@ func (l *Listener) GetTypeString() string {
 	default:
 		return "Unknown"
 	}
-}
-
-// Config represents the interface needed from a Config object to query endpoints
-type Config interface {
-	GetEndpoints() []any // avoid import cycles
-}
-
-// GetEndpoints returns the endpoints attached to a specific listener
-// This requires passing in the config object
-func (l *Listener) GetEndpoints(config any) []any {
-	// This implementation needs to be updated by callers to convert any to the right type
-	// This approach prevents import cycles
-	return nil
-}
-
-// GetEndpointIDs returns the IDs of endpoints that are attached to this listener
-func (l *Listener) GetEndpointIDs(config any) []string {
-	// This is a placeholder method that should be implemented by the client
-	// using a type assertion to avoid import cycles
-	return nil
 }
 
 // GetHTTPOptions extracts HTTPOptions from a Listener

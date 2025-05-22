@@ -22,14 +22,14 @@ func TestCreateAppInstances(t *testing.T) {
 	}
 
 	// Register test app creator function
-	originalImpls := serverApps.AvailableAppImplementations
+	originalImpls := serverApps.GetAllAppImplementations()
 	defer func() {
 		// Restore original implementations after test
-		serverApps.AvailableAppImplementations = originalImpls
+		serverApps.GetAllAppImplementations() = originalImpls
 	}()
 
 	// Mock the app implementations
-	serverApps.AvailableAppImplementations = map[string]serverApps.AppCreator{
+	serverApps.GetAllAppImplementations() = map[string]serverApps.AppCreator{
 		"echo": func(id string, _ any) (serverApps.App, error) {
 			mockApp := mocks.NewMockApp(id)
 			mockApp.On("String").Return(id)

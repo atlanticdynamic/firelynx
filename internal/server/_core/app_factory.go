@@ -28,7 +28,7 @@ func CreateAppInstances(appDefs apps.AppCollection) (map[string]serverApps.App, 
 		}
 
 		// Create app instance based on type
-		creator, exists := serverApps.AvailableAppImplementations[appDef.Config.Type()]
+		creator, exists := serverApps.GetAllAppImplementations()[appDef.Config.Type()]
 		if !exists {
 			return nil, fmt.Errorf("unknown app type: %s", appDef.Config.Type())
 		}

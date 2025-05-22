@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"sync/atomic"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
+	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/gofrs/uuid/v5"
 	"github.com/robbyt/go-loglater"
 )
@@ -34,10 +36,22 @@ type ConfigTransaction struct {
 	ID uuid.UUID
 
 	// Source metadata
-	Source       Source
+	// Source indicates the general category of configuration source (file, API, test)
+	Source Source
+
+	// SourceDetail provides specific information about the origin of the configuration.
+	// This field contains more detailed context about where the configuration came from:
+	//   - For SourceFile: The absolute file path (e.g., "/etc/firelynx/config.toml")
+	//   - For SourceAPI: The API service name (e.g., "gRPC API")
+	//   - For SourceTest: The test name (e.g., "TestConfigReload")
+	// This information is useful for auditing, debugging, and tracing configuration changes.
 	SourceDetail string
-	RequestID    string
-	CreatedAt    time.Time
+
+	// RequestID contains a correlation ID for API requests or can be empty for file sources
+	RequestID string
+
+	// CreatedAt records when this transaction was created
+	CreatedAt time.Time
 
 	// State management
 	fsm finitestate.Machine
@@ -52,27 +66,97 @@ type ConfigTransaction struct {
 	// Domain configuration
 	domainConfig *config.Config
 
+	// Application registry for linking routes to app instances
+	appRegistry serverApps.Registry
+
 	// Validation state
 	terminalErrors []error
 	IsValid        atomic.Bool
 }
 
-// New creates a new ConfigTransaction with the given source information
+// buildAppRegistry creates an app registry from the config.
+// It instantiates runtime app instances for each configured app.
+func buildAppRegistry(cfg *config.Config) (serverApps.Registry, error) {
+	// Strict input validation
+	if cfg == nil {
+		return nil, ErrNilConfig
+	}
+
+	// Create app instances from the config
+	appInstances := make([]serverApps.App, 0, len(cfg.Apps))
+	errz := make([]error, 0, len(cfg.Apps))
+
+	// Process each app in the config
+	for _, appDef := range cfg.Apps {
+		// Skip app types that don't have an implementation
+		creator, exists := serverApps.GetAllAppImplementations()[appDef.Config.Type()]
+		if !exists {
+			errz = append(
+				errz,
+				fmt.Errorf("%w: app type %s (app ID: %s)",
+					ErrAppTypeNotSupported, appDef.Config.Type(), appDef.ID),
+			)
+			continue
+		}
+
+		// Create app instance
+		app, err := creator(appDef.ID, appDef.Config)
+		if err != nil {
+			errz = append(errz, fmt.Errorf("%w for app %s: %w",
+				ErrAppCreationFailed, appDef.ID, err))
+			continue
+		}
+
+		appInstances = append(appInstances, app)
+	}
+
+	// If we have errors, return them
+	if len(errz) > 0 {
+		return nil, errors.Join(errz...)
+	}
+
+	// Create app collection from instances
+	registry, err := serverApps.NewAppCollection(appInstances)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create app registry: %w", err)
+	}
+
+	return registry, nil
+}
+
+// New creates a new ConfigTransaction with the given source information.
+//
+// - source: General category of the configuration origin (file, API, test)
+// - sourceDetail: Specific information about the configuration source:
+//   - For SourceFile: The absolute file path (e.g., "/etc/firelynx/config.toml")
+//   - For SourceAPI: The API service name (e.g., "gRPC API")
+//   - For SourceTest: The test name (e.g., "TestConfigReload")
+//
+// - requestID: Correlation ID for API requests, can be empty for file/test sources
+// - cfg: Domain configuration object to be managed by this transaction
+// - handler: Logging handler to use for this transaction's logs
 func New(
 	source Source,
 	sourceDetail, requestID string,
 	cfg *config.Config,
 	handler slog.Handler,
 ) (*ConfigTransaction, error) {
-	txID := uuid.Must(uuid.NewV6())
-
-	// Create state machine for this transaction
-	sm, err := finitestate.NewSagaMachine(handler)
-	if err != nil {
-		return nil, fmt.Errorf("%s failed to create state machine: %w", txID, err)
+	if cfg == nil {
+		return nil, errors.New("config cannot be nil")
 	}
 
-	// Set up logger with the loglater history collector and additional metadata
+	if handler == nil {
+		handler = slog.New(slog.NewTextHandler(os.Stdout, nil)).Handler()
+	}
+
+	sm, err := finitestate.NewSagaMachine(handler)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create state machine: %w", err)
+	}
+
+	txID := uuid.Must(uuid.NewV6())
+
+	// Set up logger with the loglater history collector
 	logCollector := loglater.NewLogCollector(handler)
 	logger := slog.New(logCollector).With(
 		"id", txID,
@@ -82,6 +166,18 @@ func New(
 
 	// Create participant collection
 	participants := NewParticipantCollection(handler)
+
+	// Initialize registry variable
+	var registry serverApps.Registry
+
+	// Only try to build app registry if there are apps in the config
+	if len(cfg.Apps) > 0 {
+		var appErr error
+		registry, appErr = buildAppRegistry(cfg)
+		if appErr != nil {
+			return nil, fmt.Errorf("failed to build app registry: %w", appErr)
+		}
+	}
 
 	tx := &ConfigTransaction{
 		ID:             txID,
@@ -94,6 +190,7 @@ func New(
 		logger:         logger,
 		logCollector:   logCollector,
 		domainConfig:   cfg,
+		appRegistry:    registry,
 		terminalErrors: []error{},
 		IsValid:        atomic.Bool{},
 	}
@@ -320,6 +417,11 @@ func (tx *ConfigTransaction) GetErrors() []error {
 // GetConfig returns the configuration associated with this transaction
 func (tx *ConfigTransaction) GetConfig() *config.Config {
 	return tx.domainConfig
+}
+
+// GetAppRegistry returns the app registry associated with this transaction
+func (tx *ConfigTransaction) GetAppRegistry() serverApps.Registry {
+	return tx.appRegistry
 }
 
 // PlaybackLogs plays back the transaction logs to the given handler

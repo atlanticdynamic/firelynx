@@ -29,10 +29,6 @@ var serverCmd = &cli.Command{
 		if configPath == "" && listenAddr == "" {
 			return cli.Exit("either --config or --listen flag is required", 1)
 		}
-
-		if err := server.Run(ctx, slog.Default(), configPath, listenAddr); err != nil {
-			return cli.Exit(err.Error(), 1)
-		}
-		return nil
+		return server.Run(ctx, slog.Default(), configPath, listenAddr)
 	},
 }

@@ -124,7 +124,7 @@ func (r *Runner) updateAppsFromConfig() error {
 	// Process each app definition
 	for _, appDef := range r.currentConfig.Apps {
 		// Create app instance based on type
-		creator, exists := apps.AvailableAppImplementations[appDef.Config.Type()]
+		creator, exists := apps.GetAllAppImplementations()[appDef.Config.Type()]
 		if !exists {
 			continue
 		}

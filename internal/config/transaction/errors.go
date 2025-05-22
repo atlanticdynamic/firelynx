@@ -25,6 +25,15 @@ var (
 
 	// ErrNotPrepared indicates an attempt to commit a transaction that isn't prepared
 	ErrNotPrepared = errors.New("transaction is not prepared for commit")
+
+	// ErrAppTypeNotSupported indicates that an app type is not supported
+	ErrAppTypeNotSupported = errors.New("app type not supported")
+
+	// ErrAppCreationFailed indicates that app creation failed
+	ErrAppCreationFailed = errors.New("app creation failed")
+
+	// ErrNilConfig indicates that a nil config was provided
+	ErrNilConfig = errors.New("config cannot be nil")
 )
 
 // ValidationError wraps a validation error for a specific field

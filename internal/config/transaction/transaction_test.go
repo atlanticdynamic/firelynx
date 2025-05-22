@@ -160,6 +160,7 @@ func TestLogCollection(t *testing.T) {
 		require.NoError(t, tx.RunValidation())
 		require.NoError(t, tx.BeginExecution())
 		require.NoError(t, tx.MarkSucceeded())
+		require.NoError(t, tx.BeginReload())
 		require.NoError(t, tx.MarkCompleted())
 
 		err := tx.PlaybackLogs(handler)

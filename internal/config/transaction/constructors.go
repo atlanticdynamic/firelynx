@@ -1,3 +1,4 @@
+// TODO: change the param order, standardize on a metadata struct
 package transaction
 
 import (

@@ -14,6 +14,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// AppType represents the type of application
+type AppType string
+
+// Constants for AppType
+const (
+	AppTypeUnknown   AppType = ""
+	AppTypeEcho      AppType = "echo"
+	AppTypeScript    AppType = "script"
+	AppTypeComposite AppType = "composite_script"
+)
+
 // appTypeToProto converts from domain AppType to protobuf AppType enum
 func appTypeToProto(appType AppType) pb.AppType {
 	switch appType {

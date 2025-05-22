@@ -237,8 +237,9 @@ func (c *Config) validateAppsAndRoutes() error {
 	// Create slice of route refs for app validation
 	routeRefs := c.collectRouteReferences()
 
-	// Validate route references to apps against built-in app IDs
-	if err := c.Apps.ValidateRouteAppReferencesWithBuiltIns(routeRefs, serverApps.GetBuiltInAppIDs()); err != nil {
+	// Validate that routes only reference apps defined in the configuration
+	// or app types that have implementations
+	if err := c.Apps.ValidateRouteAppReferencesWithBuiltIns(routeRefs, serverApps.GetAllAppIDs()); err != nil {
 		errs = append(errs, err)
 	}
 
