@@ -1,45 +1,54 @@
 # Transaction Manager (txmgr)
 
-This package implements the configuration transaction management system for Firelynx, using the Saga pattern for coordinating configuration changes across multiple system components.
+The Transaction Manager (txmgr) package is a core component of the Firelynx system, responsible for coordinating configuration changes across multiple system components using the Saga pattern. It ensures that configuration updates are applied atomically, with proper validation, execution, and rollback capabilities.
 
-## Architectural Role
+## Purpose and Responsibilities
 
-The transaction manager is the **only** package that should:
+The txmgr package serves as the central coordinator for configuration lifecycle management:
 
-1. Import from `internal/config`
-2. Have knowledge of domain config types
-3. Convert domain config to runtime-specific config
+1. Receives validated configuration transactions from config providers (file or gRPC)
+2. Orchestrates the execution of configuration changes across all registered components
+3. Ensures atomic application or rollback of configuration changes
+4. Maintains transaction history and state
 
-The core adapter implements these key responsibilities:
+## Key Components
 
-- Create app instances from domain configurations (`app_factory.go`)
-- Convert domain config to runtime configs (`adapter.go`)
-- Manage configuration updates and propagation (`runner.go`)
-- Coordinate configuration changes across system components (`saga_orchestrator.go`)
+### Runner (`runner.go`)
 
-## Transaction Saga Pattern
+The Runner is the main entry point for the transaction manager that:
+- Monitors for configuration transactions from config providers
+- Processes transactions through the SagaOrchestrator
+- Manages the lifecycle of the transaction manager itself
 
-The txmgr package implements the Saga pattern for distributed transactions:
+### SagaOrchestrator (`saga_orchestrator.go`)
 
-1. **SagaOrchestrator**: Coordinates transactions across multiple participants
-2. **SagaParticipant**: Interface for components participating in transactions
-3. **Transaction**: Represents a configuration change with validation, execution, and compensation phases
+The SagaOrchestrator coordinates configuration changes using the Saga pattern:
+- Registers and manages participating components
+- Processes transactions through validation, execution, reload, and compensation phases
+- Ensures all components are in sync with configuration changes
 
-### Configuration Transaction Lifecycle
+### TransactionStorage (`txstorage/storage.go`)
 
-1. **Validation**: Transaction is validated to ensure configuration is correct
-2. **Execution**: Each participant prepares to apply the configuration changes
-3. **Reload**: All participants apply their pending configurations
-4. **Compensation**: If any participant fails, successful participants roll back their changes
+Maintains the history and state of configuration transactions:
+- Tracks current and historical transactions
+- Provides transaction status and history information
+- Supports async cleanup of old transactions
+
+## Configuration Transaction Lifecycle
+
+1. **Validation**: Config provider validates the transaction before sending to txmgr
+2. **Execution**: Each participant prepares to apply changes (ExecuteConfig)
+3. **Reload**: All participants apply their pending configurations (ApplyPendingConfig)
+4. **Compensation**: If any participant fails, successful participants roll back (CompensateConfig)
 
 ## SagaParticipant Interface
 
-Components that need to participate in configuration transactions should implement:
+Components that need to participate in configuration transactions must implement:
 
 ```go
 type SagaParticipant interface {
-    supervisor.Runnable  // Includes String() method
-    supervisor.Stateable // For detecting running state
+    supervisor.Runnable
+    supervisor.Stateable
     
     // ExecuteConfig prepares configuration changes (prepare phase)
     ExecuteConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
@@ -54,29 +63,44 @@ type SagaParticipant interface {
 }
 ```
 
-Note: SagaParticipant **must not** implement `supervisor.Reloadable` to avoid conflicts with the `ApplyPendingConfig` method.
+**Important**: SagaParticipant **must not** implement `supervisor.Reloadable` to avoid conflicts with the `ApplyPendingConfig` method.
 
-## App Factory
+## Implementation Best Practices
 
-The `CreateAppInstances` function in `app_factory.go` converts domain config app definitions 
-into runtime app instances. This is the proper location for this logic, rather than the 
-domain config layer, because:
+1. **Lazy Configuration Loading**: 
+   - Components should not pre-load configurations during initialization
+   - Configuration should be loaded during Run() or when Reload is triggered
+   - Empty configurations are fully supported - components can idle until configurations arrive
 
-1. It maintains clean separation between validation (config layer) and instantiation (runtime)
-2. It prevents circular dependencies between packages
-3. It centralizes app creation logic in one location
+2. **Clear Separation of Concerns**:
+   - Each SagaParticipant is responsible for extracting its own configuration
+   - Domain configuration validation happens in the config layer
+   - Runtime configuration adaptation happens in the txmgr or participant
+
+3. **Deterministic Ordering**:
+   - Participants are processed in alphabetical order by name for deterministic behavior
+   - Registration order does not affect execution order
+
+## Integration with Firelynx Server
+
+In the server startup flow:
+1. Transaction storage is initialized
+2. SagaOrchestrator is created with the transaction storage
+3. Config providers (file loader and/or gRPC service) are set up
+4. The txmgr Runner is created with the orchestrator and config provider
+5. Participant components (e.g., HTTP listener) register with the orchestrator
+6. The supervisor starts all runnables in order
 
 ## Ongoing Refactoring
 
-This package is currently being refactored according to the following plans:
+The HTTP listener refactoring work moves HTTP-specific configuration logic out of the txmgr package:
+- HTTP adapter code is now in the HTTP listener package
+- Each component handles its own configuration extraction
+- Tests have been reorganized to match functionality
 
-1. **HTTP Listener Rewrite** (In Progress):
-   - Move HTTP-specific configuration logic out of the txmgr package
-   - Move HTTP adapter code to the HTTP listener package
-   - Create dedicated HTTP config manager in the HTTP listener
+## Extending the System
 
-## Developer Notes
-
-- The HTTP-specific functionality in `adapter.go` will eventually be moved to the HTTP listener package
-- Each SagaParticipant should handle its own configuration extraction
-- To add a new component that participates in config transactions, implement the SagaParticipant interface
+To add a new component that participates in configuration transactions:
+1. Implement the SagaParticipant interface
+2. Register with the SagaOrchestrator during server initialization
+3. Ensure your component handles its own configuration extraction and validation
