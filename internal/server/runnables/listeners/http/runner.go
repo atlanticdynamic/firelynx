@@ -22,6 +22,7 @@ type Runner struct {
 }
 
 // NewRunner creates a new HTTP runner
+// TODO: switch logger to functional options
 func NewRunner(logger *slog.Logger) (*Runner, error) {
 	if logger == nil {
 		logger = slog.Default().WithGroup("http")

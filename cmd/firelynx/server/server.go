@@ -30,7 +30,7 @@ func Run(
 		txstorage.WithLogHandler(logHandler),
 	)
 
-	// The saga orchestrator handles atomic config updates and atomic rollbacks
+	// txmgrOrchestrator coordinates the configuration management rollout transactions with atomic roll-back
 	txmgrOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, logHandler)
 
 	// Build list of runnables based on provided arguments
@@ -41,8 +41,8 @@ func Run(
 	if configPath != "" {
 		cfgFileLoader, err := cfgfileloader.NewRunner(
 			configPath,
-			cfgfileloader.WithLogHandler(logHandler),
 			cfgfileloader.WithContext(ctx),
+			cfgfileloader.WithLogHandler(logHandler),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create config file loader: %w", err)
@@ -55,8 +55,9 @@ func Run(
 	if listenAddr != "" {
 		cfgService, err := cfgservice.NewRunner(
 			listenAddr,
-			cfgservice.WithLogHandler(logHandler),
 			cfgservice.WithContext(ctx),
+			cfgservice.WithLogHandler(logHandler),
+			cfgservice.WithConfigTransactionStorage(txStorage),
 		)
 		if err != nil {
 			return fmt.Errorf("failed to create config service: %w", err)
@@ -72,23 +73,23 @@ func Run(
 		)
 	}
 
-	// Optionally combine the config providers into a single channel, if there are more than one
+	// combine the config providers into a single channel, if there are more than one
 	configProvider, err := fanInOrDirect(ctx, configProviders)
 	if err != nil {
 		return fmt.Errorf("failed to create config provider: %w", err)
 	}
 
 	// Create the core txmgr runner
-	serverCore, err := txmgr.NewRunner(
+	txMan, err := txmgr.NewRunner(
 		txmgrOrchestrator,
 		configProvider,
-		txmgr.WithLogHandler(logHandler),
 		txmgr.WithContext(ctx),
+		txmgr.WithLogHandler(logHandler),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create server core: %w", err)
 	}
-	runnables = append(runnables, serverCore)
+	runnables = append(runnables, txMan)
 
 	// Create an HTTP runner with the logger
 	httpLogger := slog.New(logHandler).WithGroup("http")
@@ -105,9 +106,9 @@ func Run(
 	// Add HTTP runner to runnables
 	runnables = append(runnables, httpRunner)
 	super, err := supervisor.New(
+		supervisor.WithContext(ctx),
 		supervisor.WithLogHandler(logHandler),
 		supervisor.WithRunnables(runnables...),
-		supervisor.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create supervisor: %w", err)

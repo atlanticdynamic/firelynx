@@ -34,12 +34,11 @@ var (
 type Runner struct {
 	// Embed the UnimplementedConfigServiceServer for gRPC compatibility
 	pb.UnimplementedConfigServiceServer
-	logger *slog.Logger
 
 	// gRPC server stuff
 	grpcServer GRPCServer
-	listenAddr string
 	grpcLock   sync.RWMutex
+	listenAddr string
 
 	// For triggering a reload when a new config is received
 	reloadCh chan struct{}
@@ -47,7 +46,7 @@ type Runner struct {
 	fsm finitestate.Machine
 
 	// Transaction storage for configuration history
-	txStorage transactionStorage
+	txStorage configTransactionStorage
 
 	// Last loaded config, for skipping Reload if the config hasn't changed
 	lastLoadedCfg   *config.Config
@@ -63,6 +62,8 @@ type Runner struct {
 	// Config channel subscribers
 	configSubscribers sync.Map
 	subscriberCounter atomic.Uint64
+
+	logger *slog.Logger
 }
 
 // NewRunner creates a new Runner instance with required listenAddr and optional configuration.
@@ -75,10 +76,10 @@ func NewRunner(
 	}
 
 	r := &Runner{
-		logger:     slog.Default(),
 		listenAddr: listenAddr,
 		reloadCh:   make(chan struct{}, 1),
 		parentCtx:  context.Background(),
+		logger:     slog.Default(),
 	}
 
 	// Initialize the finite state machine
@@ -89,16 +90,15 @@ func NewRunner(
 	}
 	r.fsm = fsm
 
-	// Initialize transaction storage if not provided
-	if r.txStorage == nil {
-		r.txStorage = txstorage.NewTransactionStorage(
-			txstorage.WithAsyncCleanup(true),
-		)
-	}
-
 	// Apply functional options
 	for _, opt := range opts {
 		opt(r)
+	}
+
+	// Initialize transaction storage if not provided
+	if r.txStorage == nil {
+		r.logger.Warn("no transaction storage provided, creating a local in-memory storage")
+		r.txStorage = txstorage.NewTransactionStorage()
 	}
 
 	return r, nil

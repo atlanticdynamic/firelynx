@@ -21,7 +21,7 @@ type GRPCServer interface {
 }
 
 // TransactionStorage defines the interface for retrieving configuration transactions
-type transactionStorage interface {
+type configTransactionStorage interface {
 	// GetCurrent returns the current active transaction
 	GetCurrent() *transaction.ConfigTransaction
 }
