@@ -35,7 +35,7 @@ var (
 // to the HTTP listener package as a dedicated SagaParticipant implementation.
 type Runner struct {
 	// Required dependencies
-	appCollection *apps.AppCollection
+	appCollection *apps.AppInstances
 	logger        *slog.Logger
 
 	// Configuration transaction management
@@ -73,7 +73,7 @@ func NewRunner(
 		return nil, errors.New("config provider cannot be nil")
 	}
 	// Create initial empty app collection
-	initialApps, err := apps.NewAppCollection([]apps.App{})
+	initialApps, err := apps.NewAppInstances([]apps.App{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create initial app collection: %w", err)
 	}

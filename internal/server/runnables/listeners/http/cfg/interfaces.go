@@ -15,7 +15,7 @@ type ConfigProvider interface {
 	// GetConfig returns the configuration associated with this transaction
 	GetConfig() *config.Config
 
-	// GetAppRegistry returns the app registry for linking routes to app instances.
-	// Returns nil if no app registry is available.
-	GetAppRegistry() apps.Registry
+	// GetAppCollection returns the app collection for linking routes to app instances.
+	// Returns nil if no app collection is available.
+	GetAppCollection() apps.AppLookup
 }

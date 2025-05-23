@@ -32,8 +32,8 @@ func (m *MockConfigProvider) GetConfig() *config.Config {
 	return m.config
 }
 
-// GetAppRegistry returns the app registry
-func (m *MockConfigProvider) GetAppRegistry() *mocks.MockRegistry {
+// GetAppCollection returns the app collection
+func (m *MockConfigProvider) GetAppCollection() *mocks.MockRegistry {
 	return m.appRegistry
 }
 

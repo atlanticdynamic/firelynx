@@ -69,8 +69,8 @@ func NewAdapter(provider ConfigProvider, logger *slog.Logger) (*Adapter, error) 
 		return nil, fmt.Errorf("failed to extract HTTP listeners: %w", listenersErr)
 	}
 
-	// Get the app registry from the provider
-	appRegistry := provider.GetAppRegistry()
+	// Get the app collection from the provider
+	appCol := provider.GetAppCollection()
 
 	// Create adapter with extracted configuration
 	adapter := &Adapter{
@@ -80,8 +80,8 @@ func NewAdapter(provider ConfigProvider, logger *slog.Logger) (*Adapter, error) 
 	}
 
 	// If we have an app registry, extract routes
-	if appRegistry != nil {
-		routes, routesErr := extractRoutes(cfg, listeners, appRegistry, logger)
+	if appCol != nil {
+		routes, routesErr := extractRoutes(cfg, listeners, appCol, logger)
 		if routesErr != nil {
 			return nil, fmt.Errorf("failed to extract HTTP routes: %w", routesErr)
 		}
@@ -126,11 +126,11 @@ func extractListeners(
 
 // extractRoutes extracts routes for HTTP listeners from the domain config.
 // Returns a map of listener ID to slice of routes and any validation errors.
-// If appRegistry is provided, routes will include direct links to app instances.
+// If appCollection is provided, routes will include direct links to app instances.
 func extractRoutes(
 	cfg *config.Config,
 	listeners map[string]ListenerConfig,
-	appRegistry apps.Registry,
+	appCollection apps.AppLookup,
 	logger *slog.Logger,
 ) (map[string][]httpserver.Route, error) {
 	routes := make(map[string][]httpserver.Route)
@@ -146,7 +146,7 @@ func extractRoutes(
 		// Process each endpoint for this listener
 		for _, endpoint := range endpointsForListener {
 			// Process HTTP routes for this endpoint
-			endpointRoutes, err := extractEndpointRoutes(&endpoint, id, appRegistry, logger)
+			endpointRoutes, err := extractEndpointRoutes(&endpoint, id, appCollection, logger)
 			if err != nil {
 				errz = append(
 					errz,
@@ -169,7 +169,7 @@ func extractRoutes(
 func extractEndpointRoutes(
 	endpoint *endpoints.Endpoint,
 	listenerID string,
-	appRegistry apps.Registry,
+	appRegistry apps.AppLookup,
 	logger *slog.Logger,
 ) ([]httpserver.Route, error) {
 	var httpServerRoutes []httpserver.Route

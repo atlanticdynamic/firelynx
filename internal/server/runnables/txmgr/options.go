@@ -42,7 +42,7 @@ func WithContext(ctx context.Context) Option {
 }
 
 // WithAppCollection sets a custom app collection for the Runner instance.
-func WithAppCollection(collection *apps.AppCollection) Option {
+func WithAppCollection(collection *apps.AppInstances) Option {
 	return func(r *Runner) {
 		if collection != nil {
 			r.appCollection = collection

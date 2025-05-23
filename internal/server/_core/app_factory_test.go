@@ -29,7 +29,7 @@ func TestCreateAppInstances(t *testing.T) {
 	}()
 
 	// Mock the app implementations
-	serverApps.GetAllAppImplementations() = map[string]serverApps.AppCreator{
+	serverApps.GetAllAppImplementations() = map[string]serverApps.Instantiator{
 		"echo": func(id string, _ any) (serverApps.App, error) {
 			mockApp := mocks.NewMockApp(id)
 			mockApp.On("String").Return(id)

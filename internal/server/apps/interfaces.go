@@ -5,8 +5,8 @@ import (
 	"net/http"
 )
 
-// Registry is an interface for a collection of applications
-type Registry interface {
+// AppLookup is an interface for a collection of applications
+type AppLookup interface {
 	// GetApp retrieves an application instance by ID
 	GetApp(id string) (App, bool)
 }

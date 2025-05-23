@@ -89,7 +89,7 @@ func TestRunner_New(t *testing.T) {
 	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Create app collection with the mock app
-	appCollection, err := apps.NewAppCollection([]apps.App{echoApp})
+	appCollection, err := apps.NewAppInstances([]apps.App{echoApp})
 	assert.NoError(t, err)
 
 	// Set the app collection
@@ -175,7 +175,7 @@ func TestRunner_WithApps(t *testing.T) {
 	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	// Create app collection with both mock apps
-	appCollection, err := apps.NewAppCollection([]apps.App{specialApp, echoApp})
+	appCollection, err := apps.NewAppInstances([]apps.App{specialApp, echoApp})
 	assert.NoError(t, err)
 
 	// Set the app collection
@@ -233,7 +233,7 @@ func TestRunner_EndpointListenerAssociation(t *testing.T) {
 	// Create a mock echo app and add it to the runner
 	echoApp := mocks.NewMockApp("echo")
 	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	appCollection, err := apps.NewAppCollection([]apps.App{echoApp})
+	appCollection, err := apps.NewAppInstances([]apps.App{echoApp})
 	assert.NoError(t, err)
 	runner.appCollection = appCollection
 

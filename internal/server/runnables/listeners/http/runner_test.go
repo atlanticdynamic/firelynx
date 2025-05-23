@@ -39,19 +39,19 @@ func createTestRegistry() *mocks.MockRegistry {
 	return registry
 }
 
-// Helper to manually set the app registry field in the transaction using reflection
+// Helper to manually set the app collection field in the transaction using reflection
 // This is only for testing purposes - we wouldn't do this in production code
-func setAppRegistry(tx *transaction.ConfigTransaction, registry apps.Registry) {
+func setAppCollection(tx *transaction.ConfigTransaction, collection apps.AppLookup) {
 	// Use reflection to set the private field
 	txValue := reflect.ValueOf(tx).Elem()
-	registryField := txValue.FieldByName("appRegistry")
+	collectionField := txValue.FieldByName("appCollection")
 
-	// Create a new reflect.Value from our registry
-	registryValue := reflect.ValueOf(registry)
+	// Create a new reflect.Value from our collection
+	collectionValue := reflect.ValueOf(collection)
 
 	// Check if the field is valid and can be set
-	if registryField.IsValid() && registryField.CanSet() {
-		registryField.Set(registryValue)
+	if collectionField.IsValid() && collectionField.CanSet() {
+		collectionField.Set(collectionValue)
 	}
 }
 
@@ -64,7 +64,7 @@ func createMockTransaction(t *testing.T) *transaction.ConfigTransaction {
 
 	// Create and set a mock registry using reflection
 	registry := createTestRegistry()
-	setAppRegistry(tx, registry)
+	setAppCollection(tx, registry)
 
 	return tx
 }

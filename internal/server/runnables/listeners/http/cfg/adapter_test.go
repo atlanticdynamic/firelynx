@@ -19,7 +19,7 @@ import (
 type MockConfigProvider struct {
 	config *config.Config
 	txID   string
-	appReg apps.Registry
+	appReg apps.AppLookup
 }
 
 func (m *MockConfigProvider) GetConfig() *config.Config {
@@ -30,7 +30,7 @@ func (m *MockConfigProvider) GetTransactionID() string {
 	return m.txID
 }
 
-func (m *MockConfigProvider) GetAppRegistry() apps.Registry {
+func (m *MockConfigProvider) GetAppCollection() apps.AppLookup {
 	return m.appReg
 }
 

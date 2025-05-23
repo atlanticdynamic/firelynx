@@ -26,6 +26,7 @@ var (
 )
 
 // These are injected by goreleaser and correspond to the version of the build.
+// TODO: remove
 var (
 	version = "dev"
 	commit  = "none"
@@ -73,7 +74,7 @@ func NewRunner(
 	opts ...Option,
 ) (*Runner, error) {
 	// Create initial empty app collection
-	initialApps, err := apps.NewAppCollection([]apps.App{})
+	initialApps, err := apps.NewAppInstances([]apps.App{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create initial app collection: %w", err)
 	}
@@ -110,7 +111,7 @@ func (r *Runner) updateAppsFromConfig() error {
 	// Skip if no configuration is available
 	if r.currentConfig == nil || len(r.currentConfig.Apps) == 0 {
 		// Create an empty app collection
-		emptyCollection, err := apps.NewAppCollection([]apps.App{})
+		emptyCollection, err := apps.NewAppInstances([]apps.App{})
 		if err != nil {
 			return fmt.Errorf("failed to create empty app collection: %w", err)
 		}
@@ -138,7 +139,7 @@ func (r *Runner) updateAppsFromConfig() error {
 	}
 
 	// Create new immutable app collection
-	newCollection, err := apps.NewAppCollection(validApps)
+	newCollection, err := apps.NewAppInstances(validApps)
 	if err != nil {
 		return fmt.Errorf("failed to create app collection: %w", err)
 	}

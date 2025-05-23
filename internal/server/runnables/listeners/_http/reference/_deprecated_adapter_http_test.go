@@ -224,7 +224,7 @@ func TestRunnerGetHTTPConfigCallback(t *testing.T) {
 	// Create a test app
 	echoApp := mocks.NewMockApp("echo-app")
 	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	appCollection, err := apps.NewAppCollection([]apps.App{echoApp})
+	appCollection, err := apps.NewAppInstances([]apps.App{echoApp})
 	assert.NoError(t, err)
 	runner.appCollection = appCollection
 
