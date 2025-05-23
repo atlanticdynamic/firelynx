@@ -3,6 +3,7 @@
 package txstorage
 
 import (
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,45 +16,6 @@ const DefaultMaxTransactions = 20
 
 // DefaultCleanupDebounceInterval is the default time to wait before cleaning up old transactions
 const DefaultCleanupDebounceInterval = 10 * time.Second
-
-// Option is a functional option for configuring the TransactionStorage
-type Option func(*TransactionStorage)
-
-// WithMaxTransactions sets the maximum number of transactions to store
-func WithMaxTransactions(max int) Option {
-	return func(s *TransactionStorage) {
-		if max > 0 {
-			s.maxTransactions = max
-		}
-	}
-}
-
-// WithCleanupFunc sets a custom cleanup function
-func WithCleanupFunc(
-	fn func([]*transaction.ConfigTransaction) []*transaction.ConfigTransaction,
-) Option {
-	return func(s *TransactionStorage) {
-		if fn != nil {
-			s.cleanupFunc = fn
-		}
-	}
-}
-
-// WithAsyncCleanup enables or disables async cleanup
-func WithAsyncCleanup(enabled bool) Option {
-	return func(s *TransactionStorage) {
-		s.asyncCleanup = enabled
-	}
-}
-
-// WithCleanupDebounceInterval sets the cleanup debounce interval
-func WithCleanupDebounceInterval(d time.Duration) Option {
-	return func(s *TransactionStorage) {
-		if d > 0 {
-			s.cleanupDebounceInterval = d
-		}
-	}
-}
 
 // TransactionStorage provides a thread-safe storage for transactions
 type TransactionStorage struct {
@@ -82,8 +44,9 @@ type TransactionStorage struct {
 	cleanupSignal chan struct{}
 
 	// Indicates if cleanup worker is running
-	// 0 = not running, 1 = running
-	cleanupRunning int32
+	cleanupRunning atomic.Bool
+
+	logger *slog.Logger
 }
 
 // NewTransactionStorage creates a new transaction storage with the given options
@@ -93,6 +56,7 @@ func NewTransactionStorage(opts ...Option) *TransactionStorage {
 		maxTransactions:         DefaultMaxTransactions,
 		cleanupDebounceInterval: DefaultCleanupDebounceInterval,
 		cleanupSignal:           make(chan struct{}, 1),
+		logger:                  slog.Default().WithGroup("txstorage"),
 	}
 
 	// Default cleanup function: keep only the last maxTransactions
@@ -116,6 +80,7 @@ func (s *TransactionStorage) Add(tx *transaction.ConfigTransaction) error {
 	if tx == nil {
 		return nil
 	}
+	s.logger.Debug("Adding transaction", "id", tx.ID.String())
 
 	s.mu.Lock()
 	s.transactions = append(s.transactions, tx)
@@ -136,10 +101,17 @@ func (s *TransactionStorage) SetCurrent(tx *transaction.ConfigTransaction) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.current = tx
+
+	if tx != nil {
+		s.logger.Debug("Setting current transaction", "id", tx.ID.String())
+	} else {
+		s.logger.Debug("Clearing current transaction")
+	}
 }
 
 // GetAll returns all transactions in storage
 func (s *TransactionStorage) GetAll() []*transaction.ConfigTransaction {
+	s.logger.Debug("Getting all transactions")
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -152,6 +124,7 @@ func (s *TransactionStorage) GetAll() []*transaction.ConfigTransaction {
 
 // GetByID returns a transaction by ID or nil if not found
 func (s *TransactionStorage) GetByID(id string) *transaction.ConfigTransaction {
+	s.logger.Debug("Getting transaction by ID", "id", id)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -180,7 +153,7 @@ func (s *TransactionStorage) GetCurrent() *transaction.ConfigTransaction {
 // signalCleanup signals the cleanup worker to run
 func (s *TransactionStorage) signalCleanup() {
 	// Start cleanup worker if not running
-	if atomic.CompareAndSwapInt32(&s.cleanupRunning, 0, 1) {
+	if s.cleanupRunning.CompareAndSwap(false, true) {
 		go s.cleanupWorker()
 	}
 
@@ -197,14 +170,17 @@ func (s *TransactionStorage) cleanup() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.logger.Debug("Starting cleanup", "transactions", len(s.transactions))
+
 	if s.cleanupFunc != nil {
 		s.transactions = s.cleanupFunc(s.transactions)
 	}
+	s.logger.Debug("Finished cleanup", "transactions", len(s.transactions))
 }
 
 // cleanupWorker runs cleanup operations asynchronously
 func (s *TransactionStorage) cleanupWorker() {
-	defer atomic.StoreInt32(&s.cleanupRunning, 0)
+	defer s.cleanupRunning.Store(false)
 
 	// Create timer for debounce
 	timer := time.NewTimer(s.cleanupDebounceInterval)
