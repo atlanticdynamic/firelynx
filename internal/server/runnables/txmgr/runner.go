@@ -27,19 +27,6 @@ var (
 	_ supervisor.Stateable = (*Runner)(nil)
 )
 
-// These are injected by goreleaser and correspond to the version of the build.
-var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
-	builtBy = "unknown"
-)
-
-// Version returns a formatted string with version information.
-func Version() string {
-	return fmt.Sprintf("version %s (commit %s) built by %s on %s", version, commit, builtBy, date)
-}
-
 // Runner implements the core server coordinator that manages configuration
 // lifecycle and app collection.
 //
@@ -52,7 +39,7 @@ type Runner struct {
 	logger        *slog.Logger
 
 	// Configuration transaction management
-	sagaOrchestrator *SagaOrchestrator
+	sagaOrchestrator SagaProcessor
 	configProvider   ConfigChannelProvider
 
 	// Internal state
@@ -75,7 +62,7 @@ type Runner struct {
 // NewRunner creates a new core runner that coordinates configuration and services.
 // It follows the functional options pattern for configuration.
 func NewRunner(
-	sagaOrchestrator *SagaOrchestrator,
+	sagaOrchestrator SagaProcessor,
 	configProvider ConfigChannelProvider,
 	opts ...Option,
 ) (*Runner, error) {
@@ -209,7 +196,7 @@ func (r *Runner) monitorConfigTransactions() {
 			r.logger.Debug("Received validated config transaction", "id", tx.ID)
 
 			// Add transaction to storage first
-			if err := r.sagaOrchestrator.txStorage.Add(tx); err != nil {
+			if err := r.sagaOrchestrator.AddToStorage(tx); err != nil {
 				r.logger.Error("Failed to add config transaction to storage",
 					"id", tx.ID, "error", err)
 				r.serverErrors <- fmt.Errorf("failed to store transaction %s: %w", tx.ID, err)

@@ -11,6 +11,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,7 @@ type testHarness struct {
 	t                *testing.T
 	runner           *Runner
 	configProvider   *MockConfigProvider
-	sagaOrchestrator *SagaOrchestrator
+	sagaOrchestrator SagaProcessor
 	txStorage        *txstorage.TransactionStorage
 	ctx              context.Context
 	cancel           context.CancelFunc
@@ -56,7 +57,7 @@ func newTestHarness(t *testing.T, opts ...Option) *testHarness {
 	t.Helper()
 
 	txStorage := txstorage.NewTransactionStorage()
-	sagaOrchestrator := NewSagaOrchestrator(txStorage, slog.Default().Handler())
+	sagaOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())
 	configProvider := NewMockConfigProvider(1)
 	runner, err := NewRunner(sagaOrchestrator, configProvider, opts...)
 	require.NoError(t, err)
@@ -202,7 +203,7 @@ func TestRunnerConfigUpdate(t *testing.T) {
 
 	// Verify current transaction is updated
 	assert.Eventually(t, func() bool {
-		current := h.sagaOrchestrator.txStorage.GetCurrent()
+		current := h.txStorage.GetCurrent()
 		return current != nil && current.ID == tx2.ID
 	}, 5*time.Second, 10*time.Millisecond, "current transaction should be updated")
 
@@ -236,7 +237,7 @@ func TestRunnerStateChan(t *testing.T) {
 		runner := h.runner
 
 		// Use separate contexts for state channel and runner
-		stateCtx, stateCancel := context.WithCancel(context.Background())
+		stateCtx, stateCancel := context.WithCancel(t.Context())
 		defer stateCancel()
 		stateCh := runner.GetStateChan(stateCtx)
 
@@ -313,7 +314,7 @@ func TestRunnerStateChan(t *testing.T) {
 func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
 	// Use larger buffer to handle concurrent sends
 	txStorage := txstorage.NewTransactionStorage()
-	sagaOrchestrator := NewSagaOrchestrator(txStorage, slog.Default().Handler())
+	sagaOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())
 	configProvider := NewMockConfigProvider(10) // larger buffer
 	runner, err := NewRunner(sagaOrchestrator, configProvider)
 	require.NoError(t, err)
@@ -330,7 +331,7 @@ func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
 	}, 5*time.Second, 10*time.Millisecond)
 
 	// Send multiple transactions concurrently
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		go func(n int) {
 			cfg := &config.Config{Version: fmt.Sprintf("v%d", n)}
 			tx, err := transaction.New(
@@ -383,7 +384,7 @@ func TestRunnerStop(t *testing.T) {
 	t.Run("stop transitions to stopping state", func(t *testing.T) {
 		h := newTestHarness(t)
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
 		errCh := make(chan error, 1)

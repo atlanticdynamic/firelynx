@@ -9,6 +9,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgservice"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
@@ -30,7 +31,7 @@ func Run(
 	)
 
 	// The saga orchestrator handles atomic config updates and atomic rollbacks
-	txmgrOrchestrator := txmgr.NewSagaOrchestrator(txStorage, logHandler)
+	txmgrOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, logHandler)
 
 	// Build list of runnables based on provided arguments
 	var runnables []supervisor.Runnable

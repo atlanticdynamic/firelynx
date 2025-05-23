@@ -76,6 +76,13 @@ type ConflictingParticipant struct {
 	name string
 }
 
+// NewConflictingParticipant creates a new ConflictingParticipant with the given name
+func NewConflictingParticipant(name string) *ConflictingParticipant {
+	return &ConflictingParticipant{
+		name: name,
+	}
+}
+
 func (p *ConflictingParticipant) String() string                { return p.name }
 func (p *ConflictingParticipant) Run(ctx context.Context) error { return nil }
 func (p *ConflictingParticipant) Stop()                         {}

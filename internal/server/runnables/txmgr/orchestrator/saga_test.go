@@ -1,4 +1,4 @@
-package txmgr
+package orchestrator
 
 import (
 	"context"
@@ -367,7 +367,7 @@ func TestConcurrentParticipantRegistration(t *testing.T) {
 	var errMutex sync.Mutex
 	var registrationErrors []error
 
-	for i := 0; i < numParticipants; i++ {
+	for i := range numParticipants {
 		go func(i int) {
 			defer wg.Done()
 			participant := NewMockParticipant(fmt.Sprintf("participant-%d", i))
