@@ -178,7 +178,7 @@ func TestHTTPReloadWithDirectUpdate(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
-		var echoResp map[string]interface{}
+		var echoResp map[string]any
 		err = json.NewDecoder(resp.Body).Decode(&echoResp)
 		require.NoError(t, err, "Failed to decode response")
 
@@ -272,7 +272,7 @@ waitLoop:
 
 		require.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
-		var echoResp map[string]interface{}
+		var echoResp map[string]any
 		err = json.NewDecoder(resp.Body).Decode(&echoResp)
 		require.NoError(t, err, "Failed to decode response")
 
@@ -442,7 +442,7 @@ response = "This is a test echo response"
 
 		require.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
-		var echoResp map[string]interface{}
+		var echoResp map[string]any
 		err = json.NewDecoder(resp.Body).Decode(&echoResp)
 		require.NoError(t, err, "Failed to decode response")
 
@@ -529,7 +529,7 @@ response = "This is a test echo response"
 
 		require.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
-		var echoResp map[string]interface{}
+		var echoResp map[string]any
 		err = json.NewDecoder(resp.Body).Decode(&echoResp)
 		require.NoError(t, err, "Failed to decode response")
 

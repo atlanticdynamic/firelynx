@@ -270,7 +270,7 @@ func (o *SagaOrchestrator) getSortedParticipantNames() []string {
 }
 
 // GetTransactionStatus returns the current status of a transaction
-func (o *SagaOrchestrator) GetTransactionStatus(txID string) (map[string]interface{}, error) {
+func (o *SagaOrchestrator) GetTransactionStatus(txID string) (map[string]any, error) {
 	// Get transaction from storage
 	tx := o.txStorage.GetByID(txID)
 	if tx == nil {
@@ -278,7 +278,7 @@ func (o *SagaOrchestrator) GetTransactionStatus(txID string) (map[string]interfa
 	}
 
 	// Build status response
-	status := map[string]interface{}{
+	status := map[string]any{
 		"id":           tx.ID.String(),
 		"state":        tx.GetState(),
 		"source":       tx.Source,

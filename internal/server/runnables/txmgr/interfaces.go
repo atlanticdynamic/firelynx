@@ -1,0 +1,8 @@
+package txmgr
+
+import "github.com/atlanticdynamic/firelynx/internal/config/transaction"
+
+// ConfigChannelProvider defines the interface for getting a channel of validated config transactions
+type ConfigChannelProvider interface {
+	GetConfigChan() <-chan *transaction.ConfigTransaction
+}

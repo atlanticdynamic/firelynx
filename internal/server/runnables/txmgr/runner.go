@@ -16,7 +16,6 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/robbyt/go-supervisor/supervisor"
@@ -39,11 +38,6 @@ var (
 // Version returns a formatted string with version information.
 func Version() string {
 	return fmt.Sprintf("version %s (commit %s) built by %s on %s", version, commit, builtBy, date)
-}
-
-// ConfigChannelProvider defines the interface for getting a channel of validated config transactions
-type ConfigChannelProvider interface {
-	GetConfigChan() <-chan *transaction.ConfigTransaction
 }
 
 // Runner implements the core server coordinator that manages configuration

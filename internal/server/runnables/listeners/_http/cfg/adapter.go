@@ -151,7 +151,7 @@ func (a *Adapter) GetRoutesForListener(listenerID string) []httpserver.Route {
 }
 
 // ConvertToHttpServerRoute converts a config route to an httpserver.Route
-func ConvertToHttpServerRoute(route interface{}, endpoint interface{}) (httpserver.Route, error) {
+func ConvertToHttpServerRoute(route any, endpoint any) (httpserver.Route, error) {
 	// This is a placeholder - actual implementation would convert
 	// configuration routes to httpserver.Route objects
 	// To be implemented based on the actual routing registry pattern

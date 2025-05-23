@@ -10,6 +10,9 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr"
 )
 
+// interface guard to ensure fanInConfigProvider implements ConfigChannelProvider
+var _ txmgr.ConfigChannelProvider = (*fanInConfigProvider)(nil)
+
 // ErrNoProviders is returned when attempting to create a fan-in with no providers
 var ErrNoProviders = errors.New("at least one provider is required")
 

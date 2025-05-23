@@ -376,7 +376,7 @@ func (r *Runner) broadcastConfigTransaction(tx *transaction.ConfigTransaction) {
 		return
 	}
 
-	r.configSubscribers.Range(func(key, value interface{}) bool {
+	r.configSubscribers.Range(func(key, value any) bool {
 		ch, ok := value.(chan *transaction.ConfigTransaction)
 		if !ok {
 			r.logger.Error("Invalid subscriber channel type", "key", key)

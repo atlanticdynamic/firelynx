@@ -20,8 +20,8 @@ var (
 )
 
 type Runner struct {
-	filePath         string
-	lastConfigLoaded atomic.Pointer[transaction.ConfigTransaction]
+	filePath             string
+	lastValidTransaction atomic.Pointer[transaction.ConfigTransaction]
 
 	logger *slog.Logger
 	fsm    finitestate.Machine
@@ -34,16 +34,16 @@ type Runner struct {
 	subscriberCounter atomic.Uint64
 }
 
+// NewRunner creates a new Runner instance used for loading cfg files from disk
 func NewRunner(filePath string, opts ...Option) (*Runner, error) {
-	// Initialize with default options
 	runner := &Runner{
-		filePath:         filePath,
-		logger:           slog.Default().WithGroup("cfgfileloader.Runner"),
-		lastConfigLoaded: atomic.Pointer[transaction.ConfigTransaction]{},
-		parentCtx:        context.Background(),
+		filePath:             filePath,
+		logger:               slog.Default().WithGroup("cfgfileloader.Runner"),
+		lastValidTransaction: atomic.Pointer[transaction.ConfigTransaction]{},
+		parentCtx:            context.Background(),
 	}
 
-	// Apply options
+	// Apply functional options
 	for _, opt := range opts {
 		opt(runner)
 	}
@@ -59,10 +59,12 @@ func NewRunner(filePath string, opts ...Option) (*Runner, error) {
 	return runner, nil
 }
 
+// String implements the supervisor.Runnable interface
 func (r *Runner) String() string {
 	return "cfgfileloader.Runner"
 }
 
+// Run implements the supervisor.Runnable interface
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting Runner")
 
@@ -108,11 +110,12 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	// Clear the last loaded config
-	r.lastConfigLoaded.Store(nil)
+	r.lastValidTransaction.Store(nil)
 
 	return nil
 }
 
+// boot loads the initial configuration from disk
 func (r *Runner) boot() error {
 	if r.filePath == "" {
 		r.logger.Warn("No config path set, skipping boot")
@@ -130,17 +133,19 @@ func (r *Runner) boot() error {
 			return err
 		}
 
-		r.lastConfigLoaded.Store(tx)
+		r.lastValidTransaction.Store(tx)
 		r.broadcastConfigTransaction(tx)
 	}
 
 	return nil
 }
 
+// loadConfigFromDisk loads the configuration from disk
 func (r *Runner) loadConfigFromDisk() (*config.Config, error) {
 	return config.NewConfig(r.filePath)
 }
 
+// validate validates the configuration
 func (r *Runner) validate(cfg *config.Config) (*transaction.ConfigTransaction, error) {
 	tx, err := transaction.FromFile(r.filePath, cfg, r.logger.Handler())
 	if err != nil {
@@ -154,6 +159,7 @@ func (r *Runner) validate(cfg *config.Config) (*transaction.ConfigTransaction, e
 	return tx, nil
 }
 
+// Stop implements the supervisor.Runnable interface
 func (r *Runner) Stop() {
 	r.logger.Debug("Stopping Runner")
 	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
@@ -163,6 +169,7 @@ func (r *Runner) Stop() {
 	r.runCancel()
 }
 
+// Reload implements the supervisor.Reloadable interface
 func (r *Runner) Reload() {
 	r.logger.Debug("Starting Reload...")
 	if r.filePath == "" {
@@ -178,7 +185,7 @@ func (r *Runner) Reload() {
 
 	if newCfg != nil {
 		// Only broadcast if config has changed
-		oldTx := r.lastConfigLoaded.Load()
+		oldTx := r.lastValidTransaction.Load()
 		var configChanged bool
 		if oldTx == nil {
 			configChanged = true
@@ -194,7 +201,7 @@ func (r *Runner) Reload() {
 				return
 			}
 
-			r.lastConfigLoaded.Store(tx)
+			r.lastValidTransaction.Store(tx)
 			r.broadcastConfigTransaction(tx)
 			r.logger.Debug("Config changed, broadcasted to subscribers")
 		} else {
@@ -204,20 +211,13 @@ func (r *Runner) Reload() {
 	r.logger.Debug("Reload completed")
 }
 
-func (r *Runner) GetConfig() *config.Config {
-	tx := r.lastConfigLoaded.Load()
-	if tx == nil {
-		return nil
-	}
-	return tx.GetConfig()
-}
-
+// GetConfigChan implements the txmgr.ConfigChannelProvider interface
 func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
 	// TODO: Consider removing buffer or making it configurable for better backpressure control
 	ch := make(chan *transaction.ConfigTransaction, 1)
 
 	// Send current transaction immediately if available
-	if current := r.lastConfigLoaded.Load(); current != nil {
+	if current := r.lastValidTransaction.Load(); current != nil {
 		select {
 		case ch <- current:
 		default: // channel full, skip
@@ -238,12 +238,22 @@ func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
 	return ch
 }
 
+// getConfig returns the last config successfully loaded and validated, or nil if none
+func (r *Runner) getConfig() *config.Config {
+	tx := r.lastValidTransaction.Load()
+	if tx == nil {
+		return nil
+	}
+	return tx.GetConfig()
+}
+
+// broadcastConfigTransaction sends a config transaction to all subscribers
 func (r *Runner) broadcastConfigTransaction(tx *transaction.ConfigTransaction) {
 	if tx == nil {
 		return
 	}
 
-	r.configSubscribers.Range(func(key, value interface{}) bool {
+	r.configSubscribers.Range(func(key, value any) bool {
 		ch, ok := value.(chan *transaction.ConfigTransaction)
 		if !ok {
 			r.logger.Error("Invalid subscriber channel type", "key", key)

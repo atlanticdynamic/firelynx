@@ -104,10 +104,10 @@ func TestRunner_Run(t *testing.T) {
 		}()
 
 		assert.Eventually(t, func() bool {
-			return runner.GetState() == finitestate.StatusRunning && runner.GetConfig() != nil
+			return runner.GetState() == finitestate.StatusRunning && runner.getConfig() != nil
 		}, time.Second, 10*time.Millisecond)
 
-		cfg := runner.GetConfig()
+		cfg := runner.getConfig()
 		assert.NotNil(t, cfg)
 
 		cancel()
@@ -120,7 +120,7 @@ func TestRunner_Run(t *testing.T) {
 		}
 
 		assert.Equal(t, finitestate.StatusStopped, runner.GetState())
-		assert.Nil(t, runner.GetConfig())
+		assert.Nil(t, runner.getConfig())
 	})
 
 	t.Run("run with invalid config file", func(t *testing.T) {
@@ -192,7 +192,7 @@ func TestRunner_Reload(t *testing.T) {
 		require.NoError(t, err)
 
 		runner.Reload()
-		assert.Nil(t, runner.GetConfig())
+		assert.Nil(t, runner.getConfig())
 	})
 
 	t.Run("reload with valid config file", func(t *testing.T) {
@@ -204,17 +204,17 @@ func TestRunner_Reload(t *testing.T) {
 		runner, err := NewRunner(configPath)
 		require.NoError(t, err)
 
-		assert.Nil(t, runner.GetConfig())
+		assert.Nil(t, runner.getConfig())
 
 		runner.Reload()
-		cfg := runner.GetConfig()
+		cfg := runner.getConfig()
 		assert.NotNil(t, cfg)
 
 		err = os.WriteFile(configPath, updatedConfigTOML, 0o644)
 		require.NoError(t, err)
 
 		runner.Reload()
-		newCfg := runner.GetConfig()
+		newCfg := runner.getConfig()
 		assert.NotNil(t, newCfg)
 
 		assert.NotSame(t, cfg, newCfg)
@@ -230,7 +230,7 @@ func TestRunner_Reload(t *testing.T) {
 		require.NoError(t, err)
 
 		runner.Reload()
-		assert.Nil(t, runner.GetConfig())
+		assert.Nil(t, runner.getConfig())
 	})
 }
 
@@ -239,7 +239,7 @@ func TestRunner_GetConfig(t *testing.T) {
 	t.Run("returns nil when no config loaded", func(t *testing.T) {
 		runner, err := NewRunner("")
 		require.NoError(t, err)
-		assert.Nil(t, runner.GetConfig())
+		assert.Nil(t, runner.getConfig())
 	})
 
 	t.Run("returns loaded config", func(t *testing.T) {
@@ -252,7 +252,7 @@ func TestRunner_GetConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		runner.Reload()
-		cfg := runner.GetConfig()
+		cfg := runner.getConfig()
 		assert.NotNil(t, cfg)
 	})
 }
@@ -369,7 +369,7 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 			defer func() { done <- true }()
 			for j := 0; j < 100; j++ {
 				runner.Reload()
-				cfg := runner.GetConfig()
+				cfg := runner.getConfig()
 				if cfg != nil {
 					_ = cfg.String()
 				}
@@ -385,7 +385,7 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 		}
 	}
 
-	assert.NotNil(t, runner.GetConfig())
+	assert.NotNil(t, runner.getConfig())
 }
 
 func TestRunner_GetConfigChan(t *testing.T) {

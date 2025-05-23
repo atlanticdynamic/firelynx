@@ -23,12 +23,13 @@ func Run(
 ) error {
 	logHandler := logger.Handler()
 
-	// Create transaction storage
+	// Transaction storage stores the history of configuration "transactions" or updates/rollbacks
 	txStorage := txstorage.NewTransactionStorage(
 		txstorage.WithAsyncCleanup(true),
+		txstorage.WithLogHandler(logHandler),
 	)
 
-	// Create saga orchestrator first
+	// The saga orchestrator handles atomic config updates and atomic rollbacks
 	txmgrOrchestrator := txmgr.NewSagaOrchestrator(txStorage, logHandler)
 
 	// Build list of runnables based on provided arguments

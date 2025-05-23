@@ -102,7 +102,7 @@ func TestTransactionStorageOperations(t *testing.T) {
 		storage := NewTransactionStorage(WithMaxTransactions(maxTransactions))
 
 		// Add more transactions than the max
-		for i := 0; i < maxTransactions+2; i++ {
+		for range maxTransactions + 2 {
 			tx := createTestTransaction(t)
 			err := storage.Add(tx)
 			require.NoError(t, err)
@@ -127,7 +127,7 @@ func TestTransactionStorageOperations(t *testing.T) {
 		storage := NewTransactionStorage(WithCleanupFunc(customCleanup))
 
 		// Add a few transactions
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			tx := createTestTransaction(t)
 			err := storage.Add(tx)
 			require.NoError(t, err)
@@ -167,7 +167,7 @@ func TestAsyncCleanup(t *testing.T) {
 		)
 
 		// Add more than max transactions
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			tx := createTestTransaction(t)
 			err := storage.Add(tx)
 			require.NoError(t, err)
