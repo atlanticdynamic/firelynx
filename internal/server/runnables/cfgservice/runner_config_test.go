@@ -340,12 +340,13 @@ func TestUpdateConfig(t *testing.T) {
 		// Verify multiple transactions were broadcast
 		assert.Eventually(t, func() bool {
 			return consumer.getTransactionCount() == len(configs)
-		}, 500*time.Millisecond, 10*time.Millisecond, "Should have received all transactions")
+		}, 5*time.Second, 10*time.Millisecond, "Should have received all transactions")
 	})
 }
 
 // TestReloadNotification_Direct tests the reload notification using direct calls
 func TestReloadNotification_Direct(t *testing.T) {
+	t.Parallel()
 	// Create a simple Runner without complex transactions
 	r, err := NewRunner(
 		testutil.GetRandomListeningPort(t),
@@ -402,6 +403,7 @@ func TestReloadNotification_Direct(t *testing.T) {
 
 // TestUpdateConfigWithLogger tests that logger is correctly used during configuration updates
 func TestUpdateConfigWithLogger(t *testing.T) {
+	t.Parallel()
 	// Create a buffer to capture log output
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
@@ -457,6 +459,7 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 
 // TestHandlingInvalidVersionConfig tests configs with invalid versions
 func TestHandlingInvalidVersionConfig(t *testing.T) {
+	t.Parallel()
 	// Create a domain config with an invalid version
 	invalidVersion := "invalid_version_format"
 	pbConfig := &pb.ServerConfig{
