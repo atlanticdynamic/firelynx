@@ -33,12 +33,21 @@ protogen: clean
 ## test: Run tests with race detection and coverage
 .PHONY: test
 test:
-	go test -race -cover $(PACKAGES)
+	go test -race -cover -timeout 2m $(PACKAGES)
 
 ## test-e2e: Run end-to-end tests
 .PHONY: test-e2e
 test-e2e:
-	go test -race -v -tags e2e ./test/e2e/...
+	go test -race -v -timeout 3m -tags e2e ./test/e2e/...
+
+## test-integration: Run integration tests
+.PHONY: test-integration
+test-integration:
+	go test -race -v -timeout 1m -tags integration ./internal/server/integration_tests/...
+
+## test-all: Run all tests (unit, integration, and e2e)
+.PHONY: test-all
+test-all: test test-integration test-e2e
 
 ## lint: Run golangci-lint code quality checks
 .PHONY: lint

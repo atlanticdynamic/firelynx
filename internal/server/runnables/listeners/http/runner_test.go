@@ -16,6 +16,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Define a custom type for context keys to avoid collisions
+type contextKey string
+
+const testContextKey contextKey = "test"
+
 // For testing only - a minimal config
 func mockConfig() *config.Config {
 	return &config.Config{
@@ -66,16 +71,41 @@ func createMockTransaction(t *testing.T) *transaction.ConfigTransaction {
 
 func TestNewRunner(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		logger := slog.Default()
-
-		runner, err := NewRunner(logger)
+		runner, err := NewRunner()
 		require.NoError(t, err)
 		assert.NotNil(t, runner)
 		assert.Equal(t, "HTTPRunner", runner.String())
 	})
 
-	t.Run("with nil logger", func(t *testing.T) {
-		runner, err := NewRunner(nil)
+	t.Run("with custom logger", func(t *testing.T) {
+		customLogger := slog.Default().With("test", "custom")
+		runner, err := NewRunner(WithLogger(customLogger))
+		assert.NoError(t, err)
+		assert.NotNil(t, runner)
+		// The logger should be set (can't easily verify internals but we know it's set)
+	})
+
+	t.Run("with custom context", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), testContextKey, "value")
+		runner, err := NewRunner(WithContext(ctx))
+		assert.NoError(t, err)
+		assert.NotNil(t, runner)
+	})
+
+	t.Run("with custom handler", func(t *testing.T) {
+		handler := slog.Default().Handler()
+		runner, err := NewRunner(WithLogHandler(handler))
+		assert.NoError(t, err)
+		assert.NotNil(t, runner)
+	})
+
+	t.Run("with multiple options", func(t *testing.T) {
+		ctx := context.WithValue(context.Background(), testContextKey, "value")
+		logger := slog.Default().With("test", "logger")
+		runner, err := NewRunner(
+			WithContext(ctx),
+			WithLogger(logger),
+		)
 		assert.NoError(t, err)
 		assert.NotNil(t, runner)
 	})
@@ -83,9 +113,7 @@ func TestNewRunner(t *testing.T) {
 
 func TestRunner_ApplyPendingConfig(t *testing.T) {
 	t.Run("no pending changes", func(t *testing.T) {
-		logger := slog.Default()
-
-		runner, err := NewRunner(logger)
+		runner, err := NewRunner()
 		require.NoError(t, err)
 
 		// Apply pending config when there are no pending changes
@@ -95,9 +123,7 @@ func TestRunner_ApplyPendingConfig(t *testing.T) {
 }
 
 func TestRunner_GetState(t *testing.T) {
-	logger := slog.Default()
-
-	runner, err := NewRunner(logger)
+	runner, err := NewRunner()
 	require.NoError(t, err)
 
 	// Initial state should be "New" based on the implementation
@@ -106,8 +132,7 @@ func TestRunner_GetState(t *testing.T) {
 }
 
 func TestRunner_ExecuteConfig(t *testing.T) {
-	logger := slog.Default()
-	runner, err := NewRunner(logger)
+	runner, err := NewRunner()
 	require.NoError(t, err)
 
 	// Test with empty config
@@ -118,8 +143,7 @@ func TestRunner_ExecuteConfig(t *testing.T) {
 }
 
 func TestRunner_CompensateConfig(t *testing.T) {
-	logger := slog.Default()
-	runner, err := NewRunner(logger)
+	runner, err := NewRunner()
 	require.NoError(t, err)
 
 	// Test compensation
@@ -135,11 +159,10 @@ func TestRunner_CompensateConfig(t *testing.T) {
 }
 
 func TestRunner_RunAndStop(t *testing.T) {
-	logger := slog.Default()
-	runner, err := NewRunner(logger)
+	runner, err := NewRunner()
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	// Run in a goroutine
@@ -158,11 +181,10 @@ func TestRunner_RunAndStop(t *testing.T) {
 }
 
 func TestRunner_GetStateChan(t *testing.T) {
-	logger := slog.Default()
-	runner, err := NewRunner(logger)
+	runner, err := NewRunner()
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	// Get state channel

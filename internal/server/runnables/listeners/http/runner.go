@@ -18,24 +18,25 @@ type Runner struct {
 	configMgr *cfg.Manager
 	runner    *composite.Runner[*httpserver.HTTPServer]
 	logger    *slog.Logger
+
+	parentCtx context.Context
 	mutex     sync.RWMutex
 }
 
-// NewRunner creates a new HTTP runner
-// TODO: switch logger to functional options
-func NewRunner(logger *slog.Logger) (*Runner, error) {
-	if logger == nil {
-		logger = slog.Default().WithGroup("http")
-	}
-
-	// Create config manager
-	configMgr := cfg.NewManager(logger)
-
-	// Create runner with a config callback
+// NewRunner creates a new HTTP runner with optional configuration
+func NewRunner(options ...Option) (*Runner, error) {
 	r := &Runner{
-		configMgr: configMgr,
-		logger:    logger,
+		logger:    slog.Default().WithGroup("http.Runner"),
+		parentCtx: context.Background(),
 	}
+
+	// Apply functional options
+	for _, option := range options {
+		option(r)
+	}
+
+	// Create config manager using the configured logger
+	r.configMgr = cfg.NewManager(r.logger)
 
 	// Create config callback for composite runner
 	configCallback := func() (*composite.Config[*httpserver.HTTPServer], error) {
@@ -197,11 +198,11 @@ func (r *Runner) CompensateConfig(ctx context.Context, tx *transaction.ConfigTra
 // ApplyPendingConfig applies the pending configuration
 // This should only be called by the saga orchestrator during TriggerReload
 func (r *Runner) ApplyPendingConfig(ctx context.Context) error {
+	// Check if we have pending changes while holding the lock
 	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	// If no pending config, nothing to do
-	if !r.configMgr.HasPendingChanges() {
+	hasPending := r.configMgr.HasPendingChanges()
+	if !hasPending {
+		r.mutex.Unlock()
 		return nil
 	}
 
@@ -210,8 +211,10 @@ func (r *Runner) ApplyPendingConfig(ctx context.Context) error {
 	// Commit pending configuration to make it current
 	// This will cause the composite runner to reload on next getConfig call
 	r.configMgr.CommitPending()
+	r.mutex.Unlock()
 
-	// Force reload of composite runner
+	// Force reload of composite runner without holding the lock
+	// This avoids deadlock when buildCompositeConfig is called
 	r.runner.Reload()
 
 	return nil

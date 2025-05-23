@@ -108,6 +108,7 @@ func (o *SagaOrchestrator) RegisterParticipant(participant SagaParticipant) erro
 }
 
 // ProcessTransaction processes a validated transaction through the saga lifecycle
+// TODO: consider passing the transaction ID instead of the pointer to the transaction, then load it from storage
 func (o *SagaOrchestrator) ProcessTransaction(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,

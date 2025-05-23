@@ -92,8 +92,7 @@ func Run(
 	runnables = append(runnables, txMan)
 
 	// Create an HTTP runner with the logger
-	httpLogger := slog.New(logHandler).WithGroup("http")
-	httpRunner, err := http.NewRunner(httpLogger)
+	httpRunner, err := http.NewRunner(http.WithLogHandler(logHandler))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP listener runner: %w", err)
 	}
