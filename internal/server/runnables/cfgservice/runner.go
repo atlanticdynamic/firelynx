@@ -345,6 +345,7 @@ func (r *Runner) GetConfig(
 
 // GetConfigChan returns a channel that sends ConfigTransaction objects when configs are updated via API.
 func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
+	// TODO: Consider removing buffer or making it configurable for better backpressure control
 	ch := make(chan *transaction.ConfigTransaction, 1)
 
 	// Send current transaction immediately if available from storage

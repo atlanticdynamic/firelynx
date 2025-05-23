@@ -15,9 +15,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"time"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
@@ -26,9 +24,8 @@ import (
 
 // Interface guards: ensure Runner implements these interfaces
 var (
-	_ supervisor.Runnable   = (*Runner)(nil)
-	_ supervisor.Reloadable = (*Runner)(nil)
-	_ supervisor.Stateable  = (*Runner)(nil)
+	_ supervisor.Runnable  = (*Runner)(nil)
+	_ supervisor.Stateable = (*Runner)(nil)
 )
 
 // These are injected by goreleaser and correspond to the version of the build.
@@ -65,21 +62,17 @@ type Runner struct {
 	configProvider   ConfigChannelProvider
 
 	// Internal state
-	configCallback func() config.Config
-	currentConfig  *config.Config
 
 	// Control channels
 	serverErrors chan error
-	stopCh       chan struct{}
 
 	// Synchronization
-	mutex  sync.RWMutex
-	wg     sync.WaitGroup
-	cancel context.CancelFunc
+	wg sync.WaitGroup
 
-	// Parent context handling
-	parentCtx    context.Context
-	parentCancel context.CancelFunc
+	// Context handling
+	runCtx    context.Context
+	runCancel context.CancelFunc
+	parentCtx context.Context
 
 	// State management
 	fsm finitestate.Machine
@@ -90,7 +83,6 @@ type Runner struct {
 func NewRunner(
 	sagaOrchestrator *SagaOrchestrator,
 	configProvider ConfigChannelProvider,
-	configCallback func() config.Config,
 	opts ...Option,
 ) (*Runner, error) {
 	if sagaOrchestrator == nil {
@@ -111,9 +103,7 @@ func NewRunner(
 		logger:           slog.Default().WithGroup("txmgr.Runner"),
 		sagaOrchestrator: sagaOrchestrator,
 		configProvider:   configProvider,
-		configCallback:   configCallback,
 		serverErrors:     make(chan error, 10),
-		stopCh:           make(chan struct{}),
 		parentCtx:        context.Background(),
 	}
 
@@ -133,77 +123,6 @@ func NewRunner(
 	return runner, nil
 }
 
-// updateAppsFromConfig creates app instances from the current configuration
-// and updates the app collection with the new instances.
-func (r *Runner) updateAppsFromConfig() error {
-	// Skip if no configuration is available
-	if r.currentConfig == nil || len(r.currentConfig.Apps) == 0 {
-		// Create an empty app collection
-		emptyCollection, err := apps.NewAppCollection([]apps.App{})
-		if err != nil {
-			return fmt.Errorf("failed to create empty app collection: %w", err)
-		}
-		r.appCollection = emptyCollection
-		return nil
-	}
-
-	// Create app instances slice with initial capacity
-	validApps := make([]apps.App, 0, len(r.currentConfig.Apps))
-
-	// Process each app definition
-	for _, appDef := range r.currentConfig.Apps {
-		// Create app instance based on type
-		creator, exists := apps.GetAllAppImplementations()[appDef.Config.Type()]
-		if !exists {
-			continue
-		}
-
-		app, err := creator(appDef.ID, appDef.Config)
-		if err != nil {
-			return fmt.Errorf("failed to create app %s: %w", appDef.ID, err)
-		}
-
-		validApps = append(validApps, app)
-	}
-
-	// Create new immutable app collection
-	newCollection, err := apps.NewAppCollection(validApps)
-	if err != nil {
-		return fmt.Errorf("failed to create app collection: %w", err)
-	}
-
-	// Update app collection reference
-	r.appCollection = newCollection
-	return nil
-}
-
-// boot initializes the runner configuration without starting it.
-// This is primarily used in tests to load the configuration without running services.
-func (r *Runner) boot() error {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	// Skip if the config callback is nil
-	if r.configCallback == nil {
-		return errors.New("config callback is nil")
-	}
-
-	// Debug log for config callback
-	r.logger.Debug("Getting initial configuration from callback")
-	domainConfig := r.configCallback()
-
-	// Debug log for config state
-	r.logger.Debug("Retrieved configuration details",
-		"endpoints", len(domainConfig.Endpoints),
-		"listeners", len(domainConfig.Listeners),
-		"apps", len(domainConfig.Apps))
-
-	r.currentConfig = &domainConfig
-
-	// Create app instances from the domain config
-	return r.updateAppsFromConfig()
-}
-
 // Run implements the supervisor.Runnable interface.
 // It initializes and starts all server components, blocking until
 // the context is cancelled or Stop is called.
@@ -213,51 +132,58 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	// Create a cancellable context
-	r.mutex.Lock()
-	runCtx, cancel := context.WithCancel(ctx)
-	r.cancel = cancel
-	r.mutex.Unlock()
+	r.runCtx, r.runCancel = context.WithCancel(ctx)
 
 	// Start monitoring for errors
 	r.wg.Add(1)
-	go r.monitorErrors(runCtx)
+	go r.monitorErrors()
 
 	// Start monitoring config transactions from cfgservice
 	r.wg.Add(1)
-	go r.monitorConfigTransactions(runCtx)
-
-	// Load the initial configuration
-	if err := r.boot(); err != nil {
-		if stateErr := r.fsm.Transition(finitestate.StatusError); stateErr != nil {
-			r.logger.Error("Failed to transition to error state", "error", stateErr)
-		}
-		return fmt.Errorf("failed to initialize configuration: %w", err)
-	}
+	go r.monitorConfigTransactions()
 
 	// Transition to running state
 	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
 		return fmt.Errorf("failed to transition to running state: %w", err)
 	}
 
-	// Block until the context is cancelled
-	<-ctx.Done()
-
-	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
-		r.logger.Error("Failed to transition to stopping state", "error", err)
+	// Block until context is cancelled or Stop is called
+	select {
+	case <-r.parentCtx.Done():
+		r.logger.Debug("Parent context canceled")
+		// Cancel run context to stop goroutines since Stop() wasn't called
+		r.runCancel()
+	case <-r.runCtx.Done():
+		r.logger.Debug("Run context canceled")
 	}
 
-	return ctx.Err()
+	r.logger.Info("Transaction manager shutting down")
+
+	// Ensure we transition to stopping state first
+	if r.fsm.GetState() != finitestate.StatusStopping {
+		if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
+			r.logger.Error("Failed to transition to stopping state", "error", err)
+		}
+	}
+
+	// Wait for all goroutines to finish
+	r.wg.Wait()
+
+	// Then transition to stopped
+	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
+		return fmt.Errorf("failed to transition to stopped state: %w", err)
+	}
+
+	return nil
 }
 
 // monitorErrors watches the error channel and logs errors.
-func (r *Runner) monitorErrors(ctx context.Context) {
+func (r *Runner) monitorErrors() {
 	defer r.wg.Done()
 
 	for {
 		select {
-		case <-ctx.Done():
-			return
-		case <-r.stopCh:
+		case <-r.runCtx.Done():
 			return
 		case err := <-r.serverErrors:
 			if err != nil {
@@ -269,15 +195,13 @@ func (r *Runner) monitorErrors(ctx context.Context) {
 
 // monitorConfigTransactions watches for validated config transactions from cfgservice
 // and processes them through the saga orchestrator.
-func (r *Runner) monitorConfigTransactions(ctx context.Context) {
+func (r *Runner) monitorConfigTransactions() {
 	defer r.wg.Done()
 
 	configChan := r.configProvider.GetConfigChan()
 	for {
 		select {
-		case <-ctx.Done():
-			return
-		case <-r.stopCh:
+		case <-r.runCtx.Done():
 			return
 		case tx, ok := <-configChan:
 			if !ok {
@@ -290,8 +214,16 @@ func (r *Runner) monitorConfigTransactions(ctx context.Context) {
 
 			r.logger.Debug("Received validated config transaction", "id", tx.ID)
 
+			// Add transaction to storage first
+			if err := r.sagaOrchestrator.txStorage.Add(tx); err != nil {
+				r.logger.Error("Failed to add config transaction to storage",
+					"id", tx.ID, "error", err)
+				r.serverErrors <- fmt.Errorf("failed to store transaction %s: %w", tx.ID, err)
+				continue
+			}
+
 			// Process the transaction through the saga orchestrator
-			if err := r.sagaOrchestrator.ProcessTransaction(ctx, tx); err != nil {
+			if err := r.sagaOrchestrator.ProcessTransaction(r.runCtx, tx); err != nil {
 				r.logger.Error("Failed to process config transaction via saga orchestrator",
 					"id", tx.ID, "error", err)
 				r.serverErrors <- fmt.Errorf("saga processing failed for transaction %s: %w", tx.ID, err)
@@ -309,116 +241,10 @@ func (r *Runner) String() string {
 
 // Stop gracefully stops all server components.
 func (r *Runner) Stop() {
-	r.logger.Info("Stopping transaction manager")
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	// Transition to stopping state
+	r.logger.Debug("Stopping transaction manager")
 	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
 		r.logger.Error("Failed to transition to stopping state", "error", err)
 		// Continue with shutdown despite the state transition error
 	}
-
-	// Signal stop to error monitor
-	close(r.stopCh)
-
-	// Trigger context cancellation
-	if r.cancel != nil {
-		r.cancel()
-	}
-
-	// Wait for all goroutines to exit
-	r.wg.Wait()
-
-	// Transition to stopped state
-	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
-		r.logger.Error("Failed to transition to stopped state", "error", err)
-	}
-}
-
-// SetConfigProvider sets the callback used to get the current configuration.
-func (r *Runner) SetConfigProvider(callback func() config.Config) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	r.configCallback = callback
-}
-
-// Reload reloads the configuration from the callback and updates all components.
-// This implements the supervisor.Reloadable interface.
-func (r *Runner) Reload() {
-	r.logger.Debug("Reloading configuration...")
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	// Transition to reloading state
-	if err := r.fsm.Transition(finitestate.StatusReloading); err != nil {
-		r.logger.Error("Failed to transition to reloading state", "error", err)
-		// Continue with reload despite the state transition error
-	}
-
-	// Get latest configuration
-	if r.configCallback == nil {
-		r.logger.Error("Cannot reload configuration", "error", "config callback is nil")
-		r.serverErrors <- errors.New("config callback is nil during reload")
-		if err := r.fsm.Transition(finitestate.StatusError); err != nil {
-			r.logger.Error("Failed to transition to error state", "error", err)
-		}
-		return
-	}
-
-	domainConfig := r.configCallback()
-
-	// Update the current config
-	r.currentConfig = &domainConfig
-
-	// Update apps from the new configuration
-	if err := r.updateAppsFromConfig(); err != nil {
-		r.logger.Error("Failed to update apps from config", "error", err)
-		r.serverErrors <- fmt.Errorf("failed to update apps during reload: %w", err)
-		if err := r.fsm.Transition(finitestate.StatusError); err != nil {
-			r.logger.Error("Failed to transition to error state", "error", err)
-		}
-		return
-	}
-
-	// Transition back to running state
-	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
-		r.logger.Error("Failed to transition back to running state", "error", err)
-		if err := r.fsm.Transition(finitestate.StatusError); err != nil {
-			r.logger.Error("Failed to transition to error state", "error", err)
-		}
-		return
-	}
-
-	r.logger.Debug("Configuration reloaded successfully")
-}
-
-// PollConfig starts the background polling of configuration every interval.
-// This is useful for file-based configurations that might change.
-// TODO this is a mess, and it should be removed. Reload is triggered by go-supervisor's signal handler.
-func (r *Runner) PollConfig(ctx context.Context, interval time.Duration) {
-	// Exit early if interval is zero or less
-	if interval <= 0 {
-		return
-	}
-
-	r.wg.Add(1)
-	go func() {
-		defer r.wg.Done()
-
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-r.stopCh:
-				return
-			case <-ticker.C:
-				r.Reload() // Call Reload without checking return value since it's now void
-			}
-		}
-	}()
+	r.runCancel()
 }

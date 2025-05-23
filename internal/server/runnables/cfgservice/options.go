@@ -36,7 +36,7 @@ func WithGRPCServer(server GRPCServer) Option {
 	}
 }
 
-// WithTransactionStorage sets a custom transaction storage implementation.
+// WithTransactionStorage sets a limited transaction storage implementation.
 func WithTransactionStorage(storage transactionStorage) Option {
 	return func(r *Runner) {
 		if storage != nil {

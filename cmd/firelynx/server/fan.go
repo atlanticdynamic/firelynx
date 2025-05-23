@@ -56,6 +56,8 @@ func newFanInConfigProvider(
 	}
 
 	// Default buffer size to number of providers
+	// TODO: Consider making buffer size configurable or removing buffering entirely
+	// for true backpressure behavior
 	bufferSize := len(providers)
 
 	// Create a cancellable context for this fan-in

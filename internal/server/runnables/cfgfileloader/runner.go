@@ -213,6 +213,7 @@ func (r *Runner) GetConfig() *config.Config {
 }
 
 func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
+	// TODO: Consider removing buffer or making it configurable for better backpressure control
 	ch := make(chan *transaction.ConfigTransaction, 1)
 
 	// Send current transaction immediately if available

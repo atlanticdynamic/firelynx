@@ -64,7 +64,7 @@ func TestWithContext(t *testing.T) {
 
 	// Verify the context was set
 	assert.NotNil(t, r.parentCtx)
-	assert.NotNil(t, r.parentCancel)
+	assert.Equal(t, ctx, r.parentCtx)
 
 	// Test with nil context (shouldn't change anything)
 	r = &Runner{} // Reset
@@ -74,5 +74,4 @@ func TestWithContext(t *testing.T) {
 
 	// Context should not be set
 	assert.Nil(t, r.parentCtx)
-	assert.Nil(t, r.parentCancel)
 }

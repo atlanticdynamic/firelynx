@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgfileloader"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgservice"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http"
@@ -81,7 +80,6 @@ func Run(
 	serverCore, err := txmgr.NewRunner(
 		txmgrOrchestrator,
 		configProvider,
-		func() config.Config { return config.Config{} }, // Placeholder - needs to be connected to config sources
 		txmgr.WithLogHandler(logHandler),
 		txmgr.WithContext(ctx),
 	)

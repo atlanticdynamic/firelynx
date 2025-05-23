@@ -31,12 +31,12 @@ func WithLogger(logger *slog.Logger) Option {
 	}
 }
 
-// WithContext sets a custom context for the Runner instance.
+// WithContext sets a custom parent context for the Runner instance.
 // This allows for more granular control over cancellation and timeouts.
 func WithContext(ctx context.Context) Option {
 	return func(r *Runner) {
 		if ctx != nil {
-			r.parentCtx, r.parentCancel = context.WithCancel(ctx)
+			r.parentCtx = ctx
 		}
 	}
 }
