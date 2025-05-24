@@ -58,10 +58,8 @@ func newFanInConfigProvider(
 		return nil, ErrNoProviders
 	}
 
-	// Default buffer size to number of providers
-	// TODO: Consider making buffer size configurable or removing buffering entirely
-	// for true backpressure behavior
-	bufferSize := len(providers)
+	// Use unbuffered channels for proper backpressure
+	bufferSize := 0
 
 	// Create a cancellable context for this fan-in
 	fanInCtx, cancel := context.WithCancel(ctx)
@@ -90,7 +88,7 @@ func (f *fanInConfigProvider) GetConfigChan() <-chan *transaction.ConfigTransact
 }
 
 func (f *fanInConfigProvider) startFanIn() <-chan *transaction.ConfigTransaction {
-	out := make(chan *transaction.ConfigTransaction, f.bufferSize)
+	out := make(chan *transaction.ConfigTransaction)
 
 	// Track active goroutines
 	activeSources := int32(len(f.providers))

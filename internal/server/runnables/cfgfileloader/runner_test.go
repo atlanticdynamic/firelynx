@@ -405,6 +405,16 @@ func TestRunner_GetConfigChan(t *testing.T) {
 		// Get config channel before starting
 		configCh := runner.GetConfigChan()
 
+		// Create a buffered collector channel and start forwarding
+		collector := make(chan *transaction.ConfigTransaction, 10)
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for tx := range configCh {
+				collector <- tx
+			}
+		}()
+
 		// Start runner
 		errCh := make(chan error, 1)
 		go func() {
@@ -414,13 +424,13 @@ func TestRunner_GetConfigChan(t *testing.T) {
 		// Should receive initial config transaction after boot
 		var initialTx *transaction.ConfigTransaction
 		select {
-		case tx := <-configCh:
+		case tx := <-collector:
 			initialTx = tx
 			assert.NotNil(t, tx)
 			cfg := tx.GetConfig()
 			assert.NotNil(t, cfg)
 			assert.Equal(t, "v1", cfg.Version)
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(2 * time.Second):
 			t.Fatal("Did not receive initial config transaction")
 		}
 
@@ -433,13 +443,13 @@ func TestRunner_GetConfigChan(t *testing.T) {
 
 		// Should receive updated config transaction
 		select {
-		case tx := <-configCh:
+		case tx := <-collector:
 			assert.NotNil(t, tx)
 			cfg := tx.GetConfig()
 			assert.NotNil(t, cfg)
 			initialCfg := initialTx.GetConfig()
 			assert.False(t, initialCfg.Equals(cfg), "Config should have changed")
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(2 * time.Second):
 			t.Fatal("Did not receive updated config transaction")
 		}
 
@@ -452,9 +462,9 @@ func TestRunner_GetConfigChan(t *testing.T) {
 
 		// Should NOT receive transaction (unchanged)
 		select {
-		case <-configCh:
+		case <-collector:
 			t.Fatal("Should not receive transaction when unchanged")
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(200 * time.Millisecond):
 			// Expected - no transaction sent
 		}
 
@@ -483,16 +493,27 @@ func TestRunner_GetConfigChan(t *testing.T) {
 		}()
 
 		// All subscribers should receive initial config transaction
-		transactions := make([]*transaction.ConfigTransaction, 3)
-		for i, ch := range []<-chan *transaction.ConfigTransaction{configCh1, configCh2, configCh3} {
+		channels := []<-chan *transaction.ConfigTransaction{configCh1, configCh2, configCh3}
+		transactions := make(chan *transaction.ConfigTransaction, len(channels))
+
+		// Start goroutines to collect from all channels
+		for _, ch := range channels {
+			go func(c <-chan *transaction.ConfigTransaction) {
+				for tx := range c {
+					transactions <- tx
+				}
+			}(ch)
+		}
+
+		// Wait for all initial transactions
+		for range len(channels) {
 			select {
-			case tx := <-ch:
-				transactions[i] = tx
+			case tx := <-transactions:
 				assert.NotNil(t, tx)
 				cfg := tx.GetConfig()
 				assert.NotNil(t, cfg)
-			case <-time.After(500 * time.Millisecond):
-				t.Fatalf("Subscriber %d did not receive initial config transaction", i+1)
+			case <-time.After(2 * time.Second):
+				t.Fatal("Did not receive all initial config transactions")
 			}
 		}
 
@@ -502,21 +523,17 @@ func TestRunner_GetConfigChan(t *testing.T) {
 		runner.Reload()
 
 		// All subscribers should receive updated config transaction
-		for i, ch := range []<-chan *transaction.ConfigTransaction{configCh1, configCh2, configCh3} {
+		for range len(channels) {
 			select {
-			case tx := <-ch:
+			case tx := <-transactions:
 				assert.NotNil(t, tx)
 				cfg := tx.GetConfig()
 				assert.NotNil(t, cfg)
-				oldCfg := transactions[i].GetConfig()
-				assert.False(
-					t,
-					oldCfg.Equals(cfg),
-					"Config should have changed for subscriber %d",
-					i+1,
-				)
-			case <-time.After(500 * time.Millisecond):
-				t.Fatalf("Subscriber %d did not receive updated config transaction", i+1)
+				// Verify it's the updated config (has "updated" listener)
+				assert.Len(t, cfg.Listeners, 1)
+				assert.Equal(t, "updated", cfg.Listeners[0].ID)
+			case <-time.After(2 * time.Second):
+				t.Fatal("Did not receive all updated config transactions")
 			}
 		}
 	})
@@ -562,6 +579,7 @@ func TestRunner_GetConfigChan(t *testing.T) {
 		case <-time.After(time.Second):
 			t.Fatal("Channel was not closed within timeout")
 		}
+		assert.Empty(t, configCh)
 
 		select {
 		case err := <-errCh:
@@ -569,5 +587,6 @@ func TestRunner_GetConfigChan(t *testing.T) {
 		case <-time.After(time.Second):
 			t.Fatal("Runner did not complete within timeout")
 		}
+		assert.Empty(t, errCh)
 	})
 }

@@ -345,8 +345,7 @@ func (r *Runner) GetConfig(
 
 // GetConfigChan returns a channel that sends ConfigTransaction objects when configs are updated via API.
 func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
-	// TODO: Consider removing buffer or making it configurable for better backpressure control
-	ch := make(chan *transaction.ConfigTransaction, 1)
+	ch := make(chan *transaction.ConfigTransaction)
 
 	// Send current transaction immediately if available from storage
 	if current := r.txStorage.GetCurrent(); current != nil {
@@ -384,12 +383,8 @@ func (r *Runner) broadcastConfigTransaction(tx *transaction.ConfigTransaction) {
 			return true
 		}
 
-		select {
-		case ch <- tx:
-			r.logger.Debug("Config transaction sent to subscriber", "subscriber_id", key)
-		default:
-			r.logger.Warn("Subscriber channel full, skipping", "subscriber_id", key)
-		}
+		ch <- tx
+		r.logger.Debug("Config transaction sent to subscriber", "subscriber_id", key)
 		return true
 	})
 }
