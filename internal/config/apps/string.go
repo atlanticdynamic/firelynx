@@ -51,7 +51,7 @@ func (a *App) ToTree() *fancy.ComponentTree {
 		if appConfig.Evaluator != nil {
 			switch eval := appConfig.Evaluator.(type) {
 			case *evaluators.RisorEvaluator:
-				evalNode := fancy.NewComponentTree("Evaluator: Risor")
+				evalNode := fancy.NewComponentTree(styles.FormatSection("Evaluator: "+eval.String(), 1))
 				codePreview := fancy.TruncateString(eval.Code, 40)
 				evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
 				if eval.Timeout > 0 {
@@ -60,7 +60,7 @@ func (a *App) ToTree() *fancy.ComponentTree {
 				tree.AddChild(evalNode.Tree())
 
 			case *evaluators.StarlarkEvaluator:
-				evalNode := fancy.NewComponentTree("Evaluator: Starlark")
+				evalNode := fancy.NewComponentTree(styles.FormatSection("Evaluator: "+eval.String(), 1))
 				codePreview := fancy.TruncateString(eval.Code, 40)
 				evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
 				if eval.Timeout > 0 {
@@ -69,7 +69,7 @@ func (a *App) ToTree() *fancy.ComponentTree {
 				tree.AddChild(evalNode.Tree())
 
 			case *evaluators.ExtismEvaluator:
-				evalNode := fancy.NewComponentTree("Evaluator: Extism")
+				evalNode := fancy.NewComponentTree(styles.FormatSection("Evaluator: "+eval.String(), 1))
 				evalNode.AddChild(fmt.Sprintf("Entrypoint: %s", eval.Entrypoint))
 				codePreview := fmt.Sprintf("<%d bytes>", len(eval.Code))
 				evalNode.AddChild(fmt.Sprintf("Code: %s", codePreview))
@@ -79,7 +79,7 @@ func (a *App) ToTree() *fancy.ComponentTree {
 
 		// Add static data if present
 		if appConfig.StaticData != nil && len(appConfig.StaticData.Data) > 0 {
-			dataNode := fancy.NewComponentTree("StaticData")
+			dataNode := fancy.NewComponentTree(styles.FormatSection("StaticData", 1))
 			dataNode.AddChild(fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode))
 
 			// Create a data entries section
@@ -109,7 +109,7 @@ func (a *App) ToTree() *fancy.ComponentTree {
 
 		// Add static data if present
 		if appConfig.StaticData != nil && len(appConfig.StaticData.Data) > 0 {
-			dataNode := fancy.NewComponentTree("StaticData")
+			dataNode := fancy.NewComponentTree(styles.FormatSection("StaticData", 1))
 			dataNode.AddChild(fmt.Sprintf("MergeMode: %s", appConfig.StaticData.MergeMode))
 
 			// Create a data entries section

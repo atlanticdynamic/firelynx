@@ -70,7 +70,7 @@ func TestConfigFileServer(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
 		// Parse and verify the response
-		var echoResp map[string]interface{}
+		var echoResp map[string]any
 		err = json.NewDecoder(resp.Body).Decode(&echoResp)
 		require.NoError(t, err, "Failed to decode response")
 
@@ -149,7 +149,7 @@ func TestGRPCServer(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
 		// Parse and verify the response
-		var echoResp map[string]interface{}
+		var echoResp map[string]any
 		err = json.NewDecoder(resp.Body).Decode(&echoResp)
 		require.NoError(t, err, "Failed to decode response")
 
@@ -187,7 +187,7 @@ func TestGRPCServer(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
 		// Parse and verify the response
-		var echoResp map[string]interface{}
+		var echoResp map[string]any
 		err = json.NewDecoder(resp.Body).Decode(&echoResp)
 		require.NoError(t, err, "Failed to decode response")
 
@@ -243,7 +243,7 @@ func TestConfigFileReload(t *testing.T) {
 		defer resp.Body.Close()
 
 		// Parse and verify the response
-		var echoResp map[string]interface{}
+		var echoResp map[string]any
 		err = json.NewDecoder(resp.Body).Decode(&echoResp)
 		require.NoError(t, err, "Failed to decode response")
 
@@ -316,7 +316,7 @@ func TestConfigFileReload(t *testing.T) {
 				return false
 			}
 
-			var echoResp map[string]interface{}
+			var echoResp map[string]any
 			if err := json.NewDecoder(resp.Body).Decode(&echoResp); err != nil {
 				t.Logf("Failed to decode response: %v", err)
 				return false

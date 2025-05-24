@@ -1,6 +1,7 @@
 package config
 
 import (
+	_ "embed"
 	"testing"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"

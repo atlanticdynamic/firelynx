@@ -1,0 +1,10 @@
+version = "v1"
+
+[[listeners]]
+id = "http_listener"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"

@@ -34,7 +34,11 @@ func main() {
 			clientCmd,
 		},
 	}
-	if err := app.Run(context.Background(), os.Args); err != nil {
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := app.Run(ctx, os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

@@ -10,6 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestNewValidationContext tests the creation of validation contexts.
+// IMPORTANT: These tests expect "echo" to be manually added to the validation context.
+// The implementation of NewValidationContext does NOT automatically add any built-in apps.
+// Tests are responsible for including any expected app IDs in the input map.
 func TestNewValidationContext(t *testing.T) {
 	t.Parallel()
 
@@ -21,8 +25,8 @@ func TestNewValidationContext(t *testing.T) {
 	}{
 		{
 			name:           "Empty map",
-			inputAppIDs:    map[string]bool{},
-			expectedLength: 1, // Just the built-in "echo" app
+			inputAppIDs:    map[string]bool{"echo": true},
+			expectedLength: 1, // Contains "echo" app that we explicitly added
 			expectedIDs:    []string{"echo"},
 		},
 		{
@@ -30,8 +34,9 @@ func TestNewValidationContext(t *testing.T) {
 			inputAppIDs: map[string]bool{
 				"app1": true,
 				"app2": true,
+				"echo": true,
 			},
-			expectedLength: 3, // 2 input apps + built-in "echo" app
+			expectedLength: 3, // Contains 3 explicitly added apps
 			expectedIDs:    []string{"app1", "app2", "echo"},
 		},
 		{
@@ -40,7 +45,7 @@ func TestNewValidationContext(t *testing.T) {
 				"app1": true,
 				"echo": true,
 			},
-			expectedLength: 2, // echo isn't added twice
+			expectedLength: 2, // Contains both explicitly added apps
 			expectedIDs:    []string{"app1", "echo"},
 		},
 		{
@@ -48,8 +53,9 @@ func TestNewValidationContext(t *testing.T) {
 			inputAppIDs: map[string]bool{
 				"app1": true,
 				"app2": false,
+				"echo": true,
 			},
-			expectedLength: 3, // app2 is included but with value false
+			expectedLength: 3, // All explicitly added apps
 			expectedIDs:    []string{"app1", "app2", "echo"},
 		},
 	}
@@ -107,9 +113,11 @@ func TestValidateAppReference(t *testing.T) {
 	t.Parallel()
 
 	// Create a validation context with some app IDs
+	// Explicitly including "echo" here as it's not automatically added
 	vc := NewValidationContext(map[string]bool{
 		"app1": true,
 		"app2": true,
+		"echo": true,
 	})
 
 	tests := []struct {
@@ -165,9 +173,11 @@ func TestValidateRouteReferences(t *testing.T) {
 	t.Parallel()
 
 	// Create a validation context with some app IDs
+	// Explicitly including "echo" here as it's not automatically added
 	vc := NewValidationContext(map[string]bool{
 		"app1": true,
 		"app2": true,
+		"echo": true,
 	})
 
 	tests := []struct {

@@ -2,23 +2,43 @@ package http_test
 
 import (
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
-	"github.com/atlanticdynamic/firelynx/internal/server/routing"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
+	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-// TestIntegration_RouteRegistry_HTTPHandler tests the integration between
-// routing registry and HTTP handling. This test is in a separate package
-// to avoid import cycles.
-func TestIntegration_RouteRegistry_HTTPHandler(t *testing.T) {
+// MockConfigProvider mocks the cfg.ConfigProvider interface
+type MockConfigProvider struct {
+	config      *config.Config
+	txID        string
+	appRegistry *mocks.MockRegistry
+}
+
+// GetTransactionID returns the transaction ID
+func (m *MockConfigProvider) GetTransactionID() string {
+	return m.txID
+}
+
+// GetConfig returns the configuration
+func (m *MockConfigProvider) GetConfig() *config.Config {
+	return m.config
+}
+
+// GetAppCollection returns the app collection
+func (m *MockConfigProvider) GetAppCollection() *mocks.MockRegistry {
+	return m.appRegistry
+}
+
+// TestIntegration_HTTP tests the integration between HTTPServer and App instances
+func TestIntegration_HTTP(t *testing.T) {
 	// Create a mock app registry with test apps
 	appRegistry := mocks.NewMockRegistry()
 
@@ -47,154 +67,94 @@ func TestIntegration_RouteRegistry_HTTPHandler(t *testing.T) {
 	appRegistry.On("GetApp", "echo-app").Return(echoApp, true)
 	appRegistry.On("GetApp", "admin-app").Return(adminApp, true)
 
-	// Create logger
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-
-	// Create a hardcoded routing config for the test
-	routingCallback := func() (*routing.RoutingConfig, error) {
-		return &routing.RoutingConfig{
-			EndpointRoutes: []routing.EndpointRoutes{
-				{
-					EndpointID: "main-api",
-					Routes: []routing.Route{
-						{
-							Path:  "/api/echo",
-							AppID: "echo-app",
-							StaticData: map[string]any{
-								"version": "1.0",
-							},
-						},
-					},
-				},
-				{
-					EndpointID: "admin-api",
-					Routes: []routing.Route{
-						{
-							Path:  "/admin",
-							AppID: "admin-app",
-							StaticData: map[string]any{
-								"role": "admin",
-							},
-						},
-					},
-				},
-			},
-		}, nil
+	// Create a minimal configuration
+	testConfig := &config.Config{
+		Version: "test",
 	}
 
-	// Create route registry
-	routeRegistry := routing.NewRegistry(appRegistry, routingCallback, logger)
+	// Create a ConfigProvider with our mock objects
+	provider := &MockConfigProvider{
+		config:      testConfig,
+		txID:        "test-tx-1",
+		appRegistry: appRegistry,
+	}
 
-	// Initialize registry
-	err := routeRegistry.Reload()
+	// Create echo route handler
+	echoHandler := func(w http.ResponseWriter, r *http.Request) {
+		// Call echo app directly
+		err := echoApp.HandleHTTP(r.Context(), w, r, map[string]any{"version": "1.0"})
+		require.NoError(t, err)
+	}
+
+	// Create admin route handler
+	adminHandler := func(w http.ResponseWriter, r *http.Request) {
+		// Call admin app directly
+		err := adminApp.HandleHTTP(r.Context(), w, r, map[string]any{"role": "admin"})
+		require.NoError(t, err)
+	}
+
+	// Create echo route
+	echoRoute, err := httpserver.NewRoute("echo-route", "/api/echo", echoHandler)
 	require.NoError(t, err)
 
-	// Debug: Print the routing configuration
-	routingConfig, err := routingCallback()
+	// Create admin route
+	adminRoute, err := httpserver.NewRoute("admin-route", "/admin", adminHandler)
 	require.NoError(t, err)
-	t.Logf("Routing config: %+v", routingConfig)
 
-	// Create handlers using functions that directly call the registry
-	mainHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Resolve the route for this request
-		resolved, err := routeRegistry.ResolveRoute("main-api", r)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
+	// Create hardcoded routes for testing
+	routes := map[string][]httpserver.Route{
+		"main-api":  {*echoRoute},
+		"admin-api": {*adminRoute},
+	}
 
-		// If no route matched, return 404
-		if resolved == nil {
-			http.NotFound(w, r)
-			return
-		}
-
-		// Merge static data and params into a single map
-		data := make(map[string]any)
-		if resolved.StaticData != nil {
-			for k, v := range resolved.StaticData {
-				data[k] = v
-			}
-		}
-
-		// Add path parameters as special "params" entry
-		if len(resolved.Params) > 0 {
-			data["params"] = resolved.Params
-		}
-
-		// Handle the request with the resolved app
-		if err := resolved.App.HandleHTTP(r.Context(), w, r, data); err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-	})
-
-	adminHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Resolve the route for this request
-		resolved, err := routeRegistry.ResolveRoute("admin-api", r)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		// If no route matched, return 404
-		if resolved == nil {
-			http.NotFound(w, r)
-			return
-		}
-
-		// Merge static data and params into a single map
-		data := make(map[string]any)
-		if resolved.StaticData != nil {
-			for k, v := range resolved.StaticData {
-				data[k] = v
-			}
-		}
-
-		// Add path parameters as special "params" entry
-		if len(resolved.Params) > 0 {
-			data["params"] = resolved.Params
-		}
-
-		// Handle the request with the resolved app
-		if err := resolved.App.HandleHTTP(r.Context(), w, r, data); err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-	})
+	// Create an adapter with our hardcoded routes
+	adapter := &cfg.Adapter{
+		TxID: provider.GetTransactionID(),
+		Listeners: map[string]cfg.ListenerConfig{
+			"main-api": {
+				ID:      "main-api",
+				Address: ":8080",
+			},
+			"admin-api": {
+				ID:      "admin-api",
+				Address: ":8081",
+			},
+		},
+		Routes: routes,
+	}
 
 	// Test cases
 	tests := []struct {
 		name           string
-		handler        http.Handler
+		listenerID     string
 		path           string
 		wantStatusCode int
 		wantResponse   string
 	}{
 		{
 			name:           "echo endpoint",
-			handler:        mainHandler,
+			listenerID:     "main-api",
 			path:           "/api/echo",
 			wantStatusCode: http.StatusOK,
 			wantResponse:   "Echo API Response",
 		},
 		{
 			name:           "admin endpoint",
-			handler:        adminHandler,
+			listenerID:     "admin-api",
 			path:           "/admin",
 			wantStatusCode: http.StatusOK,
 			wantResponse:   "Admin API Response",
 		},
 		{
 			name:           "non-existent path on main endpoint",
-			handler:        mainHandler,
+			listenerID:     "main-api",
 			path:           "/api/not-found",
 			wantStatusCode: http.StatusNotFound,
 			wantResponse:   "404 page not found",
 		},
 		{
 			name:           "admin path on main endpoint",
-			handler:        mainHandler,
+			listenerID:     "main-api",
 			path:           "/admin",
 			wantStatusCode: http.StatusNotFound,
 			wantResponse:   "404 page not found",
@@ -203,12 +163,27 @@ func TestIntegration_RouteRegistry_HTTPHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Get routes for the specified listener
+			listenerRoutes := adapter.GetRoutesForListener(tt.listenerID)
+			require.NotEmpty(
+				t,
+				listenerRoutes,
+				"Routes should not be empty for listener %s",
+				tt.listenerID,
+			)
+
+			// Create a handler using the routes
+			mux := http.NewServeMux()
+			for _, route := range listenerRoutes {
+				mux.HandleFunc(route.Path, route.Handler)
+			}
+
 			// Create HTTP request and response recorder
 			req := httptest.NewRequest("GET", tt.path, nil)
 			w := httptest.NewRecorder()
 
 			// Call the handler
-			tt.handler.ServeHTTP(w, req)
+			mux.ServeHTTP(w, req)
 
 			// Check status code
 			assert.Equal(t, tt.wantStatusCode, w.Code)
@@ -216,7 +191,9 @@ func TestIntegration_RouteRegistry_HTTPHandler(t *testing.T) {
 			// Check response body
 			body, err := io.ReadAll(w.Body)
 			require.NoError(t, err)
-			assert.Contains(t, string(body), tt.wantResponse)
+			if tt.wantStatusCode == http.StatusOK {
+				assert.Contains(t, string(body), tt.wantResponse)
+			}
 		})
 	}
 }

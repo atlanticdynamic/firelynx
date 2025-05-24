@@ -195,7 +195,7 @@ func TestFindListener(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.FindListener(tt.listenerID)
+			result := config.GetListenerByID(tt.listenerID)
 			if tt.expectedFound {
 				require.NotNil(t, result)
 				assert.Equal(t, tt.expectedResult, result.ID)
@@ -269,7 +269,7 @@ func TestFindEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.FindEndpoint(tt.endpointID)
+			result := config.GetEndpointByID(tt.endpointID)
 			if tt.expectedFound {
 				require.NotNil(t, result)
 				assert.Equal(t, tt.expectedResult, result.ID)
@@ -513,4 +513,32 @@ func TestGetEndpointIDsForListener(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetEndpointToListenerIDMapping(t *testing.T) {
+	t.Parallel()
+
+	// Create a test configuration
+	config := setupTestConfig()
+
+	// Get the endpoint to listener ID mapping
+	mapping := config.GetEndpointToListenerIDMapping()
+
+	// Expected mapping based on the test config
+	expected := map[string]string{
+		"http_endpoint":       "http_listener",
+		"multi_http_endpoint": "http_listener",
+		"grpc_endpoint":       "grpc_listener",
+		"multi_grpc_endpoint": "grpc_listener",
+	}
+
+	// Verify the mapping
+	assert.Equal(t, expected, mapping)
+
+	// Test with an empty config
+	emptyConfig := &Config{
+		Endpoints: endpoints.EndpointCollection{},
+	}
+	emptyMapping := emptyConfig.GetEndpointToListenerIDMapping()
+	assert.Empty(t, emptyMapping, "Empty config should produce empty mapping")
 }

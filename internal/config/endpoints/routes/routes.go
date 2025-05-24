@@ -83,7 +83,7 @@ func (r RouteCollection) GetStructuredHTTPRoutes() []HTTPRoute {
 			continue
 		}
 
-		// Use string comparison instead of direct type comparison for robustness
+		// Use string comparison instead of direct type comparison
 		if string(route.Condition.Type()) != string(conditions.TypeHTTP) {
 			continue
 		}
