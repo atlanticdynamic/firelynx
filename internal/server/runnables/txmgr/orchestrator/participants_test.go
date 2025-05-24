@@ -10,7 +10,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
-	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/mocks"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -24,7 +23,7 @@ func TestSagaParticipantInterface_ReloadConflictFromMocks(t *testing.T) {
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create a participant that also implements Reloadable (conflict)
-	conflictParticipant := mocks.NewConflictingParticipant("conflict")
+	conflictParticipant := NewConflictingParticipant("conflict")
 
 	// Registration should return an error
 	err := orchestrator.RegisterParticipant(conflictParticipant)
@@ -44,7 +43,7 @@ func TestSagaParticipantInterface_ApplyPendingConfigFromMocks(t *testing.T) {
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create participant
-	participant := mocks.NewMockSagaParticipant("test-participant")
+	participant := newMockSagaParticipant("test-participant")
 
 	// Setup expectations
 	participant.On("ApplyPendingConfig", mock.Anything).Return(nil)
@@ -109,8 +108,8 @@ func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Register mock participants
-	participant1 := mocks.NewMockReloadParticipant("participant1")
-	participant2 := mocks.NewMockReloadParticipant("participant2")
+	participant1 := NewMockReloadParticipant("participant1")
+	participant2 := NewMockReloadParticipant("participant2")
 
 	// Set up mocks
 	participant1.On("ApplyPendingConfig", mock.Anything).Return(nil)
@@ -165,8 +164,8 @@ func TestTriggerReload_FailureFromMocks(t *testing.T) {
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Register mock participants
-	participant1 := mocks.NewMockReloadParticipant("participant1")
-	participant2 := mocks.NewMockReloadParticipant("participant2")
+	participant1 := NewMockReloadParticipant("participant1")
+	participant2 := NewMockReloadParticipant("participant2")
 
 	// Configure participant2 to fail
 	participant2.SetFailReload()

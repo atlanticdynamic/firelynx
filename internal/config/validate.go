@@ -19,7 +19,7 @@ type Validatable interface {
 	Validate() error
 }
 
-// Validate performs comprehensive validation of the configuration
+// Validate recursively validates all configuration components and their cross-references
 func (c *Config) Validate() error {
 	// Validate version
 	if err := c.validateVersion(); err != nil {

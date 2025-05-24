@@ -1,4 +1,4 @@
-package mocks
+package orchestrator
 
 import (
 	"context"
@@ -9,48 +9,48 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockSagaParticipant is a mock implementation of the SagaParticipant interface
-type MockSagaParticipant struct {
+// mockSagaParticipant is a mock implementation of the SagaParticipant interface
+type mockSagaParticipant struct {
 	mock.Mock
 	name string
 }
 
-// NewMockSagaParticipant creates a new MockSagaParticipant with the given name
-func NewMockSagaParticipant(name string) *MockSagaParticipant {
-	return &MockSagaParticipant{
+// newMockSagaParticipant creates a new MockSagaParticipant with the given name
+func newMockSagaParticipant(name string) *mockSagaParticipant {
+	return &mockSagaParticipant{
 		name: name,
 	}
 }
 
-func (m *MockSagaParticipant) String() string {
+func (m *mockSagaParticipant) String() string {
 	return m.name
 }
 
-func (m *MockSagaParticipant) Run(ctx context.Context) error {
+func (m *mockSagaParticipant) Run(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
 }
 
-func (m *MockSagaParticipant) Stop() {
+func (m *mockSagaParticipant) Stop() {
 	m.Called()
 }
 
-func (m *MockSagaParticipant) GetState() string {
+func (m *mockSagaParticipant) GetState() string {
 	args := m.Called()
 	return args.String(0)
 }
 
-func (m *MockSagaParticipant) IsRunning() bool {
+func (m *mockSagaParticipant) IsRunning() bool {
 	args := m.Called()
 	return args.Bool(0)
 }
 
-func (m *MockSagaParticipant) GetStateChan(ctx context.Context) <-chan string {
+func (m *mockSagaParticipant) GetStateChan(ctx context.Context) <-chan string {
 	args := m.Called(ctx)
 	return args.Get(0).(<-chan string)
 }
 
-func (m *MockSagaParticipant) ExecuteConfig(
+func (m *mockSagaParticipant) ExecuteConfig(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,
 ) error {
@@ -58,7 +58,7 @@ func (m *MockSagaParticipant) ExecuteConfig(
 	return args.Error(0)
 }
 
-func (m *MockSagaParticipant) CompensateConfig(
+func (m *mockSagaParticipant) CompensateConfig(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,
 ) error {
@@ -66,7 +66,7 @@ func (m *MockSagaParticipant) CompensateConfig(
 	return args.Error(0)
 }
 
-func (m *MockSagaParticipant) ApplyPendingConfig(ctx context.Context) error {
+func (m *mockSagaParticipant) ApplyPendingConfig(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
 }

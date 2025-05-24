@@ -85,7 +85,7 @@ func (p *Participant) MarkFailed(err error) error {
 }
 
 // BeginCompensation transitions the participant to compensating state.
-// This is called when the saga needs to revert changes due to a failure.
+// Called when the saga needs to revert changes due to a failure.
 // Only participants that succeeded are compensated.
 func (p *Participant) BeginCompensation() error {
 	// Only participants that succeeded can be compensated
@@ -138,7 +138,7 @@ func NewParticipantCollection(handler slog.Handler) *ParticipantCollection {
 }
 
 // GetOrCreate returns an existing participant or creates a new one.
-// This is used to get or initialize the state tracking for a component.
+// Used to get or initialize the state tracking for a component.
 func (c *ParticipantCollection) GetOrCreate(name string) (*Participant, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -157,14 +157,14 @@ func (c *ParticipantCollection) GetOrCreate(name string) (*Participant, error) {
 }
 
 // AddParticipant adds a new participant to the collection.
-// This is used by the RegisterParticipant method in ConfigTransaction.
+// Used by the RegisterParticipant method in ConfigTransaction.
 func (c *ParticipantCollection) AddParticipant(name string) error {
 	_, err := c.GetOrCreate(name)
 	return err
 }
 
 // AllParticipantsSucceeded returns true if all participants have succeeded.
-// This is used to determine if the saga can proceed to the commit phase.
+// Used to determine if the saga can proceed to the commit phase.
 func (c *ParticipantCollection) AllParticipantsSucceeded() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -183,7 +183,7 @@ func (c *ParticipantCollection) AllParticipantsSucceeded() bool {
 }
 
 // BeginCompensation starts compensation for all succeeded participants.
-// This is called when a participant fails and we need to revert changes.
+// Called when a participant fails and we need to revert changes.
 func (c *ParticipantCollection) BeginCompensation() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -204,7 +204,7 @@ func (c *ParticipantCollection) BeginCompensation() error {
 }
 
 // GetParticipantStates returns a map of all participant states.
-// This is useful for diagnostics and monitoring.
+// Useful for diagnostics and monitoring.
 func (c *ParticipantCollection) GetParticipantStates() map[string]string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -218,7 +218,7 @@ func (c *ParticipantCollection) GetParticipantStates() map[string]string {
 }
 
 // GetParticipantErrors returns a map of participant names to their errors.
-// This is useful for diagnostics and reporting failures.
+// Useful for diagnostics and reporting failures.
 func (c *ParticipantCollection) GetParticipantErrors() map[string]error {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
