@@ -159,8 +159,21 @@ func (c *ParticipantCollection) GetOrCreate(name string) (*Participant, error) {
 // AddParticipant adds a new participant to the collection.
 // Used by the RegisterParticipant method in ConfigTransaction.
 func (c *ParticipantCollection) AddParticipant(name string) error {
-	_, err := c.GetOrCreate(name)
-	return err
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	_, exists := c.participants[name]
+	if exists {
+		return fmt.Errorf("participant %s already exists", name)
+	}
+
+	p, err := NewParticipant(name, c.handler)
+	if err != nil {
+		return err
+	}
+	c.participants[name] = p
+
+	return nil
 }
 
 // AllParticipantsSucceeded returns true if all participants have succeeded.
