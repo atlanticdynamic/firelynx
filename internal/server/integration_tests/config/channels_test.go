@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -25,6 +26,18 @@ var initialConfigTOML []byte
 //go:embed testdata/updated_config.toml
 var updatedConfigTOML []byte
 
+// startRunnerAsync starts a runner in a goroutine and returns an error channel
+func startRunnerAsync(
+	ctx context.Context,
+	runner interface{ Run(context.Context) error },
+) <-chan error {
+	runErrCh := make(chan error, 1)
+	go func() {
+		runErrCh <- runner.Run(ctx)
+	}()
+	return runErrCh
+}
+
 // TestConfigChannels_UnbufferedBackpressure tests that unbuffered channels provide proper back-pressure
 func TestConfigChannels_UnbufferedBackpressure(t *testing.T) {
 	t.Parallel()
@@ -37,10 +50,7 @@ func TestConfigChannels_UnbufferedBackpressure(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	runErrCh := make(chan error, 1)
-	go func() {
-		runErrCh <- cfgServiceRunner.Run(ctx)
-	}()
+	runErrCh := startRunnerAsync(ctx, cfgServiceRunner)
 
 	// Wait for runner to be ready
 	require.Eventually(t, func() bool {
@@ -51,34 +61,25 @@ func TestConfigChannels_UnbufferedBackpressure(t *testing.T) {
 	configChan := cfgServiceRunner.GetConfigChan()
 
 	// Start the config consumer that will intentionally block
-	var consumerStarted sync.WaitGroup
 	var firstTxReceived sync.WaitGroup
 	var allowConsumerToContinue sync.WaitGroup
-	consumerStarted.Add(1)
 	firstTxReceived.Add(1)
 	allowConsumerToContinue.Add(1)
 
-	receivedTxs := make([]*transaction.ConfigTransaction, 0)
-	var receivedMu sync.Mutex
+	var receivedCount int32
 
 	go func() {
-		consumerStarted.Done()
 		for tx := range configChan {
-			receivedMu.Lock()
-			receivedTxs = append(receivedTxs, tx)
-			txCount := len(receivedTxs)
-			receivedMu.Unlock()
-
-			if txCount == 1 {
-				firstTxReceived.Done()
-				// Block here to test back-pressure
-				allowConsumerToContinue.Wait()
+			if tx != nil {
+				count := atomic.AddInt32(&receivedCount, 1)
+				if count == 1 {
+					firstTxReceived.Done()
+					// Block here to test back-pressure
+					allowConsumerToContinue.Wait()
+				}
 			}
 		}
 	}()
-
-	// Wait for consumer to start
-	consumerStarted.Wait()
 
 	// Create test configs for multiple updates
 	version := "v1"
@@ -135,42 +136,57 @@ func TestConfigChannels_UnbufferedBackpressure(t *testing.T) {
 	// Wait for second update to start
 	<-secondUpdateStarted
 
-	// Give it a moment to ensure the second update is blocked
-	time.Sleep(100 * time.Millisecond)
-
-	// First update should complete
-	select {
-	case err := <-updateDone:
-		require.NoError(t, err)
-	case <-time.After(50 * time.Millisecond):
-		t.Fatal("First update should have completed by now")
-	}
+	// First update should complete quickly
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-updateDone:
+			require.NoError(t, err)
+			return true
+		default:
+			return false
+		}
+	}, 200*time.Millisecond, 10*time.Millisecond, "First update should complete")
 
 	// Second update should still be blocked
-	select {
-	case <-secondUpdateDone:
-		t.Fatal("Second update should be blocked due to backpressure")
-	case <-time.After(50 * time.Millisecond):
-		// Expected - second update is blocked
-	}
+	assert.Never(t, func() bool {
+		select {
+		case <-secondUpdateDone:
+			return true
+		default:
+			return false
+		}
+	}, 200*time.Millisecond, 10*time.Millisecond, "Second update should be blocked")
 
 	// Now allow consumer to continue
 	allowConsumerToContinue.Done()
 
 	// Second update should now complete
-	select {
-	case err := <-secondUpdateDone:
-		require.NoError(t, err)
-	case <-time.After(500 * time.Millisecond):
-		t.Fatal("Second update should complete after consumer unblocks")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-secondUpdateDone:
+			require.NoError(t, err)
+			return true
+		default:
+			return false
+		}
+	}, 500*time.Millisecond, 10*time.Millisecond, "Second update should complete after consumer unblocks")
 
 	// Verify we received both transactions
-	receivedMu.Lock()
-	txCount := len(receivedTxs)
-	receivedMu.Unlock()
+	assert.Eventually(t, func() bool {
+		return atomic.LoadInt32(&receivedCount) == 2
+	}, 500*time.Millisecond, 10*time.Millisecond, "Should have received both transactions")
 
-	assert.Equal(t, 2, txCount, "Should have received both transactions")
+	// Clean up
+	cfgServiceRunner.Stop()
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-runErrCh:
+			require.NoError(t, err)
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Second, 10*time.Millisecond, "Runner should stop")
 }
 
 // TestConfigChannels_CfgFileLoaderIntegration tests cfgfileloader config channel integration
@@ -196,42 +212,18 @@ func TestConfigChannels_CfgFileLoaderIntegration(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	runErrCh := make(chan error, 1)
-	go func() {
-		runErrCh <- fileLoader.Run(ctx)
-	}()
+	runErrCh := startRunnerAsync(ctx, fileLoader)
 
 	// Collect transactions
 	receivedTxs := make(chan *transaction.ConfigTransaction, 10)
-	var consumerReady sync.WaitGroup
-	consumerReady.Add(1)
-
 	go func() {
-		consumerReady.Done()
 		for tx := range configChan {
 			receivedTxs <- tx
 		}
 	}()
 
-	// Wait for consumer to be ready
-	consumerReady.Wait()
-
-	// Check if there was an immediate error
-	select {
-	case err := <-runErrCh:
-		t.Fatalf("Runner failed to start: %v", err)
-	default:
-		// No immediate error, continue
-	}
-
-	// Wait for runner to reach running state or check for error
+	// Wait for runner to reach running state
 	require.Eventually(t, func() bool {
-		// Check if runner failed
-		select {
-		case err := <-runErrCh:
-			t.Fatalf("Runner failed: %v", err)
-		default:
-		}
 		return fileLoader.IsRunning()
 	}, 2*time.Second, 10*time.Millisecond)
 
@@ -266,12 +258,15 @@ func TestConfigChannels_CfgFileLoaderIntegration(t *testing.T) {
 
 	// Stop runner
 	fileLoader.Stop()
-	select {
-	case err := <-runErrCh:
-		require.NoError(t, err)
-	case <-time.After(1 * time.Second):
-		t.Fatal("Runner should stop within timeout")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-runErrCh:
+			require.NoError(t, err)
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Second, 10*time.Millisecond, "Runner should stop")
 }
 
 // TestConfigChannels_MultipleConsumersBackpressure tests backpressure with multiple consumers
@@ -286,10 +281,7 @@ func TestConfigChannels_MultipleConsumersBackpressure(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	runErrCh := make(chan error, 1)
-	go func() {
-		runErrCh <- cfgServiceRunner.Run(ctx)
-	}()
+	runErrCh := startRunnerAsync(ctx, cfgServiceRunner)
 
 	// Wait for runner to be ready
 	require.Eventually(t, func() bool {
@@ -318,23 +310,17 @@ func TestConfigChannels_MultipleConsumersBackpressure(t *testing.T) {
 	}()
 
 	// Start second consumer (will consume normally)
-	var consumer2Started sync.WaitGroup
-	consumer2Started.Add(1)
-	consumer2Txs := make([]*transaction.ConfigTransaction, 0)
-	var consumer2Mu sync.Mutex
-
+	var consumer2Count int32
 	go func() {
-		consumer2Started.Done()
 		for tx := range configChan2 {
-			consumer2Mu.Lock()
-			consumer2Txs = append(consumer2Txs, tx)
-			consumer2Mu.Unlock()
+			if tx != nil {
+				atomic.AddInt32(&consumer2Count, 1)
+			}
 		}
 	}()
 
-	// Wait for consumers to start
+	// Wait for consumer1 to start
 	consumer1Started.Wait()
-	consumer2Started.Wait()
 
 	// Send config update
 	version := "v1"
@@ -399,18 +385,18 @@ func TestConfigChannels_MultipleConsumersBackpressure(t *testing.T) {
 
 	// Now consumer2 should also receive the transaction
 	assert.Eventually(t, func() bool {
-		consumer2Mu.Lock()
-		count := len(consumer2Txs)
-		consumer2Mu.Unlock()
-		return count >= 1
-	}, 500*time.Millisecond, 10*time.Millisecond)
+		return atomic.LoadInt32(&consumer2Count) >= 1
+	}, 500*time.Millisecond, 10*time.Millisecond, "Consumer2 should receive transaction")
 
 	// Clean up
 	cfgServiceRunner.Stop()
-	select {
-	case err := <-runErrCh:
-		require.NoError(t, err)
-	case <-time.After(1 * time.Second):
-		t.Fatal("Runner should stop within timeout")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-runErrCh:
+			require.NoError(t, err)
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Second, 10*time.Millisecond, "Runner should stop")
 }
