@@ -1,0 +1,34 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{PORT}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "echo1"
+[endpoints.routes.http]
+path_prefix = "/v1"
+
+[[endpoints.routes]]
+app_id = "echo2"
+[endpoints.routes.http]
+path_prefix = "/v2"
+
+[[apps]]
+id = "echo1"
+[apps.echo]
+response = "V1: Response"
+
+[[apps]]
+id = "echo2"
+[apps.echo]
+response = "V2: Response"
