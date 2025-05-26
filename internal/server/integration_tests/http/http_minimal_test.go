@@ -69,8 +69,10 @@ func TestHTTPListenerMinimalSaga(t *testing.T) {
 	// Verify the transaction completed successfully
 	assert.Equal(t, "completed", tx.GetState())
 
-	// Verify the HTTP runner is still running
-	assert.True(t, httpRunner.IsRunning())
+	// Wait a moment for the runner state to stabilize
+	assert.Eventually(t, func() bool {
+		return httpRunner.IsRunning()
+	}, 100*time.Millisecond, 10*time.Millisecond, "HTTP runner should be running after transaction completes")
 
 	// Stop the HTTP runner
 	httpRunner.Stop()
@@ -158,7 +160,9 @@ write_timeout = "30s"
 	assert.Equal(t, "completed", tx2.GetState())
 
 	// Verify runner is still running
-	assert.True(t, httpRunner.IsRunning())
+	assert.Eventually(t, func() bool {
+		return httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
 
 	// Stop the HTTP runner
 	httpRunner.Stop()

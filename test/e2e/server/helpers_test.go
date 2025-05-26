@@ -99,6 +99,9 @@ func writeConfigFile(t *testing.T, templatePath, outputPath string, data Templat
 
 	err = os.WriteFile(outputPath, configContent, 0o644)
 	require.NoError(t, err, "Failed to write config file")
+
+	// Debug: Log the config content
+	t.Logf("Written config file %s with content:\n%s", outputPath, string(configContent))
 }
 
 // waitForHTTPEndpoint checks if an HTTP endpoint is responding and retries until it succeeds or times out

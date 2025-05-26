@@ -33,6 +33,9 @@ func TestBasicServerStartup(t *testing.T) {
 		HTTPAddr: httpAddr,
 	})
 
+	// Debug: Log the HTTP address we're using
+	t.Logf("Test expects HTTP server on address: %s", httpAddr)
+
 	// Start the server
 	cleanup, err := runServerWithConfig(t, ctx, configPath, "")
 	require.NoError(t, err, "Failed to start firelynx server")

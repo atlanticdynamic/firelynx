@@ -290,6 +290,10 @@ func TestConfigFileReload(t *testing.T) {
 
 	// Ensure the replaced file is synced to disk
 	syncFileToStorage(t, configPath)
+
+	// Give a brief moment for filesystem to settle
+	time.Sleep(100 * time.Millisecond)
+
 	sendHUPSignalToProcess(t)
 
 	// Test the new route after sending SIGHUP to trigger reload

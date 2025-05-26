@@ -147,7 +147,7 @@ func (f *fanInConfigProvider) startFanIn() <-chan *transaction.ConfigTransaction
 
 // Close cancels the fan-in's context, signaling all goroutines to exit.
 // Note: This does NOT close the source channels - each provider is responsible
-// for closing its own channel. This method just stops the fan-in from reading.
+// for closing its own channel. This method stops the fan-in from reading.
 func (f *fanInConfigProvider) Close() {
 	f.cancel()
 }

@@ -95,7 +95,6 @@ func TestNewSagaOrchestrator(t *testing.T) {
 
 	assert.NotNil(t, orchestrator)
 	assert.Equal(t, storage, orchestrator.txStorage)
-	assert.NotNil(t, orchestrator.participants)
 	assert.NotNil(t, orchestrator.runnables)
 	assert.Empty(t, orchestrator.runnables)
 }
@@ -294,7 +293,7 @@ func TestCompensateParticipants(t *testing.T) {
 
 	// Set up participant states to simulate one that succeeded
 	// and one that didn't start yet
-	participantState1, err := orchestrator.participants.GetOrCreate("participant1")
+	participantState1, err := tx.GetParticipants().GetOrCreate("participant1")
 	require.NoError(t, err)
 	err = participantState1.Execute()
 	require.NoError(t, err)

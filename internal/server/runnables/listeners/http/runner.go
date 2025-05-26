@@ -6,28 +6,42 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
-	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/httpserver"
-	"github.com/robbyt/go-supervisor/runnables/composite"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
+	"github.com/robbyt/go-supervisor/runnables/httpcluster"
+	"github.com/robbyt/go-supervisor/runnables/httpserver"
+	"github.com/robbyt/go-supervisor/supervisor"
 )
 
-// Runner manages HTTP listeners and participates in the saga pattern
+// Runner manages HTTP listeners using the httpcluster runnable with saga participant support
 type Runner struct {
+	cluster   *httpcluster.Runner
 	configMgr *cfg.Manager
-	runner    *composite.Runner[*httpserver.HTTPServer]
 	logger    *slog.Logger
 
 	parentCtx context.Context
 	mutex     sync.RWMutex
+
+	// Configuration options
+	siphonTimeout time.Duration
 }
 
-// NewRunner creates a new HTTP runner with optional configuration
+// Interface guards
+var (
+	_ supervisor.Runnable          = (*Runner)(nil)
+	_ supervisor.Stateable         = (*Runner)(nil)
+	_ orchestrator.SagaParticipant = (*Runner)(nil)
+)
+
+// NewRunner creates a new HTTP cluster runner
 func NewRunner(options ...Option) (*Runner, error) {
 	r := &Runner{
-		logger:    slog.Default().WithGroup("http.Runner"),
-		parentCtx: context.Background(),
+		logger:        slog.Default().WithGroup("http.Runner"),
+		parentCtx:     context.Background(),
+		siphonTimeout: 30 * time.Second, // Default timeout
 	}
 
 	// Apply functional options
@@ -35,82 +49,21 @@ func NewRunner(options ...Option) (*Runner, error) {
 		option(r)
 	}
 
-	// Create config manager using the configured logger
+	// Create config manager
 	r.configMgr = cfg.NewManager(r.logger)
 
-	// Create config callback for composite runner
-	configCallback := func() (*composite.Config[*httpserver.HTTPServer], error) {
-		return r.buildCompositeConfig()
-	}
-
-	// Create composite runner
-	var err error
-	r.runner, err = composite.NewRunner(configCallback)
+	// Create httpcluster with default unbuffered siphon channel
+	cluster, err := httpcluster.NewRunner(
+		httpcluster.WithContext(r.parentCtx),
+		httpcluster.WithLogger(r.logger.WithGroup("cluster")),
+		// Siphon buffer defaults to 0 (unbuffered)
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create composite runner: %w", err)
+		return nil, fmt.Errorf("failed to create httpcluster runner: %w", err)
 	}
 
+	r.cluster = cluster
 	return r, nil
-}
-
-// buildCompositeConfig builds a configuration for the composite runner
-func (r *Runner) buildCompositeConfig() (*composite.Config[*httpserver.HTTPServer], error) {
-	r.mutex.RLock()
-	adapter := r.configMgr.GetCurrent()
-	r.mutex.RUnlock()
-
-	if adapter == nil {
-		// Create empty config - no HTTP listeners initially
-		config, err := composite.NewConfig[*httpserver.HTTPServer]("http-listeners", nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create empty config: %w", err)
-		}
-		return config, nil
-	}
-
-	// Create entries from adapter
-	var entries []composite.RunnableEntry[*httpserver.HTTPServer]
-
-	for _, listenerID := range adapter.GetListenerIDs() {
-		listenerCfg, ok := adapter.GetListenerConfig(listenerID)
-		if !ok {
-			r.logger.Warn("Listener config not found", "listener_id", listenerID)
-			continue
-		}
-
-		routes := adapter.GetRoutesForListener(listenerID)
-
-		// Convert timeout fields to HTTPTimeoutOptions
-		timeouts := httpserver.HTTPTimeoutOptions{
-			ReadTimeout:  listenerCfg.ReadTimeout,
-			WriteTimeout: listenerCfg.WriteTimeout,
-			IdleTimeout:  listenerCfg.IdleTimeout,
-			DrainTimeout: listenerCfg.DrainTimeout,
-		}
-
-		// Create HTTP server
-		server, err := httpserver.NewHTTPServer(
-			listenerCfg.ID,
-			listenerCfg.Address,
-			routes,
-			timeouts,
-			r.logger.With("listener", listenerID),
-		)
-		if err != nil {
-			r.logger.Error("Failed to create HTTP server", "id", listenerID, "error", err)
-			continue
-		}
-
-		// Add to entries
-		entry := composite.RunnableEntry[*httpserver.HTTPServer]{
-			Runnable: server,
-			Config:   nil, // No additional config needed
-		}
-		entries = append(entries, entry)
-	}
-
-	// Create composite config
-	return composite.NewConfig("http-listeners", entries)
 }
 
 // String returns a unique identifier for this runner
@@ -118,31 +71,34 @@ func (r *Runner) String() string {
 	return "HTTPRunner"
 }
 
-// Run starts the HTTP runner
+// Run starts the HTTP cluster runner
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting HTTP runner")
-	return r.runner.Run(ctx)
+
+	// The httpcluster will start with no servers and wait for configuration
+	// through the siphon channel via the saga pattern
+	return r.cluster.Run(ctx)
 }
 
-// Stop stops the HTTP runner
+// Stop stops the HTTP cluster runner
 func (r *Runner) Stop() {
 	r.logger.Debug("Stopping HTTP runner")
-	r.runner.Stop()
+	r.cluster.Stop()
 }
 
 // GetState returns the current state of the runner
 func (r *Runner) GetState() string {
-	return r.runner.GetState()
+	return r.cluster.GetState()
 }
 
 // IsRunning returns whether the runner is running
 func (r *Runner) IsRunning() bool {
-	return r.runner.IsRunning()
+	return r.cluster.IsRunning()
 }
 
 // GetStateChan returns a channel that emits state changes
 func (r *Runner) GetStateChan(ctx context.Context) <-chan string {
-	return r.runner.GetStateChan(ctx)
+	return r.cluster.GetStateChan(ctx)
 }
 
 // ExecuteConfig implements SagaParticipant.ExecuteConfig
@@ -152,32 +108,15 @@ func (r *Runner) ExecuteConfig(ctx context.Context, tx *transaction.ConfigTransa
 
 	r.logger.Debug("Executing HTTP configuration", "tx_id", tx.GetTransactionID())
 
-	// Create adapter from transaction
+	// Create adapter from transaction (transaction implements ConfigProvider)
 	adapter, err := cfg.NewAdapter(tx, r.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP adapter: %w", err)
 	}
 
-	// Validate the adapter configuration
-	if err := r.validateAdapter(adapter); err != nil {
-		return fmt.Errorf("invalid HTTP configuration: %w", err)
-	}
-
 	// Store as pending configuration
 	r.configMgr.SetPending(adapter)
 	r.logger.Debug("HTTP configuration prepared successfully", "tx_id", tx.GetTransactionID())
-
-	return nil
-}
-
-// validateAdapter validates the adapter configuration
-func (r *Runner) validateAdapter(adapter *cfg.Adapter) error {
-	// For now, we just check that the adapter has valid listeners and routes
-	// In a real implementation, we would validate addresses, routes, etc.
-	if len(adapter.GetListenerIDs()) == 0 {
-		r.logger.Warn("Adapter has no HTTP listeners")
-		// Allow empty configuration (for removing all HTTP listeners)
-	}
 
 	return nil
 }
@@ -198,7 +137,6 @@ func (r *Runner) CompensateConfig(ctx context.Context, tx *transaction.ConfigTra
 // ApplyPendingConfig applies the pending configuration
 // This should only be called by the saga orchestrator during TriggerReload
 func (r *Runner) ApplyPendingConfig(ctx context.Context) error {
-	// Check if we have pending changes while holding the lock
 	r.mutex.Lock()
 	hasPending := r.configMgr.HasPendingChanges()
 	if !hasPending {
@@ -208,14 +146,76 @@ func (r *Runner) ApplyPendingConfig(ctx context.Context) error {
 
 	r.logger.Debug("Applying pending HTTP configuration")
 
-	// Commit pending configuration to make it current
-	// This will cause the composite runner to reload on next getConfig call
+	// Commit pending configuration
 	r.configMgr.CommitPending()
 	r.mutex.Unlock()
 
-	// Force reload of composite runner without holding the lock
-	// This avoids deadlock when buildCompositeConfig is called
-	r.runner.Reload()
+	// Send the new configuration to the cluster
+	return r.sendCurrentConfig(ctx)
+}
 
-	return nil
+// sendCurrentConfig converts the current adapter configuration to httpserver configs
+// and sends them through the siphon channel
+func (r *Runner) sendCurrentConfig(ctx context.Context) error {
+	r.mutex.RLock()
+	adapter := r.configMgr.GetCurrent()
+	r.mutex.RUnlock()
+
+	configs := make(map[string]*httpserver.Config)
+
+	if adapter != nil {
+		// Convert adapter to httpserver.Config for each listener
+		for _, listenerID := range adapter.GetListenerIDs() {
+			listenerCfg, ok := adapter.GetListenerConfig(listenerID)
+			if !ok {
+				r.logger.Warn("Listener config not found", "listener_id", listenerID)
+				continue
+			}
+
+			// Get routes for this listener
+			routes := r.convertRoutes(adapter.GetRoutesForListener(listenerID))
+
+			// Skip listeners without routes (httpserver requires at least one route)
+			if len(routes) == 0 {
+				r.logger.Debug("Skipping listener without routes", "listener_id", listenerID)
+				continue
+			}
+
+			r.logger.Debug("Configuring listener with routes",
+				"listener_id", listenerID,
+				"address", listenerCfg.Address,
+				"route_count", len(routes))
+
+			// Create httpserver.Config
+			serverCfg := &httpserver.Config{
+				ListenAddr:   listenerCfg.Address,
+				Routes:       routes,
+				ReadTimeout:  listenerCfg.ReadTimeout,
+				WriteTimeout: listenerCfg.WriteTimeout,
+				IdleTimeout:  listenerCfg.IdleTimeout,
+				DrainTimeout: listenerCfg.DrainTimeout,
+			}
+
+			configs[listenerID] = serverCfg
+		}
+	}
+
+	// Send configuration through siphon with configurable timeout
+	ctx, cancel := context.WithTimeout(ctx, r.siphonTimeout)
+	defer cancel()
+
+	select {
+	case r.cluster.GetConfigSiphon() <- configs:
+		r.logger.Debug("Sent configuration to cluster", "listeners", len(configs))
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("timeout sending configuration to cluster after %v", r.siphonTimeout)
+	}
+}
+
+// convertRoutes converts adapter routes to httpserver.Route format
+func (r *Runner) convertRoutes(adapterRoutes []httpserver.Route) httpserver.Routes {
+	// The adapter already provides httpserver.Route objects
+	// Just return them as Routes (which is []Route)
+	return httpserver.Routes(adapterRoutes)
 }

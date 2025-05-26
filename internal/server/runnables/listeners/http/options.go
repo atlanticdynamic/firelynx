@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"log/slog"
+	"time"
 )
 
 type Option func(*Runner)
@@ -29,5 +30,12 @@ func WithLogger(logger *slog.Logger) Option {
 		if logger != nil {
 			r.logger = logger
 		}
+	}
+}
+
+// WithSiphonTimeout sets the timeout for sending configs through the siphon channel.
+func WithSiphonTimeout(timeout time.Duration) Option {
+	return func(r *Runner) {
+		r.siphonTimeout = timeout
 	}
 }

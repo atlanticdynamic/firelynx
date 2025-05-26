@@ -99,6 +99,12 @@ func TestNewRunner(t *testing.T) {
 		assert.NotNil(t, runner)
 	})
 
+	t.Run("with siphon timeout", func(t *testing.T) {
+		runner, err := NewRunner(WithSiphonTimeout(5 * time.Second))
+		assert.NoError(t, err)
+		assert.NotNil(t, runner)
+	})
+
 	t.Run("with multiple options", func(t *testing.T) {
 		ctx := context.WithValue(context.Background(), testContextKey, "value")
 		logger := slog.Default().With("test", "logger")
@@ -166,18 +172,29 @@ func TestRunner_RunAndStop(t *testing.T) {
 	defer cancel()
 
 	// Run in a goroutine
+	errChan := make(chan error)
 	go func() {
-		err := runner.Run(ctx)
-		assert.NoError(t, err)
+		errChan <- runner.Run(ctx)
 	}()
+
+	// Wait for the runner to start
+	assert.Eventually(t, func() bool {
+		return runner.IsRunning()
+	}, 1*time.Second, 10*time.Millisecond)
 
 	// Stop the runner
 	runner.Stop()
 
-	// Verify it's stopped using assert.Eventually
-	assert.Eventually(t, func() bool {
-		return !runner.IsRunning()
-	}, 1*time.Second, 10*time.Millisecond)
+	// Wait for Run to return
+	select {
+	case err := <-errChan:
+		assert.NoError(t, err)
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for Run to return")
+	}
+
+	// Verify it's stopped
+	assert.False(t, runner.IsRunning())
 }
 
 func TestRunner_GetStateChan(t *testing.T) {

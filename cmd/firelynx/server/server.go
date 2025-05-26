@@ -92,9 +92,12 @@ func Run(
 	runnables = append(runnables, txMan)
 
 	// Create an HTTP runner with the logger
-	httpRunner, err := http.NewRunner(http.WithLogHandler(logHandler))
+	httpRunner, err := http.NewRunner(
+		http.WithLogHandler(logHandler),
+		http.WithContext(ctx),
+	)
 	if err != nil {
-		return fmt.Errorf("failed to create HTTP listener runner: %w", err)
+		return fmt.Errorf("failed to create HTTP runner: %w", err)
 	}
 
 	// Register the HTTP runner with the transaction manager

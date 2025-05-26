@@ -81,6 +81,7 @@ func NewAdapter(provider ConfigProvider, logger *slog.Logger) (*Adapter, error) 
 
 	// If we have an app registry, extract routes
 	if appCol != nil {
+		logger.Debug("Extracting routes with app collection")
 		routes, routesErr := extractRoutes(cfg, listeners, appCol, logger)
 		if routesErr != nil {
 			return nil, fmt.Errorf("failed to extract HTTP routes: %w", routesErr)
@@ -88,6 +89,7 @@ func NewAdapter(provider ConfigProvider, logger *slog.Logger) (*Adapter, error) 
 		adapter.Routes = routes
 	} else {
 		// No app registry, create empty routes map for each listener
+		logger.Warn("No app collection provided, creating empty routes")
 		for id := range listeners {
 			adapter.Routes[id] = []httpserver.Route{}
 		}
@@ -186,12 +188,20 @@ func extractEndpointRoutes(
 		// Get the app instance from the registry
 		app, exists := appRegistry.GetApp(httpRoute.AppID)
 		if !exists {
+			logger.Error("App not found in registry",
+				"app_id", httpRoute.AppID,
+				"route_id", routeID)
 			errz = append(
 				errz,
 				fmt.Errorf("app not found for route %s: %s", routeID, httpRoute.AppID),
 			)
 			continue
 		}
+
+		logger.Debug("Found app for route",
+			"app_id", httpRoute.AppID,
+			"route_id", routeID,
+			"path_prefix", httpRoute.PathPrefix)
 
 		// Create a handler function for this route
 		handlerFunc := func(w http.ResponseWriter, r *http.Request) {

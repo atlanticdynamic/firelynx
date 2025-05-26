@@ -30,7 +30,7 @@ type Runner struct {
 	runCancel context.CancelFunc
 	parentCtx context.Context
 
-	configSubscribers sync.Map
+	configSubscribers sync.Map // TODO: replace with a normal map/mutex
 	subscriberCounter atomic.Uint64
 }
 
@@ -211,21 +211,39 @@ func (r *Runner) Reload() {
 	r.logger.Debug("Reload completed")
 }
 
+// getConfig returns the last config successfully loaded and validated, or nil if none
+func (r *Runner) getConfig() *config.Config {
+	tx := r.lastValidTransaction.Load()
+	if tx == nil {
+		return nil
+	}
+	return tx.GetConfig()
+}
+
 // GetConfigChan implements the txmgr.ConfigChannelProvider interface
 func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
-	ch := make(chan *transaction.ConfigTransaction)
+	ch := make(chan *transaction.ConfigTransaction, 1) // Buffered channel to avoid blocking
 
-	// Send current transaction immediately if available
-	if current := r.lastValidTransaction.Load(); current != nil {
-		select {
-		case ch <- current:
-		default: // channel full, skip
-		}
-	}
-
-	// Register for future updates
+	// Register for future updates first
 	id := r.subscriberCounter.Add(1)
 	r.configSubscribers.Store(id, ch)
+
+	// Send current transaction if available
+	// This happens in a goroutine to avoid blocking the caller
+	go func() {
+		if current := r.lastValidTransaction.Load(); current != nil {
+			select {
+			case ch <- current:
+				r.logger.Debug(
+					"Sent initial config transaction to new subscriber",
+					"subscriber_id",
+					id,
+				)
+			case <-r.parentCtx.Done():
+				// Context cancelled, don't send
+			}
+		}
+	}()
 
 	// Cleanup when Runner's parent context is done
 	go func() {
@@ -235,15 +253,6 @@ func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
 	}()
 
 	return ch
-}
-
-// getConfig returns the last config successfully loaded and validated, or nil if none
-func (r *Runner) getConfig() *config.Config {
-	tx := r.lastValidTransaction.Load()
-	if tx == nil {
-		return nil
-	}
-	return tx.GetConfig()
 }
 
 // broadcastConfigTransaction sends a config transaction to all subscribers
@@ -260,8 +269,12 @@ func (r *Runner) broadcastConfigTransaction(tx *transaction.ConfigTransaction) {
 			return true
 		}
 
-		ch <- tx
-		r.logger.Debug("Config transaction sent to subscriber", "subscriber_id", key)
+		select {
+		case ch <- tx:
+			r.logger.Debug("Config transaction sent to subscriber", "subscriber_id", key)
+		default:
+			r.logger.Warn("Subscriber channel is full, skipping", "subscriber_id", key)
+		}
 		return true
 	})
 }

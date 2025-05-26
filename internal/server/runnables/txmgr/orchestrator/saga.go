@@ -55,9 +55,6 @@ type SagaOrchestrator struct {
 	// Transaction storage for persistent transaction state
 	txStorage *txstorage.TransactionStorage
 
-	// Participant collection for tracking component states
-	participants *transaction.ParticipantCollection
-
 	// Registry of saga participants
 	runnables map[string]SagaParticipant
 
@@ -74,13 +71,11 @@ func NewSagaOrchestrator(
 	handler slog.Handler,
 ) *SagaOrchestrator {
 	logger := slog.New(handler).WithGroup("sagaOrchestrator")
-	participants := transaction.NewParticipantCollection(handler)
 
 	return &SagaOrchestrator{
-		txStorage:    txStorage,
-		participants: participants,
-		runnables:    make(map[string]SagaParticipant),
-		logger:       logger,
+		txStorage: txStorage,
+		runnables: make(map[string]SagaParticipant),
+		logger:    logger,
 	}
 }
 
@@ -127,8 +122,14 @@ func (o *SagaOrchestrator) ProcessTransaction(
 		return fmt.Errorf("failed to begin execution: %w", err)
 	}
 
-	// Track execution status of participants
+	// Register all known participants with the transaction
 	o.mutex.RLock()
+	for name := range o.runnables {
+		if err := tx.RegisterParticipant(name); err != nil {
+			o.mutex.RUnlock()
+			return fmt.Errorf("failed to register participant %s with transaction: %w", name, err)
+		}
+	}
 	participants := o.runnables
 	o.mutex.RUnlock()
 
@@ -138,8 +139,8 @@ func (o *SagaOrchestrator) ProcessTransaction(
 	// Process each participant
 	for _, name := range names {
 		participant := participants[name]
-		// Get or create participant state tracker
-		participantState, err := o.participants.GetOrCreate(name)
+		// Get participant state tracker from the transaction
+		participantState, err := tx.GetParticipants().GetOrCreate(name)
 		if err != nil {
 			o.logger.Error("Failed to create participant state", "name", name, "error", err)
 			continue
@@ -177,7 +178,7 @@ func (o *SagaOrchestrator) ProcessTransaction(
 	}
 
 	// Check if all participants succeeded
-	if o.participants.AllParticipantsSucceeded() {
+	if tx.GetParticipants().AllParticipantsSucceeded() {
 		// Mark transaction as succeeded
 		if err := tx.MarkSucceeded(); err != nil {
 			return fmt.Errorf("failed to mark transaction as succeeded: %w", err)
@@ -214,7 +215,7 @@ func (o *SagaOrchestrator) compensateParticipants(
 	}
 
 	// Begin compensation for all participants
-	if err := o.participants.BeginCompensation(); err != nil {
+	if err := tx.GetParticipants().BeginCompensation(); err != nil {
 		o.logger.Error("Error starting compensation for participants", "error", err)
 	}
 
@@ -230,7 +231,7 @@ func (o *SagaOrchestrator) compensateParticipants(
 	for _, name := range names {
 		participant := participants[name]
 		// Get participant state
-		participantState, err := o.participants.GetOrCreate(name)
+		participantState, err := tx.GetParticipants().GetOrCreate(name)
 		if err != nil {
 			o.logger.Error("Failed to get participant state", "name", name, "error", err)
 			continue
@@ -290,7 +291,7 @@ func (o *SagaOrchestrator) GetTransactionStatus(txID string) (map[string]any, er
 	}
 
 	// Add participant states if available
-	participantStates := o.participants.GetParticipantStates()
+	participantStates := tx.GetParticipantStates()
 	if len(participantStates) > 0 {
 		status["participants"] = participantStates
 	}

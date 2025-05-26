@@ -1,0 +1,19 @@
+version = "v1"
+
+[[listeners]]
+id = "listener1"
+type = "http"
+address = "127.0.0.1:{{PORT}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[listeners]]
+id = "listener2"
+type = "http"
+address = "127.0.0.1:{{PORT}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"

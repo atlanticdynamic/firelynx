@@ -43,7 +43,7 @@ test-e2e:
 ## test-integration: Run integration tests
 .PHONY: test-integration
 test-integration:
-	go test -race -timeout 1m -tags integration ./internal/server/integration_tests/...
+	go test -count 1 -race -timeout 1m -tags integration ./internal/server/integration_tests/...
 
 ## test-all: Run all tests (unit, integration, and e2e)
 .PHONY: test-all
