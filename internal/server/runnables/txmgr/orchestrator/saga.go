@@ -20,7 +20,7 @@ const (
 	// DefaultReloadTimeout is the timeout to wait for a component to become ready after reload
 	DefaultReloadTimeout = 30 * time.Second
 	// DefaultReloadRetryInterval is the interval to check component readiness
-	DefaultReloadRetryInterval = 100 * time.Millisecond
+	DefaultReloadRetryInterval = 10 * time.Millisecond
 )
 
 // SagaParticipant defines the interface for components participating
@@ -145,6 +145,25 @@ func (o *SagaOrchestrator) ProcessTransaction(
 	// Process each participant
 	for _, name := range names {
 		participant := participants[name]
+
+		// Wait for participant to be running before processing
+		if err := o.waitForRunning(ctx, participant, name); err != nil {
+			o.logger.Error("Participant not ready", "name", name, "error", err)
+			// Get participant state tracker to mark as failed
+			if participantState, err := tx.GetParticipants().GetOrCreate(name); err == nil {
+				if markErr := participantState.MarkFailed(fmt.Errorf("not ready: %w", err)); markErr != nil {
+					o.logger.Error(
+						"Failed to mark participant as failed",
+						"name",
+						name,
+						"error",
+						markErr,
+					)
+				}
+			}
+			continue
+		}
+
 		// Get participant state tracker from the transaction
 		participantState, err := tx.GetParticipants().GetOrCreate(name)
 		if err != nil {

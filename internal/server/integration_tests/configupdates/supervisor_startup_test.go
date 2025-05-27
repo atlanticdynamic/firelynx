@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package integration_tests
+package configupdates
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgfileloader"
 	httplistener "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr"
@@ -32,6 +33,8 @@ var echoAppConfigTemplate []byte
 // TestSupervisorStartupWithHTTPRunner tests the full startup sequence with supervisor
 // to replicate the e2e test scenario where HTTP runner waits for initial config
 func TestSupervisorStartupWithHTTPRunner(t *testing.T) {
+	logging.SetupLogger("debug")
+	l := slog.Default()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -52,20 +55,20 @@ func TestSupervisorStartupWithHTTPRunner(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create transaction storage
-	txStorage := txstorage.NewTransactionStorage()
+	txStorage := txstorage.NewMemoryStorage()
 
 	// Create saga orchestrator
-	saga := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())
+	saga := orchestrator.NewSagaOrchestrator(txStorage, l.Handler())
 
 	// Create transaction manager
-	txMan, err := txmgr.NewRunner(saga)
+	txMan, err := txmgr.NewRunner(saga, txmgr.WithLogHandler(l.Handler()))
 	require.NoError(t, err)
 
 	// Get the transaction siphon
 	txSiphon := txMan.GetTransactionSiphon()
 
 	// Create HTTP runner and register it with orchestrator
-	httpRunner, err := httplistener.NewRunner()
+	httpRunner, err := httplistener.NewRunner(httplistener.WithLogHandler(l.Handler()))
 	require.NoError(t, err)
 
 	// Register HTTP runner with orchestrator
@@ -73,7 +76,11 @@ func TestSupervisorStartupWithHTTPRunner(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create config file loader
-	cfgFileLoader, err := cfgfileloader.NewRunner(configPath, txSiphon)
+	cfgFileLoader, err := cfgfileloader.NewRunner(
+		configPath,
+		txSiphon,
+		cfgfileloader.WithLogHandler(l.Handler()),
+	)
 	require.NoError(t, err)
 
 	// Create runnables list in the same order as the server:
@@ -137,7 +144,7 @@ func TestHTTPRunnerStartupTiming(t *testing.T) {
 	defer cancel()
 
 	// Create transaction storage
-	txStorage := txstorage.NewTransactionStorage()
+	txStorage := txstorage.NewMemoryStorage()
 
 	// Create saga orchestrator
 	saga := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())

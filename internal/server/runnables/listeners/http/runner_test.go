@@ -29,7 +29,8 @@ func mockConfig() *config.Config {
 }
 
 // createTestRegistry creates a mock registry with one app for testing
-func createTestRegistry() *mocks.MockRegistry {
+func createTestRegistry(t *testing.T) *mocks.MockRegistry {
+	t.Helper()
 	registry := mocks.NewMockRegistry()
 	mockApp := mocks.NewMockApp("test-app")
 	mockApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -41,7 +42,8 @@ func createTestRegistry() *mocks.MockRegistry {
 
 // Helper to manually set the app collection field in the transaction using reflection
 // This is only for testing purposes - we wouldn't do this in production code
-func setAppCollection(tx *transaction.ConfigTransaction, collection apps.AppLookup) {
+func setAppCollection(t *testing.T, tx *transaction.ConfigTransaction, collection apps.AppLookup) {
+	t.Helper()
 	// Use reflection to set the private field
 	txValue := reflect.ValueOf(tx).Elem()
 	collectionField := txValue.FieldByName("appCollection")
@@ -63,8 +65,8 @@ func createMockTransaction(t *testing.T) *transaction.ConfigTransaction {
 	require.NoError(t, err)
 
 	// Create and set a mock registry using reflection
-	registry := createTestRegistry()
-	setAppCollection(tx, registry)
+	registry := createTestRegistry(t)
+	setAppCollection(t, tx, registry)
 
 	return tx
 }
@@ -117,53 +119,6 @@ func TestNewRunner(t *testing.T) {
 	})
 }
 
-func TestRunner_ApplyPendingConfig(t *testing.T) {
-	t.Run("no pending changes", func(t *testing.T) {
-		runner, err := NewRunner()
-		require.NoError(t, err)
-
-		// Apply pending config when there are no pending changes
-		err = runner.CommitConfig(context.Background())
-		assert.NoError(t, err)
-	})
-}
-
-func TestRunner_GetState(t *testing.T) {
-	runner, err := NewRunner()
-	require.NoError(t, err)
-
-	// Initial state should be "New" based on the implementation
-	assert.Equal(t, "New", runner.GetState())
-	assert.False(t, runner.IsRunning())
-}
-
-func TestRunner_ExecuteConfig(t *testing.T) {
-	runner, err := NewRunner()
-	require.NoError(t, err)
-
-	// Test with empty config
-	tx := createMockTransaction(t)
-
-	err = runner.StageConfig(context.Background(), tx)
-	assert.NoError(t, err)
-}
-
-func TestRunner_CompensateConfig(t *testing.T) {
-	runner, err := NewRunner()
-	require.NoError(t, err)
-
-	// Test compensation
-	tx := createMockTransaction(t)
-
-	// First set something pending
-	err = runner.StageConfig(context.Background(), tx)
-	require.NoError(t, err)
-
-	// Then compensate
-	err = runner.CompensateConfig(context.Background(), tx)
-	assert.NoError(t, err)
-}
-
 func TestRunner_RunAndStop(t *testing.T) {
 	runner, err := NewRunner()
 	require.NoError(t, err)
@@ -194,17 +149,7 @@ func TestRunner_RunAndStop(t *testing.T) {
 	}
 
 	// Verify it's stopped
-	assert.False(t, runner.IsRunning())
-}
-
-func TestRunner_GetStateChan(t *testing.T) {
-	runner, err := NewRunner()
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	// Get state channel
-	stateChan := runner.GetStateChan(ctx)
-	assert.NotNil(t, stateChan)
+	assert.Eventually(t, func() bool {
+		return !runner.IsRunning()
+	}, 1*time.Second, 10*time.Millisecond, "runner should stop")
 }

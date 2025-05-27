@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package integration_tests
+package configupdates
 
 import (
 	_ "embed"
@@ -35,7 +35,7 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage and saga orchestrator
-	txStorage := txstorage.NewTransactionStorage()
+	txStorage := txstorage.NewMemoryStorage()
 	saga := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())
 
 	// Create HTTP runner with longer siphon timeout to avoid race condition
@@ -123,7 +123,7 @@ func TestHTTPRunnerRequiresInitialConfig(t *testing.T) {
 	logging.SetupLogger("debug")
 
 	// Create transaction storage and saga orchestrator
-	txStorage := txstorage.NewTransactionStorage()
+	txStorage := txstorage.NewMemoryStorage()
 	saga := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())
 
 	// Create transaction manager with siphon

@@ -1,7 +1,7 @@
 //go:build integration
 // +build integration
 
-package integration_tests
+package configupdates
 
 import (
 	_ "embed"
@@ -55,7 +55,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage and saga orchestrator
-	txStore := txstorage.NewTransactionStorage()
+	txStore := txstorage.NewMemoryStorage()
 	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
 
 	// Create HTTP runner

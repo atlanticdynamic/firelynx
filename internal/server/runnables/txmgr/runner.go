@@ -167,26 +167,12 @@ func (r *Runner) shutdown(ctx context.Context) error {
 func (r *Runner) processTransaction(ctx context.Context, tx *transaction.ConfigTransaction) error {
 	logger := r.logger.WithGroup("processTransaction")
 
-	if err := r.fsm.Transition(finitestate.StatusReloading); err != nil {
-		return fmt.Errorf("failed to transition to reloading: %w", err)
-	}
-
 	if err := r.sagaOrchestrator.AddToStorage(tx); err != nil {
-		if transErr := r.fsm.TransitionIfCurrentState(finitestate.StatusReloading, finitestate.StatusRunning); transErr != nil {
-			logger.Error("Failed to return to running state", "error", transErr)
-		}
 		return fmt.Errorf("failed to store transaction: %w", err)
 	}
 
 	if err := r.sagaOrchestrator.ProcessTransaction(ctx, tx); err != nil {
-		if transErr := r.fsm.TransitionIfCurrentState(finitestate.StatusReloading, finitestate.StatusRunning); transErr != nil {
-			logger.Error("Failed to return to running state", "error", transErr)
-		}
 		return fmt.Errorf("saga processing failed: %w", err)
-	}
-
-	if err := r.fsm.TransitionIfCurrentState(finitestate.StatusReloading, finitestate.StatusRunning); err != nil {
-		logger.Error("Failed to return to running state", "error", err)
 	}
 
 	logger.Info("Successfully processed transaction", "id", tx.ID)

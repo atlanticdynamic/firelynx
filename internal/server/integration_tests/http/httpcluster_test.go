@@ -94,7 +94,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage and saga orchestrator
-	txStore := txstorage.NewTransactionStorage()
+	txStore := txstorage.NewMemoryStorage()
 	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
 
 	// Create HTTP runner
@@ -196,7 +196,7 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage and saga orchestrator
-	txStore := txstorage.NewTransactionStorage()
+	txStore := txstorage.NewMemoryStorage()
 	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
 
 	// Create HTTP runner
@@ -274,7 +274,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage and saga orchestrator
-	txStore := txstorage.NewTransactionStorage()
+	txStore := txstorage.NewMemoryStorage()
 	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
 
 	// Create HTTP runner
@@ -401,7 +401,7 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage and saga orchestrator
-	txStore := txstorage.NewTransactionStorage()
+	txStore := txstorage.NewMemoryStorage()
 	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
 
 	// Create HTTP runner with short siphon timeout for testing
@@ -480,7 +480,7 @@ func TestHTTPClusterSagaCompensation(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage and saga orchestrator
-	txStore := txstorage.NewTransactionStorage()
+	txStore := txstorage.NewMemoryStorage()
 	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
 
 	// Create HTTP runner

@@ -34,7 +34,9 @@ func (m *Manager) SetPending(adapter *Adapter) {
 	defer m.mutex.Unlock()
 
 	if adapter != nil {
-		m.logger.Debug("Setting pending HTTP configuration", "tx_id", adapter.TxID)
+		m.logger.Debug(
+			"Setting pending HTTP configuration",
+			"tx_id", adapter.TxID)
 	}
 
 	m.pending = adapter
@@ -62,7 +64,8 @@ func (m *Manager) CommitPending() {
 			routeCount += len(routes)
 		}
 
-		m.logger.Debug("Committing pending HTTP configuration",
+		m.logger.Debug(
+			"Committing pending HTTP configuration",
 			"tx_id", m.pending.TxID,
 			"listener_count", listenerCount,
 			"route_count", routeCount)
@@ -78,9 +81,9 @@ func (m *Manager) CommitPending() {
 func (m *Manager) RollbackPending() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-
 	if m.pending != nil {
-		m.logger.Debug("Rolling back pending HTTP configuration",
+		m.logger.Debug(
+			"Rolling back pending HTTP configuration",
 			"tx_id", m.pending.TxID)
 		m.pending = nil
 	}

@@ -1,4 +1,4 @@
-package integration_tests
+package configupdates
 
 import (
 	"context"

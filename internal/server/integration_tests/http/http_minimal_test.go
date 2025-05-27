@@ -23,7 +23,7 @@ func TestHTTPListenerMinimalSaga(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage
-	txStore := txstorage.NewTransactionStorage()
+	txStore := txstorage.NewMemoryStorage()
 
 	// Create saga orchestrator
 	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
@@ -98,7 +98,7 @@ func TestHTTPListenerConfigUpdate(t *testing.T) {
 	ctx := t.Context()
 
 	// Create transaction storage
-	txStore := txstorage.NewTransactionStorage()
+	txStore := txstorage.NewMemoryStorage()
 
 	// Create saga orchestrator
 	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
