@@ -4,27 +4,35 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/charmbracelet/log"
 )
 
 // SetupLogger configures the default logger based on provided log level
 func SetupLogger(logLevel string) {
-	level := slog.LevelInfo // Default level
-
-	// Parse log level
+	reportCaller := false
+	reportTimestamp := false
+	lvl := log.InfoLevel
 	switch strings.ToLower(logLevel) {
+	case "trace":
+		reportCaller = true
+		reportTimestamp = true
+		lvl = log.DebugLevel
 	case "debug":
-		level = slog.LevelDebug
+		reportTimestamp = true
+		lvl = log.DebugLevel
 	case "info":
-		level = slog.LevelInfo
+		lvl = log.InfoLevel
 	case "warn", "warning":
-		level = slog.LevelWarn
+		lvl = log.WarnLevel
 	case "error":
-		level = slog.LevelError
+		lvl = log.ErrorLevel
 	}
 
-	// Configure and set the default logger
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: level,
+	handler := log.NewWithOptions(os.Stderr, log.Options{
+		ReportTimestamp: reportTimestamp,
+		ReportCaller:    reportCaller,
+		Level:           lvl,
 	})
 
 	slog.SetDefault(slog.New(handler))
