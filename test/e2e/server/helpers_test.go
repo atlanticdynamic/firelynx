@@ -4,7 +4,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -18,6 +17,7 @@ import (
 	serverCmd "github.com/atlanticdynamic/firelynx/cmd/firelynx/server"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
+	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,13 +37,9 @@ func runServerWithConfig(
 	configPath, grpcAddr string,
 ) (context.CancelFunc, error) {
 	t.Helper()
-	// Create a logger that writes to the test's log with DEBUG level
-	var logBuf bytes.Buffer
-	handlerOptions := &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	}
-	testHandler := slog.NewTextHandler(&logBuf, handlerOptions)
-	logger := slog.New(testHandler)
+	// Set up logging with WARN level for e2e tests to reduce noise
+	logging.SetupLogger("debug")
+	logger := slog.Default()
 
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(ctx)
@@ -66,23 +62,20 @@ func runServerWithConfig(
 
 	// Return a cleanup function that will shut down the server
 	cleanup := func() {
-		t.Log("Shutting down server...")
+		// t.Log("Shutting down server...")
 		cancel()
 
 		// Wait for server to shut down with timeout
 		select {
 		case err := <-errCh:
 			if err != nil {
-				t.Logf("Server shutdown with error: %v", err)
+				// t.Logf("Server shutdown with error: %v", err)
 			} else {
-				t.Log("Server shutdown successfully")
+				// t.Log("Server shutdown successfully")
 			}
 		case <-time.After(2 * time.Second):
-			t.Log("Server shutdown timed out")
+			// t.Log("Server shutdown timed out")
 		}
-
-		// Log the server output
-		t.Logf("Server logs:\n%s", logBuf.String())
 	}
 
 	return cleanup, nil
@@ -101,7 +94,7 @@ func writeConfigFile(t *testing.T, templatePath, outputPath string, data Templat
 	require.NoError(t, err, "Failed to write config file")
 
 	// Debug: Log the config content
-	t.Logf("Written config file %s with content:\n%s", outputPath, string(configContent))
+	// t.Logf("Written config file %s with content:\n%s", outputPath, string(configContent))
 }
 
 // waitForHTTPEndpoint checks if an HTTP endpoint is responding and retries until it succeeds or times out
@@ -112,7 +105,7 @@ func waitForHTTPEndpoint(t *testing.T, url string, timeout, retryInterval time.D
 	return assert.Eventually(t, func() bool {
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			t.Logf("Failed to create request: %v", err)
+			// t.Logf("Failed to create request: %v", err)
 			return false
 		}
 
@@ -174,7 +167,7 @@ func sendHUPSignalToProcess(t *testing.T) {
 	proc, err := os.FindProcess(pid)
 	require.NoError(t, err, "Failed to find process")
 
-	t.Logf("Sending SIGHUP signal to process %d to trigger config reload", pid)
+	// t.Logf("Sending SIGHUP signal to process %d to trigger config reload", pid)
 	err = proc.Signal(syscall.SIGHUP)
 	require.NoError(t, err, "Failed to send SIGHUP signal")
 }

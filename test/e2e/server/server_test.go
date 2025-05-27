@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/client"
-	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -88,7 +87,6 @@ func TestGRPCServer(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
 	}
-	logging.SetupLogger("debug")
 
 	// Create a root context for the test
 	ctx, cancel := context.WithCancel(context.Background())
