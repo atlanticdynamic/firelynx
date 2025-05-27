@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
@@ -26,60 +25,51 @@ import (
 
 // Interface guard: ensure Runner implements required interfaces
 var (
-	_ supervisor.Runnable     = (*Runner)(nil)
-	_ supervisor.ReloadSender = (*Runner)(nil)
-	_ supervisor.Stateable    = (*Runner)(nil)
+	_ supervisor.Runnable  = (*Runner)(nil)
+	_ supervisor.Stateable = (*Runner)(nil)
 )
 
 type Runner struct {
 	// Embed the UnimplementedConfigServiceServer for gRPC compatibility
 	pb.UnimplementedConfigServiceServer
 
-	// gRPC server stuff
-	grpcServer GRPCServer
-	grpcLock   sync.RWMutex
+	// listenAddr is the address or socket the gRPC server will listen on
 	listenAddr string
 
-	// For triggering a reload when a new config is received
-	reloadCh chan struct{}
-
-	fsm finitestate.Machine
+	// gRPC server implementation and mutex for updating or accessing
+	grpcServer GRPCServer
+	grpcLock   sync.RWMutex // TODO: is this still needed?
 
 	// Transaction storage for configuration history
 	txStorage configTransactionStorage
 
-	// Last loaded config, for skipping Reload if the config hasn't changed
-	lastLoadedCfg   *config.Config
-	lastLoadedCfgMu sync.Mutex
-
-	// parentCtx is the optional parent context
+	// runCtx is passed in to Run, and is used to cancel the Run loop
+	runCtx    context.Context
+	runCancel context.CancelFunc
 	parentCtx context.Context
-
-	// localCtx is the local context, passed in to Run
-	localCtx    context.Context
-	localCancel context.CancelFunc
-
-	// Config channel subscribers
-	configSubscribers sync.Map
-	subscriberCounter atomic.Uint64
-
-	logger *slog.Logger
+	txSiphon  chan<- *transaction.ConfigTransaction
+	fsm       finitestate.Machine
+	logger    *slog.Logger
 }
 
-// NewRunner creates a new Runner instance with required listenAddr and optional configuration.
+// NewRunner creates a new Runner instance with required listenAddr and transaction siphon.
 func NewRunner(
 	listenAddr string,
+	txSiphon chan<- *transaction.ConfigTransaction,
 	opts ...Option,
 ) (*Runner, error) {
 	if listenAddr == "" {
 		return nil, errors.New("listen address cannot be empty")
 	}
+	if txSiphon == nil {
+		return nil, errors.New("transaction siphon cannot be nil")
+	}
 
 	r := &Runner{
 		listenAddr: listenAddr,
-		reloadCh:   make(chan struct{}, 1),
+		txSiphon:   txSiphon,
 		parentCtx:  context.Background(),
-		logger:     slog.Default(),
+		logger:     slog.Default().WithGroup("cfgservice.Runner"),
 	}
 
 	// Initialize the finite state machine
@@ -98,7 +88,7 @@ func NewRunner(
 	// Initialize transaction storage if not provided
 	if r.txStorage == nil {
 		r.logger.Warn("no transaction storage provided, creating a local in-memory storage")
-		r.txStorage = txstorage.NewTransactionStorage()
+		r.txStorage = txstorage.NewMemoryStorage()
 	}
 
 	return r, nil
@@ -120,7 +110,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to transition to booting state: %w", err)
 	}
 
-	r.localCtx, r.localCancel = context.WithCancel(ctx)
+	r.runCtx, r.runCancel = context.WithCancel(ctx)
 
 	r.grpcLock.RLock()
 	grpcServer := r.grpcServer
@@ -162,7 +152,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	// block here waiting for a context cancellation
 	select {
-	case <-r.localCtx.Done():
+	case <-r.runCtx.Done():
 		// context was canceled, so we're done
 	case <-r.parentCtx.Done():
 		// parent context was canceled, so we're done
@@ -197,8 +187,8 @@ func (r *Runner) Stop() {
 	r.logger.Debug("Stopping Runner")
 
 	// Cancel the context and let Run() handle the state transitions
-	if r.localCancel != nil {
-		r.localCancel()
+	if r.runCancel != nil {
+		r.runCancel()
 	}
 }
 
@@ -245,24 +235,6 @@ func (r *Runner) createAPITransaction(
 ) (*transaction.ConfigTransaction, error) {
 	requestID := server.ExtractRequestID(ctx)
 	return transaction.FromAPI(requestID, cfg, r.logger.Handler())
-}
-
-// GetReloadTrigger implements the supervisor.ReloadSender interface.
-// It exposes a channel that receives notifications whenever the configuration
-// is updated, allowing systems to react to configuration changes without polling.
-func (r *Runner) GetReloadTrigger() <-chan struct{} {
-	return r.reloadCh
-}
-
-// triggerReload sends a notification to the reload channel
-// to inform subscribers that the configuration has changed
-func (r *Runner) triggerReload() {
-	select {
-	case r.reloadCh <- struct{}{}:
-		r.logger.Debug("Reload notification sent")
-	default:
-		r.logger.Warn("Reload notification channel full, skipping notification")
-	}
 }
 
 // UpdateConfig handles requests to update the configuration via gRPC.
@@ -313,17 +285,33 @@ func (r *Runner) UpdateConfig(
 		}, nil
 	}
 
-	// Broadcast the validated transaction to subscribers
-	r.broadcastConfigTransaction(tx)
-
-	// Get the validated config with any defaults that might have been applied
-	validatedConfig := tx.GetConfig().ToProto()
+	// Send the validated transaction to the siphon
+	select {
+	case r.txSiphon <- tx:
+		logger.Debug("Transaction sent to siphon", "id", tx.ID)
+	case <-ctx.Done():
+		logger.Warn("Context cancelled while sending transaction", "id", tx.ID)
+		success := false
+		return &pb.UpdateConfigResponse{
+			Success: &success,
+			Error:   proto.String("context cancelled"),
+			Config:  req.Config,
+		}, nil
+	case <-r.parentCtx.Done():
+		logger.Warn("Parent context cancelled while sending transaction", "id", tx.ID)
+		success := false
+		return &pb.UpdateConfigResponse{
+			Success: &success,
+			Error:   proto.String("service shutting down"),
+			Config:  req.Config,
+		}, nil
+	}
 
 	logger.Debug("Config updated successfully", "request_id", server.ExtractRequestID(ctx))
 	success := true
 	return &pb.UpdateConfigResponse{
 		Success: &success,
-		Config:  validatedConfig, // Return the validated config with any defaults filled in
+		Config:  tx.GetConfig().ToProto(), // convert back to pb to get defaults
 	}, nil
 }
 
@@ -341,50 +329,4 @@ func (r *Runner) GetConfig(
 	return &pb.GetConfigResponse{
 		Config: r.GetPbConfigClone(),
 	}, nil
-}
-
-// GetConfigChan returns a channel that sends ConfigTransaction objects when configs are updated via API.
-func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
-	ch := make(chan *transaction.ConfigTransaction)
-
-	// Send current transaction immediately if available from storage
-	if current := r.txStorage.GetCurrent(); current != nil {
-		select {
-		case ch <- current:
-		default: // channel full, skip
-		}
-	}
-
-	// Register for future updates
-	id := r.subscriberCounter.Add(1)
-	r.configSubscribers.Store(id, ch)
-
-	// Cleanup when Runner's parent context is done
-	go func() {
-		<-r.parentCtx.Done()
-		r.configSubscribers.Delete(id)
-		close(ch)
-	}()
-
-	return ch
-}
-
-// broadcastConfigTransaction sends a transaction to all active subscribers.
-func (r *Runner) broadcastConfigTransaction(tx *transaction.ConfigTransaction) {
-	if tx == nil {
-		return
-	}
-
-	r.configSubscribers.Range(func(key, value any) bool {
-		ch, ok := value.(chan *transaction.ConfigTransaction)
-		if !ok {
-			r.logger.Error("Invalid subscriber channel type", "key", key)
-			r.configSubscribers.Delete(key)
-			return true
-		}
-
-		ch <- tx
-		r.logger.Debug("Config transaction sent to subscriber", "subscriber_id", key)
-		return true
-	})
 }

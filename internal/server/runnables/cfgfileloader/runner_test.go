@@ -24,16 +24,65 @@ var updatedConfigTOML []byte
 //go:embed testdata/invalid_config.toml
 var invalidConfigTOML []byte
 
+const (
+	validConfigFilename = "valid_config.toml"
+)
+
+// testHarness provides a clean test setup for cfgfileloader
+type testHarness struct {
+	t        *testing.T
+	runner   *Runner
+	txSiphon chan *transaction.ConfigTransaction
+	ctx      context.Context
+	cancel   context.CancelFunc
+}
+
+// newTestHarness creates a test harness with a buffered siphon channel
+func newTestHarness(t *testing.T, filePath string, opts ...Option) *testHarness {
+	t.Helper()
+	if filePath == "" {
+		tmpDir := t.TempDir()
+		filePath = filepath.Join(tmpDir, validConfigFilename)
+		err := os.WriteFile(filePath, validConfigTOML, 0o644)
+		require.NoError(t, err)
+		t.Logf("Created temporary config file: %s", filePath)
+	}
+
+	// Use buffered channel for tests to avoid blocking
+	txSiphon := make(chan *transaction.ConfigTransaction, 10)
+	runner, err := NewRunner(filePath, txSiphon, opts...)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	return &testHarness{
+		t:        t,
+		runner:   runner,
+		txSiphon: txSiphon,
+		ctx:      ctx,
+		cancel:   cancel,
+	}
+}
+
+// receiveTransaction waits for a transaction on the siphon
+func (h *testHarness) receiveTransaction() *transaction.ConfigTransaction {
+	select {
+	case tx := <-h.txSiphon:
+		return tx
+	case <-time.After(2 * time.Second):
+		h.t.Fatal("timeout waiting for transaction")
+		return nil
+	}
+}
+
 func TestNewRunner(t *testing.T) {
 	t.Parallel()
 	t.Run("creates runner with default options", func(t *testing.T) {
-		runner, err := NewRunner("/test/path")
-		require.NoError(t, err)
-		assert.NotNil(t, runner)
-		assert.Equal(t, "/test/path", runner.filePath)
-		assert.NotNil(t, runner.logger)
-		assert.NotNil(t, runner.fsm)
-		assert.Equal(t, context.Background(), runner.parentCtx)
+		h := newTestHarness(t, "")
+		assert.NotNil(t, h.runner)
+		assert.Contains(t, h.runner.filePath, validConfigFilename)
+		assert.NotNil(t, h.runner.logger)
+		assert.NotNil(t, h.runner.fsm)
+		assert.Equal(t, context.Background(), h.runner.parentCtx)
 	})
 
 	t.Run("applies custom options", func(t *testing.T) {
@@ -41,41 +90,42 @@ func TestNewRunner(t *testing.T) {
 		customLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 		customCtx := context.WithValue(context.Background(), testKey("test"), "value")
 
-		runner, err := NewRunner("/test/path",
+		h := newTestHarness(t, "/test/path",
 			WithLogger(customLogger),
 			WithContext(customCtx),
 		)
-		require.NoError(t, err)
-		assert.Equal(t, customLogger, runner.logger)
-		assert.Equal(t, customCtx, runner.parentCtx)
+		assert.Equal(t, customLogger, h.runner.logger)
+		assert.Equal(t, customCtx, h.runner.parentCtx)
+	})
+
+	t.Run("errors on nil siphon", func(t *testing.T) {
+		_, err := NewRunner("/test/path", nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "transaction siphon cannot be nil")
 	})
 }
 
 func TestRunner_String(t *testing.T) {
 	t.Parallel()
-	runner, err := NewRunner("/test/path")
-	require.NoError(t, err)
-	assert.Equal(t, "cfgfileloader.Runner", runner.String())
+	h := newTestHarness(t, "/test/path")
+	assert.Equal(t, "cfgfileloader.Runner", h.runner.String())
 }
 
 func TestRunner_Run(t *testing.T) {
 	t.Parallel()
 	t.Run("successful run with empty config path", func(t *testing.T) {
-		runner, err := NewRunner("")
-		require.NoError(t, err)
-
-		ctx, cancel := context.WithCancel(context.Background())
+		h := newTestHarness(t, "")
 
 		errCh := make(chan error, 1)
 		go func() {
-			errCh <- runner.Run(ctx)
+			errCh <- h.runner.Run(h.ctx)
 		}()
 
 		assert.Eventually(t, func() bool {
-			return runner.GetState() == finitestate.StatusRunning
+			return h.runner.GetState() == finitestate.StatusRunning
 		}, time.Second, 10*time.Millisecond)
 
-		cancel()
+		h.cancel()
 
 		select {
 		case err := <-errCh:
@@ -84,7 +134,7 @@ func TestRunner_Run(t *testing.T) {
 			t.Fatal("Runner did not complete within timeout")
 		}
 
-		assert.Equal(t, finitestate.StatusStopped, runner.GetState())
+		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
 	})
 
 	t.Run("run with valid config file", func(t *testing.T) {
@@ -93,24 +143,25 @@ func TestRunner_Run(t *testing.T) {
 		err := os.WriteFile(configPath, validConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		runner, err := NewRunner(configPath)
-		require.NoError(t, err)
-
-		ctx, cancel := context.WithCancel(context.Background())
+		h := newTestHarness(t, configPath)
 
 		errCh := make(chan error, 1)
 		go func() {
-			errCh <- runner.Run(ctx)
+			errCh <- h.runner.Run(h.ctx)
 		}()
 
 		assert.Eventually(t, func() bool {
-			return runner.GetState() == finitestate.StatusRunning && runner.getConfig() != nil
+			return h.runner.GetState() == finitestate.StatusRunning && h.runner.getConfig() != nil
 		}, time.Second, 10*time.Millisecond)
 
-		cfg := runner.getConfig()
+		// Should receive initial transaction
+		tx := h.receiveTransaction()
+		assert.NotNil(t, tx)
+
+		cfg := h.runner.getConfig()
 		assert.NotNil(t, cfg)
 
-		cancel()
+		h.cancel()
 
 		select {
 		case err := <-errCh:
@@ -119,8 +170,8 @@ func TestRunner_Run(t *testing.T) {
 			t.Fatal("Runner did not complete within timeout")
 		}
 
-		assert.Equal(t, finitestate.StatusStopped, runner.GetState())
-		assert.Nil(t, runner.getConfig())
+		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
+		assert.Nil(t, h.runner.getConfig())
 	})
 
 	t.Run("run with invalid config file", func(t *testing.T) {
@@ -129,26 +180,20 @@ func TestRunner_Run(t *testing.T) {
 		err := os.WriteFile(configPath, invalidConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		runner, err := NewRunner(configPath)
-		require.NoError(t, err)
+		h := newTestHarness(t, configPath)
+		defer h.cancel()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		err = runner.Run(ctx)
+		err = h.runner.Run(h.ctx)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to initialize configuration")
-		assert.Equal(t, finitestate.StatusError, runner.GetState())
+		assert.Equal(t, finitestate.StatusError, h.runner.GetState())
 	})
 
 	t.Run("run with non-existent config file", func(t *testing.T) {
-		runner, err := NewRunner("/non/existent/path.toml")
-		require.NoError(t, err)
+		h := newTestHarness(t, "/non/existent/path.toml")
+		defer h.cancel()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		err = runner.Run(ctx)
+		err := h.runner.Run(h.ctx)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to initialize configuration")
 	})
@@ -157,22 +202,19 @@ func TestRunner_Run(t *testing.T) {
 func TestRunner_Stop(t *testing.T) {
 	t.Parallel()
 	t.Run("stop transitions to stopping state", func(t *testing.T) {
-		runner, err := NewRunner("")
-		require.NoError(t, err)
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		h := newTestHarness(t, "")
+		defer h.cancel()
 
 		errCh := make(chan error, 1)
 		go func() {
-			errCh <- runner.Run(ctx)
+			errCh <- h.runner.Run(h.ctx)
 		}()
 
 		assert.Eventually(t, func() bool {
-			return runner.GetState() == finitestate.StatusRunning
+			return h.runner.GetState() == finitestate.StatusRunning
 		}, time.Second, 10*time.Millisecond)
 
-		runner.Stop()
+		h.runner.Stop()
 
 		select {
 		case err := <-errCh:
@@ -181,18 +223,18 @@ func TestRunner_Stop(t *testing.T) {
 			t.Fatal("Runner did not complete within timeout")
 		}
 
-		assert.Equal(t, finitestate.StatusStopped, runner.GetState())
+		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
 	})
 }
 
 func TestRunner_Reload(t *testing.T) {
 	t.Parallel()
-	t.Run("reload with empty config path", func(t *testing.T) {
-		runner, err := NewRunner("")
-		require.NoError(t, err)
+	t.Run("reload with default config", func(t *testing.T) {
+		h := newTestHarness(t, "")
 
-		runner.Reload()
-		assert.Nil(t, runner.getConfig())
+		h.runner.Reload()
+		// Now that we create a valid config file by default, it should load successfully
+		assert.NotNil(t, h.runner.getConfig())
 	})
 
 	t.Run("reload with valid config file", func(t *testing.T) {
@@ -201,22 +243,23 @@ func TestRunner_Reload(t *testing.T) {
 		err := os.WriteFile(configPath, validConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		runner, err := NewRunner(configPath)
-		require.NoError(t, err)
+		h := newTestHarness(t, configPath)
 
-		assert.Nil(t, runner.getConfig())
+		assert.Nil(t, h.runner.getConfig())
 
-		runner.Reload()
-		cfg := runner.getConfig()
+		// Reload when not running - config should be stored but no transaction sent
+		h.runner.Reload()
+		cfg := h.runner.getConfig()
 		assert.NotNil(t, cfg)
 
+		// Update config file
 		err = os.WriteFile(configPath, updatedConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		runner.Reload()
-		newCfg := runner.getConfig()
+		// Reload again - config should be updated but still no transaction
+		h.runner.Reload()
+		newCfg := h.runner.getConfig()
 		assert.NotNil(t, newCfg)
-
 		assert.NotSame(t, cfg, newCfg)
 	})
 
@@ -226,20 +269,62 @@ func TestRunner_Reload(t *testing.T) {
 		err := os.WriteFile(configPath, invalidConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		runner, err := NewRunner(configPath)
+		h := newTestHarness(t, configPath)
+
+		h.runner.Reload()
+		assert.Nil(t, h.runner.getConfig())
+	})
+
+	t.Run("reload while running sends transactions", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "test_config.toml")
+		err := os.WriteFile(configPath, validConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		runner.Reload()
-		assert.Nil(t, runner.getConfig())
+		h := newTestHarness(t, configPath)
+		defer h.cancel()
+
+		// Start the runner
+		errCh := make(chan error, 1)
+		go func() {
+			errCh <- h.runner.Run(h.ctx)
+		}()
+
+		// Wait for runner to be running and receive initial transaction
+		assert.Eventually(t, func() bool {
+			return h.runner.GetState() == finitestate.StatusRunning
+		}, time.Second, 10*time.Millisecond)
+		tx1 := h.receiveTransaction()
+		assert.NotNil(t, tx1)
+
+		// Update config and reload
+		err = os.WriteFile(configPath, updatedConfigTOML, 0o644)
+		require.NoError(t, err)
+
+		h.runner.Reload()
+		tx2 := h.receiveTransaction()
+		assert.NotNil(t, tx2)
+
+		// Verify config was updated
+		cfg := h.runner.getConfig()
+		assert.NotNil(t, cfg)
+
+		// Stop the runner
+		h.cancel()
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err)
+		case <-time.After(time.Second):
+			t.Fatal("Runner did not complete within timeout")
+		}
 	})
 }
 
 func TestRunner_GetConfig(t *testing.T) {
 	t.Parallel()
 	t.Run("returns nil when no config loaded", func(t *testing.T) {
-		runner, err := NewRunner("")
-		require.NoError(t, err)
-		assert.Nil(t, runner.getConfig())
+		h := newTestHarness(t, "")
+		assert.Nil(t, h.runner.getConfig())
 	})
 
 	t.Run("returns loaded config", func(t *testing.T) {
@@ -248,46 +333,44 @@ func TestRunner_GetConfig(t *testing.T) {
 		err := os.WriteFile(configPath, validConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		runner, err := NewRunner(configPath)
-		require.NoError(t, err)
+		h := newTestHarness(t, configPath)
 
-		runner.Reload()
-		cfg := runner.getConfig()
+		h.runner.Reload()
+		cfg := h.runner.getConfig()
 		assert.NotNil(t, cfg)
+		// No transaction expected when not running
 	})
 }
 
 func TestRunner_StateInterfaces(t *testing.T) {
 	t.Parallel()
 	t.Run("implements Stateable interface", func(t *testing.T) {
-		runner, err := NewRunner("")
-		require.NoError(t, err)
+		h := newTestHarness(t, "")
 
-		state := runner.GetState()
+		state := h.runner.GetState()
 		assert.Equal(t, finitestate.StatusNew, state)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		stateCh := runner.GetStateChan(ctx)
+		stateCh := h.runner.GetStateChan(ctx)
 		assert.NotNil(t, stateCh)
 
-		assert.False(t, runner.IsRunning())
+		assert.False(t, h.runner.IsRunning())
 	})
 
 	t.Run("state changes during lifecycle", func(t *testing.T) {
-		runner, err := NewRunner("")
-		require.NoError(t, err)
+		h := newTestHarness(t, "")
 
 		// Use separate contexts for state channel and runner
 		stateCtx, stateCancel := context.WithCancel(context.Background())
 		defer stateCancel()
-		stateCh := runner.GetStateChan(stateCtx)
+		stateCh := h.runner.GetStateChan(stateCtx)
 
 		runCtx, runCancel := context.WithCancel(context.Background())
 		errCh := make(chan error, 1)
 		go func() {
-			errCh <- runner.Run(runCtx)
+			errCh <- h.runner.Run(runCtx)
 		}()
 
 		// Assert the expected state sequence
@@ -317,7 +400,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		}
 
 		// Verify runner is now running
-		assert.True(t, runner.IsRunning())
+		assert.True(t, h.runner.IsRunning())
 
 		// Trigger shutdown
 		runCancel()
@@ -347,8 +430,8 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		}
 
 		// Final verification
-		assert.Equal(t, finitestate.StatusStopped, runner.GetState())
-		assert.False(t, runner.IsRunning())
+		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
+		assert.False(t, h.runner.IsRunning())
 	})
 }
 
@@ -360,16 +443,30 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 	err := os.WriteFile(configPath, validConfigTOML, 0o644)
 	require.NoError(t, err)
 
-	runner, err := NewRunner(configPath)
-	require.NoError(t, err)
+	h := newTestHarness(t, configPath)
+	defer h.cancel()
+
+	// Start the runner first
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- h.runner.Run(h.ctx)
+	}()
+
+	// Wait for runner to be running
+	assert.Eventually(t, func() bool {
+		return h.runner.GetState() == finitestate.StatusRunning
+	}, time.Second, 10*time.Millisecond)
+
+	// Drain the initial transaction
+	h.receiveTransaction()
 
 	done := make(chan bool, 10)
 	for range 10 {
 		go func() {
 			defer func() { done <- true }()
 			for j := 0; j < 100; j++ {
-				runner.Reload()
-				cfg := runner.getConfig()
+				h.runner.Reload()
+				cfg := h.runner.getConfig()
 				if cfg != nil {
 					_ = cfg.String()
 				}
@@ -385,208 +482,14 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 		}
 	}
 
-	assert.NotNil(t, runner.getConfig())
-}
+	assert.NotNil(t, h.runner.getConfig())
 
-func TestRunner_GetConfigChan(t *testing.T) {
-	t.Parallel()
-
-	t.Run("sends initial config and updates on reload", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		configPath := filepath.Join(tmpDir, "test_config.toml")
-
-		// Write initial config
-		err := os.WriteFile(configPath, validConfigTOML, 0o644)
-		require.NoError(t, err)
-
-		runner, err := NewRunner(configPath, WithContext(t.Context()))
-		require.NoError(t, err)
-
-		// Get config channel before starting
-		configCh := runner.GetConfigChan()
-
-		// Create a buffered collector channel and start forwarding
-		collector := make(chan *transaction.ConfigTransaction, 10)
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			for tx := range configCh {
-				collector <- tx
-			}
-		}()
-
-		// Start runner
-		errCh := make(chan error, 1)
-		go func() {
-			errCh <- runner.Run(t.Context())
-		}()
-
-		// Should receive initial config transaction after boot
-		var initialTx *transaction.ConfigTransaction
-		select {
-		case tx := <-collector:
-			initialTx = tx
-			assert.NotNil(t, tx)
-			cfg := tx.GetConfig()
-			assert.NotNil(t, cfg)
-			assert.Equal(t, "v1", cfg.Version)
-		case <-time.After(2 * time.Second):
-			t.Fatal("Did not receive initial config transaction")
-		}
-
-		// Write updated config
-		err = os.WriteFile(configPath, updatedConfigTOML, 0o644)
-		require.NoError(t, err)
-
-		// Trigger reload
-		runner.Reload()
-
-		// Should receive updated config transaction
-		select {
-		case tx := <-collector:
-			assert.NotNil(t, tx)
-			cfg := tx.GetConfig()
-			assert.NotNil(t, cfg)
-			initialCfg := initialTx.GetConfig()
-			assert.False(t, initialCfg.Equals(cfg), "Config should have changed")
-		case <-time.After(2 * time.Second):
-			t.Fatal("Did not receive updated config transaction")
-		}
-
-		// Write same config again (no change)
-		err = os.WriteFile(configPath, updatedConfigTOML, 0o644)
-		require.NoError(t, err)
-
-		// Trigger reload again
-		runner.Reload()
-
-		// Should NOT receive transaction (unchanged)
-		select {
-		case <-collector:
-			t.Fatal("Should not receive transaction when unchanged")
-		case <-time.After(200 * time.Millisecond):
-			// Expected - no transaction sent
-		}
-
-		// Runner will stop when test context ends
-	})
-
-	t.Run("multiple subscribers receive updates", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		configPath := filepath.Join(tmpDir, "test_config.toml")
-
-		err := os.WriteFile(configPath, validConfigTOML, 0o644)
-		require.NoError(t, err)
-
-		runner, err := NewRunner(configPath, WithContext(t.Context()))
-		require.NoError(t, err)
-
-		// Create multiple subscribers
-		configCh1 := runner.GetConfigChan()
-		configCh2 := runner.GetConfigChan()
-		configCh3 := runner.GetConfigChan()
-
-		// Start runner
-		errCh := make(chan error, 1)
-		go func() {
-			errCh <- runner.Run(t.Context())
-		}()
-
-		// All subscribers should receive initial config transaction
-		channels := []<-chan *transaction.ConfigTransaction{configCh1, configCh2, configCh3}
-		transactions := make(chan *transaction.ConfigTransaction, len(channels))
-
-		// Start goroutines to collect from all channels
-		for _, ch := range channels {
-			go func(c <-chan *transaction.ConfigTransaction) {
-				for tx := range c {
-					transactions <- tx
-				}
-			}(ch)
-		}
-
-		// Wait for all initial transactions
-		for range len(channels) {
-			select {
-			case tx := <-transactions:
-				assert.NotNil(t, tx)
-				cfg := tx.GetConfig()
-				assert.NotNil(t, cfg)
-			case <-time.After(2 * time.Second):
-				t.Fatal("Did not receive all initial config transactions")
-			}
-		}
-
-		// Update config
-		err = os.WriteFile(configPath, updatedConfigTOML, 0o644)
-		require.NoError(t, err)
-		runner.Reload()
-
-		// All subscribers should receive updated config transaction
-		for range len(channels) {
-			select {
-			case tx := <-transactions:
-				assert.NotNil(t, tx)
-				cfg := tx.GetConfig()
-				assert.NotNil(t, cfg)
-				// Verify it's the updated config (has "updated" listener)
-				assert.Len(t, cfg.Listeners, 1)
-				assert.Equal(t, "updated", cfg.Listeners[0].ID)
-			case <-time.After(2 * time.Second):
-				t.Fatal("Did not receive all updated config transactions")
-			}
-		}
-	})
-
-	t.Run("channel cleanup on context cancellation", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		configPath := filepath.Join(tmpDir, "test_config.toml")
-
-		err := os.WriteFile(configPath, validConfigTOML, 0o644)
-		require.NoError(t, err)
-
-		ctx, cancel := context.WithCancel(context.Background())
-
-		runner, err := NewRunner(configPath, WithContext(ctx))
-		require.NoError(t, err)
-
-		// Get config channel
-		configCh := runner.GetConfigChan()
-
-		// Start runner
-		errCh := make(chan error, 1)
-		go func() {
-			errCh <- runner.Run(ctx)
-		}()
-
-		// Receive initial config transaction
-		select {
-		case tx := <-configCh:
-			assert.NotNil(t, tx)
-			cfg := tx.GetConfig()
-			assert.NotNil(t, cfg)
-		case <-time.After(500 * time.Millisecond):
-			t.Fatal("Did not receive initial config transaction")
-		}
-
-		// Cancel context (shutdown runner)
-		cancel()
-
-		// Channel should be closed
-		select {
-		case tx, ok := <-configCh:
-			assert.False(t, ok, "Channel should be closed, got transaction: %v", tx)
-		case <-time.After(time.Second):
-			t.Fatal("Channel was not closed within timeout")
-		}
-		assert.Empty(t, configCh)
-
-		select {
-		case err := <-errCh:
-			assert.NoError(t, err)
-		case <-time.After(time.Second):
-			t.Fatal("Runner did not complete within timeout")
-		}
-		assert.Empty(t, errCh)
-	})
+	// Stop the runner
+	h.cancel()
+	select {
+	case err := <-errCh:
+		assert.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("Runner did not complete within timeout")
+	}
 }

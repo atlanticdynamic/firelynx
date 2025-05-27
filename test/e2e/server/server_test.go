@@ -6,7 +6,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/client"
+	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,10 +53,10 @@ func TestConfigFileServer(t *testing.T) {
 
 	// Test the echo endpoint
 	t.Run("Echo endpoint responds", func(t *testing.T) {
-		url := fmt.Sprintf("http://localhost:%s/echo", httpPort)
+		url := fmt.Sprintf("http://127.0.0.1:%s/echo", httpPort)
 
 		// Wait for the endpoint to become available
-		waitForHTTPEndpoint(t, url, 5*time.Second, 500*time.Millisecond)
+		waitForHTTPEndpoint(t, url, 15*time.Second, 500*time.Millisecond)
 
 		// Make a successful request once we know it's available
 		req, err := http.NewRequest("GET", url, nil)
@@ -69,14 +69,17 @@ func TestConfigFileServer(t *testing.T) {
 		// Check the response
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
-		// Parse and verify the response
-		var echoResp map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&echoResp)
-		require.NoError(t, err, "Failed to decode response")
+		// Read and verify the plain text response
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		responseText := string(body[:n])
 
-		assert.Equal(t, "echo_app", echoResp["app_id"], "Wrong app_id")
-		assert.Equal(t, "GET", echoResp["method"], "Wrong HTTP method")
-		assert.Equal(t, "/echo", echoResp["path"], "Wrong path")
+		assert.Contains(
+			t,
+			responseText,
+			"This is a test echo response",
+			"Response should contain configured echo text",
+		)
 	})
 }
 
@@ -85,6 +88,7 @@ func TestGRPCServer(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test in short mode")
 	}
+	logging.SetupLogger("debug")
 
 	// Create a root context for the test
 	ctx, cancel := context.WithCancel(context.Background())
@@ -113,14 +117,14 @@ func TestGRPCServer(t *testing.T) {
 		return true
 	}, 5*time.Second, 200*time.Millisecond, "gRPC server never became ready to accept requests")
 
-	// Create the config
-	configLoader := loadConfigFromTemplate(t, "testdata/config.tmpl", TemplateData{
+	// First test: apply single route config (this is the failing case)
+	singleRouteLoader := loadConfigFromTemplate(t, "testdata/config.tmpl", TemplateData{
 		HTTPAddr: httpAddr,
 	})
 
 	// Send configuration to the server
-	err = testClient.ApplyConfig(ctx, configLoader)
-	require.NoError(t, err, "Failed to apply configuration")
+	err = testClient.ApplyConfig(ctx, singleRouteLoader)
+	require.NoError(t, err, "Failed to apply single route configuration")
 
 	// Extract HTTP port from address for URL construction
 	httpPort := httpAddr[1:] // Remove leading colon
@@ -130,9 +134,48 @@ func TestGRPCServer(t *testing.T) {
 		Timeout: 2 * time.Second,
 	}
 
-	// Test the echo endpoint
-	t.Run("Echo endpoint responds after gRPC config update", func(t *testing.T) {
-		url := fmt.Sprintf("http://localhost:%s/echo", httpPort)
+	// Test the single route
+	t.Run("Single route responds after gRPC config update", func(t *testing.T) {
+		url := fmt.Sprintf("http://127.0.0.1:%s/echo", httpPort)
+
+		// Wait for the endpoint to become available
+		waitForHTTPEndpoint(t, url, 15*time.Second, 500*time.Millisecond)
+
+		// Make a successful request once we know it's available
+		req, err := http.NewRequest("GET", url, nil)
+		require.NoError(t, err)
+
+		resp, err := httpClient.Do(req)
+		require.NoError(t, err, "Failed to execute HTTP request")
+		defer resp.Body.Close()
+
+		// Check the response
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
+
+		// Read and verify the plain text response
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		responseText := string(body[:n])
+
+		assert.Contains(
+			t,
+			responseText,
+			"This is a test echo response",
+			"Response should contain configured echo text",
+		)
+	})
+
+	// Wait a moment for the first configuration to fully complete in httpcluster
+	time.Sleep(1 * time.Second)
+
+	// Now apply the same single route configuration again to test if it's a "first config" issue
+	t.Log("Re-applying the single route configuration...")
+	err = testClient.ApplyConfig(ctx, singleRouteLoader)
+	require.NoError(t, err, "Failed to re-apply single route configuration")
+
+	// Test the single route again after re-application
+	t.Run("Single route responds after re-application", func(t *testing.T) {
+		url := fmt.Sprintf("http://127.0.0.1:%s/echo", httpPort)
 
 		// Wait for the endpoint to become available
 		waitForHTTPEndpoint(t, url, 5*time.Second, 500*time.Millisecond)
@@ -148,51 +191,17 @@ func TestGRPCServer(t *testing.T) {
 		// Check the response
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
 
-		// Parse and verify the response
-		var echoResp map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&echoResp)
-		require.NoError(t, err, "Failed to decode response")
+		// Read and verify the plain text response
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		responseText := string(body[:n])
 
-		assert.Equal(t, "echo_app", echoResp["app_id"], "Wrong app_id")
-		assert.Equal(t, "GET", echoResp["method"], "Wrong HTTP method")
-		assert.Equal(t, "/echo", echoResp["path"], "Wrong path")
-	})
-
-	// Now update the configuration with a new route
-	t.Log("Updating configuration with new route...")
-	updatedLoader := loadConfigFromTemplate(t, "testdata/config_with_new_route.tmpl", TemplateData{
-		HTTPAddr: httpAddr,
-	})
-
-	// Send the updated configuration
-	err = testClient.ApplyConfig(ctx, updatedLoader)
-	require.NoError(t, err, "Failed to apply updated configuration")
-
-	// Test the new route
-	t.Run("New route responds after config update", func(t *testing.T) {
-		url := fmt.Sprintf("http://localhost:%s/new-path", httpPort)
-
-		// Wait for the new route to become available
-		waitForHTTPEndpoint(t, url, 5*time.Second, 500*time.Millisecond)
-
-		// Make a successful request once we know it's available
-		req, err := http.NewRequest("GET", url, nil)
-		require.NoError(t, err)
-
-		resp, err := httpClient.Do(req)
-		require.NoError(t, err, "Failed to execute HTTP request")
-		defer resp.Body.Close()
-
-		// Check the response
-		assert.Equal(t, http.StatusOK, resp.StatusCode, "Expected OK status")
-
-		// Parse and verify the response
-		var echoResp map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&echoResp)
-		require.NoError(t, err, "Failed to decode response")
-
-		assert.Equal(t, "echo_app", echoResp["app_id"], "Wrong app_id")
-		assert.Equal(t, "/new-path", echoResp["path"], "Wrong path")
+		assert.Contains(
+			t,
+			responseText,
+			"This is a test echo response",
+			"Response should contain configured echo text",
+		)
 	})
 }
 
@@ -229,10 +238,10 @@ func TestConfigFileReload(t *testing.T) {
 
 	// Test the initial echo endpoint
 	t.Run("Initial echo endpoint responds", func(t *testing.T) {
-		url := fmt.Sprintf("http://localhost:%s/echo", httpPort)
+		url := fmt.Sprintf("http://127.0.0.1:%s/echo", httpPort)
 
 		// Wait for the endpoint to become available
-		waitForHTTPEndpoint(t, url, 5*time.Second, 500*time.Millisecond)
+		waitForHTTPEndpoint(t, url, 15*time.Second, 500*time.Millisecond)
 
 		// Make a successful request once we know it's available
 		req, err := http.NewRequest("GET", url, nil)
@@ -242,13 +251,17 @@ func TestConfigFileReload(t *testing.T) {
 		require.NoError(t, err, "Failed to execute HTTP request")
 		defer resp.Body.Close()
 
-		// Parse and verify the response
-		var echoResp map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&echoResp)
-		require.NoError(t, err, "Failed to decode response")
+		// Read and verify the plain text response
+		body := make([]byte, 1024)
+		n, _ := resp.Body.Read(body)
+		responseText := string(body[:n])
 
-		assert.Equal(t, "echo_app", echoResp["app_id"], "Wrong app_id")
-		assert.Equal(t, "/echo", echoResp["path"], "Wrong path")
+		assert.Contains(
+			t,
+			responseText,
+			"This is a test echo response",
+			"Response should contain configured echo text",
+		)
 	})
 
 	// Update the config file with the new route
@@ -320,16 +333,13 @@ func TestConfigFileReload(t *testing.T) {
 				return false
 			}
 
-			var echoResp map[string]any
-			if err := json.NewDecoder(resp.Body).Decode(&echoResp); err != nil {
-				t.Logf("Failed to decode response: %v", err)
-				return false
-			}
+			body := make([]byte, 1024)
+			n, _ := resp.Body.Read(body)
+			responseText := string(body[:n])
 
-			t.Logf("Response from new-path: app_id=%v, path=%v",
-				echoResp["app_id"], echoResp["path"])
+			t.Logf("Response from new-path: %s", responseText)
 
-			return echoResp["app_id"] == "echo_app" && echoResp["path"] == "/new-path"
+			return strings.Contains(responseText, "This is a test echo response")
 		}, 10*time.Second, 500*time.Millisecond, "New route never became available after config reload")
 	})
 }

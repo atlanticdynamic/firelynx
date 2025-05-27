@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -143,12 +144,14 @@ func TestNew(t *testing.T) {
 		listenAddr  string
 		options     []Option
 		expectError bool
+		errorMsg    string
 	}{
 		{
 			name:        "empty listen address",
 			listenAddr:  "",
 			options:     []Option{},
 			expectError: true,
+			errorMsg:    "listen address",
 		},
 		{
 			name:        "valid listen address",
@@ -165,23 +168,40 @@ func TestNew(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name:        "nil transaction siphon",
+			listenAddr:  "localhost:8080",
+			options:     []Option{},
+			expectError: true,
+			errorMsg:    "transaction siphon",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			runner, err := NewRunner(tc.listenAddr, tc.options...)
+			// Create a transaction siphon for valid cases
+			var txSiphon chan<- *transaction.ConfigTransaction
+			if !tc.expectError || tc.errorMsg != "transaction siphon" {
+				ch := make(chan *transaction.ConfigTransaction, 1)
+				txSiphon = ch
+			}
+
+			runner, err := NewRunner(tc.listenAddr, txSiphon, tc.options...)
 
 			if tc.expectError {
 				assert.Error(t, err)
 				assert.Nil(t, runner)
+				if tc.errorMsg != "" {
+					assert.Contains(t, err.Error(), tc.errorMsg)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, runner)
 
-				// Verify that the reload channel is initialized
-				assert.NotNil(t, runner.reloadCh)
 				// Verify listenAddr is set
 				assert.Equal(t, tc.listenAddr, runner.listenAddr)
+				// Verify siphon is set
+				assert.NotNil(t, runner.txSiphon)
 			}
 		})
 	}

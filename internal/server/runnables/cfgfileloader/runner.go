@@ -2,9 +2,9 @@ package cfgfileloader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 	"sync/atomic"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
@@ -23,24 +23,35 @@ type Runner struct {
 	filePath             string
 	lastValidTransaction atomic.Pointer[transaction.ConfigTransaction]
 
-	logger *slog.Logger
-	fsm    finitestate.Machine
-
+	// runCtx is passed in to Run, and is used to cancel the Run loop
 	runCtx    context.Context
 	runCancel context.CancelFunc
 	parentCtx context.Context
-
-	configSubscribers sync.Map // TODO: replace with a normal map/mutex
-	subscriberCounter atomic.Uint64
+	txSiphon  chan<- *transaction.ConfigTransaction
+	fsm       finitestate.Machine
+	logger    *slog.Logger
 }
 
 // NewRunner creates a new Runner instance used for loading cfg files from disk
-func NewRunner(filePath string, opts ...Option) (*Runner, error) {
+func NewRunner(
+	filePath string,
+	txSiphon chan<- *transaction.ConfigTransaction,
+	opts ...Option,
+) (*Runner, error) {
+	if filePath == "" {
+		return nil, fmt.Errorf("file path cannot be empty")
+	}
+	if txSiphon == nil {
+		return nil, fmt.Errorf("transaction siphon cannot be nil")
+	}
+
 	runner := &Runner{
 		filePath:             filePath,
+		txSiphon:             txSiphon,
 		logger:               slog.Default().WithGroup("cfgfileloader.Runner"),
 		lastValidTransaction: atomic.Pointer[transaction.ConfigTransaction]{},
 		parentCtx:            context.Background(),
+		runCtx:               context.Background(),
 	}
 
 	// Apply functional options
@@ -118,24 +129,33 @@ func (r *Runner) Run(ctx context.Context) error {
 // boot loads the initial configuration from disk
 func (r *Runner) boot() error {
 	if r.filePath == "" {
-		r.logger.Warn("No config path set, skipping boot")
-		return nil
+		return errors.New("no config path set")
 	}
 
 	cfg, err := r.loadConfigFromDisk()
 	if err != nil {
 		return err
 	}
-
-	if cfg != nil {
-		tx, err := r.validate(cfg)
-		if err != nil {
-			return err
-		}
-
-		r.lastValidTransaction.Store(tx)
-		go r.broadcastConfigTransaction(tx)
+	if cfg == nil {
+		return errors.New("no config loaded")
 	}
+
+	tx, err := r.validate(cfg)
+	if err != nil {
+		return err
+	}
+
+	r.lastValidTransaction.Store(tx)
+	// Send transaction to siphon in a goroutine to avoid blocking startup
+	// TODO: consider running this without the goroutine
+	go func() {
+		select {
+		case r.txSiphon <- tx:
+			r.logger.Debug("Initial transaction sent to siphon", "id", tx.ID)
+		case <-r.runCtx.Done():
+			r.logger.Debug("Context cancelled while sending initial transaction")
+		}
+	}()
 
 	return nil
 }
@@ -145,7 +165,7 @@ func (r *Runner) loadConfigFromDisk() (*config.Config, error) {
 	return config.NewConfig(r.filePath)
 }
 
-// validate validates the configuration
+// validate validates the domain config and returns a config transaction, ready for future processing.
 func (r *Runner) validate(cfg *config.Config) (*transaction.ConfigTransaction, error) {
 	tx, err := transaction.FromFile(r.filePath, cfg, r.logger.Handler())
 	if err != nil {
@@ -172,6 +192,10 @@ func (r *Runner) Stop() {
 // Reload implements the supervisor.Reloadable interface
 func (r *Runner) Reload() {
 	r.logger.Debug("Starting Reload...")
+	defer func() {
+		r.logger.Debug("Reload completed")
+	}()
+
 	if r.filePath == "" {
 		r.logger.Warn("No config path set, skipping reload")
 		return
@@ -183,32 +207,40 @@ func (r *Runner) Reload() {
 		return
 	}
 
-	if newCfg != nil {
-		// Only broadcast if config has changed
-		oldTx := r.lastValidTransaction.Load()
-		var configChanged bool
-		if oldTx == nil {
-			configChanged = true
-		} else {
-			oldCfg := oldTx.GetConfig()
-			configChanged = oldCfg == nil || !oldCfg.Equals(newCfg)
-		}
-
-		if configChanged {
-			tx, err := r.validate(newCfg)
-			if err != nil {
-				r.logger.Error("Failed to validate config", "error", err)
-				return
-			}
-
-			r.lastValidTransaction.Store(tx)
-			r.broadcastConfigTransaction(tx)
-			r.logger.Debug("Config changed, broadcasted to subscribers")
-		} else {
-			r.logger.Debug("Config unchanged, skipping broadcast")
-		}
+	if newCfg == nil {
+		r.logger.Error("No config loaded, skipping reload")
+		return
 	}
-	r.logger.Debug("Reload completed")
+
+	// Only broadcast if config has changed
+	reloadNeeded := true
+	oldCfg := r.getConfig()
+	if oldCfg != nil {
+		reloadNeeded = !oldCfg.Equals(newCfg)
+	}
+	if !reloadNeeded {
+		r.logger.Debug("Config unchanged, skipping broadcast")
+		return
+	}
+
+	tx, err := r.validate(newCfg)
+	if err != nil {
+		r.logger.Error("Failed to validate config", "error", err)
+		return
+	}
+	if tx == nil {
+		r.logger.Error("No valid transaction created, skipping broadcast")
+		return
+	}
+
+	r.lastValidTransaction.Store(tx)
+
+	select {
+	case r.txSiphon <- tx:
+		r.logger.Debug("Config changed, transaction sent to siphon", "id", tx.ID)
+	case <-r.runCtx.Done():
+		r.logger.Debug("Context cancelled while sending transaction")
+	}
 }
 
 // getConfig returns the last config successfully loaded and validated, or nil if none
@@ -218,63 +250,4 @@ func (r *Runner) getConfig() *config.Config {
 		return nil
 	}
 	return tx.GetConfig()
-}
-
-// GetConfigChan implements the txmgr.ConfigChannelProvider interface
-func (r *Runner) GetConfigChan() <-chan *transaction.ConfigTransaction {
-	ch := make(chan *transaction.ConfigTransaction, 1) // Buffered channel to avoid blocking
-
-	// Register for future updates first
-	id := r.subscriberCounter.Add(1)
-	r.configSubscribers.Store(id, ch)
-
-	// Send current transaction if available
-	// This happens in a goroutine to avoid blocking the caller
-	go func() {
-		if current := r.lastValidTransaction.Load(); current != nil {
-			select {
-			case ch <- current:
-				r.logger.Debug(
-					"Sent initial config transaction to new subscriber",
-					"subscriber_id",
-					id,
-				)
-			case <-r.parentCtx.Done():
-				// Context cancelled, don't send
-			}
-		}
-	}()
-
-	// Cleanup when Runner's parent context is done
-	go func() {
-		<-r.parentCtx.Done()
-		r.configSubscribers.Delete(id)
-		close(ch)
-	}()
-
-	return ch
-}
-
-// broadcastConfigTransaction sends a config transaction to all subscribers
-func (r *Runner) broadcastConfigTransaction(tx *transaction.ConfigTransaction) {
-	if tx == nil {
-		return
-	}
-
-	r.configSubscribers.Range(func(key, value any) bool {
-		ch, ok := value.(chan *transaction.ConfigTransaction)
-		if !ok {
-			r.logger.Error("Invalid subscriber channel type", "key", key)
-			r.configSubscribers.Delete(key)
-			return true
-		}
-
-		select {
-		case ch <- tx:
-			r.logger.Debug("Config transaction sent to subscriber", "subscriber_id", key)
-		default:
-			r.logger.Warn("Subscriber channel is full, skipping", "subscriber_id", key)
-		}
-		return true
-	})
 }

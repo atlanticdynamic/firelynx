@@ -574,7 +574,7 @@ func (m *MockFailingParticipant) GetStateChan(ctx context.Context) <-chan string
 	return ch
 }
 
-func (m *MockFailingParticipant) ExecuteConfig(
+func (m *MockFailingParticipant) StageConfig(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,
 ) error {
@@ -588,6 +588,6 @@ func (m *MockFailingParticipant) CompensateConfig(
 	return nil
 }
 
-func (m *MockFailingParticipant) ApplyPendingConfig(ctx context.Context) error {
+func (m *MockFailingParticipant) CommitConfig(ctx context.Context) error {
 	return nil
 }

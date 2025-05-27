@@ -24,8 +24,15 @@ func Run(
 ) error {
 	logHandler := logger.Handler()
 
+	// Ensure at least one config provider is available
+	if configPath == "" && listenAddr == "" {
+		return fmt.Errorf(
+			"no configuration source specified: provide either a config file path and/or a gRPC listen address",
+		)
+	}
+
 	// Transaction storage stores the history of configuration "transactions" or updates/rollbacks
-	txStorage := txstorage.NewTransactionStorage(
+	txStorage := txstorage.NewMemoryStorage(
 		txstorage.WithAsyncCleanup(true),
 		txstorage.WithLogHandler(logHandler),
 	)
@@ -33,14 +40,27 @@ func Run(
 	// txmgrOrchestrator coordinates the configuration management rollout transactions with atomic roll-back
 	txmgrOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, logHandler)
 
+	// Create the transaction manager, which has a transaction "siphon" channel
+	txMan, err := txmgr.NewRunner(
+		txmgrOrchestrator,
+		txmgr.WithContext(ctx),
+		txmgr.WithLogHandler(logHandler),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create transaction manager: %w", err)
+	}
+
+	// Get the transaction siphon channel, unbuffered and ready immediately
+	txSiphon := txMan.GetTransactionSiphon()
+
 	// Build list of runnables based on provided arguments
 	var runnables []supervisor.Runnable
-	var configProviders []txmgr.ConfigChannelProvider
 
 	// Create cfgfileloader if configPath is provided
 	if configPath != "" {
 		cfgFileLoader, err := cfgfileloader.NewRunner(
 			configPath,
+			txSiphon,
 			cfgfileloader.WithContext(ctx),
 			cfgfileloader.WithLogHandler(logHandler),
 		)
@@ -48,13 +68,13 @@ func Run(
 			return fmt.Errorf("failed to create config file loader: %w", err)
 		}
 		runnables = append(runnables, cfgFileLoader)
-		configProviders = append(configProviders, cfgFileLoader)
 	}
 
 	// Create cfgservice if listenAddr is provided
 	if listenAddr != "" {
 		cfgService, err := cfgservice.NewRunner(
 			listenAddr,
+			txSiphon,
 			cfgservice.WithContext(ctx),
 			cfgservice.WithLogHandler(logHandler),
 			cfgservice.WithConfigTransactionStorage(txStorage),
@@ -63,32 +83,9 @@ func Run(
 			return fmt.Errorf("failed to create config service: %w", err)
 		}
 		runnables = append(runnables, cfgService)
-		configProviders = append(configProviders, cfgService)
 	}
 
-	// Ensure at least one config provider is available
-	if len(configProviders) == 0 {
-		return fmt.Errorf(
-			"no configuration source specified: provide either a config file path or a gRPC listen address",
-		)
-	}
-
-	// combine the config providers into a single channel, if there are more than one
-	configProvider, err := fanInOrDirect(ctx, configProviders)
-	if err != nil {
-		return fmt.Errorf("failed to create config provider: %w", err)
-	}
-
-	// Create the core txmgr runner
-	txMan, err := txmgr.NewRunner(
-		txmgrOrchestrator,
-		configProvider,
-		txmgr.WithContext(ctx),
-		txmgr.WithLogHandler(logHandler),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create server core: %w", err)
-	}
+	// Order matters: config providers first, then txmgr, then HTTP runner
 	runnables = append(runnables, txMan)
 
 	// Create an HTTP runner with the logger
@@ -100,14 +97,14 @@ func Run(
 		return fmt.Errorf("failed to create HTTP runner: %w", err)
 	}
 
-	// Register the HTTP runner with the transaction manager
+	// Register the HTTP runner with the transaction manager as a saga participant
 	if err := txmgrOrchestrator.RegisterParticipant(httpRunner); err != nil {
 		return fmt.Errorf("failed to register HTTP runner with saga orchestrator: %w", err)
 	}
 
 	// Add HTTP runner to runnables
 	runnables = append(runnables, httpRunner)
-	super, err := supervisor.New(
+	pid0, err := supervisor.New(
 		supervisor.WithContext(ctx),
 		supervisor.WithLogHandler(logHandler),
 		supervisor.WithRunnables(runnables...),
@@ -115,7 +112,7 @@ func Run(
 	if err != nil {
 		return fmt.Errorf("failed to create supervisor: %w", err)
 	}
-	if err := super.Run(); err != nil {
+	if err := pid0.Run(); err != nil {
 		return fmt.Errorf("failed to run server: %w", err)
 	}
 

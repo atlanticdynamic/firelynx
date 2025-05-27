@@ -101,8 +101,8 @@ func (r *Runner) GetStateChan(ctx context.Context) <-chan string {
 	return r.cluster.GetStateChan(ctx)
 }
 
-// ExecuteConfig implements SagaParticipant.ExecuteConfig
-func (r *Runner) ExecuteConfig(ctx context.Context, tx *transaction.ConfigTransaction) error {
+// StageConfig implements SagaParticipant.StageConfig
+func (r *Runner) StageConfig(ctx context.Context, tx *transaction.ConfigTransaction) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -134,9 +134,9 @@ func (r *Runner) CompensateConfig(ctx context.Context, tx *transaction.ConfigTra
 	return nil
 }
 
-// ApplyPendingConfig applies the pending configuration
+// CommitConfig applies the pending configuration
 // This should only be called by the saga orchestrator during TriggerReload
-func (r *Runner) ApplyPendingConfig(ctx context.Context) error {
+func (r *Runner) CommitConfig(ctx context.Context) error {
 	r.mutex.Lock()
 	hasPending := r.configMgr.HasPendingChanges()
 	if !hasPending {
@@ -173,7 +173,13 @@ func (r *Runner) sendCurrentConfig(ctx context.Context) error {
 			}
 
 			// Get routes for this listener
-			routes := r.convertRoutes(adapter.GetRoutesForListener(listenerID))
+			adapterRoutes := adapter.GetRoutesForListener(listenerID)
+			routes := r.convertRoutes(adapterRoutes)
+
+			r.logger.Debug("Routes for listener",
+				"listener_id", listenerID,
+				"adapter_routes_count", len(adapterRoutes),
+				"converted_routes_count", len(routes))
 
 			// Skip listeners without routes (httpserver requires at least one route)
 			if len(routes) == 0 {

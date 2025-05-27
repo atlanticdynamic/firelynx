@@ -24,7 +24,7 @@ type MockParticipant struct {
 	name string
 }
 
-func (m *MockParticipant) ExecuteConfig(
+func (m *MockParticipant) StageConfig(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,
 ) error {
@@ -40,8 +40,8 @@ func (m *MockParticipant) CompensateConfig(
 	return args.Error(0)
 }
 
-// ApplyPendingConfig implements the SagaParticipant interface
-func (m *MockParticipant) ApplyPendingConfig(ctx context.Context) error {
+// CommitConfig implements the SagaParticipant interface
+func (m *MockParticipant) CommitConfig(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
 }
@@ -89,7 +89,7 @@ func NewMockParticipant(name string) *MockParticipant {
 
 func TestNewSagaOrchestrator(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
@@ -101,7 +101,7 @@ func TestNewSagaOrchestrator(t *testing.T) {
 
 func TestRegisterParticipant(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	participant := NewMockParticipant("test-participant")
@@ -118,7 +118,7 @@ func TestRegisterParticipant(t *testing.T) {
 // that implements supervisor.Reloadable fails with an error
 func TestRegisterParticipant_ReloadableConflict(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create a conflicting participant (implements both SagaParticipant and Reloadable)
@@ -153,7 +153,7 @@ func (p *conflictingParticipant) GetStateChan(ctx context.Context) <-chan string
 	return ch
 }
 
-func (p *conflictingParticipant) ExecuteConfig(
+func (p *conflictingParticipant) StageConfig(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,
 ) error {
@@ -166,13 +166,13 @@ func (p *conflictingParticipant) CompensateConfig(
 ) error {
 	return nil
 }
-func (p *conflictingParticipant) ApplyPendingConfig(ctx context.Context) error { return nil }
+func (p *conflictingParticipant) CommitConfig(ctx context.Context) error { return nil }
 
 func (p *conflictingParticipant) Reload() {} // This causes the conflict
 
 func TestProcessTransaction_Success(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create a test transaction
@@ -189,12 +189,12 @@ func TestProcessTransaction_Success(t *testing.T) {
 	participant2 := NewMockParticipant("participant2")
 
 	// Set expectations
-	participant1.On("ExecuteConfig", mock.Anything, tx).Return(nil)
-	participant2.On("ExecuteConfig", mock.Anything, tx).Return(nil)
+	participant1.On("StageConfig", mock.Anything, tx).Return(nil)
+	participant2.On("StageConfig", mock.Anything, tx).Return(nil)
 
-	// Set expectations for ApplyPendingConfig
-	participant1.On("ApplyPendingConfig", mock.Anything).Return(nil)
-	participant2.On("ApplyPendingConfig", mock.Anything).Return(nil)
+	// Set expectations for CommitConfig
+	participant1.On("CommitConfig", mock.Anything).Return(nil)
+	participant2.On("CommitConfig", mock.Anything).Return(nil)
 
 	err = orchestrator.RegisterParticipant(participant1)
 	require.NoError(t, err)
@@ -218,7 +218,7 @@ func TestProcessTransaction_Success(t *testing.T) {
 
 func TestProcessTransaction_Failure(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create a test transaction
@@ -235,7 +235,7 @@ func TestProcessTransaction_Failure(t *testing.T) {
 
 	// Set up the mock to fail
 	testErr := errors.New("test error")
-	participant.On("ExecuteConfig", mock.Anything, mock.Anything).Return(testErr)
+	participant.On("StageConfig", mock.Anything, mock.Anything).Return(testErr)
 
 	// Register the participant
 	err = orchestrator.RegisterParticipant(participant)
@@ -262,7 +262,7 @@ func TestProcessTransaction_Failure(t *testing.T) {
 
 func TestCompensateParticipants(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create a test transaction
@@ -315,7 +315,7 @@ func TestCompensateParticipants(t *testing.T) {
 
 func TestGetTransactionStatus(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create a test transaction
@@ -342,7 +342,7 @@ func TestGetTransactionStatus(t *testing.T) {
 
 func TestGetTransactionStatus_NotFound(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Get status for non-existent transaction
@@ -354,7 +354,7 @@ func TestGetTransactionStatus_NotFound(t *testing.T) {
 
 func TestConcurrentParticipantRegistration(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Register multiple participants concurrently

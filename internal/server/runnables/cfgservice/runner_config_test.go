@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
@@ -19,19 +21,96 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// mockTxStorage is a simple in-memory implementation of configTransactionStorage for testing
+type mockTxStorage struct {
+	mu      sync.RWMutex
+	current *transaction.ConfigTransaction
+}
+
+func newMockTxStorage() *mockTxStorage {
+	return &mockTxStorage{}
+}
+
+func (m *mockTxStorage) SetCurrent(tx *transaction.ConfigTransaction) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.current = tx
+}
+
+func (m *mockTxStorage) GetCurrent() *transaction.ConfigTransaction {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.current
+}
+
+// testHarness provides a clean test setup for cfgservice
+type testHarness struct {
+	t         *testing.T
+	runner    *Runner
+	txSiphon  chan *transaction.ConfigTransaction
+	txStorage *mockTxStorage
+	ctx       context.Context
+	cancel    context.CancelFunc
+}
+
+// newTestHarness creates a test harness with a buffered siphon channel
+func newTestHarness(t *testing.T, listenAddr string, opts ...Option) *testHarness {
+	t.Helper()
+	// Use buffered channel for tests to avoid blocking
+	txSiphon := make(chan *transaction.ConfigTransaction, 10)
+
+	// Create mock transaction storage
+	txStorage := newMockTxStorage()
+
+	// Add the transaction storage option
+	allOpts := append([]Option{WithConfigTransactionStorage(txStorage)}, opts...)
+
+	runner, err := NewRunner(listenAddr, txSiphon, allOpts...)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	return &testHarness{
+		t:         t,
+		runner:    runner,
+		txSiphon:  txSiphon,
+		txStorage: txStorage,
+		ctx:       ctx,
+		cancel:    cancel,
+	}
+}
+
+// receiveTransaction waits for a transaction on the siphon
+func (h *testHarness) receiveTransaction() *transaction.ConfigTransaction {
+	select {
+	case tx := <-h.txSiphon:
+		return tx
+	case <-time.After(2 * time.Second):
+		h.t.Fatal("timeout waiting for transaction")
+		return nil
+	}
+}
+
+// transitionToRunning transitions the runner to Running state if not already there
+func (h *testHarness) transitionToRunning() {
+	h.t.Helper()
+	r := h.runner
+	if r.fsm.GetState() != finitestate.StatusRunning {
+		if r.fsm.GetState() == finitestate.StatusNew {
+			err := r.fsm.Transition(finitestate.StatusBooting)
+			require.NoError(h.t, err)
+		}
+		err := r.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(h.t, err)
+	}
+}
+
 func testInvalidVersionConfig(t *testing.T, versionValue string) {
 	t.Helper()
 	// Create a Runner instance
-	r, err := NewRunner(
-		testutil.GetRandomListeningPort(t),
-	)
-	require.NoError(t, err)
+	h := newTestHarness(t, testutil.GetRandomListeningPort(t))
 
 	// Initialize FSM state to Running
-	err = r.fsm.Transition(finitestate.StatusBooting)
-	require.NoError(t, err)
-	err = r.fsm.Transition(finitestate.StatusRunning)
-	require.NoError(t, err)
+	h.transitionToRunning()
 
 	// Set up the invalid version
 	invalidConfig := &pb.ServerConfig{
@@ -58,10 +137,8 @@ func TestGetConfig(t *testing.T) {
 	t.Parallel()
 
 	// Create a Runner instance
-	r, err := NewRunner(
-		testutil.GetRandomListeningPort(t),
-	)
-	require.NoError(t, err)
+	h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+	r := h.runner
 
 	// Set a test configuration
 	version := version.Version
@@ -73,9 +150,10 @@ func TestGetConfig(t *testing.T) {
 	domainConfig, err := config.NewFromProto(testPbConfig)
 	require.NoError(t, err)
 
-	r.lastLoadedCfgMu.Lock()
-	r.lastLoadedCfg = domainConfig
-	r.lastLoadedCfgMu.Unlock()
+	// Create a transaction and store it in the mock storage
+	tx, err := transaction.FromAPI("test-request-id", domainConfig, slog.Default().Handler())
+	require.NoError(t, err)
+	h.txStorage.SetCurrent(tx)
 
 	// Call GetConfig
 	resp, err := r.GetConfig(context.Background(), &pb.GetConfigRequest{})
@@ -92,10 +170,8 @@ func TestGetConfigClone(t *testing.T) {
 	t.Parallel()
 
 	t.Run("normal_case", func(t *testing.T) {
-		r, err := NewRunner(
-			testutil.GetRandomListeningPort(t),
-		)
-		require.NoError(t, err)
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
 
 		// Set a test configuration
 		version := version.Version
@@ -107,9 +183,10 @@ func TestGetConfigClone(t *testing.T) {
 		domainConfig, err := config.NewFromProto(testPbConfig)
 		require.NoError(t, err)
 
-		r.lastLoadedCfgMu.Lock()
-		r.lastLoadedCfg = domainConfig
-		r.lastLoadedCfgMu.Unlock()
+		// Create a transaction and store it
+		tx, err := transaction.FromAPI("test-request-id", domainConfig, slog.Default().Handler())
+		require.NoError(t, err)
+		h.txStorage.SetCurrent(tx)
 
 		// Get a clone of the config
 		result := r.GetPbConfigClone()
@@ -117,24 +194,17 @@ func TestGetConfigClone(t *testing.T) {
 		// Check basic fields to avoid proto internals comparison issues
 		assert.Equal(t, *testPbConfig.Version, *result.Version)
 
-		// Change a value in the domain config and ensure the clone still has the original value
-		r.lastLoadedCfgMu.Lock()
-		r.lastLoadedCfg.Version = "v999"
-		r.lastLoadedCfgMu.Unlock()
+		// Modify the transaction's config to ensure the clone is independent
+		// This tests that GetPbConfigClone returns a proper clone
+		tx.GetConfig().Version = "v999"
 
+		// The cloned result should still have the original value
 		assert.Equal(t, version, *result.Version)
 	})
 
 	t.Run("with_nil_config", func(t *testing.T) {
-		r, err := NewRunner(
-			testutil.GetRandomListeningPort(t),
-		)
-		require.NoError(t, err)
-
-		// Ensure config is nil
-		r.lastLoadedCfgMu.Lock()
-		r.lastLoadedCfg = nil
-		r.lastLoadedCfgMu.Unlock()
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
 
 		// Get config clone should return a default config, not nil
 		cfg := r.GetPbConfigClone()
@@ -150,39 +220,15 @@ func TestUpdateConfig(t *testing.T) {
 
 	t.Run("valid_config", func(t *testing.T) {
 		// Create a Runner instance first
-		r, err := NewRunner(
-			testutil.GetRandomListeningPort(t),
-		)
-		require.NoError(t, err)
-
-		// Set up a config channel consumer to verify transactions are broadcast
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		configChan := r.GetConfigChan()
-		consumer := newConfigChannelConsumer(t, configChan)
-		consumer.start(ctx)
-
-		// Set initial version
-		version := version.Version
-		initialPbConfig := &pb.ServerConfig{
-			Version: &version,
-		}
-
-		// Convert to domain config
-		initialDomainConfig, err := config.NewFromProto(initialPbConfig)
-		require.NoError(t, err)
-
-		r.lastLoadedCfgMu.Lock()
-		r.lastLoadedCfg = initialDomainConfig
-		r.lastLoadedCfgMu.Unlock()
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		defer h.cancel()
 
 		// Initialize FSM state to Running
-		err = r.fsm.Transition(finitestate.StatusBooting)
-		require.NoError(t, err)
-		err = r.fsm.Transition(finitestate.StatusRunning)
-		require.NoError(t, err)
+		h.transitionToRunning()
 
 		// Create valid update request
+		version := version.Version
 		listenerId := "http_listener"
 		listenerAddr := ":8080"
 		validConfig := &pb.ServerConfig{
@@ -214,32 +260,25 @@ func TestUpdateConfig(t *testing.T) {
 		assert.Equal(t, *validConfig.Version, *validResp.Config.Version)
 		assert.Equal(t, len(validConfig.Listeners), len(validResp.Config.Listeners))
 
-		// Verify domain config was stored (not the protobuf)
-		r.lastLoadedCfgMu.Lock()
-		assert.NotNil(t, r.lastLoadedCfg)
-		assert.Equal(t, version, r.lastLoadedCfg.Version)
-		r.lastLoadedCfgMu.Unlock()
-
-		// Verify transaction was broadcast via the channel
-		tx := consumer.waitForTransaction(500 * time.Millisecond)
-		require.NotNil(t, tx, "Should have received transaction via channel")
+		// Verify transaction was broadcast via the siphon
+		tx := h.receiveTransaction()
+		require.NotNil(t, tx, "Should have received transaction via siphon")
 		require.NotNil(t, tx.GetConfig())
 		assert.Equal(t, version, tx.GetConfig().Version)
 		assert.Equal(t, 1, len(tx.GetConfig().Listeners))
+
+		// Note: The config is NOT stored in txStorage by the runner itself.
+		// That's the job of the transaction manager after processing the transaction.
+		// So we should NOT expect h.txStorage.GetCurrent() to return anything here.
 	})
 
 	t.Run("nil_config", func(t *testing.T) {
 		// Create a Runner instance
-		r, err := NewRunner(
-			testutil.GetRandomListeningPort(t),
-		)
-		require.NoError(t, err)
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
 
 		// Initialize FSM state to Running
-		err = r.fsm.Transition(finitestate.StatusBooting)
-		require.NoError(t, err)
-		err = r.fsm.Transition(finitestate.StatusRunning)
-		require.NoError(t, err)
+		h.transitionToRunning()
 
 		// Call UpdateConfig with nil request
 		resp, err := r.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
@@ -264,39 +303,15 @@ func TestUpdateConfig(t *testing.T) {
 
 	t.Run("multiple_updates", func(t *testing.T) {
 		// Create a Runner instance
-		r, err := NewRunner(
-			testutil.GetRandomListeningPort(t),
-		)
-		require.NoError(t, err)
-
-		// Set up a config channel consumer to verify transactions are broadcast
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		configChan := r.GetConfigChan()
-		consumer := newConfigChannelConsumer(t, configChan)
-		consumer.start(ctx)
-
-		// Set initial version
-		version := version.Version
-		initialPbConfig := &pb.ServerConfig{
-			Version: &version,
-		}
-
-		// Convert to domain config
-		initialDomainConfig, err := config.NewFromProto(initialPbConfig)
-		require.NoError(t, err)
-
-		r.lastLoadedCfgMu.Lock()
-		r.lastLoadedCfg = initialDomainConfig
-		r.lastLoadedCfgMu.Unlock()
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		defer h.cancel()
 
 		// Initialize FSM state to Running
-		err = r.fsm.Transition(finitestate.StatusBooting)
-		require.NoError(t, err)
-		err = r.fsm.Transition(finitestate.StatusRunning)
-		require.NoError(t, err)
+		h.transitionToRunning()
 
 		// Prepare test configs
+		version := version.Version
 		configs := []*pb.ServerConfig{
 			{
 				Version: &version,
@@ -327,6 +342,7 @@ func TestUpdateConfig(t *testing.T) {
 		}
 
 		// Make multiple updates
+		var receivedTxs []*transaction.ConfigTransaction
 		for i, cfg := range configs {
 			t.Logf("Updating config %d", i)
 			req := &pb.UpdateConfigRequest{Config: cfg}
@@ -335,70 +351,16 @@ func TestUpdateConfig(t *testing.T) {
 			require.NoError(t, err, "Update %d should succeed", i)
 			assert.NotNil(t, resp)
 			assert.True(t, *resp.Success)
+
+			// Receive the transaction for this update
+			tx := h.receiveTransaction()
+			require.NotNil(t, tx)
+			receivedTxs = append(receivedTxs, tx)
 		}
 
-		// Verify multiple transactions were broadcast
-		assert.Eventually(t, func() bool {
-			return consumer.getTransactionCount() == len(configs)
-		}, 5*time.Second, 10*time.Millisecond, "Should have received all transactions")
+		// Verify we received all transactions
+		assert.Equal(t, len(configs), len(receivedTxs), "Should have received all transactions")
 	})
-}
-
-// TestReloadNotification_Direct tests the reload notification using direct calls
-func TestReloadNotification_Direct(t *testing.T) {
-	t.Parallel()
-	// Create a simple Runner without complex transactions
-	r, err := NewRunner(
-		testutil.GetRandomListeningPort(t),
-	)
-	require.NoError(t, err)
-
-	// Set up the runner to running state
-	err = r.fsm.Transition(finitestate.StatusBooting)
-	require.NoError(t, err)
-	err = r.fsm.Transition(finitestate.StatusRunning)
-	require.NoError(t, err)
-
-	// Get the reload channel
-	reloadCh := r.GetReloadTrigger()
-	require.NotNil(t, reloadCh)
-
-	// Check initial state (should be empty)
-	select {
-	case <-reloadCh:
-		t.Fatal("Reload channel should be empty initially")
-	default:
-		// Expected - channel is empty
-	}
-
-	// Create a simple config
-	testConfig := &config.Config{
-		Version: "v1",
-	}
-
-	// Directly set the config and trigger reload
-	r.lastLoadedCfgMu.Lock()
-	r.lastLoadedCfg = testConfig
-	r.lastLoadedCfgMu.Unlock()
-
-	// Trigger the reload directly
-	r.triggerReload()
-
-	// Verify reload notification was sent
-	select {
-	case <-reloadCh:
-		// Success - we got the expected notification
-	case <-time.After(500 * time.Millisecond):
-		t.Fatal("Did not receive reload notification within expected timeframe")
-	}
-
-	// Channel should be drained now
-	select {
-	case <-reloadCh:
-		t.Fatal("Should have been only one notification")
-	default:
-		// Expected - channel is empty again
-	}
 }
 
 // TestUpdateConfigWithLogger tests that logger is correctly used during configuration updates
@@ -409,20 +371,11 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
 	// Create Runner with custom logger
-	r, err := NewRunner(
-		testutil.GetRandomListeningPort(t),
-		WithLogger(logger),
-	)
-	require.NoError(t, err)
+	h := newTestHarness(t, testutil.GetRandomListeningPort(t), WithLogger(logger))
+	r := h.runner
+	defer h.cancel()
 
-	// Set up a config channel consumer to verify transactions are broadcast
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	configChan := r.GetConfigChan()
-	consumer := newConfigChannelConsumer(t, configChan)
-	consumer.start(ctx)
-
-	err = r.fsm.Transition(finitestate.StatusBooting)
+	err := r.fsm.Transition(finitestate.StatusBooting)
 	require.NoError(t, err)
 	err = r.fsm.Transition(finitestate.StatusRunning)
 	require.NoError(t, err)
@@ -452,9 +405,9 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 	// Verify logger was used by checking that the output buffer contains something
 	assert.NotEmpty(t, buf.String(), "Logger should have output something")
 
-	// Verify transaction was broadcast via the channel
-	tx := consumer.waitForTransaction(500 * time.Millisecond)
-	require.NotNil(t, tx, "Should have received transaction via channel")
+	// Verify transaction was broadcast via the siphon
+	tx := h.receiveTransaction()
+	require.NotNil(t, tx, "Should have received transaction via siphon")
 }
 
 // TestHandlingInvalidVersionConfig tests configs with invalid versions

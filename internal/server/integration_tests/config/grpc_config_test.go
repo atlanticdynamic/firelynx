@@ -17,6 +17,7 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/client"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgservice"
 	httplistener "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
@@ -61,10 +62,13 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 	httpRunner, err := httplistener.NewRunner()
 	require.NoError(t, err)
 
+	// Create transaction siphon
+	txSiphon := make(chan *transaction.ConfigTransaction)
+
 	// Create gRPC config service runner
 	grpcPort := testutil.GetRandomPort(t)
 	grpcAddr := fmt.Sprintf("localhost:%d", grpcPort)
-	cfgServiceRunner, err := cfgservice.NewRunner(grpcAddr)
+	cfgServiceRunner, err := cfgservice.NewRunner(grpcAddr, txSiphon)
 	require.NoError(t, err)
 
 	// Register HTTP runner with orchestrator
@@ -91,10 +95,9 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 		return cfgServiceRunner.IsRunning()
 	}, time.Second, 10*time.Millisecond, "gRPC config service should start")
 
-	// Get a config channel and start processing transactions
-	configChan := cfgServiceRunner.GetConfigChan()
+	// Process transactions from siphon
 	go func() {
-		for tx := range configChan {
+		for tx := range txSiphon {
 			if tx == nil {
 				continue
 			}

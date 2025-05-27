@@ -9,9 +9,9 @@ The HTTP listener saga participant implementation is **complete and integrated**
 ## What's Done
 
 1. **Saga Participant Implementation** (`runner.go`)
-   - ExecuteConfig: Validates and stores pending config
+   - StageConfig: Validates and stores pending config
    - CompensateConfig: Rolls back pending config
-   - ApplyPendingConfig: Commits config and reloads servers
+   - CommitConfig: Commits config and reloads servers
    
 2. **Configuration Management** (`cfg/`)
    - ConfigManager: Thread-safe current/pending config storage
@@ -71,7 +71,7 @@ The composite.Runner checks children during Reload():
 1. If child implements `ReloadableWithConfig` → calls `ReloadWithConfig(config)`
 2. If child implements `Reloadable` → calls `Reload()`
 
-If HTTPServer implemented either interface, the composite runner would reload it directly, bypassing the saga transaction pattern. Configuration changes must ONLY flow through ExecuteConfig → ApplyPendingConfig.
+If HTTPServer implemented either interface, the composite runner would reload it directly, bypassing the saga transaction pattern. Configuration changes must ONLY flow through StageConfig → CommitConfig.
 
 To verify this behavior, check:
 - `go doc github.com/robbyt/go-supervisor/runnables/composite`

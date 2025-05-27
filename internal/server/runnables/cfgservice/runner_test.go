@@ -5,7 +5,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"sync"
 	"testing"
 	"time"
 
@@ -20,6 +19,47 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
+
+// runnerTestHarness provides a clean test setup for cfgservice Runner tests
+type runnerTestHarness struct {
+	t        *testing.T
+	runner   *Runner
+	txSiphon chan *transaction.ConfigTransaction
+	ctx      context.Context
+	cancel   context.CancelFunc
+}
+
+// newRunnerTestHarness creates a test harness for runner tests
+func newRunnerTestHarness(t *testing.T, listenAddr string, opts ...Option) *runnerTestHarness {
+	t.Helper()
+	// Use buffered channel for tests to avoid blocking
+	txSiphon := make(chan *transaction.ConfigTransaction, 10)
+	runner, err := NewRunner(listenAddr, txSiphon, opts...)
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	return &runnerTestHarness{
+		t:        t,
+		runner:   runner,
+		txSiphon: txSiphon,
+		ctx:      ctx,
+		cancel:   cancel,
+	}
+}
+
+// transitionToRunning transitions the runner to Running state if not already there
+func (h *runnerTestHarness) transitionToRunning() {
+	h.t.Helper()
+	r := h.runner
+	if r.fsm.GetState() != finitestate.StatusRunning {
+		if r.fsm.GetState() == finitestate.StatusNew {
+			err := r.fsm.Transition(finitestate.StatusBooting)
+			require.NoError(h.t, err)
+		}
+		err := r.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(h.t, err)
+	}
+}
 
 // MockGRPCServer implements the GRPCServer interface for testing with testify/mock
 type MockGRPCServer struct {
@@ -43,95 +83,22 @@ func (m *MockGRPCServer) GetListenAddress() string {
 	return args.String(0)
 }
 
-// configChannelConsumer is a test helper to consume transactions from GetConfigChan
-type configChannelConsumer struct {
-	t            *testing.T
-	ch           <-chan *transaction.ConfigTransaction
-	transactions []*transaction.ConfigTransaction
-	mu           sync.Mutex
-}
-
-func newConfigChannelConsumer(
-	t *testing.T,
-	ch <-chan *transaction.ConfigTransaction,
-) *configChannelConsumer {
-	t.Helper()
-	return &configChannelConsumer{
-		t:            t,
-		ch:           ch,
-		transactions: make([]*transaction.ConfigTransaction, 0),
-	}
-}
-
-func (c *configChannelConsumer) start(ctx context.Context) {
-	c.t.Helper()
-	go func() {
-		for {
-			select {
-			case tx, ok := <-c.ch:
-				if !ok {
-					return
-				}
-				c.mu.Lock()
-				c.transactions = append(c.transactions, tx)
-				c.mu.Unlock()
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-}
-
-func (c *configChannelConsumer) getTransactions() []*transaction.ConfigTransaction {
-	c.t.Helper()
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return append([]*transaction.ConfigTransaction{}, c.transactions...)
-}
-
-func (c *configChannelConsumer) waitForTransaction(
-	timeout time.Duration,
-) *transaction.ConfigTransaction {
-	c.t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		txs := c.getTransactions()
-		if len(txs) > 0 {
-			return txs[len(txs)-1]
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	c.t.Fatal("timeout waiting for transaction")
-	return nil
-}
-
-func (c *configChannelConsumer) getTransactionCount() int {
-	c.t.Helper()
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return len(c.transactions)
-}
-
 // TestRunner_New tests the creation of a new Runner
 func TestRunner_New(t *testing.T) {
 	t.Run("minimal config with listen address", func(t *testing.T) {
 		listenAddr := testutil.GetRandomListeningPort(t)
-		r, err := NewRunner(listenAddr)
-		require.NoError(t, err)
+		h := newRunnerTestHarness(t, listenAddr)
+		r := h.runner
 		assert.NotNil(t, r)
 		assert.NotNil(t, r.logger)
-		assert.NotNil(t, r.reloadCh)
 		assert.Equal(t, listenAddr, r.listenAddr)
 	})
 
 	t.Run("with custom logger", func(t *testing.T) {
 		listenAddr := testutil.GetRandomListeningPort(t)
 		customLogger := slog.New(slog.NewTextHandler(io.Discard, nil))
-		r, err := NewRunner(
-			listenAddr,
-			WithLogger(customLogger),
-		)
-		require.NoError(t, err)
+		h := newRunnerTestHarness(t, listenAddr, WithLogger(customLogger))
+		r := h.runner
 		assert.NotNil(t, r)
 		assert.Equal(t, listenAddr, r.listenAddr)
 		assert.Equal(t, customLogger, r.logger)
@@ -140,18 +107,17 @@ func TestRunner_New(t *testing.T) {
 	t.Run("with custom grpc server", func(t *testing.T) {
 		listenAddr := testutil.GetRandomListeningPort(t)
 		mockServer := new(MockGRPCServer)
-		r, err := NewRunner(
-			listenAddr,
-			WithGRPCServer(mockServer),
-		)
-		require.NoError(t, err)
+		h := newRunnerTestHarness(t, listenAddr, WithGRPCServer(mockServer))
+		r := h.runner
 		assert.NotNil(t, r)
 		assert.Equal(t, listenAddr, r.listenAddr)
 		assert.Equal(t, mockServer, r.grpcServer)
 	})
 
 	t.Run("with empty listen address", func(t *testing.T) {
-		r, err := NewRunner("")
+		// Use a buffered channel for this test case
+		txSiphon := make(chan *transaction.ConfigTransaction, 1)
+		r, err := NewRunner("", txSiphon)
 		assert.Error(t, err)
 		assert.Nil(t, r)
 		assert.Contains(t, err.Error(), "listen address cannot be empty")
@@ -163,16 +129,13 @@ func TestStop(t *testing.T) {
 	t.Run("with grpc server", func(t *testing.T) {
 		// Create a Runner instance
 		listenAddr := testutil.GetRandomListeningPort(t)
-		r, err := NewRunner(listenAddr)
-		require.NoError(t, err)
-
-		// Start the runner in a goroutine
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		h := newRunnerTestHarness(t, listenAddr)
+		r := h.runner
+		defer h.cancel()
 
 		runErrCh := make(chan error, 1)
 		go func() {
-			runErrCh <- r.Run(ctx)
+			runErrCh <- r.Run(h.ctx)
 		}()
 
 		// Wait for the server to start (it will transition to Running state)
@@ -205,14 +168,11 @@ func TestStop(t *testing.T) {
 
 	t.Run("with nil server", func(t *testing.T) {
 		listenAddr := testutil.GetRandomListeningPort(t)
-		r, err := NewRunner(listenAddr)
-		require.NoError(t, err)
+		h := newRunnerTestHarness(t, listenAddr)
+		r := h.runner
 
 		// Transition to running state to simulate a started runner
-		err = r.fsm.Transition(finitestate.StatusBooting)
-		require.NoError(t, err)
-		err = r.fsm.Transition(finitestate.StatusRunning)
-		require.NoError(t, err)
+		h.transitionToRunning()
 
 		// Ensure server is nil
 		r.grpcServer = nil
@@ -225,8 +185,8 @@ func TestStop(t *testing.T) {
 // TestString tests the String method of Runner
 func TestString(t *testing.T) {
 	listenAddr := testutil.GetRandomListeningPort(t)
-	r, err := NewRunner(listenAddr)
-	require.NoError(t, err)
+	h := newRunnerTestHarness(t, listenAddr)
+	r := h.runner
 
 	// Check that String returns expected value
 	assert.Equal(t, "cfgservice.Runner", r.String())
@@ -247,14 +207,11 @@ func TestGRPCIntegration(t *testing.T) {
 
 	listenAddr := testutil.GetRandomListeningPort(t)
 
-	r, err := NewRunner(listenAddr)
-	require.NoError(t, err)
+	h := newRunnerTestHarness(t, listenAddr)
+	r := h.runner
 
 	// Initialize the state properly for testing
-	err = r.fsm.Transition(finitestate.StatusBooting)
-	require.NoError(t, err)
-	err = r.fsm.Transition(finitestate.StatusRunning)
-	require.NoError(t, err)
+	h.transitionToRunning()
 
 	// Set initial configuration
 	version := "v1"
@@ -325,10 +282,8 @@ func TestRun(t *testing.T) {
 
 	t.Run("basic_functionality", func(t *testing.T) {
 		// Create a Runner instance with a listen address
-		r, err := NewRunner(
-			testutil.GetRandomListeningPort(t),
-		)
-		require.NoError(t, err)
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
 
 		// Create a context that will cancel after a short time
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -348,16 +303,14 @@ func TestRun(t *testing.T) {
 	t.Run("with_invalid_address", func(t *testing.T) {
 		// Create a Runner with an invalid listen address that will cause NewGRPCManager to fail
 		listenAddr := "invalid:address:with:too:many:colons"
-		r, err := NewRunner(
-			listenAddr,
-		)
-		require.NoError(t, err)
+		h := newRunnerTestHarness(t, listenAddr)
+		r := h.runner
 
 		// Run should return the error from NewGRPCManager
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		defer cancel()
 
-		err = r.Run(ctx)
+		err := r.Run(ctx)
 		assert.Error(
 			t,
 			err,
@@ -367,11 +320,9 @@ func TestRun(t *testing.T) {
 
 	t.Run("with_custom_logger", func(t *testing.T) {
 		// Create a Runner instance with custom logger
-		r, err := NewRunner(
-			testutil.GetRandomListeningPort(t),
-			WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))),
-		)
-		require.NoError(t, err)
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t),
+			WithLogger(slog.New(slog.NewTextHandler(io.Discard, nil))))
+		r := h.runner
 
 		// Create a context that will cancel after a short time
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -390,10 +341,8 @@ func TestRun(t *testing.T) {
 
 	t.Run("stop_before_run", func(t *testing.T) {
 		// Create a Runner instance
-		r, err := NewRunner(
-			testutil.GetRandomListeningPort(t),
-		)
-		require.NoError(t, err)
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
 
 		// Call Stop before Run
 		r.Stop()
@@ -403,7 +352,7 @@ func TestRun(t *testing.T) {
 		defer cancel()
 
 		// Run should handle being stopped before starting
-		err = r.Run(ctx)
+		err := r.Run(ctx)
 		assert.NoError(t, err)
 	})
 }

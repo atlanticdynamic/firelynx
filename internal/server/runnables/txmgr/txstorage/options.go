@@ -8,11 +8,11 @@ import (
 )
 
 // Option is a functional option for configuring the TransactionStorage
-type Option func(*TransactionStorage)
+type Option func(*MemoryStorage)
 
 // WithMaxTransactions sets the maximum number of transactions to store
 func WithMaxTransactions(max int) Option {
-	return func(s *TransactionStorage) {
+	return func(s *MemoryStorage) {
 		if max > 0 {
 			s.maxTransactions = max
 		}
@@ -23,7 +23,7 @@ func WithMaxTransactions(max int) Option {
 func WithCleanupFunc(
 	fn func([]*transaction.ConfigTransaction) []*transaction.ConfigTransaction,
 ) Option {
-	return func(s *TransactionStorage) {
+	return func(s *MemoryStorage) {
 		if fn != nil {
 			s.cleanupFunc = fn
 		}
@@ -32,14 +32,14 @@ func WithCleanupFunc(
 
 // WithAsyncCleanup enables or disables async cleanup
 func WithAsyncCleanup(enabled bool) Option {
-	return func(s *TransactionStorage) {
+	return func(s *MemoryStorage) {
 		s.asyncCleanup = enabled
 	}
 }
 
 // WithCleanupDebounceInterval sets the cleanup debounce interval
 func WithCleanupDebounceInterval(d time.Duration) Option {
-	return func(s *TransactionStorage) {
+	return func(s *MemoryStorage) {
 		if d > 0 {
 			s.cleanupDebounceInterval = d
 		}
@@ -48,7 +48,7 @@ func WithCleanupDebounceInterval(d time.Duration) Option {
 
 // WithLogHandler sets the log handler for the storage
 func WithLogHandler(handler slog.Handler) Option {
-	return func(s *TransactionStorage) {
+	return func(s *MemoryStorage) {
 		if handler != nil {
 			s.logger = slog.New(handler)
 		}
@@ -57,7 +57,7 @@ func WithLogHandler(handler slog.Handler) Option {
 
 // WithLogger sets the logger for the storage
 func WithLogger(logger *slog.Logger) Option {
-	return func(s *TransactionStorage) {
+	return func(s *MemoryStorage) {
 		s.logger = logger
 	}
 }

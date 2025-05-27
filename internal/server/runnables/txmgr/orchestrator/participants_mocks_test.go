@@ -50,7 +50,7 @@ func (m *mockSagaParticipant) GetStateChan(ctx context.Context) <-chan string {
 	return args.Get(0).(<-chan string)
 }
 
-func (m *mockSagaParticipant) ExecuteConfig(
+func (m *mockSagaParticipant) StageConfig(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,
 ) error {
@@ -66,7 +66,7 @@ func (m *mockSagaParticipant) CompensateConfig(
 	return args.Error(0)
 }
 
-func (m *mockSagaParticipant) ApplyPendingConfig(ctx context.Context) error {
+func (m *mockSagaParticipant) CommitConfig(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
 }
@@ -95,7 +95,7 @@ func (p *ConflictingParticipant) GetStateChan(ctx context.Context) <-chan string
 	return ch
 }
 
-func (p *ConflictingParticipant) ExecuteConfig(
+func (p *ConflictingParticipant) StageConfig(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,
 ) error {
@@ -108,7 +108,7 @@ func (p *ConflictingParticipant) CompensateConfig(
 ) error {
 	return nil
 }
-func (p *ConflictingParticipant) ApplyPendingConfig(ctx context.Context) error { return nil }
+func (p *ConflictingParticipant) CommitConfig(ctx context.Context) error { return nil }
 
 func (p *ConflictingParticipant) Reload() {} // This causes the conflict
 
@@ -145,8 +145,8 @@ func (m *MockReloadParticipant) Stop() {
 	m.Called()
 }
 
-// ApplyPendingConfig implements SagaParticipant - replaces Reload()
-func (m *MockReloadParticipant) ApplyPendingConfig(ctx context.Context) error {
+// CommitConfig implements SagaParticipant - replaces Reload()
+func (m *MockReloadParticipant) CommitConfig(ctx context.Context) error {
 	args := m.Called(ctx)
 
 	// Simulate a reload by briefly setting running to false
@@ -189,8 +189,8 @@ func (m *MockReloadParticipant) GetStateChan(ctx context.Context) <-chan string 
 	return ch
 }
 
-// ExecuteConfig implements SagaParticipant
-func (m *MockReloadParticipant) ExecuteConfig(
+// StageConfig implements SagaParticipant
+func (m *MockReloadParticipant) StageConfig(
 	ctx context.Context,
 	tx *transaction.ConfigTransaction,
 ) error {

@@ -37,8 +37,8 @@ Maintains the history and state of configuration transactions:
 ## Configuration Transaction Lifecycle
 
 1. **Validation**: Config provider validates the transaction before sending to txmgr
-2. **Execution**: Each participant prepares to apply changes (ExecuteConfig)
-3. **Reload**: All participants apply their pending configurations (ApplyPendingConfig)
+2. **Execution**: Each participant prepares to apply changes (StageConfig)
+3. **Reload**: All participants apply their pending configurations (CommitConfig)
 4. **Compensation**: If any participant fails, successful participants roll back (CompensateConfig)
 
 ## SagaParticipant Interface
@@ -50,20 +50,20 @@ type SagaParticipant interface {
     supervisor.Runnable
     supervisor.Stateable
     
-    // ExecuteConfig prepares configuration changes (prepare phase)
-    ExecuteConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
+    // StageConfig prepares configuration changes (prepare phase)
+    StageConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
     
     // CompensateConfig reverts prepared changes (rollback phase)
     CompensateConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
     
-    // ApplyPendingConfig applies the pending configuration prepared during ExecuteConfig
+    // CommitConfig applies the pending configuration prepared during StageConfig
     // This is called during the reload phase after all participants have successfully
     // executed their configurations
-    ApplyPendingConfig(ctx context.Context) error
+    CommitConfig(ctx context.Context) error
 }
 ```
 
-**Important**: SagaParticipant **must not** implement `supervisor.Reloadable` to avoid conflicts with the `ApplyPendingConfig` method.
+**Important**: SagaParticipant **must not** implement `supervisor.Reloadable` to avoid conflicts with the `CommitConfig` method.
 
 ## Implementation Best Practices
 

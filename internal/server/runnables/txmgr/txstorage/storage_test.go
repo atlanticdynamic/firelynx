@@ -28,7 +28,7 @@ func TestNewTransactionStorage(t *testing.T) {
 	t.Parallel()
 
 	t.Run("creates storage with default options", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 		assert.NotNil(t, storage)
 		assert.Equal(t, DefaultMaxTransactions, storage.maxTransactions)
 		assert.Equal(t, DefaultCleanupDebounceInterval, storage.cleanupDebounceInterval)
@@ -41,7 +41,7 @@ func TestNewTransactionStorage(t *testing.T) {
 		interval := 30 * time.Second
 		asyncCleanup := true
 
-		storage := NewTransactionStorage(
+		storage := NewMemoryStorage(
 			WithMaxTransactions(maxTransactions),
 			WithCleanupDebounceInterval(interval),
 			WithAsyncCleanup(asyncCleanup),
@@ -53,7 +53,7 @@ func TestNewTransactionStorage(t *testing.T) {
 	})
 
 	t.Run("ignores invalid options", func(t *testing.T) {
-		storage := NewTransactionStorage(
+		storage := NewMemoryStorage(
 			WithMaxTransactions(-1),
 			WithCleanupDebounceInterval(-1*time.Second),
 		)
@@ -67,7 +67,7 @@ func TestTransactionStorageOperations(t *testing.T) {
 	t.Parallel()
 
 	t.Run("add and retrieve transactions", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 		tx := createTestTransaction(t)
 
 		err := storage.Add(tx)
@@ -82,7 +82,7 @@ func TestTransactionStorageOperations(t *testing.T) {
 	})
 
 	t.Run("set and get current transaction", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 		tx := createTestTransaction(t)
 
 		// Initially current is nil
@@ -99,7 +99,7 @@ func TestTransactionStorageOperations(t *testing.T) {
 
 	t.Run("cleanup respects max transactions", func(t *testing.T) {
 		maxTransactions := 3
-		storage := NewTransactionStorage(WithMaxTransactions(maxTransactions))
+		storage := NewMemoryStorage(WithMaxTransactions(maxTransactions))
 
 		// Add more transactions than the max
 		for range maxTransactions + 2 {
@@ -124,7 +124,7 @@ func TestTransactionStorageOperations(t *testing.T) {
 			return txs
 		}
 
-		storage := NewTransactionStorage(WithCleanupFunc(customCleanup))
+		storage := NewMemoryStorage(WithCleanupFunc(customCleanup))
 
 		// Add a few transactions
 		for range 3 {
@@ -142,7 +142,7 @@ func TestTransactionStorageOperations(t *testing.T) {
 	})
 
 	t.Run("handles nil transaction gracefully", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 
 		err := storage.Add(nil)
 		assert.NoError(t, err)
@@ -158,7 +158,7 @@ func TestAsyncCleanup(t *testing.T) {
 	t.Run("async cleanup runs after a delay", func(t *testing.T) {
 		// Use a very short debounce interval
 		interval := 10 * time.Millisecond
-		storage := NewTransactionStorage(
+		storage := NewMemoryStorage(
 			WithAsyncCleanup(true),
 			WithCleanupDebounceInterval(interval),
 			WithMaxTransactions(1),
@@ -179,7 +179,7 @@ func TestAsyncCleanup(t *testing.T) {
 
 	t.Run("cleanup worker only starts once", func(t *testing.T) {
 		interval := 50 * time.Millisecond
-		storage := NewTransactionStorage(
+		storage := NewMemoryStorage(
 			WithAsyncCleanup(true),
 			WithCleanupDebounceInterval(interval),
 			WithMaxTransactions(1),
@@ -212,7 +212,7 @@ func TestAsyncCleanup(t *testing.T) {
 
 	t.Run("cleanup worker can be restarted after completion", func(t *testing.T) {
 		interval := 20 * time.Millisecond
-		storage := NewTransactionStorage(
+		storage := NewMemoryStorage(
 			WithAsyncCleanup(true),
 			WithCleanupDebounceInterval(interval),
 			WithMaxTransactions(2),
@@ -245,7 +245,7 @@ func TestAsyncCleanup(t *testing.T) {
 
 	t.Run("debounce mechanism works correctly", func(t *testing.T) {
 		interval := 100 * time.Millisecond
-		storage := NewTransactionStorage(
+		storage := NewMemoryStorage(
 			WithAsyncCleanup(true),
 			WithCleanupDebounceInterval(interval),
 			WithMaxTransactions(1),
@@ -273,7 +273,7 @@ func TestCleanupWorkerLifecycle(t *testing.T) {
 	t.Parallel()
 
 	t.Run("signal cleanup with full channel", func(t *testing.T) {
-		storage := NewTransactionStorage(
+		storage := NewMemoryStorage(
 			WithAsyncCleanup(true),
 			WithCleanupDebounceInterval(50*time.Millisecond),
 		)
@@ -293,7 +293,7 @@ func TestCleanupWorkerLifecycle(t *testing.T) {
 	})
 
 	t.Run("cleanup function is nil safe", func(t *testing.T) {
-		storage := NewTransactionStorage(WithCleanupFunc(nil))
+		storage := NewMemoryStorage(WithCleanupFunc(nil))
 
 		tx := createTestTransaction(t)
 		err := storage.Add(tx)
@@ -312,7 +312,7 @@ func TestConcurrentOperations(t *testing.T) {
 
 	t.Run("concurrent add and get operations", func(t *testing.T) {
 		// Use a large max to avoid cleanup during concurrent operations
-		storage := NewTransactionStorage(WithMaxTransactions(1000))
+		storage := NewMemoryStorage(WithMaxTransactions(1000))
 
 		// Add transactions concurrently
 		const numGoroutines = 10
@@ -342,7 +342,7 @@ func TestConcurrentOperations(t *testing.T) {
 	})
 
 	t.Run("concurrent current transaction operations", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 
 		const numGoroutines = 10
 		done := make(chan struct{}, numGoroutines)
@@ -371,7 +371,7 @@ func TestDefaultCleanupBehavior(t *testing.T) {
 
 	t.Run("default cleanup keeps most recent transactions", func(t *testing.T) {
 		maxTx := 3
-		storage := NewTransactionStorage(WithMaxTransactions(maxTx))
+		storage := NewMemoryStorage(WithMaxTransactions(maxTx))
 
 		var transactions []*transaction.ConfigTransaction
 
@@ -395,7 +395,7 @@ func TestDefaultCleanupBehavior(t *testing.T) {
 	})
 
 	t.Run("cleanup with fewer than max transactions", func(t *testing.T) {
-		storage := NewTransactionStorage(WithMaxTransactions(5))
+		storage := NewMemoryStorage(WithMaxTransactions(5))
 
 		// Add fewer transactions than max
 		var transactions []*transaction.ConfigTransaction
@@ -420,7 +420,7 @@ func TestTransactionRetrieval(t *testing.T) {
 	t.Parallel()
 
 	t.Run("get by id returns current transaction even if not in history", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 
 		tx := createTestTransaction(t)
 		storage.SetCurrent(tx)
@@ -431,14 +431,14 @@ func TestTransactionRetrieval(t *testing.T) {
 	})
 
 	t.Run("get by id returns nil for non-existent transaction", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 
 		result := storage.GetByID("non-existent-id")
 		assert.Nil(t, result)
 	})
 
 	t.Run("get by id prefers current over history", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 
 		// Add transaction to history
 		tx1 := createTestTransaction(t)
@@ -460,7 +460,7 @@ func TestTransactionRetrieval(t *testing.T) {
 	})
 
 	t.Run("get all returns copy of transactions", func(t *testing.T) {
-		storage := NewTransactionStorage()
+		storage := NewMemoryStorage()
 
 		tx := createTestTransaction(t)
 		err := storage.Add(tx)

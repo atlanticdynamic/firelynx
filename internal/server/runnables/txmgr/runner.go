@@ -14,218 +14,186 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
 
-// Interface guards: ensure Runner implements these interfaces
+// Interface guards
 var (
 	_ supervisor.Runnable  = (*Runner)(nil)
 	_ supervisor.Stateable = (*Runner)(nil)
 )
 
-// Runner implements the core server coordinator that manages configuration
-// lifecycle and app collection.
-//
-// Note: The HTTP-specific references in this comment are outdated. According to the
-// HTTP listener rewrite plan, HTTP server management functionality will be moved
-// to the HTTP listener package as a dedicated SagaParticipant implementation.
+// Runner implements the transaction manager using a siphon pattern
+// following the design of httpcluster for clean configuration handling.
 type Runner struct {
-	// Required dependencies
-	appCollection *apps.AppInstances
-	logger        *slog.Logger
+	// Transaction siphon channel - UNBUFFERED for ordering and synchronization
+	txSiphon chan *transaction.ConfigTransaction
 
-	// Configuration transaction management
+	// Saga orchestrator for processing
 	sagaOrchestrator SagaProcessor
-	configProvider   ConfigChannelProvider
-
-	// Internal state
-
-	// Control channels
-	serverErrors chan error
-
-	// Synchronization
-	wg sync.WaitGroup
-
-	// Context handling
-	runCtx    context.Context
-	runCancel context.CancelFunc
-	parentCtx context.Context
 
 	// State management
 	fsm finitestate.Machine
+
+	// Context management
+	parentCtx context.Context
+	runCtx    context.Context
+	runCancel context.CancelFunc
+
+	// Options
+	logger *slog.Logger
 }
 
-// NewRunner creates a new core runner that coordinates configuration and services.
-// It follows the functional options pattern for configuration.
+// NewRunner creates a new transaction manager runner with siphon pattern.
 func NewRunner(
 	sagaOrchestrator SagaProcessor,
-	configProvider ConfigChannelProvider,
 	opts ...Option,
 ) (*Runner, error) {
 	if sagaOrchestrator == nil {
 		return nil, errors.New("saga orchestrator cannot be nil")
 	}
-	if configProvider == nil {
-		return nil, errors.New("config provider cannot be nil")
-	}
-	// Create initial empty app collection
-	initialApps, err := apps.NewAppInstances([]apps.App{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create initial app collection: %w", err)
-	}
 
-	// Initialize with default options
-	runner := &Runner{
-		appCollection:    initialApps,
-		logger:           slog.Default().WithGroup("txmgr.Runner"),
+	r := &Runner{
 		sagaOrchestrator: sagaOrchestrator,
-		configProvider:   configProvider,
-		serverErrors:     make(chan error, 10),
+		txSiphon:         make(chan *transaction.ConfigTransaction), // UNBUFFERED
+		logger:           slog.Default().WithGroup("txmgr.Runner"),
 		parentCtx:        context.Background(),
 	}
 
 	// Apply options
 	for _, opt := range opts {
-		opt(runner)
-	}
-
-	// Initialize the finite state machine
-	fsmLogger := runner.logger.WithGroup("fsm")
-	fsm, err := finitestate.New(fsmLogger.Handler())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create state machine: %w", err)
-	}
-	runner.fsm = fsm
-
-	return runner, nil
-}
-
-// Run implements the supervisor.Runnable interface.
-// It initializes and starts all server components, blocking until
-// the context is cancelled or Stop is called.
-func (r *Runner) Run(ctx context.Context) error {
-	if err := r.fsm.Transition(finitestate.StatusBooting); err != nil {
-		return fmt.Errorf("failed to transition to booting state: %w", err)
-	}
-
-	// Create a cancellable context
-	r.runCtx, r.runCancel = context.WithCancel(ctx)
-
-	// Start monitoring for errors
-	r.wg.Add(1)
-	go r.monitorErrors()
-
-	// Start monitoring config transactions from cfgservice
-	r.wg.Add(1)
-	go r.monitorConfigTransactions()
-
-	// Transition to running state
-	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
-		return fmt.Errorf("failed to transition to running state: %w", err)
-	}
-
-	// Block until context is cancelled or Stop is called
-	select {
-	case <-r.parentCtx.Done():
-		r.logger.Debug("Parent context canceled")
-		// Cancel run context to stop goroutines since Stop() wasn't called
-		r.runCancel()
-	case <-r.runCtx.Done():
-		r.logger.Debug("Run context canceled")
-	}
-
-	r.logger.Info("Transaction manager shutting down")
-
-	// Ensure we transition to stopping state first
-	if r.fsm.GetState() != finitestate.StatusStopping {
-		if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
-			r.logger.Error("Failed to transition to stopping state", "error", err)
+		if err := opt(r); err != nil {
+			return nil, fmt.Errorf("failed to apply option: %w", err)
 		}
 	}
 
-	// Wait for all goroutines to finish
-	r.wg.Wait()
+	// Create FSM
+	fsmLogger := r.logger.WithGroup("fsm")
+	machine, err := finitestate.New(fsmLogger.Handler())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create FSM: %w", err)
+	}
+	r.fsm = machine
 
-	// Then transition to stopped
+	return r, nil
+}
+
+// GetTransactionSiphon returns the transaction siphon for sending transactions.
+// The channel is unbuffered, so sends will block until the receiver is ready.
+func (r *Runner) GetTransactionSiphon() chan<- *transaction.ConfigTransaction {
+	return r.txSiphon
+}
+
+// Run implements the supervisor.Runnable interface.
+func (r *Runner) Run(ctx context.Context) error {
+	logger := r.logger.WithGroup("Run")
+	logger.Debug("Starting transaction manager")
+
+	if err := r.fsm.Transition(finitestate.StatusBooting); err != nil {
+		return fmt.Errorf("failed to transition to booting: %w", err)
+	}
+
+	runCtx, runCancel := context.WithCancel(ctx)
+	r.runCtx = runCtx
+	r.runCancel = runCancel
+	defer runCancel()
+
+	// Transition to running - we're ready to receive on the siphon
+	if err := r.fsm.Transition(finitestate.StatusRunning); err != nil {
+		return fmt.Errorf("failed to transition to running: %w", err)
+	}
+
+	logger.Info("Transaction manager ready")
+
+	// Main event loop
+	for {
+		select {
+		case <-runCtx.Done():
+			logger.Debug("Run context cancelled")
+			return r.shutdown(runCtx)
+
+		case <-r.parentCtx.Done():
+			logger.Debug("Parent context cancelled")
+			return r.shutdown(runCtx)
+
+		case tx, ok := <-r.txSiphon:
+			if !ok {
+				logger.Debug("Transaction siphon closed")
+				return r.shutdown(runCtx)
+			}
+
+			logger.Debug("Received transaction", "id", tx.ID)
+			if err := r.processTransaction(runCtx, tx); err != nil {
+				logger.Error("Failed to process transaction",
+					"id", tx.ID, "error", err)
+				// Mark transaction as failed but continue running
+				if markErr := tx.MarkFailed(err); markErr != nil {
+					logger.Error("Failed to mark transaction as failed",
+						"id", tx.ID, "error", markErr)
+				}
+			}
+		}
+	}
+}
+
+// Stop signals the transaction manager to stop.
+func (r *Runner) Stop() {
+	r.logger.Debug("Stop called")
+	if r.runCancel != nil {
+		r.runCancel()
+	}
+}
+
+// shutdown performs graceful shutdown of the transaction manager.
+func (r *Runner) shutdown(ctx context.Context) error {
+	logger := r.logger.WithGroup("shutdown")
+	logger.Info("Transaction manager shutting down")
+
+	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
+		logger.Error("Failed to transition to stopping", "error", err)
+	}
+
 	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
-		return fmt.Errorf("failed to transition to stopped state: %w", err)
+		logger.Error("Failed to transition to stopped", "error", err)
 	}
 
 	return nil
 }
 
-// monitorErrors watches the error channel and logs errors.
-func (r *Runner) monitorErrors() {
-	defer r.wg.Done()
+// processTransaction handles a configuration transaction through the saga orchestrator.
+func (r *Runner) processTransaction(ctx context.Context, tx *transaction.ConfigTransaction) error {
+	logger := r.logger.WithGroup("processTransaction")
 
-	for {
-		select {
-		case <-r.runCtx.Done():
-			return
-		case err := <-r.serverErrors:
-			if err != nil {
-				r.logger.Error("Server error", "error", err)
-			}
-		}
+	if err := r.fsm.Transition(finitestate.StatusReloading); err != nil {
+		return fmt.Errorf("failed to transition to reloading: %w", err)
 	}
-}
 
-// monitorConfigTransactions watches for validated config transactions from cfgservice
-// and processes them through the saga orchestrator.
-func (r *Runner) monitorConfigTransactions() {
-	defer r.wg.Done()
-
-	configChan := r.configProvider.GetConfigChan()
-	for {
-		select {
-		case <-r.runCtx.Done():
-			return
-		case tx, ok := <-configChan:
-			if !ok {
-				r.logger.Info("Config channel closed, stopping config transaction monitoring")
-				return
-			}
-			if tx == nil {
-				continue
-			}
-
-			r.logger.Debug("Received validated config transaction", "id", tx.ID)
-
-			// Add transaction to storage first
-			if err := r.sagaOrchestrator.AddToStorage(tx); err != nil {
-				r.logger.Error("Failed to add config transaction to storage",
-					"id", tx.ID, "error", err)
-				r.serverErrors <- fmt.Errorf("failed to store transaction %s: %w", tx.ID, err)
-				continue
-			}
-
-			// Process the transaction through the saga orchestrator
-			if err := r.sagaOrchestrator.ProcessTransaction(r.runCtx, tx); err != nil {
-				r.logger.Error("Failed to process config transaction via saga orchestrator",
-					"id", tx.ID, "error", err)
-				r.serverErrors <- fmt.Errorf("saga processing failed for transaction %s: %w", tx.ID, err)
-			} else {
-				r.logger.Info("Successfully processed config transaction via saga orchestrator", "id", tx.ID)
-			}
+	if err := r.sagaOrchestrator.AddToStorage(tx); err != nil {
+		if transErr := r.fsm.TransitionIfCurrentState(finitestate.StatusReloading, finitestate.StatusRunning); transErr != nil {
+			logger.Error("Failed to return to running state", "error", transErr)
 		}
+		return fmt.Errorf("failed to store transaction: %w", err)
 	}
+
+	if err := r.sagaOrchestrator.ProcessTransaction(ctx, tx); err != nil {
+		if transErr := r.fsm.TransitionIfCurrentState(finitestate.StatusReloading, finitestate.StatusRunning); transErr != nil {
+			logger.Error("Failed to return to running state", "error", transErr)
+		}
+		return fmt.Errorf("saga processing failed: %w", err)
+	}
+
+	if err := r.fsm.TransitionIfCurrentState(finitestate.StatusReloading, finitestate.StatusRunning); err != nil {
+		logger.Error("Failed to return to running state", "error", err)
+	}
+
+	logger.Info("Successfully processed transaction", "id", tx.ID)
+	return nil
 }
 
 // String returns the name of this runnable component.
 func (r *Runner) String() string {
 	return "txmgr.Runner"
-}
-
-// Stop gracefully stops all server components.
-func (r *Runner) Stop() {
-	r.logger.Debug("Stopping transaction manager")
-	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
-		r.logger.Error("Failed to transition to stopping state", "error", err)
-		// Continue with shutdown despite the state transition error
-	}
-	r.runCancel()
 }

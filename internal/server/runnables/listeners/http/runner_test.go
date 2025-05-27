@@ -123,7 +123,7 @@ func TestRunner_ApplyPendingConfig(t *testing.T) {
 		require.NoError(t, err)
 
 		// Apply pending config when there are no pending changes
-		err = runner.ApplyPendingConfig(context.Background())
+		err = runner.CommitConfig(context.Background())
 		assert.NoError(t, err)
 	})
 }
@@ -144,7 +144,7 @@ func TestRunner_ExecuteConfig(t *testing.T) {
 	// Test with empty config
 	tx := createMockTransaction(t)
 
-	err = runner.ExecuteConfig(context.Background(), tx)
+	err = runner.StageConfig(context.Background(), tx)
 	assert.NoError(t, err)
 }
 
@@ -156,7 +156,7 @@ func TestRunner_CompensateConfig(t *testing.T) {
 	tx := createMockTransaction(t)
 
 	// First set something pending
-	err = runner.ExecuteConfig(context.Background(), tx)
+	err = runner.StageConfig(context.Background(), tx)
 	require.NoError(t, err)
 
 	// Then compensate

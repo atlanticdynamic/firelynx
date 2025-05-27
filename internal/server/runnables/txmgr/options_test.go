@@ -16,7 +16,8 @@ func TestWithLogHandler(t *testing.T) {
 	// Create a runner with this option
 	r := &Runner{}
 	opt := WithLogHandler(handler)
-	opt(r)
+	err := opt(r)
+	assert.NoError(t, err)
 
 	// Verify the logger was set
 	assert.NotNil(t, r.logger)
@@ -25,7 +26,8 @@ func TestWithLogHandler(t *testing.T) {
 	r = &Runner{logger: slog.Default()}
 	originalLogger := r.logger
 	opt = WithLogHandler(nil)
-	opt(r)
+	err = opt(r)
+	assert.NoError(t, err)
 
 	// Logger should remain unchanged
 	assert.Equal(t, originalLogger, r.logger)
@@ -38,7 +40,8 @@ func TestWithLogger(t *testing.T) {
 	// Create a runner with this option
 	r := &Runner{}
 	opt := WithLogger(logger)
-	opt(r)
+	err := opt(r)
+	assert.NoError(t, err)
 
 	// Verify the logger was set
 	assert.Equal(t, logger, r.logger)
@@ -47,7 +50,8 @@ func TestWithLogger(t *testing.T) {
 	r = &Runner{logger: slog.Default()}
 	originalLogger := r.logger
 	opt = WithLogger(nil)
-	opt(r)
+	err = opt(r)
+	assert.NoError(t, err)
 
 	// Logger should remain unchanged
 	assert.Equal(t, originalLogger, r.logger)
@@ -60,7 +64,8 @@ func TestWithContext(t *testing.T) {
 	// Create a runner with this option
 	r := &Runner{}
 	opt := WithContext(ctx)
-	opt(r)
+	err := opt(r)
+	assert.NoError(t, err)
 
 	// Verify the context was set
 	assert.NotNil(t, r.parentCtx)
@@ -70,7 +75,8 @@ func TestWithContext(t *testing.T) {
 	r = &Runner{} // Reset
 	var n context.Context = nil
 	opt = WithContext(n)
-	opt(r)
+	err = opt(r)
+	assert.NoError(t, err)
 
 	// Context should not be set
 	assert.Nil(t, r.parentCtx)

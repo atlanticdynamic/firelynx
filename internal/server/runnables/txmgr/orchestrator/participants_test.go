@@ -19,7 +19,7 @@ import (
 // SagaParticipant and Reloadable interfaces is detected and rejected using mocks from the mocks package
 func TestSagaParticipantInterface_ReloadConflictFromMocks(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create a participant that also implements Reloadable (conflict)
@@ -35,18 +35,18 @@ func TestSagaParticipantInterface_ReloadConflictFromMocks(t *testing.T) {
 	)
 }
 
-// TestSagaParticipantInterface_ApplyPendingConfigFromMocks tests the ApplyPendingConfig method
+// TestSagaParticipantInterface_ApplyPendingConfigFromMocks tests the CommitConfig method
 func TestSagaParticipantInterface_ApplyPendingConfigFromMocks(t *testing.T) {
 	ctx := context.Background()
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create participant
 	participant := newMockSagaParticipant("test-participant")
 
 	// Setup expectations
-	participant.On("ApplyPendingConfig", mock.Anything).Return(nil)
+	participant.On("CommitConfig", mock.Anything).Return(nil)
 	participant.On("GetState").Return("running")
 	participant.On("IsRunning").Return(true)
 
@@ -77,14 +77,14 @@ func TestSagaParticipantInterface_ApplyPendingConfigFromMocks(t *testing.T) {
 	// Verify transaction is completed
 	assert.Equal(t, finitestate.StateCompleted, tx.GetState())
 
-	// Verify ApplyPendingConfig was called on participant
-	participant.AssertCalled(t, "ApplyPendingConfig", mock.Anything)
+	// Verify CommitConfig was called on participant
+	participant.AssertCalled(t, "CommitConfig", mock.Anything)
 }
 
 func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 	// Create a transaction storage with a current transaction
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 
 	// Create a test config
 	testConfig := &config.Config{
@@ -112,8 +112,8 @@ func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 	participant2 := NewMockReloadParticipant("participant2")
 
 	// Set up mocks
-	participant1.On("ApplyPendingConfig", mock.Anything).Return(nil)
-	participant2.On("ApplyPendingConfig", mock.Anything).Return(nil)
+	participant1.On("CommitConfig", mock.Anything).Return(nil)
+	participant2.On("CommitConfig", mock.Anything).Return(nil)
 	participant1.On("GetState").Return("running")
 	participant2.On("GetState").Return("running")
 	participant1.On("IsRunning").Return(true)
@@ -140,7 +140,7 @@ func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 func TestTriggerReload_FailureFromMocks(t *testing.T) {
 	// Create a transaction storage with a current transaction
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	storage := txstorage.NewTransactionStorage()
+	storage := txstorage.NewMemoryStorage()
 
 	// Create a test config
 	testConfig := &config.Config{
@@ -171,8 +171,8 @@ func TestTriggerReload_FailureFromMocks(t *testing.T) {
 	participant2.SetFailReload()
 
 	// Set up mocks - the expectations need to match what TriggerReload actually calls
-	participant1.On("ApplyPendingConfig", mock.Anything).Return(nil)
-	participant2.On("ApplyPendingConfig", mock.Anything).
+	participant1.On("CommitConfig", mock.Anything).Return(nil)
+	participant2.On("CommitConfig", mock.Anything).
 		Return(fmt.Errorf("failed to apply pending config"))
 	participant1.On("GetState").Return("running")
 	participant2.On("GetState").Maybe().Return("failed")

@@ -17,8 +17,8 @@ const DefaultMaxTransactions = 20
 // DefaultCleanupDebounceInterval is the default time to wait before cleaning up old transactions
 const DefaultCleanupDebounceInterval = 10 * time.Second
 
-// TransactionStorage provides a thread-safe storage for transactions
-type TransactionStorage struct {
+// MemoryStorage provides a thread-safe storage for transactions
+type MemoryStorage struct {
 	// Stored transactions
 	transactions []*transaction.ConfigTransaction
 
@@ -49,9 +49,9 @@ type TransactionStorage struct {
 	logger *slog.Logger
 }
 
-// NewTransactionStorage creates a new transaction storage with the given options
-func NewTransactionStorage(opts ...Option) *TransactionStorage {
-	s := &TransactionStorage{
+// NewMemoryStorage creates a new transaction storage with the given options
+func NewMemoryStorage(opts ...Option) *MemoryStorage {
+	s := &MemoryStorage{
 		transactions:            make([]*transaction.ConfigTransaction, 0, 10),
 		maxTransactions:         DefaultMaxTransactions,
 		cleanupDebounceInterval: DefaultCleanupDebounceInterval,
@@ -76,7 +76,7 @@ func NewTransactionStorage(opts ...Option) *TransactionStorage {
 }
 
 // Add adds a transaction to storage
-func (s *TransactionStorage) Add(tx *transaction.ConfigTransaction) error {
+func (s *MemoryStorage) Add(tx *transaction.ConfigTransaction) error {
 	if tx == nil {
 		return nil
 	}
@@ -97,7 +97,7 @@ func (s *TransactionStorage) Add(tx *transaction.ConfigTransaction) error {
 }
 
 // SetCurrent sets the current active transaction
-func (s *TransactionStorage) SetCurrent(tx *transaction.ConfigTransaction) {
+func (s *MemoryStorage) SetCurrent(tx *transaction.ConfigTransaction) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.current = tx
@@ -110,7 +110,7 @@ func (s *TransactionStorage) SetCurrent(tx *transaction.ConfigTransaction) {
 }
 
 // GetAll returns all transactions in storage
-func (s *TransactionStorage) GetAll() []*transaction.ConfigTransaction {
+func (s *MemoryStorage) GetAll() []*transaction.ConfigTransaction {
 	s.logger.Debug("Getting all transactions")
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -123,7 +123,7 @@ func (s *TransactionStorage) GetAll() []*transaction.ConfigTransaction {
 }
 
 // GetByID returns a transaction by ID or nil if not found
-func (s *TransactionStorage) GetByID(id string) *transaction.ConfigTransaction {
+func (s *MemoryStorage) GetByID(id string) *transaction.ConfigTransaction {
 	s.logger.Debug("Getting transaction by ID", "id", id)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -144,14 +144,14 @@ func (s *TransactionStorage) GetByID(id string) *transaction.ConfigTransaction {
 }
 
 // GetCurrent returns the current active transaction
-func (s *TransactionStorage) GetCurrent() *transaction.ConfigTransaction {
+func (s *MemoryStorage) GetCurrent() *transaction.ConfigTransaction {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.current
 }
 
 // signalCleanup signals the cleanup worker to run
-func (s *TransactionStorage) signalCleanup() {
+func (s *MemoryStorage) signalCleanup() {
 	// Start cleanup worker if not running
 	if s.cleanupRunning.CompareAndSwap(false, true) {
 		go s.cleanupWorker()
@@ -166,7 +166,7 @@ func (s *TransactionStorage) signalCleanup() {
 }
 
 // cleanup applies the cleanup function to the transactions
-func (s *TransactionStorage) cleanup() {
+func (s *MemoryStorage) cleanup() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -179,7 +179,7 @@ func (s *TransactionStorage) cleanup() {
 }
 
 // cleanupWorker runs cleanup operations asynchronously
-func (s *TransactionStorage) cleanupWorker() {
+func (s *MemoryStorage) cleanupWorker() {
 	defer s.cleanupRunning.Store(false)
 
 	// Create timer for debounce

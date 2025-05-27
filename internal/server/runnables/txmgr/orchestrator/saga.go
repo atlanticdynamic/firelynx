@@ -27,25 +27,25 @@ const (
 // in configuration transactions. It extends Runnable and Stateable from supervisor
 // to ensure components have the necessary lifecycle management capabilities.
 // Note that SagaParticipant SHOULD NOT implement supervisor.Reloadable to avoid
-// conflicts with the ApplyPendingConfig method.
+// conflicts with the CommitConfig method.
 type SagaParticipant interface {
 	supervisor.Runnable
 	supervisor.Stateable
 
-	// ExecuteConfig processes a validated configuration transaction
+	// StageConfig processes a validated configuration transaction
 	// by preparing the component to apply the changes. This is called
 	// during the execution phase of the saga.
-	ExecuteConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
+	StageConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
 
-	// CompensateConfig reverts changes made during ExecuteConfig
+	// CompensateConfig reverts changes made during StageConfig
 	// when a transaction fails. This is called for successful
 	// participants when the saga needs to be rolled back.
 	CompensateConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
 
-	// ApplyPendingConfig applies the pending configuration prepared during ExecuteConfig.
+	// CommitConfig applies the pending configuration prepared during StageConfig.
 	// This is called during the reload phase after all participants have successfully
 	// executed their configurations.
-	ApplyPendingConfig(ctx context.Context) error
+	CommitConfig(ctx context.Context) error
 }
 
 // SagaOrchestrator coordinates configuration changes across multiple components
@@ -53,7 +53,7 @@ type SagaParticipant interface {
 // compensation if any component fails.
 type SagaOrchestrator struct {
 	// Transaction storage for persistent transaction state
-	txStorage *txstorage.TransactionStorage
+	txStorage *txstorage.MemoryStorage
 
 	// Registry of saga participants
 	runnables map[string]SagaParticipant
@@ -67,7 +67,7 @@ type SagaOrchestrator struct {
 
 // NewSagaOrchestrator creates a new saga orchestrator
 func NewSagaOrchestrator(
-	txStorage *txstorage.TransactionStorage,
+	txStorage *txstorage.MemoryStorage,
 	handler slog.Handler,
 ) *SagaOrchestrator {
 	logger := slog.New(handler).WithGroup("sagaOrchestrator")
@@ -81,7 +81,7 @@ func NewSagaOrchestrator(
 
 // RegisterParticipant registers a component as a saga participant.
 // Returns an error if the participant also implements supervisor.Reloadable which would
-// cause conflicts with ApplyPendingConfig.
+// cause conflicts with CommitConfig.
 func (o *SagaOrchestrator) RegisterParticipant(participant SagaParticipant) error {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
@@ -122,6 +122,12 @@ func (o *SagaOrchestrator) ProcessTransaction(
 		return fmt.Errorf("failed to begin execution: %w", err)
 	}
 
+	// Skip waiting for participants during initial startup
+	// The channels exist and that's all that matters for communication
+	// Components will process configs when they're ready
+	o.logger.Debug("Processing transaction without waiting for participant states",
+		"participantCount", len(o.runnables))
+
 	// Register all known participants with the transaction
 	o.mutex.RLock()
 	for name := range o.runnables {
@@ -154,7 +160,7 @@ func (o *SagaOrchestrator) ProcessTransaction(
 		}
 
 		// Execute the configuration on this participant
-		err = participant.ExecuteConfig(ctx, tx)
+		err = participant.StageConfig(ctx, tx)
 		if err != nil {
 			// Mark participant as failed
 			if markErr := participantState.MarkFailed(err); markErr != nil {
@@ -353,9 +359,9 @@ func (o *SagaOrchestrator) AddToStorage(tx *transaction.ConfigTransaction) error
 // This is called after a transaction has successfully completed execution
 // (reaches the succeeded state).
 //
-// The reload is handled by calling ApplyPendingConfig() on each participant,
+// The reload is handled by calling CommitConfig() on each participant,
 // which is part of the SagaParticipant interface. After each component's
-// ApplyPendingConfig() call, we wait for it to return to the running state
+// CommitConfig() call, we wait for it to return to the running state
 // before proceeding to the next component.
 //
 // This method blocks until all components are reloaded and running again, or until
@@ -403,9 +409,9 @@ func (o *SagaOrchestrator) TriggerReload(ctx context.Context) error {
 			o.logger.Debug("Pre-reload state", "participant", name, "state", preState)
 		}
 
-		// Call ApplyPendingConfig on the participant
+		// Call CommitConfig on the participant
 		o.logger.Debug("Applying pending configuration", "participant", name)
-		if err := participant.ApplyPendingConfig(ctx); err != nil {
+		if err := participant.CommitConfig(ctx); err != nil {
 			o.logger.Error("Failed to apply pending configuration",
 				"participant", name, "error", err)
 			reloadErrors = append(

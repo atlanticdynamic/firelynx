@@ -17,36 +17,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// MockConfigProvider implements ConfigChannelProvider for testing
-type MockConfigProvider struct {
-	ch chan *transaction.ConfigTransaction
-}
-
-func NewMockConfigProvider(bufferSize int) *MockConfigProvider {
-	return &MockConfigProvider{
-		ch: make(chan *transaction.ConfigTransaction, bufferSize),
-	}
-}
-
-func (m *MockConfigProvider) GetConfigChan() <-chan *transaction.ConfigTransaction {
-	return m.ch
-}
-
-func (m *MockConfigProvider) Send(tx *transaction.ConfigTransaction) {
-	m.ch <- tx
-}
-
-func (m *MockConfigProvider) Close() {
-	close(m.ch)
-}
-
 // testHarness provides a clean test setup
 type testHarness struct {
 	t                *testing.T
 	runner           *Runner
-	configProvider   *MockConfigProvider
+	txSiphon         chan<- *transaction.ConfigTransaction
 	sagaOrchestrator SagaProcessor
-	txStorage        *txstorage.TransactionStorage
+	txStorage        *txstorage.MemoryStorage
 	ctx              context.Context
 	cancel           context.CancelFunc
 	errCh            chan error
@@ -56,17 +33,16 @@ type testHarness struct {
 func newTestHarness(t *testing.T, opts ...Option) *testHarness {
 	t.Helper()
 
-	txStorage := txstorage.NewTransactionStorage()
+	txStorage := txstorage.NewMemoryStorage()
 	sagaOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())
-	configProvider := NewMockConfigProvider(1)
-	runner, err := NewRunner(sagaOrchestrator, configProvider, opts...)
+	runner, err := NewRunner(sagaOrchestrator, opts...)
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &testHarness{
 		t:                t,
 		runner:           runner,
-		configProvider:   configProvider,
+		txSiphon:         runner.GetTransactionSiphon(),
 		sagaOrchestrator: sagaOrchestrator,
 		txStorage:        txStorage,
 		ctx:              ctx,
@@ -92,6 +68,16 @@ func (h *testHarness) stop() error {
 	h.cancel()
 	err := <-h.errCh
 	return err
+}
+
+// sendTransaction sends a transaction to the siphon
+func (h *testHarness) sendTransaction(tx *transaction.ConfigTransaction) {
+	select {
+	case h.txSiphon <- tx:
+		// Sent successfully
+	case <-time.After(5 * time.Second):
+		h.t.Fatal("timeout sending transaction to siphon")
+	}
 }
 
 // waitForTransaction waits for a transaction to be stored
@@ -121,14 +107,14 @@ func (h *testHarness) sendConfig(version string) *transaction.ConfigTransaction 
 	tx.IsValid.Store(true)
 	require.NoError(h.t, tx.MarkValidated())
 
-	h.configProvider.Send(tx)
+	h.sendTransaction(tx)
 	return tx
 }
 
 func TestNewRunnerMinimalOptions(t *testing.T) {
 	h := newTestHarness(t)
 	assert.NotNil(t, h.runner)
-	assert.NotNil(t, h.configProvider)
+	assert.NotNil(t, h.txSiphon)
 	assert.NotNil(t, h.sagaOrchestrator)
 	assert.NotNil(t, h.txStorage)
 }
@@ -206,25 +192,6 @@ func TestRunnerConfigUpdate(t *testing.T) {
 		current := h.txStorage.GetCurrent()
 		return current != nil && current.ID == tx2.ID
 	}, 5*time.Second, 10*time.Millisecond, "current transaction should be updated")
-
-	// Clean shutdown
-	err := h.stop()
-	assert.NoError(t, err)
-}
-
-func TestRunnerClosedChannel(t *testing.T) {
-	h := newTestHarness(t)
-	h.start()
-
-	// Send a config first
-	tx := h.sendConfig("v1")
-	h.waitForTransaction(tx.ID.String())
-
-	// Close the config channel (simulating provider shutdown)
-	h.configProvider.Close()
-
-	// Runner should continue running (closed channel is not an error)
-	assert.True(t, h.runner.IsRunning())
 
 	// Clean shutdown
 	err := h.stop()
@@ -312,11 +279,9 @@ func TestRunnerStateChan(t *testing.T) {
 }
 
 func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
-	// Use larger buffer to handle concurrent sends
-	txStorage := txstorage.NewTransactionStorage()
+	txStorage := txstorage.NewMemoryStorage()
 	sagaOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())
-	configProvider := NewMockConfigProvider(10) // larger buffer
-	runner, err := NewRunner(sagaOrchestrator, configProvider)
+	runner, err := NewRunner(sagaOrchestrator)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -329,6 +294,8 @@ func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		return runner.IsRunning()
 	}, 5*time.Second, 10*time.Millisecond)
+
+	txSiphon := runner.GetTransactionSiphon()
 
 	// Send multiple transactions concurrently
 	for i := range 5 {
@@ -357,7 +324,12 @@ func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
 				return
 			}
 
-			configProvider.Send(tx)
+			select {
+			case txSiphon <- tx:
+				// Sent successfully
+			case <-time.After(5 * time.Second):
+				t.Errorf("Timeout sending transaction %d", n)
+			}
 		}(i)
 	}
 
