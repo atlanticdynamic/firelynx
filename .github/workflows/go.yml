@@ -32,5 +32,8 @@ jobs:
       - name: go mod tidy (fails if changes are needed)
         run: go mod tidy --diff
 
-      - name: Go test
-        run: make test
+      - name: Go test (short)
+        run: make test-short
+
+      - name: Go test (all)
+        run: make test-all
