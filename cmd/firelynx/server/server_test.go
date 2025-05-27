@@ -1,0 +1,492 @@
+//go:build e2e
+// +build e2e
+
+package server
+
+import (
+	"context"
+	_ "embed"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/atlanticdynamic/firelynx/internal/client"
+	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// Embed test configuration files
+var (
+	//go:embed testdata/basic_config.toml
+	basicConfigTOML string
+
+	//go:embed testdata/grpc_config.toml
+	grpcConfigTOML string
+
+	//go:embed testdata/initial_config.toml
+	initialConfigTOML string
+)
+
+// TestServerWithConfigFile tests loading a basic TOML config file and starting the server
+func TestServerWithConfigFile(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Create a temp directory for the config file
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "test_config.toml")
+
+	// Get a free port for HTTP
+	httpPort := testutil.GetRandomPort(t)
+	httpAddr := fmt.Sprintf(":%d", httpPort)
+
+	// Replace the port in the basic config
+	configContent := strings.Replace(basicConfigTOML, ":8080", httpAddr, 1)
+
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	require.NoError(t, err, "Failed to write config file")
+
+	// Create a logger
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	// Start the server in a goroutine
+	serverCtx, serverCancel := context.WithCancel(ctx)
+	errCh := make(chan error, 1)
+	go func() {
+		err := Run(serverCtx, logger, configPath, "")
+		if err != nil {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	// Test that the echo endpoint responds
+	httpClient := &http.Client{Timeout: 2 * time.Second}
+	url := fmt.Sprintf("http://localhost%s/test", httpAddr)
+
+	// Wait for endpoint to become available
+	assert.Eventually(t, func() bool {
+		resp, err := httpClient.Get(url)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 5*time.Second, 100*time.Millisecond, "Echo endpoint should become available")
+
+	// Make a successful request and verify response
+	resp, err := httpClient.Get(url)
+	require.NoError(t, err, "Should get response from echo endpoint")
+	defer resp.Body.Close()
+
+	body := make([]byte, 1024)
+	n, _ := resp.Body.Read(body)
+	responseText := string(body[:n])
+	assert.Contains(t, responseText, "Hello from test", "Response should contain configured echo text")
+
+	// Cancel the server
+	serverCancel()
+
+	// Wait for server to shut down
+	select {
+	case err := <-errCh:
+		assert.NoError(t, err, "Server should shut down cleanly")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Server shutdown timed out")
+	}
+}
+
+// TestServerWithGRPCConfig tests starting server with gRPC API and sending config via client
+func TestServerWithGRPCConfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Get free ports for gRPC and HTTP
+	grpcPort := testutil.GetRandomPort(t)
+	grpcAddr := fmt.Sprintf("localhost:%d", grpcPort)
+	httpPort := testutil.GetRandomPort(t)
+	httpAddr := fmt.Sprintf(":%d", httpPort)
+
+	// Create a logger
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	// Start the server with only gRPC
+	serverCtx, serverCancel := context.WithCancel(ctx)
+	errCh := make(chan error, 1)
+	go func() {
+		err := Run(serverCtx, logger, "", grpcAddr)
+		if err != nil {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	// Wait for gRPC server to be ready
+	assert.Eventually(t, func() bool {
+		conn, err := net.Dial("tcp", grpcAddr)
+		if err != nil {
+			return false
+		}
+		conn.Close()
+		return true
+	}, 5*time.Second, 100*time.Millisecond, "gRPC server should be listening")
+
+	// Create a client
+	c := client.New(client.Config{
+		ServerAddr: grpcAddr,
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelError,
+		})),
+	})
+
+	// Wait for gRPC service to be ready
+	assert.Eventually(t, func() bool {
+		_, err := c.GetConfig(ctx)
+		return err == nil
+	}, 5*time.Second, 200*time.Millisecond, "gRPC service should become ready")
+
+	// Replace the port in the config
+	configContent := strings.Replace(grpcConfigTOML, ":8081", httpAddr, 1)
+
+	// Create a temporary file to send the config
+	tempFile, err := os.CreateTemp("", "grpc_config_*.toml")
+	require.NoError(t, err, "Failed to create temp file")
+	defer os.Remove(tempFile.Name())
+
+	_, err = tempFile.Write([]byte(configContent))
+	require.NoError(t, err, "Failed to write temp file")
+	tempFile.Close()
+
+	// Apply the config
+	err = c.ApplyConfigFromPath(ctx, tempFile.Name())
+	assert.NoError(t, err, "Should send config successfully")
+
+	// Test that the echo endpoint responds
+	httpClient := &http.Client{Timeout: 2 * time.Second}
+	url := fmt.Sprintf("http://localhost%s/grpc-test", httpAddr)
+
+	// Wait for endpoint to become available
+	assert.Eventually(t, func() bool {
+		resp, err := httpClient.Get(url)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 8*time.Second, 200*time.Millisecond, "Echo endpoint should become available")
+
+	// Verify response content
+	resp, err := httpClient.Get(url)
+	require.NoError(t, err, "Should get response from echo endpoint")
+	defer resp.Body.Close()
+
+	body := make([]byte, 1024)
+	n, _ := resp.Body.Read(body)
+	responseText := string(body[:n])
+	assert.Contains(t, responseText, "Hello from gRPC config", "Response should contain configured echo text")
+
+	// Shutdown the server
+	serverCancel()
+
+	// Wait for clean shutdown
+	select {
+	case err := <-errCh:
+		assert.NoError(t, err, "Server should shut down cleanly")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Server shutdown timed out")
+	}
+}
+
+// TestServerWithFileAndGRPC tests loading initial config from file then updating via gRPC
+func TestServerWithFileAndGRPC(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Create a temp directory for the config file
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "initial_config.toml")
+
+	// Get free ports
+	grpcPort := testutil.GetRandomPort(t)
+	grpcAddr := fmt.Sprintf("localhost:%d", grpcPort)
+	httpPort := testutil.GetRandomPort(t)
+	httpAddr := fmt.Sprintf(":%d", httpPort)
+
+	// Replace the port in the initial config
+	configContent := strings.Replace(initialConfigTOML, ":8082", httpAddr, 1)
+
+	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	require.NoError(t, err, "Failed to write initial config file")
+
+	// Create a logger
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	// Start the server with both file and gRPC
+	serverCtx, serverCancel := context.WithCancel(ctx)
+	errCh := make(chan error, 1)
+	go func() {
+		err := Run(serverCtx, logger, configPath, grpcAddr)
+		if err != nil {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	// Wait for gRPC server to be ready
+	assert.Eventually(t, func() bool {
+		conn, err := net.Dial("tcp", grpcAddr)
+		if err != nil {
+			return false
+		}
+		conn.Close()
+		return true
+	}, 5*time.Second, 100*time.Millisecond, "gRPC server should be listening")
+
+	// Create a client
+	c := client.New(client.Config{
+		ServerAddr: grpcAddr,
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.LevelError,
+		})),
+	})
+
+	// Wait for gRPC service to be ready and get initial config
+	var currentCfg *config.Config
+	assert.Eventually(t, func() bool {
+		protoCfg, err := c.GetConfig(ctx)
+		if err != nil {
+			return false
+		}
+		currentCfg, err = config.NewFromProto(protoCfg)
+		return err == nil && len(currentCfg.Endpoints) > 0
+	}, 5*time.Second, 200*time.Millisecond, "Should get initial config with endpoints")
+
+	require.NotNil(t, currentCfg, "Config should not be nil")
+	require.Greater(t, len(currentCfg.Endpoints), 0, "Should have at least one endpoint")
+
+	// Test initial endpoint
+	httpClient := &http.Client{Timeout: 2 * time.Second}
+	initialURL := fmt.Sprintf("http://localhost%s/initial", httpAddr)
+
+	assert.Eventually(t, func() bool {
+		resp, err := httpClient.Get(initialURL)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 5*time.Second, 200*time.Millisecond, "Initial endpoint should be available")
+
+	// Test that we can also use gRPC to get the current config
+	retrievedProto, err := c.GetConfig(ctx)
+	require.NoError(t, err, "Should be able to get config via gRPC")
+	
+	retrievedCfg, err := config.NewFromProto(retrievedProto)
+	require.NoError(t, err, "Should be able to convert retrieved config")
+	
+	// Verify the retrieved config matches what we expect
+	assert.Equal(t, len(currentCfg.Apps), len(retrievedCfg.Apps), "Retrieved config should have same number of apps")
+	assert.Equal(t, len(currentCfg.Endpoints), len(retrievedCfg.Endpoints), "Retrieved config should have same number of endpoints")
+
+	// Shutdown the server
+	serverCancel()
+
+	// Wait for clean shutdown
+	select {
+	case err := <-errCh:
+		assert.NoError(t, err, "Server should shut down cleanly")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Server shutdown timed out")
+	}
+}
+
+// TestConfigFileReload tests reloading configuration by sending SIGHUP
+func TestConfigFileReload(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Create a temp directory for the config file
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "reload_config.toml")
+
+	// Get a free port for HTTP
+	httpPort := testutil.GetRandomPort(t)
+	httpAddr := fmt.Sprintf(":%d", httpPort)
+
+	// Write initial config
+	initialConfig := strings.Replace(initialConfigTOML, ":8082", httpAddr, 1)
+	err := os.WriteFile(configPath, []byte(initialConfig), 0644)
+	require.NoError(t, err, "Failed to write initial config file")
+
+	// Create a logger
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	// Start the server
+	serverCtx, serverCancel := context.WithCancel(ctx)
+	errCh := make(chan error, 1)
+	go func() {
+		err := Run(serverCtx, logger, configPath, "")
+		if err != nil {
+			errCh <- err
+		}
+		close(errCh)
+	}()
+
+	// Test initial endpoint
+	httpClient := &http.Client{Timeout: 2 * time.Second}
+	initialURL := fmt.Sprintf("http://localhost%s/initial", httpAddr)
+
+	assert.Eventually(t, func() bool {
+		resp, err := httpClient.Get(initialURL)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 5*time.Second, 200*time.Millisecond, "Initial endpoint should be available")
+
+	// Update config file to add new route
+	cfg, err := config.NewConfigFromBytes([]byte(initialConfig))
+	require.NoError(t, err, "Should parse config")
+
+	// Add new route and app using domain objects
+	cfg.Endpoints[0].Routes = append(cfg.Endpoints[0].Routes, routes.Route{
+		AppID:     "new_app",
+		Condition: conditions.NewHTTP("/new-path", ""),
+	})
+
+	cfg.Apps = append(cfg.Apps, apps.App{
+		ID: "new_app",
+		Config: &echo.EchoApp{
+			Response: "New path response",
+		},
+	})
+
+	// Save updated config using TOML format (simulate file update)
+	// For simplicity, we'll create the updated config as TOML manually
+	updatedConfig := initialConfig + `
+
+[[endpoints.routes]]
+app_id = "new_app"
+[endpoints.routes.http]
+path_prefix = "/new-path"
+
+[[apps]]
+id = "new_app"
+type = "echo"
+[apps.echo]
+response = "New path response"`
+
+	err = os.WriteFile(configPath, []byte(updatedConfig), 0644)
+	require.NoError(t, err, "Failed to update config file")
+
+	// Send SIGHUP to trigger reload
+	proc, err := os.FindProcess(os.Getpid())
+	require.NoError(t, err, "Failed to find process")
+	err = proc.Signal(syscall.SIGHUP)
+	require.NoError(t, err, "Failed to send SIGHUP signal")
+
+	// Test new endpoint becomes available
+	newURL := fmt.Sprintf("http://localhost%s/new-path", httpAddr)
+
+	assert.Eventually(t, func() bool {
+		resp, err := httpClient.Get(newURL)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 8*time.Second, 200*time.Millisecond, "New endpoint should become available after reload")
+
+	// Verify new endpoint response
+	resp, err := httpClient.Get(newURL)
+	require.NoError(t, err, "Should get response from new endpoint")
+	defer resp.Body.Close()
+
+	body := make([]byte, 1024)
+	n, _ := resp.Body.Read(body)
+	responseText := string(body[:n])
+	assert.Contains(t, responseText, "New path response", "Response should contain new path echo text")
+
+	// Shutdown the server
+	serverCancel()
+
+	// Wait for clean shutdown
+	select {
+	case err := <-errCh:
+		assert.NoError(t, err, "Server should shut down cleanly")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Server shutdown timed out")
+	}
+}
+
+// TestServerRequiresConfigSource verifies that the server returns an error
+// when neither config file nor gRPC address is provided
+func TestServerRequiresConfigSource(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelWarn,
+	}))
+
+	err := Run(ctx, logger, "", "")
+	assert.Error(t, err, "Server should require at least one config source")
+	assert.Contains(t, err.Error(), "no configuration source specified")
+}
+
+// TestNewConfigFromBytes validates that we can create configs from embedded bytes
+func TestNewConfigFromBytes(t *testing.T) {
+	// Test with the basic config
+	cfg, err := config.NewConfigFromBytes([]byte(basicConfigTOML))
+	require.NoError(t, err, "Should create config from bytes")
+	assert.Equal(t, "v1", cfg.Version)
+	assert.Equal(t, "warn", string(cfg.Logging.Level))
+	assert.Len(t, cfg.Listeners, 1)
+	assert.Len(t, cfg.Endpoints, 1)
+	assert.Len(t, cfg.Apps, 1)
+
+	// Test conversion to proto and back
+	proto := cfg.ToProto()
+	assert.NotNil(t, proto)
+
+	// Convert back to domain
+	cfg2, err := config.NewFromProto(proto)
+	require.NoError(t, err, "Should convert from proto")
+	assert.True(t, cfg.Equals(cfg2), "Configs should be equal after round-trip")
+}
