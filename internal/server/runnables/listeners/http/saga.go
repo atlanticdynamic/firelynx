@@ -76,7 +76,7 @@ func (r *Runner) CommitConfig(ctx context.Context) error {
 }
 
 // sendConfigToCluster converts the current adapter configuration to httpserver configs
-// and sends them through the siphon channel
+// and sends them through the siphon channel, then waits for cluster to be ready
 func (r *Runner) sendConfigToCluster(ctx context.Context, cfg *cfg.Adapter) error {
 	configs := r.prepConfigPayload(cfg)
 
@@ -87,16 +87,18 @@ func (r *Runner) sendConfigToCluster(ctx context.Context, cfg *cfg.Adapter) erro
 	r.logger.Debug("Sending configuration to cluster", "config", keys)
 
 	// Send configuration through siphon with configurable timeout
-	ctx, cancel := context.WithTimeout(ctx, r.siphonTimeout)
-	defer cancel()
+	siphonCtx, siphonCancel := context.WithTimeout(ctx, r.siphonTimeout)
+	defer siphonCancel()
 
 	select {
 	case r.cluster.GetConfigSiphon() <- configs:
 		r.logger.Debug("Sent configuration to cluster", "config", keys)
-		return nil
-	case <-ctx.Done():
+	case <-siphonCtx.Done():
 		return fmt.Errorf("timeout sending configuration to cluster after %v", r.siphonTimeout)
 	}
+
+	// Wait for cluster to finish processing and return to running state
+	return r.waitForClusterRunning(ctx, r.clusterReadyTimeout)
 }
 
 // prepConfigPayload converts the adapters into httpserver.Config objects

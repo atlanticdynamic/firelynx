@@ -84,7 +84,10 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 				continue
 			}
 			if err := saga.ProcessTransaction(ctx, tx); err != nil {
-				t.Logf("Failed to process transaction: %v", err)
+				// Don't log if context was canceled (expected during test cleanup)
+				if ctx.Err() == nil {
+					t.Logf("Failed to process transaction: %v", err)
+				}
 			}
 		}
 	}()
@@ -108,7 +111,7 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test that the endpoint is immediately accessible
-	testURL := fmt.Sprintf("http://localhost:%d/echo", httpPort)
+	testURL := fmt.Sprintf("http://127.0.0.1:%d/echo", httpPort)
 	resp, err := http.Get(testURL)
 	require.NoError(t, err, "HTTP endpoint should be immediately accessible after saga completion")
 	defer resp.Body.Close()
