@@ -1,8 +1,10 @@
 package transaction
 
 import (
+	_ "embed"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
@@ -10,21 +12,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//go:embed testdata/config.toml
+var testConfigContent string
+
 func TestConstructors(t *testing.T) {
 	t.Parallel()
 
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		Version: config.VersionLatest,
+	}
 
 	t.Run("constructs from file", func(t *testing.T) {
-		tx, err := FromFile("testdata/config.toml", cfg, handler)
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "config.toml")
+
+		err := os.WriteFile(configPath, []byte(testConfigContent), 0o644)
+		require.NoError(t, err)
+
+		tx, err := FromFile(configPath, cfg, handler)
 		require.NoError(t, err)
 		assert.Equal(t, SourceFile, tx.Source)
-		assert.Contains(t, tx.SourceDetail, "testdata/config.toml")
+		assert.Contains(t, tx.SourceDetail, configPath)
 	})
 
 	t.Run("constructs from invalid file", func(t *testing.T) {
-		tx, err := FromFile("testdata/nope.toml", cfg, handler)
+		tmpDir := t.TempDir()
+		invalidPath := filepath.Join(tmpDir, "nope.toml")
+
+		tx, err := FromFile(invalidPath, cfg, handler)
 		require.Error(t, err)
 		assert.Nil(t, tx)
 		assert.True(t, os.IsNotExist(err))
