@@ -25,11 +25,28 @@ Transaction states: created → validated → executing → succeeded/failed →
 
 ### Error Handling
 
-1. **Validation**: Pre-execution configuration validation
-2. **Failure Detection**: Component-level failure tracking
-3. **Compensation**: Rolling back successful changes when failures occur
-4. **Logging**: Transaction-scoped logging
-5. **Error Context**: Error wrapping for context preservation
+The transaction system categorizes errors into three types using sentinel error wrapping:
+
+#### Error Types
+
+1. **Validation Errors** (`ErrValidationFailed`): Configuration validation failures
+   - Triggered by `MarkInvalid(err)`
+   - Result in `StateInvalid` (terminal state)
+   - Example: Invalid configuration syntax, missing required fields
+
+2. **Terminal Errors** (`ErrTerminalError`): Unrecoverable system errors
+   - Triggered by `MarkError(err)` or `MarkFailed(err)`
+   - Result in `StateError` or `StateFailed`
+   - Example: Database connection failure, filesystem errors
+
+3. **Accumulated Errors** (`ErrAccumulatedError`): Non-fatal errors collected before state transitions
+   - Added via `AddError(err)`
+   - Do not trigger state transitions
+   - Example: Warning conditions, recoverable failures
+
+#### Error Collection
+
+All errors are stored in a unified slice and retrieved via `GetErrors()`. Each error is wrapped with its type using `fmt.Errorf("%w: %w", errorType, originalErr)`. Use `errors.Is()` to check error types.
 
 ### Constructors
 

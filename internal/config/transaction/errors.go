@@ -34,6 +34,11 @@ var (
 
 	// ErrNilConfig indicates that a nil config was provided
 	ErrNilConfig = errors.New("config cannot be nil")
+
+	// Error type markers for wrapping
+	ErrValidationFailed = errors.New("validation failed")
+	ErrTerminalError    = errors.New("terminal error")
+	ErrAccumulatedError = errors.New("accumulated error")
 )
 
 // ValidationError wraps a validation error for a specific field

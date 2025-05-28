@@ -45,7 +45,7 @@ func TestNew(t *testing.T) {
 		assert.NotNil(t, tx.logger)
 		assert.NotNil(t, tx.logCollector)
 		assert.False(t, tx.IsValid.Load())
-		assert.Empty(t, tx.terminalErrors)
+		assert.Empty(t, tx.errors)
 	})
 }
 
@@ -140,7 +140,8 @@ func TestConfigTransaction_MarkInvalid(t *testing.T) {
 	err = tx.MarkInvalid(validationErr)
 	assert.NoError(t, err)
 	assert.Equal(t, finitestate.StateInvalid, tx.GetState())
-	assert.Contains(t, tx.terminalErrors, validationErr)
+	assert.Len(t, tx.errors, 1)
+	assert.ErrorIs(t, tx.errors[0], ErrValidationFailed)
 }
 
 func TestConfigTransaction_BeginExecution(t *testing.T) {
@@ -297,7 +298,8 @@ func TestConfigTransaction_MarkError(t *testing.T) {
 	err := tx.MarkError(errorMsg)
 	assert.NoError(t, err)
 	assert.Equal(t, finitestate.StateError, tx.GetState())
-	assert.Contains(t, tx.terminalErrors, errorMsg)
+	assert.Len(t, tx.errors, 1)
+	assert.ErrorIs(t, tx.errors[0], ErrTerminalError)
 }
 
 func TestConfigTransaction_MarkFailed(t *testing.T) {
@@ -319,7 +321,8 @@ func TestConfigTransaction_MarkFailed(t *testing.T) {
 	err = tx.MarkFailed(failErr)
 	assert.NoError(t, err)
 	assert.Equal(t, finitestate.StateFailed, tx.GetState())
-	assert.Contains(t, tx.terminalErrors, failErr)
+	assert.Len(t, tx.errors, 1)
+	assert.ErrorIs(t, tx.errors[0], ErrTerminalError)
 }
 
 func TestConfigTransaction_LegacyMethods(t *testing.T) {
@@ -454,9 +457,10 @@ func TestConfigTransaction_GetErrors(t *testing.T) {
 		// Mark as invalid with error
 		require.NoError(t, tx.MarkInvalid(err1))
 
-		errors := tx.GetErrors()
-		assert.Len(t, errors, 1)
-		assert.Contains(t, errors, err1)
+		errs := tx.GetErrors()
+		assert.Len(t, errs, 1)
+		assert.ErrorIs(t, errs[0], ErrValidationFailed)
+		assert.ErrorIs(t, errs[0], err1)
 	})
 
 	t.Run("returns error after MarkError", func(t *testing.T) {
@@ -466,9 +470,27 @@ func TestConfigTransaction_GetErrors(t *testing.T) {
 		// Add error (this transitions to error state)
 		require.NoError(t, tx.MarkError(err1))
 
-		errors := tx.GetErrors()
-		assert.Len(t, errors, 1)
-		assert.Contains(t, errors, err1)
+		errs := tx.GetErrors()
+		assert.Len(t, errs, 1)
+		assert.ErrorIs(t, errs[0], ErrTerminalError)
+		assert.ErrorIs(t, errs[0], err1)
+	})
+
+	t.Run("accumulates errors with AddError", func(t *testing.T) {
+		tx, _ := setupTest(t)
+		err1 := errors.New("accumulated error 1")
+		err2 := errors.New("accumulated error 2")
+
+		// Add errors without state transitions
+		tx.AddError(err1)
+		tx.AddError(err2)
+
+		errs := tx.GetErrors()
+		assert.Len(t, errs, 2)
+		assert.ErrorIs(t, errs[0], ErrAccumulatedError)
+		assert.ErrorIs(t, errs[0], err1)
+		assert.ErrorIs(t, errs[1], ErrAccumulatedError)
+		assert.ErrorIs(t, errs[1], err2)
 	})
 }
 
@@ -520,7 +542,7 @@ func TestConfigTransaction_RunValidation(t *testing.T) {
 		assert.NoError(t, err) // RunValidation itself doesn't return the validation error
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
-		assert.NotEmpty(t, tx.terminalErrors)
+		assert.NotEmpty(t, tx.errors)
 	})
 }
 
@@ -564,7 +586,7 @@ func TestTransactionLifecycle(t *testing.T) {
 		require.NoError(t, tx.setStateInvalid(validationErrs))
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
-		assert.Len(t, tx.terminalErrors, 2)
+		assert.Len(t, tx.errors, 2)
 
 		err := tx.BeginExecution()
 		assert.ErrorIs(t, err, ErrNotValidated)
@@ -596,7 +618,8 @@ func TestTransactionLifecycle(t *testing.T) {
 		testErr := errors.New("something bad happened")
 		require.NoError(t, tx.MarkFailed(testErr))
 		assert.Equal(t, finitestate.StateFailed, tx.GetState())
-		assert.Contains(t, tx.terminalErrors, testErr)
+		assert.Len(t, tx.errors, 1)
+		assert.ErrorIs(t, tx.errors[0], ErrTerminalError)
 	})
 }
 

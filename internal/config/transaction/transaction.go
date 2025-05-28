@@ -71,8 +71,8 @@ type ConfigTransaction struct {
 	appCollection serverApps.AppLookup
 
 	// Validation state
-	terminalErrors []error
-	IsValid        atomic.Bool
+	errors  []error // All errors (validation, terminal, accumulated) with wrapping
+	IsValid atomic.Bool
 }
 
 // New creates a new ConfigTransaction with the given source information.
@@ -127,19 +127,19 @@ func New(
 	}
 
 	tx := &ConfigTransaction{
-		ID:             txID,
-		Source:         source,
-		SourceDetail:   sourceDetail,
-		RequestID:      requestID,
-		CreatedAt:      time.Now(),
-		fsm:            sm,
-		participants:   participants,
-		logger:         logger,
-		logCollector:   logCollector,
-		domainConfig:   cfg,
-		appCollection:  appCollection,
-		terminalErrors: []error{},
-		IsValid:        atomic.Bool{},
+		ID:            txID,
+		Source:        source,
+		SourceDetail:  sourceDetail,
+		RequestID:     requestID,
+		CreatedAt:     time.Now(),
+		fsm:           sm,
+		participants:  participants,
+		logger:        logger,
+		logCollector:  logCollector,
+		domainConfig:  cfg,
+		appCollection: appCollection,
+		errors:        []error{},
+		IsValid:       atomic.Bool{},
 	}
 
 	// Log the transaction creation
@@ -191,7 +191,7 @@ func (tx *ConfigTransaction) MarkValidated() error {
 
 // MarkInvalid marks the transaction as invalid due to validation errors
 func (tx *ConfigTransaction) MarkInvalid(err error) error {
-	tx.terminalErrors = append(tx.terminalErrors, err)
+	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrValidationFailed, err))
 
 	fErr := tx.fsm.Transition(finitestate.StateInvalid)
 	if fErr != nil {
@@ -322,7 +322,7 @@ func (tx *ConfigTransaction) MarkError(err error) error {
 		return transErr
 	}
 
-	tx.terminalErrors = append(tx.terminalErrors, err)
+	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrTerminalError, err))
 
 	tx.logger.Error("Transaction encountered unrecoverable error",
 		"state", finitestate.StateError,
@@ -341,7 +341,7 @@ func (tx *ConfigTransaction) MarkFailed(err error) error {
 	}
 
 	// Only update state after successful transition
-	tx.terminalErrors = append(tx.terminalErrors, err)
+	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrTerminalError, err))
 	tx.logger.Error("Transaction failed", "state", finitestate.StateFailed, "error", err)
 	return nil
 }
@@ -356,9 +356,14 @@ func (tx *ConfigTransaction) MarkRolledBack() error {
 	return tx.MarkCompensated()
 }
 
-// GetErrors returns all validation errors for this transaction
+// GetErrors returns all errors for this transaction (validation, terminal, accumulated)
 func (tx *ConfigTransaction) GetErrors() []error {
-	return tx.terminalErrors
+	return tx.errors
+}
+
+// AddError accumulates an error without triggering a state transition
+func (tx *ConfigTransaction) AddError(err error) {
+	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrAccumulatedError, err))
 }
 
 // GetConfig returns the configuration associated with this transaction
