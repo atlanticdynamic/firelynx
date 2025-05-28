@@ -1,17 +1,24 @@
 package cfg
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,6 +39,29 @@ func (m *MockConfigProvider) GetTransactionID() string {
 
 func (m *MockConfigProvider) GetAppCollection() apps.AppLookup {
 	return m.appReg
+}
+
+// MockAppRegistry is a simple implementation of apps.AppLookup for testing
+type MockAppRegistry struct {
+	apps map[string]apps.App
+}
+
+// NewMockAppRegistry creates a new MockAppRegistry instance
+func NewMockAppRegistry() *MockAppRegistry {
+	return &MockAppRegistry{
+		apps: make(map[string]apps.App),
+	}
+}
+
+// GetApp retrieves an app by ID
+func (m *MockAppRegistry) GetApp(id string) (apps.App, bool) {
+	app, ok := m.apps[id]
+	return app, ok
+}
+
+// RegisterApp adds an app to the registry
+func (m *MockAppRegistry) RegisterApp(app apps.App) {
+	m.apps[app.String()] = app
 }
 
 func TestNewAdapter(t *testing.T) {
@@ -147,15 +177,206 @@ func TestCreateEndpointListenerMap(t *testing.T) {
 }
 
 func TestExtractEndpointRoutes(t *testing.T) {
-	// Create a simple HTTP route condition for testing
-	_ = conditions.HTTP{
-		PathPrefix: "/api/test",
-		Method:     "GET",
+	t.Parallel()
+
+	// Get context from test for proper test timeout handling
+	ctx := t.Context()
+
+	// Create a logger for testing
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Set up the app registry with mock apps
+	appRegistry := NewMockAppRegistry()
+
+	// Register test apps with the registry
+	appID1 := "test-app-1"
+	appID2 := "test-app-2"
+	appID3 := "missing-app"
+
+	testApp1 := mocks.NewMockApp(appID1)
+	testApp2 := mocks.NewMockApp(appID2)
+
+	appRegistry.RegisterApp(testApp1)
+	appRegistry.RegisterApp(testApp2)
+	// Note: appID3 is intentionally not registered to test error handling
+
+	// Set up static data for routes
+	staticData1 := map[string]any{"version": "1.0"}
+	staticData2 := map[string]any{"timeout": 30}
+
+	// Create test endpoints with different route configurations
+	tests := []struct {
+		name           string
+		endpoint       *endpoints.Endpoint
+		listenerID     string
+		expectedRoutes int
+		expectError    bool
+		appIDs         []string
+		pathPrefixes   []string
+	}{
+		{
+			name: "successful extraction of multiple routes",
+			endpoint: &endpoints.Endpoint{
+				ID:         "test-endpoint-1",
+				ListenerID: "http-1",
+				Routes: routes.RouteCollection{
+					{
+						AppID: appID1,
+						Condition: conditions.HTTP{
+							PathPrefix: "/api/v1",
+							Method:     "GET",
+						},
+						StaticData: staticData1,
+					},
+					{
+						AppID: appID2,
+						Condition: conditions.HTTP{
+							PathPrefix: "/api/v2",
+							Method:     "POST",
+						},
+						StaticData: staticData2,
+					},
+				},
+			},
+			listenerID:     "http-1",
+			expectedRoutes: 2,
+			expectError:    false,
+			appIDs:         []string{appID1, appID2},
+			pathPrefixes:   []string{"/api/v1", "/api/v2"},
+		},
+		{
+			name: "missing app in registry",
+			endpoint: &endpoints.Endpoint{
+				ID:         "test-endpoint-2",
+				ListenerID: "http-2",
+				Routes: routes.RouteCollection{
+					{
+						AppID: appID3, // This app doesn't exist in the registry
+						Condition: conditions.HTTP{
+							PathPrefix: "/api/missing",
+							Method:     "GET",
+						},
+					},
+				},
+			},
+			listenerID:     "http-2",
+			expectedRoutes: 0,
+			expectError:    true,
+			appIDs:         []string{},
+			pathPrefixes:   []string{},
+		},
+		{
+			name: "empty routes collection",
+			endpoint: &endpoints.Endpoint{
+				ID:         "test-endpoint-3",
+				ListenerID: "http-3",
+				Routes:     routes.RouteCollection{},
+			},
+			listenerID:     "http-3",
+			expectedRoutes: 0,
+			expectError:    false,
+			appIDs:         []string{},
+			pathPrefixes:   []string{},
+		},
+		{
+			name: "mixed valid and invalid routes",
+			endpoint: &endpoints.Endpoint{
+				ID:         "test-endpoint-4",
+				ListenerID: "http-4",
+				Routes: routes.RouteCollection{
+					{
+						AppID: appID1,
+						Condition: conditions.HTTP{
+							PathPrefix: "/api/valid",
+							Method:     "GET",
+						},
+					},
+					{
+						AppID: appID3, // This app doesn't exist in the registry
+						Condition: conditions.HTTP{
+							PathPrefix: "/api/invalid",
+							Method:     "GET",
+						},
+					},
+				},
+			},
+			listenerID:     "http-4",
+			expectedRoutes: 1,
+			expectError:    true,
+			appIDs:         []string{appID1},
+			pathPrefixes:   []string{"/api/valid"},
+		},
 	}
 
-	// We need to mock the route extraction since the endpoints package doesn't expose
-	// a direct GetRoutes method on Endpoint, and the hierarchical structure is different
-	t.Skip("Skipping test due to need for mocking GetRoutes and GetHttpRule methods")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Call the function being tested
+			routes, err := extractEndpointRoutes(tt.endpoint, tt.listenerID, appRegistry, logger)
+
+			// Check error expectation
+			if tt.expectError {
+				assert.Error(t, err, "Expected an error but got none")
+			} else {
+				assert.NoError(t, err, "Expected no error but got: %v", err)
+			}
+
+			// Check number of routes
+			assert.Len(
+				t,
+				routes,
+				tt.expectedRoutes,
+				"Expected %d routes, got %d",
+				tt.expectedRoutes,
+				len(routes),
+			)
+
+			// Check each route's properties
+			for i, route := range routes {
+				// For route identity, we check if the handler works as expected rather than accessing fields directly
+				assert.NotNil(t, route.Handler, "Handler should not be nil for route %d", i)
+
+				// Test the handler by making a request
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest("GET", tt.pathPrefixes[i], nil).WithContext(ctx)
+
+				// Set up the mock app to expect a call and implement behavior
+				if app, ok := appRegistry.GetApp(tt.appIDs[i]); ok {
+					mockApp := app.(*mocks.MockApp)
+
+					// Set up the mock to write a response when HandleHTTP is called
+					mockApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+						Run(
+							func(args mock.Arguments) {
+								// Extract the response writer from the arguments
+								respWriter := args.Get(1).(http.ResponseWriter)
+								// Write the success response
+								respWriter.WriteHeader(http.StatusOK)
+								_, err := respWriter.Write([]byte("success"))
+								require.NoError(t, err)
+							},
+						).
+						Return(nil).
+						Once()
+
+					// Call the handler
+					route.Handler(w, r)
+
+					// Check response
+					assert.Equal(
+						t,
+						http.StatusOK,
+						w.Result().StatusCode,
+						"Expected 200 OK status code",
+					)
+					body, err := io.ReadAll(w.Result().Body)
+					require.NoError(t, err)
+					assert.Equal(t, "success", string(body), "Expected 'success' response body")
+				} else {
+					t.Fatalf("Could not find app %s in registry", tt.appIDs[i])
+				}
+			}
+		})
+	}
 }
 
 func TestAdapterGetters(t *testing.T) {

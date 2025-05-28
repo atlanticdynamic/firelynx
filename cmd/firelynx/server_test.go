@@ -12,6 +12,7 @@ import (
 
 // TestServerCmd_EmptyFlags verifies that running the server with no flags returns an error
 func TestServerCmd_EmptyFlags(t *testing.T) {
+	t.Parallel()
 	// Create a command with empty flags
 	cmd := &cli.Command{
 		Flags: []cli.Flag{

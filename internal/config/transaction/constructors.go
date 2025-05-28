@@ -3,6 +3,7 @@ package transaction
 
 import (
 	"log/slog"
+	"os"
 	"path/filepath"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
@@ -17,6 +18,11 @@ func FromFile(
 	// Use the absolute file path as the source detail
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
+		return nil, err
+	}
+
+	// check if the file exists
+	if _, err := os.Stat(absPath); os.IsNotExist(err) {
 		return nil, err
 	}
 

@@ -1,39 +1,38 @@
 # Config Transaction Package
 
-The `transaction` package defines validated configuration transactions ready for deployment. This package contains state, config, and instantiated apps prepared for the saga orchestrator to roll out or roll back.
+The `transaction` package uses a saga pattern for configuration changes. It handles validated configuration transactions that can be applied or rolled back.
 
 ## Package Contents
 
-A configuration transaction represents a complete, validated system configuration that can be atomically applied:
+A configuration transaction contains:
 
-- **Domain Config**: Validated configuration from `internal/config` 
-- **App Instances**: Instantiated applications ready for deployment
-- **State Information**: Metadata tracking the transaction lifecycle
-- **Transaction ID**: Unique identifier for tracking and rollback purposes
+- **Domain Config**: Configuration from `internal/config`
+- **Participant Tracking**: State management for participating components
+- **State Machine**: Transaction lifecycle state tracking
+- **Transaction ID**: UUID for correlation
+- **Source Information**: Origin (file, API, test)
+- **Log Collection**: Transaction logs
 
-The transaction serves as the unit of work passed between configuration sources (cfgfileloader, cfgservice) and the transaction manager (txmgr).
+## Implementation
 
-## Integration with System Architecture
+### State Machines
 
-### Component Lifecycle Integration
+- **Transaction FSM**: Tracks lifecycle states
+- **Participant FSM**: Each component has its own state machine
+- **Coordinated Changes**: Changes apply to all components or none
 
-The transaction system works alongside the `supervisor` package's lifecycle management. Components that receive configuration implement the `SagaParticipant` interface from `txmgr`, which integrates with:
+Transaction states: created → validated → executing → succeeded/failed → reloading/compensating → completed/compensated
 
-- **Supervisor Runnables**: Leveraging the standard lifecycle (Run, Stop) for components
-- **Stateable Components**: Tracking readiness and operational state during transitions
-- **Coordinated Execution**: Ensuring configuration changes propagate in dependency order
+### Error Handling
 
-### Error Recovery Model
+1. **Validation**: Pre-execution configuration validation
+2. **Failure Detection**: Component-level failure tracking
+3. **Compensation**: Rolling back successful changes when failures occur
+4. **Logging**: Transaction-scoped logging
+5. **Error Context**: Error wrapping for context preservation
 
-When configuration changes fail in any component, the orchestrator can:
+### Constructors
 
-1. Identify exactly which component failed
-2. Roll back successful components in reverse order before final commit
-3. Restore the system to its previous consistent state
-4. Preserve detailed diagnostic information for troubleshooting
-
-This eliminates partial updates which could leave the system in an inconsistent state.
-
-## Practical Usage
-
-The `SagaOrchestrator` in the `txmgr` package uses this framework to coordinate configuration changes across all system components, ensuring consistent transitions between configuration states.
+- `FromFile(path, config, logger)`: File-based transactions
+- `FromAPI(requestID, config, logger)`: API-based transactions
+- `FromTest(testName, config, logger)`: Test transactions

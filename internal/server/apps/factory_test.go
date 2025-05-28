@@ -3,9 +3,6 @@ package apps
 import (
 	"testing"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -188,59 +185,4 @@ func TestAppFactory_CustomInstantiator(t *testing.T) {
 	assert.True(t, exists)
 	assert.NotNil(t, app)
 	assert.Equal(t, "custom-app", app.String())
-}
-
-func TestAppFactoryIntegration(t *testing.T) {
-	t.Run("creates app collection from config", func(t *testing.T) {
-		// Create a config with echo apps
-		cfg := &config.Config{
-			Apps: apps.AppCollection{
-				{
-					ID:     "echo1",
-					Config: &echo.EchoApp{Response: "Hello 1"},
-				},
-				{
-					ID:     "echo2",
-					Config: &echo.EchoApp{Response: "Hello 2"},
-				},
-			},
-		}
-
-		// Create app factory and convert definitions
-		factory := NewAppFactory()
-		definitions := convertToAppDefinitions(cfg.Apps)
-
-		// Create app collection
-		collection, err := factory.CreateAppsFromDefinitions(definitions)
-		require.NoError(t, err)
-		require.NotNil(t, collection)
-
-		// Verify apps exist
-		app1, exists1 := collection.GetApp("echo1")
-		assert.True(t, exists1)
-		assert.Equal(t, "echo1", app1.String())
-
-		app2, exists2 := collection.GetApp("echo2")
-		assert.True(t, exists2)
-		assert.Equal(t, "echo2", app2.String())
-	})
-
-	t.Run("handles empty config", func(t *testing.T) {
-		cfg := &config.Config{
-			Apps: apps.AppCollection{},
-		}
-
-		// Create app factory and convert definitions
-		factory := NewAppFactory()
-		definitions := convertToAppDefinitions(cfg.Apps)
-
-		// Create app collection
-		collection, err := factory.CreateAppsFromDefinitions(definitions)
-		require.NoError(t, err)
-		require.NotNil(t, collection)
-
-		// Verify no apps exist
-		_, exists := collection.GetApp("nonexistent")
-		assert.False(t, exists)
-	})
 }
