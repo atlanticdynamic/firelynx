@@ -6,59 +6,34 @@ This document outlines key implementation patterns used in the firelynx server c
 
 The firelynx server consists of these key components:
 
-```
-┌─────────────────────────────────────┐
-│             CLI Layer               │
-│   (cmd/firelynx/server.go)          │
-└─────────────────┬───────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────┐
-│        Component Coordinator        │
-│   (Context-based coordination)      │
-└─────┬─────────────────────────┬─────┘
-      │                         │
-      ▼                         ▼
-┌───────────────┐      ┌─────────────────┐
-│ Config Manager│      │Transaction Mgr  │
-│               │◄────►│                 │
-└───────────────┘      └─────────────────┘
-```
-
 ### Key Components:
 
 1. **CLI Layer**: Handles command-line arguments, creates components, and coordinates lifecycle
-2. **Component Coordinator**: Manages component communication and lifecycle using contexts and channels
-3. **Config Manager**: Handles configuration loading, validation, and updates via gRPC
-4. **Transaction Manager**: Manages configuration transactions and implements adapter functionality
+2. **Supervisor**: Uses go-supervisor for component lifecycle management  
+3. **cfgfileloader**: Watches configuration files and creates transactions
+4. **cfgservice**: Provides gRPC interface for configuration updates
+5. **txmgr**: Manages configuration transactions using saga pattern
 
 ## Client-Server Data Flow
 
-```
-┌────────────────┐    ┌───────────────┐    ┌────────────────┐    ┌────────────────┐
-│                │    │               │    │                │    │                │
-│  TOML Config   │───►│  Domain Model │───►│  Protobuf Obj  │───►│  gRPC Service  │
-│  (on disk)     │    │  (in memory)  │    │  (wire format) │    │  (on server)   │
-│                │    │               │    │                │    │                │
-└────────────────┘    └───────────────┘    └────────────────┘    └────────────────┘
-```
+The configuration flow follows these steps:
 
 1. Client loads TOML file from disk
 2. TOML is converted to a domain model Config struct
 3. Client converts domain model to Protocol Buffer
 4. Client sends the Protocol Buffer to the server via gRPC
 5. Server converts Protocol Buffer back to domain model
-6. Server validates and processes the domain model configuration
+6. Server validates and creates configuration transaction
+7. Transaction is processed through saga orchestrator
 
-## ConfigManager Pattern
+## Configuration Service Pattern
 
-The ConfigManager implements these key responsibilities:
+The cfgservice implements these key responsibilities:
 
-1. **Configuration Loading**: Load initial configuration from TOML files
-2. **gRPC Service**: Implement the ConfigService for receiving configuration updates
-3. **Configuration Management**: Store current configuration with RWMutex for thread-safety
-4. **Callback Functions**: Provide callbacks for other components to get configuration
-5. **Reload Notification**: Send notifications when configuration changes
+1. **gRPC Interface**: Implement the ConfigService for receiving configuration updates
+2. **Transaction Creation**: Create validated ConfigTransaction objects from Protocol Buffers
+3. **Transaction Broadcasting**: Send validated transactions to txmgr via channels
+4. **Error Handling**: Return appropriate gRPC errors for validation failures
 
 Example implementation pattern:
 
@@ -112,13 +87,13 @@ func (cm *ConfigManager) UpdateConfig(ctx context.Context, req *pb.UpdateConfigR
 
 ## Transaction Manager Pattern
 
-The Transaction Manager implements these key responsibilities:
+The txmgr implements these key responsibilities:
 
 1. **Transaction Management**: Manage the lifecycle of configuration transactions
-2. **Configuration Processing**: Process configurations received from ConfigManager
-3. **Two-Phase Commit**: Coordinate preparation and commit phases for config updates
-4. **Adapter Functionality**: Provide component-specific adapters for the domain config
-5. **Lifecycle Management**: Manage component lifecycle with context
+2. **Saga Orchestration**: Coordinate two-phase commit across all participants
+3. **Participant Management**: Register and coordinate saga participants
+4. **Transaction Storage**: Maintain transaction history and current state
+5. **Error Handling**: Implement compensation when transactions fail
 
 Example implementation pattern:
 

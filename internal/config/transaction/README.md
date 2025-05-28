@@ -1,11 +1,17 @@
 # Config Transaction Package
 
-The `transaction` package implements the Config Saga pattern, providing clear ownership and tracking of configuration throughout its entire lifecycle.
+The `transaction` package defines validated configuration transactions ready for deployment. This package contains state, config, and instantiated apps prepared for the saga orchestrator to roll out or roll back.
 
-## Architectural Context
+## Package Contents
 
-- **Configuration as a Saga**: Treating configuration changes as a distributed "meta" transaction with compensation
-- **Comprehensive Observability**: Capturing metadata for every stage of the process
+A configuration transaction represents a complete, validated system configuration that can be atomically applied:
+
+- **Domain Config**: Validated configuration from `internal/config` 
+- **App Instances**: Instantiated applications ready for deployment
+- **State Information**: Metadata tracking the transaction lifecycle
+- **Transaction ID**: Unique identifier for tracking and rollback purposes
+
+The transaction serves as the unit of work passed between configuration sources (cfgfileloader, cfgservice) and the transaction manager (txmgr).
 
 ## Integration with System Architecture
 

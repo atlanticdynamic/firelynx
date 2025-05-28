@@ -4,11 +4,13 @@ This package defines the domain model for the Firelynx server configuration and 
 
 ## Core Purpose
 
-The domain configuration layer serves exactly three purposes:
+The domain configuration layer serves as the bridge between the protobuf layer and the rest of the application. It provides three functions:
 
 1. **Convert from proto to domain config**: Transform serialized protocol buffer data into strongly-typed Go domain models
-2. **Semantically validate config**: Verify relationships between resources, check valid app names and inputs, ensure referential integrity
+2. **Semantic validation**: Verify relationships beyond TOML syntax - confirming apps exist, listener IDs are mapped to endpoints, route conditions are valid, and maintaining referential integrity across the configuration graph
 3. **Convert back to proto**: Transform domain models back to protocol buffers for serialization
+
+The semantic validation ensures configuration consistency that cannot be enforced at the TOML or protobuf schema level, such as verifying that all referenced app IDs actually exist in the apps collection.
 
 ### Important Boundaries
 

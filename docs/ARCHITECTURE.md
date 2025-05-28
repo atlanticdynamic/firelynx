@@ -58,122 +58,61 @@ firelynx follows a three-layer architecture:
 - **Endpoints**: Map incoming requests to the appropriate application
 - **Applications**: Implement functionality (echo, scripts, composite scripts)
 
-### 2. Lifecycle Management
+### 2. Configuration Transaction System
 
-firelynx uses the `go-supervisor` package for component lifecycle management and coordination. While `go-fsm` is used internally by `go-supervisor`, the focus is on the supervisor pattern for managing components.
+firelynx implements a saga pattern for atomic configuration updates with the following components:
 
-Components in the system implement standard lifecycle interfaces:
+- **cfgfileloader**: Watches TOML files and creates validated configuration transactions
+- **cfgservice**: Provides gRPC interface for configuration updates, creates validated transactions
+- **txmgr**: Manages transaction lifecycle and coordinates the saga orchestrator
+- **Saga Orchestrator**: Implements two-phase commit across all registered participants
+- **Participants**: Components (like HTTP Listener) that implement StageConfig/CommitConfig
 
-1. **Runnable**: Components with a `Run(ctx)` method that runs until the context is canceled
-2. **Reloadable**: Components with a `Reload()` method that can update their configuration
-3. **Named**: Components with a `String()` method that provides a unique identifier
+### 3. Lifecycle Management
 
-The standard component lifecycle states are:
-- **New**: Initial state after creation
-- **Running**: Normal operation
-- **Reloading**: During configuration update
-- **Stopping**: During graceful shutdown
-- **Stopped**: After shutdown completion
-- **Error**: Error condition
+firelynx uses the `go-supervisor` package for component lifecycle management and coordination. While `go-fsm` is used internally by `go-supervisor`, the focus is on the supervisor pattern for managing components. "Runnable" components in this system implement several interfaces from `go-supervisor`. 
 
-### 3. Architectural Layers
+### 4. Component Architecture
 
-Firelynx follows a strict separation of concerns across three distinct layers to ensure maintainability and flexibility:
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐      ┌─────────────────┐
-│                 │     │                 │     │                 │      │                 │
-│     Protobuf    │◄───►│   Domain Config │◄───►│   Core Adapter  │◄────►│ Runtime         │
-│     Schema      │     │      Layer      │     │      Layer      │      │ Components      │
-│                 │     │                 │     │                 │      │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘      └─────────────────┘
-                      internal/config       internal/server/core      internal/server/*
-```
+firelynx components are organized with clear separation of concerns:
 
 #### Domain Config Layer (`internal/config/*`)
 
-The domain config layer has three specific responsibilities:
+The domain config layer provides:
 
 1. **Proto Conversion**: Transform serialized protocol buffer data into strongly-typed Go domain models
-2. **Semantic Validation**: Verify relationships between resources, check valid app names and ensure referential integrity
+2. **Semantic Validation**: Verify relationships between resources and ensure referential integrity  
 3. **Proto Serialization**: Transform domain models back to protocol buffers
 
-**Important Boundaries**: This layer does NOT handle:
-- Instantiation of runtime components or app instances
-- Execution of any business logic
-- Runtime request routing or handling
+#### Runtime Components (`internal/server/runnables/*`)
 
-#### Core Adapter Layer (`internal/server/core/*`)
+Runtime components implement the actual server functionality:
 
-This layer serves as the only bridge between domain config and runtime components:
+1. **Package Independence**: Each component defines its own config adapters
+2. **Transaction Participation**: Components implement saga participant interfaces
+3. **Lifecycle Management**: Components follow the go-supervisor lifecycle patterns
 
-1. **Domain Config Access**: The only component with direct imports from `internal/config`
-2. **Type Conversion**: Converts domain config types to package-specific configs
-3. **Configuration Callbacks**: Provides configuration through callbacks to runtime components
+### 5. Hot Reload System
 
-#### Runtime Components (`internal/server/*` except `core`)
+The hot reload system enables configuration updates with minimal service interruption through the transaction saga pattern:
 
-These implement the actual server functionality with these characteristics:
+1. **Configuration Sources**: File watcher and gRPC service create configuration transactions
+2. **Transaction Validation**: Configurations are validated before processing
+3. **Saga Orchestration**: Two-phase commit ensures atomic updates across all participants
+4. **Component Coordination**: Participants stage and commit configuration changes atomically
 
-1. **Package Independence**: Each component defines its own config types with no dependency on domain config
-2. **Callback-Based Configuration**: Receives configuration via callbacks, not direct dependencies
-3. **Lazy Configuration**: Loads configuration during Run(), not during initialization
-4. **Lifecycle Adherence**: Follows the standard supervisor lifecycle (Run, Stop, Reload)
-
-### 4. Hot Reload System
-
-The hot reload system enables configuration updates without server downtime:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Configuration  │    │   Validation    │    │   Component     │
-│    Receiver     │───►│     Engine      │───►│   Orchestrator  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                                      │
-                                                      ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│     Traffic     │◄───│    Component    │◄───│    Component    │
-│    Switcher     │    │     Registry    │    │     Factory     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-1. **Configuration Receiver**: gRPC endpoint for receiving configuration updates via protobufs objects
-2. **Validation Engine**: Validates new configurations (each app is loaded, and it's validation is called)
-3. **Component Orchestrator**: Manages the transition to the new configuration (using go-supervisor reload)
-4. **Component Factory**: Creates listener, endpoint, and application instances (listener changes require traffic interuption, but endpoint or app changes can be "hot")
-5. **Component Registry**: Maintains references to active components
-6. **Traffic Switcher**: Controls request flow during reloading
+Configuration updates require brief service interruption as HTTP listeners need to restart with new configurations.
 
 For more details on the hot reload system, see [HOT_RELOAD.md](HOT_RELOAD.md).
 
-### 4. Scripting System
+### 6. Scripting System
 
-The scripting system is powered by go-polyscript:
+The scripting system is powered by go-polyscript and supports multiple script engines:
 
-```
-┌─────────────────┐                           ┌─────────────────┐
-│  Script Compile │                           │  Runtime Data   │
-└─────────────────┘                           └─────────────────┘
-        │                                              │
-        ▼                                              ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Script         │    │  go-polyscript  │    │     Script      │
-│  ExecutableUnit │───►│    Evaluator    │───►│     Runner      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-        ▲                                              │
-        │                                              ▼
-┌─────────────────┐                           ┌─────────────────┐
-│  Static Data    │                           │  Result Handler │
-└─────────────────┘                           └─────────────────┘
-```
-
-1. **go-polyscript Compiler**: go-polyscript loads/compiles the script into runnable bytecode, produces an ExecutableUnit
-2. **go-polyscript ExecutableUnit**: go-polyscript runnable object, used for creating the Evaluator
-3. **Static Data**: Compile-time static data bundled into the ExecutableUnit, such as config
-4. **go-polyscript Evaluator**: Executes scripts using appropriate engine (Risor, Starlark, Extism (WASM), or native)
-5. **firelynx Script Runner**: Manages script execution lifecycle
-6. **Runtime Data**: Each invocation can supply additional runtime data
-7. **Result Handler**: Processes and transforms script results
+1. **Script Compilation**: Scripts are compiled into executable units
+2. **Static Data**: Configuration data is bundled with compiled scripts
+3. **Runtime Execution**: Scripts execute with request-specific data
+4. **Result Processing**: Script outputs are transformed into appropriate response formats
 
 The supported engines include:
 - **Risor**: Go-like scripting language for embedded scripts
@@ -181,107 +120,54 @@ The supported engines include:
 - **Extism (WASM)**: WebAssembly plugin system supporting multiple languages
 - **native**: Direct Go function registration for built-in functionality
 
-### 5. MCP Implementation
-
-The MCP protocol implementation provides the standardized interface:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  MCP Transport  │    │   MCP Request   │    │  MCP Response   │
-│     Layer       │───►│    Handler      │───►│    Formatter    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                               │
-                               ▼
-                      ┌─────────────────┐
-                      │  MCP Feature    │
-                      │  Implementations│
-                      └─────────────────┘
-                               │
-                               ▼
-                      ┌─────────────────┐
-                      │  Script-based   │
-                      │  MCP Handlers   │
-                      └─────────────────┘
-```
-
-The MCP implementation is based on the [mcp-go](https://github.com/mark3labs/mcp-go) library, which provides the core MCP protocol support.
 
 ## Application Startup Flow
 
-The application uses `urfave/cli` for command-line parsing and context-based coordination for component lifecycle management:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   urfave/cli    │    │ Configuration   │    │   Context &     │
-│   Command       │───►│   Manager       │───►│   Goroutines    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                                      │
-                                                      ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  Signal         │────│  Component      │◄───│  Reload         │
-│  Handling       │    │  Coordination   │    │  Channels       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+The application uses `urfave/cli` for command-line parsing and go-supervisor for component lifecycle management:
 
 1. **CLI Command**: Parses command-line arguments using urfave/cli
-2. **Configuration Manager**: Loads and manages TOML configuration through gRPC
-3. **Context & Goroutines**: Uses context cancellation for coordinating component lifecycle
-4. **Reload Channels**: Components communicate via channels for configuration updates
-5. **Component Coordination**: Coordinates the initialization and shutdown of components
-6. **Signal Handling**: Captures system signals and initiates graceful shutdown
+2. **Component Initialization**: Creates cfgfileloader, cfgservice, and txmgr components
+3. **Supervisor**: Uses go-supervisor to manage component lifecycle
+4. **Transaction Flow**: Components communicate via channels for configuration transactions
+5. **Signal Handling**: Captures system signals and initiates graceful shutdown
 
 ## Configuration System
 
-### Configuration Format and Flow
+### Configuration Transaction Flow
 
-firelynx uses TOML for human-readable configuration and Protocol Buffers for in-memory storage and network transmission. The configuration system follows a domain-driven design approach with several key flows:
+firelynx uses a transaction-based configuration system that ensures atomic updates:
 
-#### Initial Loading Flow
+#### Configuration Sources
 
-When the server starts and loads configuration from a file:
+Configuration transactions are created from two sources:
 
-1. **TOML → Protocol Buffers**:
-   - `loader.NewLoaderFromFilePath()` gets a loader for the TOML file
-   - `loader.LoadProto()` parses TOML and converts to Protocol Buffer objects
+1. **File-based Configuration (cfgfileloader)**:
+   - Converts TOML to domain model and validates
+   - Creates ConfigTransaction objects for valid configurations
+   - Sends transactions to txmgr via channels
 
-2. **Protocol Buffers → Domain Model (for validation)**:
-   - `config.NewFromProto()` converts Protocol Buffers to Domain Model
-   - `config.Validate()` validates the domain model
+2. **gRPC Configuration Updates (cfgservice)**:
+   - Receives Protocol Buffer configurations via gRPC
+   - Converts to domain model and validates
+   - Creates ConfigTransaction objects for valid configurations
+   - Sends transactions to txmgr via channels
 
-3. **Domain Model → Protocol Buffers (for storage)**:
-   - After validation, `domainConfig.ToProto()` converts back to Protocol Buffers
-   - The Protocol Buffer version is stored internally: `r.config = protoConfig`
+#### Transaction Processing
 
-#### Access for Processing
+When a configuration transaction is received:
 
-When components need configuration for processing:
-
-1. **Protocol Buffers → Domain Model**:
-   - `GetPbConfigClone()` gets a copy of the stored Protocol Buffer
-   - `config.NewFromProto()` converts to domain model for processing
-
-2. **Domain Model → Service-Specific Format**:
-   - For HTTP components, `GetHTTPConfigCallback()` transforms domain model to HTTP config
-   - Each service gets a configuration format tailored to its needs
-
-#### Configuration Update Flow via gRPC
-
-When a client updates configuration via gRPC:
-
-1. **Protocol Buffers (wire) → Domain Model (validation)**:
-   - Client sends Protocol Buffer objects over gRPC
-   - Server converts to domain model: `config.NewFromProto(req.Config)`
-   - Validates with `domainConfig.Validate()`
-
-2. **Protocol Buffers (storage)**:
-   - Original Protocol Buffer is stored: `r.config = req.Config`
-   - Reload notification is sent to components
+1. **Transaction Creation**: Source creates a ConfigTransaction with metadata (source, timestamp, ID)
+2. **Validation**: Configuration is validated using domain model rules
+3. **Transaction Management**: txmgr receives the validated transaction
+4. **Saga Orchestration**: Saga orchestrator coordinates two-phase commit across participants
+5. **Stage Phase**: Each participant (e.g., HTTP listener) stages the configuration
+6. **Commit Phase**: If all participants succeed, changes are committed atomically
 
 This architecture provides:
-1. **Type Safety**: Strong typing for configuration elements
-2. **Validation**: Domain-specific validation rules
-3. **Maintainability**: Changes to the Protocol Buffer schema don't affect application code
-4. **Idiomatic Go**: The domain model follows Go best practices
+1. **Atomicity**: All configuration changes succeed or fail as a unit
+2. **Consistency**: Participants never see partial configuration updates
+3. **Auditability**: Complete transaction history with metadata
+4. **Rollback**: Failed transactions can be compensated
 
 ### Domain Configuration Model
 
@@ -347,32 +233,26 @@ This architecture allows:
 
 ### Client-Server Communication
 
-The configuration client communicates with the server via gRPC:
+The configuration client communicates with the server via gRPC using the transaction system:
 
 1. Client loads TOML configuration from disk
-2. Client converts TOML to Protocol Buffer format (loader.LoadProto)
+2. Client converts TOML to Protocol Buffer format
 3. Client connects to server via gRPC
 4. Client sends Protocol Buffer configuration in update request
-5. Server validates configuration (by converting to domain model)
-6. Server stores the validated Protocol Buffer configuration
-7. Server sends reload notification to components via channels
-8. Components reload with the new configuration
+5. Server creates ConfigTransaction and validates configuration
+6. Server processes transaction through saga orchestrator
+7. Server responds with transaction success/failure
+8. Components are updated atomically through two-phase commit
 
-This approach allows for:
-- Clear separation between client and server
-- Strong validation before configuration is applied
-- Asynchronous notification of configuration changes
-- Graceful handling of configuration updates
+This approach provides:
+- Atomic configuration updates with rollback capability
+- Strong validation before any changes are applied
+- Complete audit trail of configuration changes
+- Graceful error handling and recovery
 
 ## Logging Architecture
 
-firelynx uses Go's `slog` package for structured logging:
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Root Logger   │───►│ Component Logger│───►│   Log Handler   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+firelynx uses Go's `slog` package for structured logging with the following characteristics:
 
 - Each component receives an slog.Handler for logging
 - Multiple log streams are possible

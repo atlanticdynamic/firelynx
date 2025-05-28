@@ -60,7 +60,7 @@ func TestServerWithConfigFile(t *testing.T) {
 	// Replace the port in the basic config
 	configContent := strings.Replace(basicConfigTOML, ":8080", httpAddr, 1)
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o644)
 	require.NoError(t, err, "Failed to write config file")
 
 	// Create a logger
@@ -101,7 +101,12 @@ func TestServerWithConfigFile(t *testing.T) {
 	body := make([]byte, 1024)
 	n, _ := resp.Body.Read(body)
 	responseText := string(body[:n])
-	assert.Contains(t, responseText, "Hello from test", "Response should contain configured echo text")
+	assert.Contains(
+		t,
+		responseText,
+		"Hello from test",
+		"Response should contain configured echo text",
+	)
 
 	// Cancel the server
 	serverCancel()
@@ -208,7 +213,12 @@ func TestServerWithGRPCConfig(t *testing.T) {
 	body := make([]byte, 1024)
 	n, _ := resp.Body.Read(body)
 	responseText := string(body[:n])
-	assert.Contains(t, responseText, "Hello from gRPC config", "Response should contain configured echo text")
+	assert.Contains(
+		t,
+		responseText,
+		"Hello from gRPC config",
+		"Response should contain configured echo text",
+	)
 
 	// Shutdown the server
 	serverCancel()
@@ -244,7 +254,7 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 	// Replace the port in the initial config
 	configContent := strings.Replace(initialConfigTOML, ":8082", httpAddr, 1)
 
-	err := os.WriteFile(configPath, []byte(configContent), 0644)
+	err := os.WriteFile(configPath, []byte(configContent), 0o644)
 	require.NoError(t, err, "Failed to write initial config file")
 
 	// Create a logger
@@ -311,13 +321,23 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 	// Test that we can also use gRPC to get the current config
 	retrievedProto, err := c.GetConfig(ctx)
 	require.NoError(t, err, "Should be able to get config via gRPC")
-	
+
 	retrievedCfg, err := config.NewFromProto(retrievedProto)
 	require.NoError(t, err, "Should be able to convert retrieved config")
-	
+
 	// Verify the retrieved config matches what we expect
-	assert.Equal(t, len(currentCfg.Apps), len(retrievedCfg.Apps), "Retrieved config should have same number of apps")
-	assert.Equal(t, len(currentCfg.Endpoints), len(retrievedCfg.Endpoints), "Retrieved config should have same number of endpoints")
+	assert.Equal(
+		t,
+		len(currentCfg.Apps),
+		len(retrievedCfg.Apps),
+		"Retrieved config should have same number of apps",
+	)
+	assert.Equal(
+		t,
+		len(currentCfg.Endpoints),
+		len(retrievedCfg.Endpoints),
+		"Retrieved config should have same number of endpoints",
+	)
 
 	// Shutdown the server
 	serverCancel()
@@ -350,7 +370,7 @@ func TestConfigFileReload(t *testing.T) {
 
 	// Write initial config
 	initialConfig := strings.Replace(initialConfigTOML, ":8082", httpAddr, 1)
-	err := os.WriteFile(configPath, []byte(initialConfig), 0644)
+	err := os.WriteFile(configPath, []byte(initialConfig), 0o644)
 	require.NoError(t, err, "Failed to write initial config file")
 
 	// Create a logger
@@ -414,7 +434,7 @@ type = "echo"
 [apps.echo]
 response = "New path response"`
 
-	err = os.WriteFile(configPath, []byte(updatedConfig), 0644)
+	err = os.WriteFile(configPath, []byte(updatedConfig), 0o644)
 	require.NoError(t, err, "Failed to update config file")
 
 	// Send SIGHUP to trigger reload
@@ -443,7 +463,12 @@ response = "New path response"`
 	body := make([]byte, 1024)
 	n, _ := resp.Body.Read(body)
 	responseText := string(body[:n])
-	assert.Contains(t, responseText, "New path response", "Response should contain new path echo text")
+	assert.Contains(
+		t,
+		responseText,
+		"New path response",
+		"Response should contain new path echo text",
+	)
 
 	// Shutdown the server
 	serverCancel()

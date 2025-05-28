@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/gofrs/uuid/v5"
@@ -398,4 +399,20 @@ func (tx *ConfigTransaction) GetParticipantStates() map[string]string {
 // GetParticipantErrors returns a map of participant names to their errors
 func (tx *ConfigTransaction) GetParticipantErrors() map[string]error {
 	return tx.participants.GetParticipantErrors()
+}
+
+// convertToAppDefinitions converts config.Apps to server app definitions
+// This adapter allows the server/apps package to work with config data
+// without directly importing the config types
+func convertToAppDefinitions(configApps apps.AppCollection) []serverApps.AppDefinition {
+	definitions := make([]serverApps.AppDefinition, 0, len(configApps))
+
+	for _, app := range configApps {
+		definitions = append(definitions, serverApps.AppDefinition{
+			ID:     app.ID,
+			Config: app.Config, // app.Config already implements the Type() method we need
+		})
+	}
+
+	return definitions
 }

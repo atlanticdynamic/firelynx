@@ -155,9 +155,9 @@ func (h *Handler) ProcessRequest(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### 3. Configuration Reception with State Transitions
+### 3. Configuration Transaction Processing
 
-firelynx receives configuration updates via a gRPC endpoint or as direct in-memory Protobuf objects when embedded. The configuration service implementation handles these updates and coordinates with the FSM for proper state transitions:
+firelynx processes configuration updates through a transaction-based system that coordinates with the FSM for proper state transitions:
 
 ```go
 // UpdateConfig implements the ConfigService.UpdateConfig gRPC method
