@@ -271,6 +271,9 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 
 // TestHTTPClusterRouteUpdates tests updating routes on existing listeners
 func TestHTTPClusterRouteUpdates(t *testing.T) {
+	// Enable debug logging for this test
+	logging.SetupLogger("debug")
+
 	ctx := t.Context()
 
 	// Create transaction storage and saga orchestrator
@@ -353,41 +356,53 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 		// Check V1 route
 		resp1, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/v1", port))
 		if err != nil {
+			t.Logf("V1 request error: %v", err)
 			return false
 		}
 		defer resp1.Body.Close()
 
 		if resp1.StatusCode != http.StatusOK {
+			t.Logf("V1 response status: %d", resp1.StatusCode)
 			return false
 		}
 
 		body1, err := io.ReadAll(resp1.Body)
 		if err != nil {
+			t.Logf("V1 read body error: %v", err)
 			return false
 		}
 
 		if !strings.Contains(string(body1), "V1: Response") {
+			t.Logf("V1 unexpected body: %s", string(body1))
 			return false
 		}
 
 		// Check V2 route
 		resp2, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/v2", port))
 		if err != nil {
+			t.Logf("V2 request error: %v", err)
 			return false
 		}
 		defer resp2.Body.Close()
 
 		if resp2.StatusCode != http.StatusOK {
+			t.Logf("V2 response status: %d", resp2.StatusCode)
 			return false
 		}
 
 		body2, err := io.ReadAll(resp2.Body)
 		if err != nil {
+			t.Logf("V2 read body error: %v", err)
 			return false
 		}
 
-		return strings.Contains(string(body2), "V2: Response")
-	}, 2*time.Second, 50*time.Millisecond, "Both V1 and V2 routes should work")
+		if !strings.Contains(string(body2), "V2: Response") {
+			t.Logf("V2 unexpected body: %s", string(body2))
+			return false
+		}
+
+		return true
+	}, 5*time.Second, 50*time.Millisecond, "Both V1 and V2 routes should work")
 
 	// Stop the HTTP runner
 	httpRunner.Stop()

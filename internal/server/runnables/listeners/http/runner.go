@@ -42,8 +42,8 @@ func NewRunner(options ...Option) (*Runner, error) {
 	r := &Runner{
 		logger:              slog.Default().WithGroup("http.Runner"),
 		parentCtx:           context.Background(),
-		siphonTimeout:       30 * time.Second,
-		clusterReadyTimeout: 10 * time.Second,
+		siphonTimeout:       60 * time.Second, // timeout for sending config through cluster siphon channel
+		clusterReadyTimeout: 30 * time.Second, // timeout for waiting for cluster to become ready
 	}
 
 	// Apply functional options
