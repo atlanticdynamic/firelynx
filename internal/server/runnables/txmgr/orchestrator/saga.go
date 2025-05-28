@@ -286,8 +286,7 @@ func (o *SagaOrchestrator) compensateParticipants(
 }
 
 // getSortedParticipantNames returns a sorted slice of participant names for deterministic ordering.
-// This helps ensure that components are always processed in the same order, which is important
-// for reproducibility and testing.
+// This makes components always process in the same order for reproducibility and testing.
 func (o *SagaOrchestrator) getSortedParticipantNames() []string {
 	var names []string
 	for name := range o.runnables {

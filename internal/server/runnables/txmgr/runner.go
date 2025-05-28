@@ -27,7 +27,7 @@ var (
 )
 
 // Runner implements the transaction manager using a siphon pattern
-// following the design of httpcluster for clean configuration handling.
+// following the design of httpcluster for configuration handling.
 type Runner struct {
 	// Transaction siphon channel - UNBUFFERED for ordering and synchronization
 	txSiphon chan *transaction.ConfigTransaction

@@ -117,7 +117,7 @@ func (r RouteCollection) GetStructuredGRPCRoutes() []GRPCRoute {
 			continue
 		}
 
-		// Use string comparison instead of direct type comparison for robustness
+		// Use string comparison instead of direct type comparison
 		if string(route.Condition.Type()) != string(conditions.TypeGRPC) {
 			continue
 		}

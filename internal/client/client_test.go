@@ -191,3 +191,110 @@ func TestConnect(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatConfig(t *testing.T) {
+	// Create a test client
+	client := New(Config{
+		ServerAddr: "localhost:8080",
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	v := version.Version
+	tests := []struct {
+		name    string
+		config  *pb.ServerConfig
+		wantErr bool
+	}{
+		{
+			name: "valid config",
+			config: &pb.ServerConfig{
+				Version: &v,
+				Logging: &pb.LogOptions{
+					Level:  pb.LogLevel_LOG_LEVEL_INFO.Enum(),
+					Format: pb.LogFormat_LOG_FORMAT_JSON.Enum(),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "nil config",
+			config:  nil,
+			wantErr: false, // TOML can marshal nil as empty
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.FormatConfig(tt.config)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, result)
+			}
+		})
+	}
+}
+
+func TestGetConfig(t *testing.T) {
+	// Create a client with an invalid address to force connection error
+	client := New(Config{
+		ServerAddr: "invalid-host:-1",
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	// This should fail at connection time
+	config, err := client.GetConfig(context.Background())
+	assert.Error(t, err)
+	assert.Nil(t, config)
+}
+
+func TestApplyConfigWithMockLoader(t *testing.T) {
+	v := version.Version
+	tests := []struct {
+		name           string
+		setupMock      func(*MockLoader)
+		wantErr        bool
+		expectedErrMsg string
+	}{
+		{
+			name: "loader returns error",
+			setupMock: func(m *MockLoader) {
+				m.On("LoadProto").Return((*pb.ServerConfig)(nil), assert.AnError)
+			},
+			wantErr:        true,
+			expectedErrMsg: "failed to parse configuration",
+		},
+		{
+			name: "valid config but connection fails",
+			setupMock: func(m *MockLoader) {
+				testConfig := &pb.ServerConfig{Version: &v}
+				m.On("LoadProto").Return(testConfig, nil)
+			},
+			wantErr:        true,
+			expectedErrMsg: "failed to connect to server",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockLoader := new(MockLoader)
+			tt.setupMock(mockLoader)
+
+			client := New(Config{
+				ServerAddr: "invalid-host:-1",
+				Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+			})
+
+			err := client.ApplyConfig(context.Background(), mockLoader)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockLoader.AssertExpectations(t)
+		})
+	}
+}

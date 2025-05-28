@@ -161,15 +161,15 @@ func (c *Config) validateEndpoints(listenerIds map[string]bool) []error {
 	return errs
 }
 
-// validateRouteTypesMatchListenerType ensures that routes in an endpoint have rule types
+// validateRouteTypesMatchListenerType verifies that routes in an endpoint have rule types
 // that are compatible with the listener type the endpoint is attached to.
 //
 // This validation enforces semantic correctness at configuration load time to prevent
-// runtime errors, ensuring that:
+// runtime errors by verifying that:
 // 1. HTTP routes (Route.rule of type HttpRule) are only attached to HTTP listeners
 // 2. gRPC routes (Route.rule of type GrpcRule) are only attached to gRPC listeners
 //
-// Failed validation will prevent the configuration from being accepted, ensuring
+// Failed validation will prevent the configuration from being accepted so
 // runtime components only receive semantically valid configurations.
 func (c *Config) validateRouteTypesMatchListenerType(
 	endpoint endpoints.Endpoint,

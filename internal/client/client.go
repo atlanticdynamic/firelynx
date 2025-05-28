@@ -157,7 +157,7 @@ func (c *Client) FormatConfig(config *pb.ServerConfig) (string, error) {
 // connect establishes a connection to the server
 func (c *Client) connect(_ context.Context) (*grpc.ClientConn, error) {
 	// For now, we'll use insecure connections for simplicity
-	// In a production environment, you'd want to use proper TLS
+	// In a production environment, you'd want to use TLS
 	addr := c.serverAddr
 	if !strings.Contains(addr, "://") {
 		addr = "tcp://" + addr

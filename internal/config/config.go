@@ -72,9 +72,9 @@ func NewConfig(filePath string) (*Config, error) {
 	return config, nil
 }
 
-// NewFromProto creates a domain Config from a protobuf ServerConfig with proper initialization.
+// NewFromProto creates a domain Config from a protobuf ServerConfig.
 // This is the recommended function for converting from protobuf to domain model as it handles
-// defaults, validation, and proper error collection.
+// defaults, validation, and error collection.
 func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	if pbConfig == nil {
 		return nil, fmt.Errorf("nil protobuf config")

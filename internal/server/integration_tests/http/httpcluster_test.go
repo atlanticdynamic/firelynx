@@ -120,7 +120,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	config1, err := config.NewConfigFromBytes([]byte(emptyConfigTOML))
 	require.NoError(t, err)
 
-	tx1, err := transaction.FromFile("no-listeners", config1, nil)
+	tx1, err := transaction.FromTest("no-listeners", config1, nil)
 	require.NoError(t, err)
 	err = tx1.RunValidation()
 	require.NoError(t, err)
@@ -137,7 +137,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)
 
-	tx2, err := transaction.FromFile("add-listener", config2, nil)
+	tx2, err := transaction.FromTest("add-listener", config2, nil)
 	require.NoError(t, err)
 	err = tx2.RunValidation()
 	require.NoError(t, err)
@@ -173,7 +173,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	config3, err := config.NewConfigFromBytes([]byte(emptyConfigTOML))
 	require.NoError(t, err)
 
-	tx3, err := transaction.FromFile("remove-listener", config3, nil)
+	tx3, err := transaction.FromTest("remove-listener", config3, nil)
 	require.NoError(t, err)
 	err = tx3.RunValidation()
 	require.NoError(t, err)
@@ -228,7 +228,7 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create transaction
-	tx, err := transaction.FromFile("echo-app-test", testConfig, nil)
+	tx, err := transaction.FromTest("echo-app-test", testConfig, nil)
 	require.NoError(t, err)
 	err = tx.RunValidation()
 	require.NoError(t, err)
@@ -305,7 +305,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	config1, err := config.NewConfigFromBytes([]byte(config1Data))
 	require.NoError(t, err)
 
-	tx1, err := transaction.FromFile("initial-route", config1, nil)
+	tx1, err := transaction.FromTest("initial-route", config1, nil)
 	require.NoError(t, err)
 	err = tx1.RunValidation()
 	require.NoError(t, err)
@@ -340,7 +340,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)
 
-	tx2, err := transaction.FromFile("add-route", config2, nil)
+	tx2, err := transaction.FromTest("add-route", config2, nil)
 	require.NoError(t, err)
 	err = tx2.RunValidation()
 	require.NoError(t, err)
@@ -429,7 +429,7 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 	config1, err := config.NewConfigFromBytes([]byte(invalidAddressTOML))
 	require.NoError(t, err)
 
-	tx1, err := transaction.FromFile("bad-address", config1, nil)
+	tx1, err := transaction.FromTest("bad-address", config1, nil)
 	require.NoError(t, err)
 	err = tx1.RunValidation()
 	require.NoError(t, err)
@@ -447,7 +447,7 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)
 
-	tx2, err := transaction.FromFile("first-listener", config2, nil)
+	tx2, err := transaction.FromTest("first-listener", config2, nil)
 	require.NoError(t, err)
 	err = tx2.RunValidation()
 	require.NoError(t, err)
@@ -518,7 +518,7 @@ func TestHTTPClusterSagaCompensation(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create transaction
-	tx, err := transaction.FromFile("compensation-test", testConfig, nil)
+	tx, err := transaction.FromTest("compensation-test", testConfig, nil)
 	require.NoError(t, err)
 	err = tx.RunValidation()
 	require.NoError(t, err)

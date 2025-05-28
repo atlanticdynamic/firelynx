@@ -10,6 +10,147 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+func TestRouteCollection_ToProto(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		routes RouteCollection
+		want   int // expected number of proto routes
+	}{
+		{
+			name:   "empty collection",
+			routes: RouteCollection{},
+			want:   0,
+		},
+		{
+			name: "collection with HTTP routes",
+			routes: RouteCollection{
+				{
+					AppID:     "app1",
+					Condition: conditions.NewHTTP("/api/v1", "GET"),
+				},
+				{
+					AppID:     "app2",
+					Condition: conditions.NewHTTP("/api/v2", "POST"),
+				},
+			},
+			want: 2,
+		},
+		{
+			name: "collection with gRPC routes",
+			routes: RouteCollection{
+				{
+					AppID:     "app1",
+					Condition: conditions.NewGRPC("Service1", "Method1"),
+				},
+				{
+					AppID:     "app2",
+					Condition: conditions.NewGRPC("Service2", ""),
+				},
+			},
+			want: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tt.routes.ToProto()
+			assert.Len(t, got, tt.want)
+
+			// Verify each route was converted correctly
+			for i, route := range tt.routes {
+				assert.Equal(t, route.AppID, *got[i].AppId)
+			}
+		})
+	}
+}
+
+func TestRouteCollectionFromProto(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		pbRoutes []*pb.Route
+		want     int // expected number of routes
+	}{
+		{
+			name:     "nil input",
+			pbRoutes: nil,
+			want:     0,
+		},
+		{
+			name:     "empty slice",
+			pbRoutes: []*pb.Route{},
+			want:     0,
+		},
+		{
+			name: "slice with nil elements",
+			pbRoutes: []*pb.Route{
+				nil,
+				{
+					AppId: proto.String("app1"),
+					Rule: &pb.Route_Http{
+						Http: &pb.HttpRule{
+							PathPrefix: proto.String("/api"),
+						},
+					},
+				},
+				nil,
+			},
+			want: 1,
+		},
+		{
+			name: "valid routes",
+			pbRoutes: []*pb.Route{
+				{
+					AppId: proto.String("app1"),
+					Rule: &pb.Route_Http{
+						Http: &pb.HttpRule{
+							PathPrefix: proto.String("/api/v1"),
+						},
+					},
+				},
+				{
+					AppId: proto.String("app2"),
+					Rule: &pb.Route_Grpc{
+						Grpc: &pb.GrpcRule{
+							Service: proto.String("Service1"),
+						},
+					},
+				},
+			},
+			want: 2,
+		},
+		{
+			name: "all nil elements",
+			pbRoutes: []*pb.Route{
+				nil,
+				nil,
+				nil,
+			},
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := FromProto(tt.pbRoutes)
+			if tt.want == 0 {
+				assert.Nil(t, got)
+			} else {
+				assert.Len(t, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRoute_ToProto(t *testing.T) {
 	t.Parallel()
 

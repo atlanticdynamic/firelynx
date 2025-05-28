@@ -105,7 +105,7 @@ func validateEndpoint(endpoint *pbSettings.Endpoint, index int) []error {
 		)
 	}
 
-	// Check that routes are properly configured
+	// Check that routes are configured
 	if len(endpoint.Routes) == 0 && !isTestEndpoint {
 		err := fmt.Errorf(
 			"endpoint '%s' has no routes: %w",

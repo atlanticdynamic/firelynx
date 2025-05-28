@@ -27,6 +27,7 @@ func TestConstructors(t *testing.T) {
 		tx, err := FromFile("testdata/nope.toml", cfg, handler)
 		require.Error(t, err)
 		assert.Nil(t, tx)
+		assert.True(t, os.IsNotExist(err))
 	})
 
 	t.Run("constructs from API", func(t *testing.T) {
@@ -42,5 +43,12 @@ func TestConstructors(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, SourceTest, tx.Source)
 		assert.Equal(t, "unit_test", tx.SourceDetail)
+	})
+
+	t.Run("handles invalid config", func(t *testing.T) {
+		// Test with nil config
+		tx, err := FromTest("test", nil, handler)
+		require.Error(t, err)
+		assert.Nil(t, tx)
 	})
 }

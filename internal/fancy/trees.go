@@ -27,8 +27,8 @@ func BranchNode(title string, count string) *tree.Tree {
 	)
 }
 
-// TruncateString truncates a string if it exceeds maxLength
-// Returns a string that is guaranteed to be no longer than maxLength
+// TruncateString truncates a string if it exceeds maxLength.
+// Returns a string no longer than maxLength
 func TruncateString(s string, maxLength int) string {
 	// Quick return for common cases
 	if s == "" || maxLength <= 0 {

@@ -13,7 +13,7 @@
 // Thread Safety:
 // The types in this package are not inherently thread-safe and should be protected
 // when used concurrently. Typically, these configuration objects are loaded during
-// startup or config reload events, which should be properly synchronized.
+// startup or config reload events, which should be synchronized.
 //
 // Usage Example:
 //
