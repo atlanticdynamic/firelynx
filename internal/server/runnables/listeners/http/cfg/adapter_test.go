@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -379,6 +380,317 @@ func TestExtractEndpointRoutes(t *testing.T) {
 	}
 }
 
+func TestExtractRoutes(t *testing.T) {
+	t.Parallel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	t.Run("successful route extraction with app collection", func(t *testing.T) {
+		// Set up app registry
+		appRegistry := NewMockAppRegistry()
+		testApp := mocks.NewMockApp("test-app")
+		appRegistry.RegisterApp(testApp)
+
+		// Create listeners map
+		listenersMap := map[string]ListenerConfig{
+			"http-1": {ID: "http-1", Address: ":8080"},
+		}
+
+		// Create config with endpoints
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				listeners.Listener{
+					ID:      "http-1",
+					Address: ":8080",
+					Type:    listeners.TypeHTTP,
+				},
+			},
+			Endpoints: endpoints.EndpointCollection{
+				endpoints.Endpoint{
+					ID:         "endpoint-1",
+					ListenerID: "http-1",
+					Routes: routes.RouteCollection{
+						routes.Route{
+							AppID: "test-app",
+							Condition: conditions.HTTP{
+								PathPrefix: "/api/test",
+								Method:     "GET",
+							},
+							StaticData: map[string]any{"version": "1.0"},
+						},
+					},
+				},
+			},
+		}
+
+		// Extract routes
+		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		assert.NoError(t, err)
+		assert.Len(t, routeMap, 1)
+		assert.Len(t, routeMap["http-1"], 1)
+	})
+
+	t.Run("empty listeners map", func(t *testing.T) {
+		appRegistry := NewMockAppRegistry()
+		listenersMap := map[string]ListenerConfig{}
+		cfg := &config.Config{Version: config.VersionLatest}
+
+		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		assert.NoError(t, err)
+		assert.Empty(t, routeMap)
+	})
+
+	t.Run("error in endpoint processing", func(t *testing.T) {
+		appRegistry := NewMockAppRegistry()
+		listenersMap := map[string]ListenerConfig{
+			"http-1": {ID: "http-1", Address: ":8080"},
+		}
+
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				listeners.Listener{
+					ID:      "http-1",
+					Address: ":8080",
+					Type:    listeners.TypeHTTP,
+				},
+			},
+			Endpoints: endpoints.EndpointCollection{
+				endpoints.Endpoint{
+					ID:         "endpoint-1",
+					ListenerID: "http-1",
+					Routes: routes.RouteCollection{
+						routes.Route{
+							AppID: "missing-app",
+							Condition: conditions.HTTP{
+								PathPrefix: "/api/test",
+								Method:     "GET",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to process routes for endpoint endpoint-1")
+		assert.Len(t, routeMap["http-1"], 0)
+	})
+}
+
+func TestNewAdapterWithRoutes(t *testing.T) {
+	t.Run("adapter with app collection", func(t *testing.T) {
+		// Set up app registry
+		appRegistry := NewMockAppRegistry()
+		testApp := mocks.NewMockApp("test-app")
+		appRegistry.RegisterApp(testApp)
+
+		// Create config with HTTP listener and endpoints
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				{
+					ID:      "http-1",
+					Address: ":8080",
+					Type:    listeners.TypeHTTP,
+					Options: options.HTTP{
+						ReadTimeout:  time.Second * 30,
+						WriteTimeout: time.Second * 30,
+					},
+				},
+			},
+			Endpoints: endpoints.EndpointCollection{
+				endpoints.Endpoint{
+					ID:         "endpoint-1",
+					ListenerID: "http-1",
+					Routes: routes.RouteCollection{
+						routes.Route{
+							AppID: "test-app",
+							Condition: conditions.HTTP{
+								PathPrefix: "/api/v1",
+								Method:     "GET",
+							},
+							StaticData: map[string]any{"version": "1.0"},
+						},
+					},
+				},
+			},
+		}
+
+		provider := &MockConfigProvider{
+			config: cfg,
+			txID:   "test-tx-id",
+			appReg: appRegistry,
+		}
+
+		adapter, err := NewAdapter(provider, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, adapter)
+		assert.Equal(t, "test-tx-id", adapter.TxID)
+		assert.Len(t, adapter.Listeners, 1)
+		assert.Len(t, adapter.Routes["http-1"], 1)
+	})
+
+	t.Run("adapter without app collection", func(t *testing.T) {
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				listeners.Listener{
+					ID:      "http-1",
+					Address: ":8080",
+					Type:    listeners.TypeHTTP,
+				},
+			},
+		}
+
+		provider := &MockConfigProvider{
+			config: cfg,
+			txID:   "test-tx-id",
+			appReg: nil,
+		}
+
+		adapter, err := NewAdapter(provider, nil)
+		assert.NoError(t, err)
+		assert.NotNil(t, adapter)
+		assert.Len(t, adapter.Listeners, 1)
+		assert.Len(t, adapter.Routes["http-1"], 0)
+	})
+
+	t.Run("error extracting routes", func(t *testing.T) {
+		appRegistry := NewMockAppRegistry()
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Listeners: listeners.ListenerCollection{
+				listeners.Listener{
+					ID:      "http-1",
+					Address: ":8080",
+					Type:    listeners.TypeHTTP,
+				},
+			},
+			Endpoints: endpoints.EndpointCollection{
+				endpoints.Endpoint{
+					ID:         "endpoint-1",
+					ListenerID: "http-1",
+					Routes: routes.RouteCollection{
+						routes.Route{
+							AppID: "missing-app",
+							Condition: conditions.HTTP{
+								PathPrefix: "/api/test",
+								Method:     "GET",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		provider := &MockConfigProvider{
+			config: cfg,
+			txID:   "test-tx-id",
+			appReg: appRegistry,
+		}
+
+		adapter, err := NewAdapter(provider, nil)
+		assert.Error(t, err)
+		assert.Nil(t, adapter)
+		assert.Contains(t, err.Error(), "failed to extract HTTP routes")
+	})
+}
+
+func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	appRegistry := NewMockAppRegistry()
+
+	// Register a mock app that returns an error
+	errorApp := mocks.NewMockApp("error-app")
+	appRegistry.RegisterApp(errorApp)
+
+	endpoint := &endpoints.Endpoint{
+		ID:         "test-endpoint",
+		ListenerID: "http-1",
+		Routes: routes.RouteCollection{
+			routes.Route{
+				AppID: "error-app",
+				Condition: conditions.HTTP{
+					PathPrefix: "/api/error",
+					Method:     "GET",
+				},
+			},
+		},
+	}
+
+	routes, err := extractEndpointRoutes(endpoint, "http-1", appRegistry, logger)
+	assert.NoError(t, err) // Route creation succeeds
+	assert.Len(t, routes, 1)
+
+	// Test the handler with an app that returns an error
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/api/error", nil)
+
+	errorApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(errors.New("app error")).
+		Once()
+
+	routes[0].Handler(w, r)
+
+	// Should get 500 error response
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
+	t.Parallel()
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	appRegistry := NewMockAppRegistry()
+
+	testApp := mocks.NewMockApp("test-app")
+	appRegistry.RegisterApp(testApp)
+
+	staticData := map[string]any{
+		"version":  "1.0",
+		"timeout":  30,
+		"features": []string{"auth", "logging"},
+	}
+
+	endpoint := &endpoints.Endpoint{
+		ID:         "test-endpoint",
+		ListenerID: "http-1",
+		Routes: routes.RouteCollection{
+			routes.Route{
+				AppID: "test-app",
+				Condition: conditions.HTTP{
+					PathPrefix: "/api/test",
+					Method:     "GET",
+				},
+				StaticData: staticData,
+			},
+		},
+	}
+
+	routes, err := extractEndpointRoutes(endpoint, "http-1", appRegistry, logger)
+	assert.NoError(t, err)
+	assert.Len(t, routes, 1)
+
+	// Test that static data is passed to the app
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/api/test", nil)
+
+	testApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(data map[string]any) bool {
+		// Verify static data is properly copied
+		return data["version"] == "1.0" &&
+			data["timeout"] == 30 &&
+			len(data["features"].([]string)) == 2
+	})).
+		Return(nil).
+		Once()
+
+	routes[0].Handler(w, r)
+}
+
 func TestAdapterGetters(t *testing.T) {
 	// Create example HTTP route for testing
 	route1, err := httpserver.NewRoute(
@@ -419,35 +731,42 @@ func TestAdapterGetters(t *testing.T) {
 		},
 	}
 
-	// Test GetListenerIDs
-	ids := adapter.GetListenerIDs()
-	assert.Len(t, ids, 2, "Should return 2 listener IDs")
-	assert.ElementsMatch(t, []string{"http-1", "http-2"}, ids, "IDs should match")
+	t.Run("GetListenerIDs", func(t *testing.T) {
+		ids := adapter.GetListenerIDs()
+		assert.Len(t, ids, 2, "Should return 2 listener IDs")
+		assert.ElementsMatch(t, []string{"http-1", "http-2"}, ids, "IDs should match")
+		assert.Contains(t, ids, "http-1", "Should contain http-1")
+		assert.Contains(t, ids, "http-2", "Should contain http-2")
+	})
 
-	// Test sorted order (since map iteration order is random)
-	assert.Contains(t, ids, "http-1", "Should contain http-1")
-	assert.Contains(t, ids, "http-2", "Should contain http-2")
+	t.Run("GetListenerConfig", func(t *testing.T) {
+		config, ok := adapter.GetListenerConfig("http-1")
+		assert.True(t, ok, "Should find config for http-1")
+		assert.Equal(t, "http-1", config.ID, "Config ID should match")
+		assert.Equal(t, "localhost:8080", config.Address, "Config address should match")
+	})
 
-	// Test GetListenerConfig
-	config1, ok := adapter.GetListenerConfig("http-1")
-	assert.True(t, ok, "Should find config for http-1")
-	assert.Equal(t, "http-1", config1.ID, "Config ID should match")
-	assert.Equal(t, "localhost:8080", config1.Address, "Config address should match")
+	t.Run("GetListenerConfig for nonexistent listener", func(t *testing.T) {
+		config, ok := adapter.GetListenerConfig("nonexistent")
+		assert.False(t, ok, "Should not find config for nonexistent")
+		assert.Empty(t, config, "Config should be empty for nonexistent")
+	})
 
-	config3, ok := adapter.GetListenerConfig("nonexistent")
-	assert.False(t, ok, "Should not find config for nonexistent")
-	assert.Empty(t, config3, "Config should be empty for nonexistent")
+	t.Run("GetRoutesForListener", func(t *testing.T) {
+		routes1 := adapter.GetRoutesForListener("http-1")
+		assert.Len(t, routes1, 2, "Should return 2 routes for http-1")
+		assert.Equal(t, "/api/test1", routes1[0].Path, "First route path should match")
+		assert.Equal(t, "/api/test2", routes1[1].Path, "Second route path should match")
+	})
 
-	// Test GetRoutesForListener
-	routes1 := adapter.GetRoutesForListener("http-1")
-	assert.Len(t, routes1, 2, "Should return 2 routes for http-1")
-	assert.Equal(t, "/api/test1", routes1[0].Path, "First route path should match")
-	assert.Equal(t, "/api/test2", routes1[1].Path, "Second route path should match")
+	t.Run("GetRoutesForListener for existing listener", func(t *testing.T) {
+		routes2 := adapter.GetRoutesForListener("http-2")
+		assert.Len(t, routes2, 1, "Should return 1 route for http-2")
+		assert.Equal(t, "/api/test3", routes2[0].Path, "Route path should match")
+	})
 
-	routes2 := adapter.GetRoutesForListener("http-2")
-	assert.Len(t, routes2, 1, "Should return 1 route for http-2")
-	assert.Equal(t, "/api/test3", routes2[0].Path, "Route path should match")
-
-	routes3 := adapter.GetRoutesForListener("nonexistent")
-	assert.Empty(t, routes3, "Should return empty slice for nonexistent listener")
+	t.Run("GetRoutesForListener for nonexistent listener", func(t *testing.T) {
+		routes3 := adapter.GetRoutesForListener("nonexistent")
+		assert.Empty(t, routes3, "Should return empty slice for nonexistent listener")
+	})
 }
