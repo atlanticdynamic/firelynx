@@ -100,9 +100,8 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	// block here until the run context is canceled
 	<-ctx.Done()
-	r.cluster.Stop()
 
-	return nil
+	return r.shutdown()
 }
 
 // Stop stops the HTTP cluster runner
@@ -114,6 +113,24 @@ func (r *Runner) Stop() {
 	if r.runCancel != nil {
 		r.runCancel()
 	}
+}
+
+// shutdown performs graceful shutdown of the HTTP runner
+func (r *Runner) shutdown() error {
+	logger := r.logger.WithGroup("shutdown")
+	logger.Debug("Shutting down HTTP runner")
+
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	// Clean up any pending configuration
+	if r.configMgr != nil && r.configMgr.HasPendingChanges() {
+		logger.Debug("Rolling back pending configuration during shutdown")
+		r.configMgr.RollbackPending()
+	}
+
+	logger.Debug("HTTP runner shutdown complete")
+	return nil
 }
 
 // waitForClusterRunning waits for the cluster to return a positive IsRunning()
