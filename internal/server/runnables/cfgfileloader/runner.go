@@ -106,24 +106,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		r.logger.Debug("Run context canceled")
 	}
 
-	r.logger.Debug("Runner shutting down")
-
-	// Ensure we transition to stopping state first
-	if r.fsm.GetState() != finitestate.StatusStopping {
-		if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
-			r.logger.Error("Failed to transition to stopping state", "error", err)
-		}
-	}
-
-	// Then transition to stopped
-	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
-		return fmt.Errorf("failed to transition to stopped state: %w", err)
-	}
-
-	// Clear the last loaded config
-	r.lastValidTransaction.Store(nil)
-
-	return nil
+	return r.shutdown()
 }
 
 // boot loads the initial configuration from disk
@@ -182,11 +165,30 @@ func (r *Runner) validate(cfg *config.Config) (*transaction.ConfigTransaction, e
 // Stop implements the supervisor.Runnable interface
 func (r *Runner) Stop() {
 	r.logger.Debug("Stopping Runner")
+	r.runCancel()
+}
+
+// shutdown performs graceful shutdown of the config file loader
+func (r *Runner) shutdown() error {
+	logger := r.logger.WithGroup("shutdown")
+	logger.Debug("Shutting down config file loader")
+
+	// Transition to stopping state
 	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
-		r.logger.Error("Failed to transition to stopping state", "error", err)
+		logger.Error("Failed to transition to stopping state", "error", err)
 		// Continue with shutdown despite the state transition error
 	}
-	r.runCancel()
+
+	// Clear the last loaded config
+	r.lastValidTransaction.Store(nil)
+
+	// Transition to stopped state
+	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
+		return fmt.Errorf("failed to transition to stopped state: %w", err)
+	}
+
+	logger.Debug("Config file loader shutdown complete")
+	return nil
 }
 
 // Reload implements the supervisor.Reloadable interface
