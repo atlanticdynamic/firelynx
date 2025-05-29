@@ -106,7 +106,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to transition to running: %w", err)
 	}
 
-	logger.Info("Transaction manager ready")
+	logger.Debug("Transaction manager ready")
 
 	// Main event loop
 	for {
@@ -148,9 +148,9 @@ func (r *Runner) Stop() {
 }
 
 // shutdown performs graceful shutdown of the transaction manager.
-func (r *Runner) shutdown(ctx context.Context) error {
+func (r *Runner) shutdown(_ context.Context) error {
 	logger := r.logger.WithGroup("shutdown")
-	logger.Info("Transaction manager shutting down")
+	logger.Debug("Transaction manager shutting down")
 
 	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
 		logger.Error("Failed to transition to stopping", "error", err)
@@ -175,7 +175,7 @@ func (r *Runner) processTransaction(ctx context.Context, tx *transaction.ConfigT
 		return fmt.Errorf("saga processing failed: %w", err)
 	}
 
-	logger.Info("Successfully processed transaction", "id", tx.ID)
+	logger.Debug("Successfully processed transaction", "id", tx.ID)
 	return nil
 }
 

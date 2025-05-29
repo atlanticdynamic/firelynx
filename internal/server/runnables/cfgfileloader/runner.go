@@ -106,7 +106,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		r.logger.Debug("Run context canceled")
 	}
 
-	r.logger.Info("Runner shutting down")
+	r.logger.Debug("Runner shutting down")
 
 	// Ensure we transition to stopping state first
 	if r.fsm.GetState() != finitestate.StatusStopping {

@@ -8,6 +8,10 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+const (
+	invalidArgsErrorMsg = "Error: --config or --listen is required.\nSee --help for more info."
+)
+
 var serverCmd = &cli.Command{
 	Name:  "server",
 	Usage: "Start the firelynx server",
@@ -27,7 +31,7 @@ var serverCmd = &cli.Command{
 		configPath := cmd.String("config")
 		listenAddr := cmd.String("listen")
 		if configPath == "" && listenAddr == "" {
-			return cli.Exit("either --config or --listen flag is required", 1)
+			return cli.Exit(invalidArgsErrorMsg, 1)
 		}
 		return server.Run(ctx, slog.Default(), configPath, listenAddr)
 	},

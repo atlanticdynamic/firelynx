@@ -29,5 +29,5 @@ func TestServerCmd_EmptyFlags(t *testing.T) {
 	ok := errors.As(result, &exitErr)
 	require.True(t, ok, "Expected cli.ExitCoder, got %T", result)
 	assert.Equal(t, 1, exitErr.ExitCode())
-	assert.Equal(t, "either --config or --listen flag is required", exitErr.Error())
+	assert.Equal(t, invalidArgsErrorMsg, exitErr.Error())
 }

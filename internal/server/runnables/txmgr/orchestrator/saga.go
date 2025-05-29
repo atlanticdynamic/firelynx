@@ -220,7 +220,7 @@ func (o *SagaOrchestrator) ProcessTransaction(
 			return fmt.Errorf("transaction execution succeeded but reload failed: %w", err)
 		}
 
-		o.logger.Info("Transaction and reload completed successfully", "id", tx.ID)
+		o.logger.Debug("Transaction and reload completed successfully", "id", tx.ID)
 		return nil
 	}
 
@@ -386,32 +386,34 @@ func (o *SagaOrchestrator) AddToStorage(tx *transaction.ConfigTransaction) error
 // a timeout occurs. If any component fails to return to running state after reload,
 // the transaction will be marked as error, but all components will still have been reloaded.
 func (o *SagaOrchestrator) TriggerReload(ctx context.Context) error {
+	logger := o.logger.WithGroup("TriggerReload")
+	logger.Debug("Triggering reload of all participants")
 	o.mutex.RLock()
 	participants := o.runnables
 	currentTx := o.txStorage.GetCurrent()
 	o.mutex.RUnlock()
 
 	if currentTx == nil {
-		o.logger.Debug("No current transaction to reload")
+		logger.Debug("No current transaction to reload")
 		return nil
 	}
 
 	// Only reload if we have participants registered
 	if len(participants) == 0 {
-		o.logger.Debug("No participants registered for reload")
+		logger.Debug("No participants registered for reload")
 		return nil
 	}
 
 	// Mark transaction as reloading
 	if err := currentTx.BeginReload(); err != nil {
-		o.logger.Error("Failed to mark transaction as reloading", "error", err)
+		logger.Error("Failed to mark transaction as reloading", "error", err)
 		return err
 	}
 
 	// Get sorted participant names for deterministic ordering
 	names := o.getSortedParticipantNames()
 
-	o.logger.Info("Starting reload of all participants",
+	logger.Debug("Starting reload of all participants",
 		"transactionID", currentTx.ID,
 		"participantCount", len(names))
 
@@ -419,19 +421,18 @@ func (o *SagaOrchestrator) TriggerReload(ctx context.Context) error {
 
 	// Apply pending configuration for each participant
 	for _, name := range names {
+		logger := logger.With("participant", name)
 		participant := participants[name]
 
 		// Log pre-reload state if available
 		if stateable, ok := participant.(supervisor.Stateable); ok {
-			preState := stateable.GetState()
-			o.logger.Debug("Pre-reload state", "participant", name, "state", preState)
+			logger.Debug("Pre-reload state", "state", stateable.GetState())
 		}
 
 		// Call CommitConfig on the participant
-		o.logger.Debug("Applying pending configuration", "participant", name)
+		logger.Debug("Applying pending configuration")
 		if err := participant.CommitConfig(ctx); err != nil {
-			o.logger.Error("Failed to apply pending configuration",
-				"participant", name, "error", err)
+			logger.Error("Failed to apply pending configuration", "error", err)
 			reloadErrors = append(
 				reloadErrors,
 				fmt.Errorf("participant %s failed to apply pending config: %w", name, err),
@@ -442,13 +443,14 @@ func (o *SagaOrchestrator) TriggerReload(ctx context.Context) error {
 
 		// Log post-reload state if available
 		if stateable, ok := participant.(supervisor.Stateable); ok {
-			postState := stateable.GetState()
-			o.logger.Debug("Post-reload state", "participant", name, "state", postState)
+			logger.Debug("Post-reload state", "state", stateable.GetState())
 
 			// Wait for participant to be running again
 			if err := o.waitForRunning(ctx, stateable, name); err != nil {
-				o.logger.Error("Participant failed to return to running state after reload",
-					"name", name, "error", err)
+				logger.Error(
+					"Participant failed to return to running state after reload",
+					"error", err,
+				)
 				reloadErrors = append(
 					reloadErrors,
 					fmt.Errorf("participant %s failed to return to running state: %w", name, err),
@@ -462,10 +464,9 @@ func (o *SagaOrchestrator) TriggerReload(ctx context.Context) error {
 	if len(reloadErrors) > 0 {
 		e := errors.Join(reloadErrors...)
 		if err := currentTx.MarkError(e); err != nil {
-			o.logger.Error(
+			logger.Error(
 				"Failed to mark transaction as error after reload failures",
-				"error",
-				err,
+				"error", err,
 			)
 		}
 		return e
@@ -473,15 +474,14 @@ func (o *SagaOrchestrator) TriggerReload(ctx context.Context) error {
 
 	// If successful, mark as completed
 	if err := currentTx.MarkCompleted(); err != nil {
-		o.logger.Error(
+		logger.Error(
 			"Failed to mark transaction as completed after successful reload",
-			"error",
-			err,
+			"error", err,
 		)
 		return err
 	}
 
-	o.logger.Info("Reload completed successfully",
+	logger.Debug("Reload completed",
 		"transactionID", currentTx.ID,
 		"participantCount", len(names))
 

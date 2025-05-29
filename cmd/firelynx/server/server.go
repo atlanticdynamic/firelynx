@@ -116,6 +116,6 @@ func Run(
 		return fmt.Errorf("failed to run server: %w", err)
 	}
 
-	logger.Info("Server shutdown complete")
+	logger.Debug("Server shutdown complete")
 	return nil
 }
