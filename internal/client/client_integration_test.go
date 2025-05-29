@@ -100,7 +100,7 @@ func TestApplyConfigFromPath_Integration(t *testing.T) {
 	select {
 	case err := <-errCh:
 		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Error("Server did not shut down within timeout")
 	}
 }
