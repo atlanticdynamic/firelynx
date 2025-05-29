@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
@@ -122,6 +123,13 @@ func TestRunner_New(t *testing.T) {
 		assert.Nil(t, r)
 		assert.Contains(t, err.Error(), "listen address cannot be empty")
 	})
+
+	t.Run("with nil tx siphon", func(t *testing.T) {
+		r, err := NewRunner(testutil.GetRandomListeningPort(t), nil)
+		assert.Error(t, err)
+		assert.Nil(t, r)
+		assert.Contains(t, err.Error(), "transaction siphon cannot be nil")
+	})
 }
 
 // TestStop tests the Stop method of Runner
@@ -190,6 +198,31 @@ func TestString(t *testing.T) {
 
 	// Check that String returns expected value
 	assert.Equal(t, "cfgservice.Runner", r.String())
+}
+
+// TestGetDomainConfig tests the GetDomainConfig method
+func TestGetDomainConfig(t *testing.T) {
+	t.Run("nil transaction storage", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		// Set transaction storage to return nil
+		r.txStorage = &mockTxStorageNil{}
+
+		// Should return a minimal default config
+		cfg := r.GetDomainConfig()
+		assert.NotNil(t, cfg)
+		assert.Equal(t, config.VersionLatest, cfg.Version)
+	})
+}
+
+// mockTxStorageNil is a test implementation that always returns nil
+type mockTxStorageNil struct{}
+
+func (m *mockTxStorageNil) SetCurrent(tx *transaction.ConfigTransaction) {}
+
+func (m *mockTxStorageNil) GetCurrent() *transaction.ConfigTransaction {
+	return nil
 }
 
 // Helper function for gRPC testing
@@ -354,5 +387,52 @@ func TestRun(t *testing.T) {
 		// Run should handle being stopped before starting
 		err := r.Run(ctx)
 		assert.NoError(t, err)
+	})
+
+	t.Run("grpc_server_already_running", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		// Set a mock grpc server to simulate it already running
+		mockServer := new(MockGRPCServer)
+		r.grpcServer = mockServer
+
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		err := r.Run(ctx)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "gRPC server is already running")
+	})
+
+	t.Run("parent_context_cancellation", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		// Create a parent context that we can cancel
+		parentCtx, parentCancel := context.WithCancel(context.Background())
+		r.parentCtx = parentCtx
+
+		// Run in a goroutine
+		runErrCh := make(chan error, 1)
+		go func() {
+			runErrCh <- r.Run(t.Context())
+		}()
+
+		// Wait for server to start
+		require.Eventually(t, func() bool {
+			return r.IsRunning()
+		}, 1*time.Second, 10*time.Millisecond)
+
+		// Cancel parent context
+		parentCancel()
+
+		// Wait for Run to complete
+		select {
+		case err := <-runErrCh:
+			assert.NoError(t, err)
+		case <-time.After(200 * time.Millisecond):
+			t.Fatal("Run did not complete in time")
+		}
 	})
 }

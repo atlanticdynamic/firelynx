@@ -361,6 +361,33 @@ func TestUpdateConfig(t *testing.T) {
 		// Verify we received all transactions
 		assert.Equal(t, len(configs), len(receivedTxs), "Should have received all transactions")
 	})
+
+	t.Run("validation_failure", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		// Initialize FSM state to Running
+		h.transitionToRunning()
+
+		// Create a config that will definitely fail validation
+		// Use an unsupported version which should cause hard validation failure
+		invalidVersion := "v999"
+		invalidConfig := &pb.ServerConfig{
+			Version: &invalidVersion, // Unsupported version
+		}
+		req := &pb.UpdateConfigRequest{Config: invalidConfig}
+
+		// Call UpdateConfig
+		resp, err := r.UpdateConfig(t.Context(), req)
+
+		// Should return success false with validation error
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Success)
+		assert.False(t, *resp.Success)
+		require.NotNil(t, resp.Error)
+		assert.Contains(t, *resp.Error, "transaction validation failed")
+	})
 }
 
 // TestUpdateConfigWithLogger tests that logger is correctly used during configuration updates

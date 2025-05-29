@@ -539,7 +539,8 @@ func TestConfigTransaction_RunValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		err = tx.RunValidation()
-		assert.NoError(t, err) // RunValidation itself doesn't return the validation error
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrValidationFailed)
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
 		assert.NotEmpty(t, tx.errors)
@@ -583,10 +584,13 @@ func TestTransactionLifecycle(t *testing.T) {
 		}
 
 		require.NoError(t, tx.fsm.Transition(finitestate.StateValidating))
-		require.NoError(t, tx.setStateInvalid(validationErrs))
+		tx.setStateInvalid(validationErrs)
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
 		assert.Len(t, tx.errors, 2)
+		// Verify errors were wrapped correctly
+		assert.ErrorIs(t, tx.errors[0], ErrValidationFailed)
+		assert.ErrorIs(t, tx.errors[1], ErrValidationFailed)
 
 		err := tx.BeginExecution()
 		assert.ErrorIs(t, err, ErrNotValidated)
