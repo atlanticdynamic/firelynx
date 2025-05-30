@@ -435,6 +435,89 @@ func TestRunner_StateInterfaces(t *testing.T) {
 	})
 }
 
+func TestRunner_Shutdown(t *testing.T) {
+	t.Parallel()
+
+	t.Run("shutdown transitions states correctly", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "test_config.toml")
+		err := os.WriteFile(configPath, validConfigTOML, 0o644)
+		require.NoError(t, err)
+
+		h := newTestHarness(t, configPath)
+
+		// Set the FSM to Running state (via proper transition path)
+		err = h.runner.fsm.Transition(finitestate.StatusBooting)
+		require.NoError(t, err)
+		err = h.runner.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(t, err)
+
+		// Load a config to verify it gets cleared
+		h.runner.Reload()
+		assert.NotNil(t, h.runner.getConfig())
+
+		// Call shutdown directly
+		err = h.runner.shutdown()
+		assert.NoError(t, err)
+
+		// Verify state transitions and cleanup
+		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
+		assert.Nil(t, h.runner.getConfig())
+	})
+
+	t.Run("shutdown clears config even without prior loading", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "test_config.toml")
+		err := os.WriteFile(configPath, validConfigTOML, 0o644)
+		require.NoError(t, err)
+
+		h := newTestHarness(t, configPath)
+
+		// Transition to Running without loading config
+		err = h.runner.fsm.Transition(finitestate.StatusBooting)
+		require.NoError(t, err)
+		err = h.runner.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(t, err)
+
+		// Verify no config is loaded
+		assert.Nil(t, h.runner.getConfig())
+
+		// Call shutdown - should work fine even without config
+		err = h.runner.shutdown()
+		assert.NoError(t, err)
+
+		// Verify state transitions
+		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
+		assert.Nil(t, h.runner.getConfig())
+	})
+
+	t.Run("shutdown handles invalid FSM transitions gracefully", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "test_config.toml")
+		err := os.WriteFile(configPath, validConfigTOML, 0o644)
+		require.NoError(t, err)
+
+		h := newTestHarness(t, configPath)
+
+		// Runner starts in New state
+		assert.Equal(t, finitestate.StatusNew, h.runner.GetState())
+
+		// Load a config to verify it gets cleared even when FSM transition fails
+		h.runner.Reload()
+		assert.NotNil(t, h.runner.getConfig())
+
+		// Call shutdown from New state - this will fail FSM transitions but should still clear config
+		err = h.runner.shutdown()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to transition to stopped state")
+
+		// Config should still be cleared even though FSM transition failed
+		assert.Nil(t, h.runner.getConfig())
+		// FSM should remain in New state since transition failed
+		assert.Equal(t, finitestate.StatusNew, h.runner.GetState())
+	})
+}
+
 func TestRunner_ConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
