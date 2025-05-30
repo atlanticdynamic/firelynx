@@ -13,7 +13,7 @@
 // Thread Safety:
 // The types in this package are not inherently thread-safe and should be protected
 // when used concurrently. Typically, these configuration objects are loaded during
-// startup or config reload events, which should be properly synchronized.
+// startup or config reload events, which should be synchronized.
 //
 // Usage Example:
 //
@@ -150,21 +150,14 @@ func (a AppCollection) Validate() error {
 	return errors.Join(errs...)
 }
 
-// ValidateRouteAppReferencesWithBuiltIns ensures all routes reference valid apps
-// availableBuiltInApps is a list of built-in app IDs that are always available
-func (a AppCollection) ValidateRouteAppReferencesWithBuiltIns(
+// ValidateRouteAppReferences ensures all routes reference valid apps
+func (a AppCollection) ValidateRouteAppReferences(
 	routes []struct{ AppID string },
-	availableBuiltInApps []string,
 ) error {
 	// Build map of app IDs for quick lookup
 	appIDs := make(map[string]bool)
 	for _, app := range a {
 		appIDs[app.ID] = true
-	}
-
-	// Add built-in app IDs to valid list
-	for _, appID := range availableBuiltInApps {
-		appIDs[appID] = true
 	}
 
 	// Check each route's app ID
@@ -181,4 +174,15 @@ func (a AppCollection) ValidateRouteAppReferencesWithBuiltIns(
 	}
 
 	return errors.Join(errs...)
+}
+
+// ValidateRouteAppReferencesWithBuiltIns ensures all routes reference valid apps
+// availableBuiltInApps is a list of built-in app IDs that are always available
+// Deprecated: Use ValidateRouteAppReferences instead. Built-in apps are no longer supported.
+func (a AppCollection) ValidateRouteAppReferencesWithBuiltIns(
+	routes []struct{ AppID string },
+	availableBuiltInApps []string,
+) error {
+	// For backward compatibility, just call the new method
+	return a.ValidateRouteAppReferences(routes)
 }

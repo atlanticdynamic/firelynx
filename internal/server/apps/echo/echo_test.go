@@ -2,11 +2,10 @@ package echo
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url" // Added for creating request body if needed
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,13 +13,14 @@ import (
 )
 
 func TestNewEchoApp(t *testing.T) {
-	app := New("test-echo-app")
+	app := New("test-echo-app", "Hello from test")
 	require.NotNil(t, app, "EchoApp should not be nil") // Use require for essential checks
 	assert.Equal(t, "test-echo-app", app.String(), "App ID should match")
+	assert.Equal(t, "Hello from test", app.response, "Response should match")
 }
 
 func TestEchoApp_ID(t *testing.T) {
-	app := &App{id: "test-echo-id"}
+	app := &App{id: "test-echo-id", response: "test response"}
 	assert.Equal(t, "test-echo-id", app.String())
 }
 
@@ -28,6 +28,7 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 	tests := []struct {
 		name       string
 		appID      string
+		response   string
 		method     string
 		path       string      // Path without query string
 		query      url.Values  // Use url.Values directly
@@ -36,11 +37,12 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 		// Add requestBody string if you need to test POST/PUT bodies
 	}{
 		{
-			name:   "Basic GET Request",
-			appID:  "test-app",
-			method: http.MethodGet,
-			path:   "/test/path",
-			query:  url.Values{"param1": []string{"value1"}, "param2": []string{"value2"}},
+			name:     "Basic GET Request",
+			appID:    "test-app",
+			response: "Test echo response",
+			method:   http.MethodGet,
+			path:     "/test/path",
+			query:    url.Values{"param1": []string{"value1"}, "param2": []string{"value2"}},
 			headers: http.Header{
 				"Content-Type":  []string{"application/json"},
 				"X-Test-Header": []string{"test-value"},
@@ -50,6 +52,7 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 		{
 			name:       "POST Request",
 			appID:      "post-app",
+			response:   "POST response",
 			method:     http.MethodPost,
 			path:       "/submit",
 			query:      url.Values{}, // Empty query
@@ -60,6 +63,7 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 		{
 			name:       "Request with Empty Static Data",
 			appID:      "empty-data-app",
+			response:   "Empty data response",
 			method:     http.MethodPut,
 			path:       "/update",
 			query:      url.Values{"id": []string{"123"}},
@@ -70,7 +74,7 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			app := New(tt.appID)
+			app := New(tt.appID, tt.response)
 			targetURL := tt.path
 			if len(tt.query) > 0 {
 				targetURL += "?" + tt.query.Encode()
@@ -96,82 +100,26 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 			assert.Equal(t, http.StatusOK, res.StatusCode, "Status code should be OK")
 			assert.Equal(
 				t,
-				"application/json",
+				"text/plain; charset=utf-8",
 				res.Header.Get("Content-Type"),
-				"Content-Type should be application/json",
+				"Content-Type should be text/plain",
 			)
 
-			// Read and parse the response JSON
+			// Read the response
 			responseBody, err := io.ReadAll(res.Body)
 			require.NoError(t, err, "Failed to read response body")
-			var response map[string]any
-			err = json.Unmarshal(responseBody, &response)
-			require.NoError(t, err, "Failed to unmarshal response JSON")
-
-			// Verify the expected fields
-			assert.Equal(t, tt.appID, response["app_id"], "app_id should match")
-			assert.Equal(t, tt.method, response["method"], "HTTP method should match")
 			assert.Equal(
 				t,
-				tt.path,
-				response["path"],
-				"Path should match",
-			) // Path assertion remains the same
-
-			// Check static data
-			staticData, ok := response["static_data"].(map[string]any)
-			if assert.True(
-				t,
-				ok || len(tt.staticData) == 0,
-				"static_data should be a map or nil if input was empty",
-			) {
-				// Use assert.Equal instead of checking key presence + value for simplicity if types are known
-				assert.Equal(t, tt.staticData, staticData, "static_data content should match")
-			}
-
-			// Check headers
-			headers, ok := response["headers"].(map[string]any)
-			require.True(t, ok, "headers key should exist and be a map")
-			// Check specific headers provided in the input
-			for key, values := range tt.headers {
-				// Note: response["headers"] map keys will match the canonical key format (e.g., X-Test-Header)
-				respHeaderValues, headerOk := headers[key].([]any) // JSON unmarshals string arrays as []any
-				assert.Truef(t, headerOk, "Header '%s' should exist in response", key)
-				// Convert []any back to []string for comparison
-				var respHeaderStrings []string
-				for _, v := range respHeaderValues {
-					if s, ok := v.(string); ok {
-						respHeaderStrings = append(respHeaderStrings, s)
-					}
-				}
-				assert.ElementsMatchf(
-					t,
-					values,
-					respHeaderStrings,
-					"Header '%s' values should match",
-					key,
-				)
-			}
-
-			// Check query parameters
-			queryMap, ok := response["query"].(map[string]any)
-			require.True(t, ok, "query key should exist and be a map")
-			expectedQueryMap := map[string]any{}
-			for k, v := range tt.query {
-				// JSON unmarshals query params (which are []string) into []any containing strings
-				vals := make([]any, len(v))
-				for i, s := range v {
-					vals[i] = s
-				}
-				expectedQueryMap[k] = vals
-			}
-			assert.Equal(t, expectedQueryMap, queryMap, "Query parameters should match")
+				tt.response,
+				string(responseBody),
+				"Response should match configured response",
+			)
 		})
 	}
 }
 
-func TestEchoApp_HandleHTTP_EncodingError(t *testing.T) {
-	app := New("error-test-app")
+func TestEchoApp_HandleHTTP_WriteError(t *testing.T) {
+	app := New("error-test-app", "error response")
 	r := httptest.NewRequest(http.MethodGet, "/test", nil)
 
 	failWriter := &failingResponseWriter{
@@ -179,12 +127,12 @@ func TestEchoApp_HandleHTTP_EncodingError(t *testing.T) {
 	}
 
 	err := app.HandleHTTP(context.Background(), failWriter, r, nil)
-	require.Error(t, err, "HandleHTTP should return an error when encoding fails")
+	require.Error(t, err, "HandleHTTP should return an error when write fails")
 	assert.Contains(
 		t,
 		err.Error(),
-		"failed to encode response",
-		"Error should mention encoding failure",
+		"failed to write response",
+		"Error should mention write failure",
 	)
 }
 
@@ -203,20 +151,4 @@ func (f *failingResponseWriter) Write([]byte) (int, error) {
 
 func (f *failingResponseWriter) WriteHeader(statusCode int) {
 	f.status = statusCode
-}
-
-func TestHeaderToMap(t *testing.T) {
-	header := http.Header{}
-	header.Add("Content-Type", "application/json")
-	header.Add("X-Multiple", "value1")
-	header.Add("X-Multiple", "value2")
-
-	result := headerToMap(header)
-
-	require.Contains(t, result, "Content-Type")
-	assert.Equal(t, []string{"application/json"}, result["Content-Type"])
-
-	require.Contains(t, result, "X-Multiple")
-	assert.ElementsMatch(t, []string{"value1", "value2"}, result["X-Multiple"])
-	assert.Len(t, result["X-Multiple"], 2)
 }

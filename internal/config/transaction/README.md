@@ -1,26 +1,55 @@
 # Config Transaction Package
 
-The `transaction` package implements the Config Saga pattern, providing clear ownership and tracking of configuration throughout its entire lifecycle.
+The `transaction` package uses a saga pattern for configuration changes. It handles validated configuration transactions that can be applied or rolled back.
 
-## Purpose
+## Package Contents
 
-This package addresses several architectural challenges:
+A configuration transaction contains:
 
-1. **Lifecycle Management**: Tracks configuration from reception to activation
-2. **Metadata Preservation**: Retains source info, validation state, and processing history
-3. **Component Isolation**: Provides adapters so components only access what they need
-4. **Validation Enforcement**: Ensures configuration is validated before runtime use
+- **Domain Config**: Configuration from `internal/config`
+- **Participant Tracking**: State management for participating components
+- **State Machine**: Transaction lifecycle state tracking
+- **Transaction ID**: UUID for correlation
+- **Source Information**: Origin (file, API, test)
+- **Log Collection**: Transaction logs
 
-## Design Goals
+## Implementation
 
-- **Single Source of Truth**: One central object manages configuration state
-- **Reduced Coupling**: Components depend on adapters instead of direct config types
-- **Immutability**: Component-specific views are immutable for thread safety
-- **Clear Validation**: Runtime components can easily verify validation state
-- **Rich Diagnostics**: Preserves history for improved troubleshooting
+### State Machines
 
-## Core Components
+- **Transaction FSM**: Tracks lifecycle states
+- **Participant FSM**: Each component has its own state machine
+- **Coordinated Changes**: Changes apply to all components or none
 
-- **ConfigTransaction**: Central object representing configuration's lifecycle
-- **Adapters**: Component-specific views limiting dependencies
-- **Validation Gate**: Mechanism that prevents using unvalidated configuration
+Transaction states: created → validated → executing → succeeded/failed → reloading/compensating → completed/compensated
+
+### Error Handling
+
+The transaction system categorizes errors into three types using sentinel error wrapping:
+
+#### Error Types
+
+1. **Validation Errors** (`ErrValidationFailed`): Configuration validation failures
+   - Triggered by `MarkInvalid(err)`
+   - Result in `StateInvalid` (terminal state)
+   - Example: Invalid configuration syntax, missing required fields
+
+2. **Terminal Errors** (`ErrTerminalError`): Unrecoverable system errors
+   - Triggered by `MarkError(err)` or `MarkFailed(err)`
+   - Result in `StateError` or `StateFailed`
+   - Example: Database connection failure, filesystem errors
+
+3. **Accumulated Errors** (`ErrAccumulatedError`): Non-fatal errors collected before state transitions
+   - Added via `AddError(err)`
+   - Do not trigger state transitions
+   - Example: Warning conditions, recoverable failures
+
+#### Error Collection
+
+All errors are stored in a unified slice and retrieved via `GetErrors()`. Each error is wrapped with its type using `fmt.Errorf("%w: %w", errorType, originalErr)`. Use `errors.Is()` to check error types.
+
+### Constructors
+
+- `FromFile(path, config, logger)`: File-based transactions
+- `FromAPI(requestID, config, logger)`: API-based transactions
+- `FromTest(testName, config, logger)`: Test transactions

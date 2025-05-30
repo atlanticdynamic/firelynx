@@ -9,10 +9,6 @@ on:
 permissions:
   contents: read
 
-env:
-  GOCACHE: "/tmp/go-cache"
-  GOMODCACHE: "/tmp/go-mod-cache"
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,7 +30,7 @@ jobs:
 
       - name: Go test
         run: |
-          go test -cover -coverprofile=unit.coverage.out ./...
+          go test -race -cover -coverprofile=unit.coverage.out -timeout 5m -tags "integration e2e" ./...
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5

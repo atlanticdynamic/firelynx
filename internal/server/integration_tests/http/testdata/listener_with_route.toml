@@ -1,0 +1,24 @@
+version = "v1"
+
+[[listeners]]
+id = "http-1"
+type = "http"
+address = "127.0.0.1:{{PORT}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "test-endpoint"
+listener_id = "http-1"
+
+[[endpoints.routes]]
+app_id = "test-app"
+[endpoints.routes.http]
+path_prefix = "/test"
+
+[[apps]]
+id = "test-app"
+[apps.echo]
+response = "Test response"

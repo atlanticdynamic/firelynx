@@ -1,5 +1,4 @@
 # Variables
-PACKAGES := $(shell go list ./...)
 BINARY_NAME := firelynx
 VERSION := 0.1.0
 
@@ -27,18 +26,33 @@ install: protogen
 
 ## protogen: Generate code from protobuf definitions
 .PHONY: protogen
-protogen:
+protogen: clean
 	buf generate
 
 ## test: Run tests with race detection and coverage
 .PHONY: test
 test:
-	go test -race -cover $(PACKAGES)
+	go test -race -cover -timeout 2m ./...
+
+## test-short: Run unit tests in short mode (fast)
+.PHONY: test-short
+test-short:
+	go test -short -timeout 1m ./...
 
 ## test-e2e: Run end-to-end tests
 .PHONY: test-e2e
 test-e2e:
-	go test -race -v -tags e2e ./test/e2e/...
+	go test -race -timeout 3m -tags e2e ./...
+
+## test-integration: Run integration tests
+.PHONY: test-integration
+test-integration:
+	go test -count 1 -race -timeout 1m -tags integration ./internal/server/integration_tests/...
+
+## test-all: Run all tests (unit, integration, and e2e)
+.PHONY: test-all
+test-all:
+	go test -race -cover -timeout 5m -tags "integration e2e" ./...
 
 ## lint: Run golangci-lint code quality checks
 .PHONY: lint

@@ -77,7 +77,7 @@ func TestEndpointWithMissingListenerID(t *testing.T) {
 func TestFullConfigToProto(t *testing.T) {
 	t.Parallel()
 
-	// Create a comprehensive config with all components
+	// Create a config with all component types
 	config := &Config{
 		Version: "v1alpha1",
 		Logging: logs.Config{
@@ -225,7 +225,7 @@ func TestFullConfigToProto(t *testing.T) {
 func TestFullConfigRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	// Create a comprehensive config with all components
+	// Create a config with all component types
 	originalConfig := &Config{
 		Version: "v1alpha1",
 		Logging: logs.Config{

@@ -13,6 +13,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
 	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
+	"google.golang.org/protobuf/proto"
 )
 
 // Configuration version constants
@@ -32,8 +33,15 @@ type Config struct {
 	Endpoints endpoints.EndpointCollection
 	Apps      apps.AppCollection
 
-	// Keep reference to raw protobuf for debugging
+	// TODO: remove initial raw protobuf to save memory
 	rawProto any
+}
+
+// Equals compares two Config objects for equality.
+func (c *Config) Equals(other *Config) bool {
+	thisProto := c.ToProto()
+	otherProto := other.ToProto()
+	return proto.Equal(thisProto, otherProto)
 }
 
 // NewConfig loads configuration from a TOML file path, converts it to the domain model, and validates it.
@@ -64,9 +72,9 @@ func NewConfig(filePath string) (*Config, error) {
 	return config, nil
 }
 
-// NewFromProto creates a domain Config from a protobuf ServerConfig with proper initialization.
+// NewFromProto creates a domain Config from a protobuf ServerConfig.
 // This is the recommended function for converting from protobuf to domain model as it handles
-// defaults, validation, and proper error collection.
+// defaults, validation, and error collection.
 func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	if pbConfig == nil {
 		return nil, fmt.Errorf("nil protobuf config")

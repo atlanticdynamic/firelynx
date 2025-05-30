@@ -5,16 +5,16 @@
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=atlanticdynamic_firelynx&metric=coverage)](https://sonarcloud.io/summary/new_code?id=atlanticdynamic_firelynx)
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
-firelynx is a scriptable implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server. It enables AI assistants like Claude to interact with custom tools, prompts, and resources powered by a flexible scripting environment.
+firelynx is a scriptable implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server. It enables AI assistants like Claude to interact with custom tools, prompts, and resources powered by a scripting environment.
 
 ## Features
 
 - **MCP Protocol Support**: Implements the standardized [Model Context Protocol](https://modelcontextprotocol.io/)
 - **Scriptable Tools and Prompts**: Create custom tools and prompt templates using multiple scripting languages
-- **Hot-Reloadable Configuration**: Update server configuration without downtime
-- **Modular Architecture**: Clear separation between listeners, endpoints, and applications
-- **Multiple Script Engines**: Powered by [go-polyscript](https://github.com/robbyt/go-polyscript) for language flexibility
-- **Graceful Lifecycle Management**: Handled by [go-supervisor](https://github.com/robbyt/go-supervisor)
+- **Hot-Reloadable Configuration**: Update server configuration via gRPC or file reload without stopping the server
+- **Modular Architecture**: Separation between listeners, endpoints, and applications
+- **Multiple Script Engines**: Powered by [go-polyscript](https://github.com/robbyt/go-polyscript)
+- **Lifecycle Management**: Handled by [go-supervisor](https://github.com/robbyt/go-supervisor)
 
 ## Quick Start
 
@@ -105,7 +105,6 @@ firelynx follows a three-layer architecture:
 2. **Endpoints**: Connection mapping between listeners and applications
 3. **Applications**: Functional components including script apps and MCP implementations
 
-For detailed architecture documentation, see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## MCP Protocol Support
 
@@ -143,12 +142,12 @@ make test
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md): Overall system design
-- [Specification](docs/SPECIFICATION.md): Technical specifications
-- [CLI](docs/CLI.md): Command-line interface documentation
-- [Hot Reload](docs/HOT_RELOAD.md): Hot reload system design
-- [Error Handling](docs/ERROR_HANDLING.md): Error handling strategy
-- [Config Transaction](CONFIG_SAGA_PATTERN_PLAN.md): Atomic configuration changes with two-phase commit
+Documentation is located near the code in README files throughout the codebase:
+
+- [Configuration Domain Model](internal/config/README.md): Configuration validation and domain model
+- [Configuration Transactions](internal/config/transaction/README.md): Saga pattern for configuration updates
+- [Transaction Manager](internal/server/runnables/txmgr/README.md): Configuration transaction coordination
+- [CLI Usage](cmd/firelynx/README.md): Command-line interface and commands
 
 ## License
 

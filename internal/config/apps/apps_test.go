@@ -280,7 +280,7 @@ func TestValidateRouteAppReferencesWithBuiltIns(t *testing.T) {
 		expectError   bool
 	}{
 		{
-			name: "Valid references",
+			name: "Valid references - built-in apps are now ignored",
 			apps: AppCollection{
 				{ID: "app1", Config: &testAppConfig{appType: "echo"}},
 			},
@@ -289,7 +289,7 @@ func TestValidateRouteAppReferencesWithBuiltIns(t *testing.T) {
 				{AppID: "built-in1"},
 			},
 			builtInAppIDs: []string{"built-in1"},
-			expectError:   false,
+			expectError:   true, // Built-in apps are no longer supported
 		},
 		{
 			name: "Invalid reference",

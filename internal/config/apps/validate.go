@@ -3,6 +3,7 @@ package apps
 import (
 	"errors"
 	"fmt"
+	"maps"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 )
@@ -28,20 +29,12 @@ type ValidationContext struct {
 }
 
 // NewValidationContext creates a new validation context with a copy of the provided app IDs.
-// It always includes the built-in "echo" app in the list of valid app IDs regardless of input.
+// NOTE: This function does NOT automatically add any built-in apps like "echo".
+// Tests that expect "echo" to be automatically included need to add it explicitly.
 // The copied map prevents external modification of the context after creation.
 func NewValidationContext(appIDs map[string]bool) *ValidationContext {
-	// Make a copy to prevent external modification
-	ids := make(map[string]bool, len(appIDs))
-	for k, v := range appIDs {
-		ids[k] = v
-	}
-
-	// Always include the built-in echo app
-	ids["echo"] = true
-
 	return &ValidationContext{
-		AppIDs: ids,
+		AppIDs: maps.Clone(appIDs),
 	}
 }
 

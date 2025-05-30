@@ -13,7 +13,7 @@
 // Thread Safety:
 // The endpoint configuration objects are not thread-safe and should be protected when
 // accessed concurrently. These objects are typically loaded during startup or configuration
-// reload operations, which should be properly synchronized.
+// reload operations, which should be synchronized.
 //
 // Usage Example:
 //

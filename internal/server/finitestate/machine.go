@@ -21,6 +21,12 @@ const (
 // TypicalTransitions is a set of standard transitions for a finite state machine.
 var TypicalTransitions = fsm.TypicalTransitions
 
+// SubscriberOption is a functional option for configuring state channel behavior
+type SubscriberOption = fsm.SubscriberOption
+
+// WithSyncBroadcast is a channel option that blocks until message delivery instead of dropping on full channels
+var WithSyncBroadcast = fsm.WithSyncBroadcast
+
 // Machine defines the interface for the finite state machine that tracks
 // the HTTP server's lifecycle states. This abstraction allows for different
 // FSM implementations and simplifies testing.
@@ -43,6 +49,10 @@ type Machine interface {
 	// GetStateChan returns a channel that emits the state machine's state whenever it changes.
 	// The channel is closed when the provided context is canceled.
 	GetStateChan(ctx context.Context) <-chan string
+
+	// GetStateChanWithOptions returns a channel with custom configuration options.
+	// The channel is closed when the provided context is canceled.
+	GetStateChanWithOptions(ctx context.Context, opts ...SubscriberOption) <-chan string
 }
 
 // New creates a new finite state machine with the specified logger using "standard" state transitions.

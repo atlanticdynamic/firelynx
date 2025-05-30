@@ -11,7 +11,7 @@ import (
 // Hierarchical query methods (top-down)
 //
 
-// GetListenerByID / FindListener finds a listener by its ID (top-level object)
+// GetListenerByID finds a listener by its ID (top-level object)
 func (c *Config) GetListenerByID(id string) *listeners.Listener {
 	for i, l := range c.Listeners {
 		if l.ID == id {
@@ -32,15 +32,8 @@ func (c *Config) GetEndpointsForListener(listenerID string) []endpoints.Endpoint
 	return result
 }
 
-// Aliases for backward compatibility
-
-// FindListener finds a listener by ID (alias for GetListenerByID)
-func (c *Config) FindListener(id string) *listeners.Listener {
-	return c.GetListenerByID(id)
-}
-
-// FindEndpoint finds an endpoint by ID (alias for GetEndpointByID)
-func (c *Config) FindEndpoint(id string) *endpoints.Endpoint {
+// GetEndpointByID finds an endpoint by its ID
+func (c *Config) GetEndpointByID(id string) *endpoints.Endpoint {
 	for i, e := range c.Endpoints {
 		if e.ID == id {
 			return &c.Endpoints[i]
@@ -49,12 +42,8 @@ func (c *Config) FindEndpoint(id string) *endpoints.Endpoint {
 	return nil
 }
 
-// GetEndpointByID finds an endpoint by its ID
-func (c *Config) GetEndpointByID(id string) *endpoints.Endpoint {
-	return c.FindEndpoint(id)
-}
-
 // FindApp finds an application by ID (alias for apps.FindByID)
+// Deprecated: Direct usage of c.Apps.FindByID() is preferred.
 func (c *Config) FindApp(id string) *apps.App {
 	return c.Apps.FindByID(id)
 }
@@ -88,12 +77,12 @@ func (c *Config) GetListenersByType(listenerType listeners.Type) []listeners.Lis
 }
 
 // GetHTTPListeners returns only the listeners of HTTP type
-func (c *Config) GetHTTPListeners() []listeners.Listener {
+func (c *Config) GetHTTPListeners() listeners.ListenerCollection {
 	return c.GetListenersByType(listeners.TypeHTTP)
 }
 
 // GetGRPCListeners returns only the listeners of GRPC type
-func (c *Config) GetGRPCListeners() []listeners.Listener {
+func (c *Config) GetGRPCListeners() listeners.ListenerCollection {
 	return c.GetListenersByType(listeners.TypeGRPC)
 }
 
@@ -102,6 +91,7 @@ func (c *Config) GetGRPCListeners() []listeners.Listener {
 //
 
 // GetEndpointsByListenerID returns all endpoints that reference a specific listener
+// Deprecated: Use GetEndpointsForListener instead.
 func (c *Config) GetEndpointsByListenerID(listenerID string) []endpoints.Endpoint {
 	var result []endpoints.Endpoint
 	for _, ep := range c.Endpoints {
@@ -120,4 +110,18 @@ func (c *Config) GetEndpointIDsForListener(listenerID string) []string {
 		ids = append(ids, e.ID)
 	}
 	return ids
+}
+
+// GetEndpointToListenerIDMapping creates a mapping from endpoint IDs to their associated listener IDs.
+// This is useful when you need to quickly determine which listener an endpoint belongs to.
+//
+// Returns:
+//   - A map where keys are endpoint IDs and values are listener IDs
+//   - For example: map[string]string{"endpoint-1": "http-listener-1", "endpoint-2": "grpc-listener-1"}
+func (c *Config) GetEndpointToListenerIDMapping() map[string]string {
+	result := make(map[string]string)
+	for _, endpoint := range c.Endpoints {
+		result[endpoint.ID] = endpoint.ListenerID
+	}
+	return result
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Verify that MockRegistry implements the registry.Registry interface
-var _ apps.Registry = (*mocks.MockRegistry)(nil)
+// Verify that MockRegistry implements the apps.AppLookup interface
+var _ apps.AppLookup = (*mocks.MockRegistry)(nil)
 
 func TestMockRegistry_GetApp(t *testing.T) {
 	mockRegistry := mocks.NewMockRegistry()

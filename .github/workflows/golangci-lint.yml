@@ -15,10 +15,6 @@ permissions:
   # Optional: allow write access to checks to allow the action to annotate code in the PR.
   checks: write
 
-env:
-  GOCACHE: "/tmp/go-cache"
-  GOMODCACHE: "/tmp/go-mod-cache"
-
 jobs:
   golangci:
     name: lint

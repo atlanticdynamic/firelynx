@@ -68,7 +68,7 @@ func (c *Client) ApplyConfig(ctx context.Context, configLoader loader.Loader) er
 	// Connect to server
 	conn, err := c.connect(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
 	defer func() {
 		if err := conn.Close(); err != nil {
@@ -84,7 +84,7 @@ func (c *Client) ApplyConfig(ctx context.Context, configLoader loader.Loader) er
 		Config: config,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update configuration: %w", err)
+		return fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
 
 	if resp.Success == nil || !*resp.Success {
@@ -92,7 +92,7 @@ func (c *Client) ApplyConfig(ctx context.Context, configLoader loader.Loader) er
 		if resp.Error != nil {
 			errorMsg = *resp.Error
 		}
-		return fmt.Errorf("server rejected configuration: %s", errorMsg)
+		return fmt.Errorf("%w: %s", ErrConfigRejected, errorMsg)
 	}
 
 	c.logger.Info("Configuration applied successfully")
@@ -157,7 +157,7 @@ func (c *Client) FormatConfig(config *pb.ServerConfig) (string, error) {
 // connect establishes a connection to the server
 func (c *Client) connect(_ context.Context) (*grpc.ClientConn, error) {
 	// For now, we'll use insecure connections for simplicity
-	// In a production environment, you'd want to use proper TLS
+	// In a production environment, you'd want to use TLS
 	addr := c.serverAddr
 	if !strings.Contains(addr, "://") {
 		addr = "tcp://" + addr

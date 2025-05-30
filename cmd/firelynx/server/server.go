@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/server/cfgservice"
-	"github.com/atlanticdynamic/firelynx/internal/server/listeners/http"
-	"github.com/atlanticdynamic/firelynx/internal/server/transmgr"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgfileloader"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgservice"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/robbyt/go-supervisor/supervisor"
 )
 
@@ -21,66 +23,99 @@ func Run(
 	listenAddr string,
 ) error {
 	logHandler := logger.Handler()
-	cManager, err := cfgservice.NewRunner(
-		cfgservice.WithLogHandler(logHandler),
-		cfgservice.WithListenAddr(listenAddr),
-		cfgservice.WithConfigPath(configPath),
+
+	// Ensure at least one config provider is available
+	if configPath == "" && listenAddr == "" {
+		return fmt.Errorf(
+			"no configuration source specified: provide either a config file path and/or a gRPC listen address",
+		)
+	}
+
+	// Transaction storage stores the history of configuration "transactions" or updates/rollbacks
+	txStorage := txstorage.NewMemoryStorage(
+		txstorage.WithAsyncCleanup(true),
+		txstorage.WithLogHandler(logHandler),
+	)
+
+	// txmgrOrchestrator coordinates the configuration management rollout transactions with atomic roll-back
+	txmgrOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, logHandler)
+
+	// Create the transaction manager, which has a transaction "siphon" channel
+	txMan, err := txmgr.NewRunner(
+		txmgrOrchestrator,
+		txmgr.WithContext(ctx),
+		txmgr.WithLogHandler(logHandler),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create config manager: %w", err)
+		return fmt.Errorf("failed to create transaction manager: %w", err)
 	}
 
-	// Debug wrapper for the config callback to log what's being passed
-	configCallback := func() config.Config {
-		cfg := cManager.GetDomainConfig()
-		logger.Debug("Core runner config callback",
-			"listeners", len(cfg.Listeners),
-			"endpoints", len(cfg.Endpoints),
-			"apps", len(cfg.Apps))
-		return cfg
+	// Get the transaction siphon channel, unbuffered and ready immediately
+	txSiphon := txMan.GetTransactionSiphon()
+
+	// Build list of runnables based on provided arguments
+	var runnables []supervisor.Runnable
+
+	// Create cfgfileloader if configPath is provided
+	if configPath != "" {
+		cfgFileLoader, err := cfgfileloader.NewRunner(
+			configPath,
+			txSiphon,
+			cfgfileloader.WithContext(ctx),
+			cfgfileloader.WithLogHandler(logHandler),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create config file loader: %w", err)
+		}
+		runnables = append(runnables, cfgFileLoader)
 	}
 
-	serverCore, err := transmgr.NewRunner(
-		configCallback,
-		transmgr.WithLogHandler(logHandler),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create server core: %w", err)
+	// Create cfgservice if listenAddr is provided
+	if listenAddr != "" {
+		cfgService, err := cfgservice.NewRunner(
+			listenAddr,
+			txSiphon,
+			cfgservice.WithContext(ctx),
+			cfgservice.WithLogHandler(logHandler),
+			cfgservice.WithConfigTransactionStorage(txStorage),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create config service: %w", err)
+		}
+		runnables = append(runnables, cfgService)
 	}
 
-	// Create an HTTP runner using the core's config callback
-	// The registry is already included in the config returned by GetHTTPConfigCallback
-	cfgCallback := serverCore.GetHTTPConfigCallback()
+	// Order matters: config providers first, then txmgr, then HTTP runner
+	runnables = append(runnables, txMan)
+
+	// Create an HTTP runner with the logger
 	httpRunner, err := http.NewRunner(
-		cfgCallback,
-		http.WithManagerLogger(slog.Default().WithGroup("http.Runner")),
+		http.WithLogHandler(logHandler),
+		http.WithContext(ctx),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create HTTP listener runner: %w", err)
+		return fmt.Errorf("failed to create HTTP runner: %w", err)
 	}
 
-	// No need to explicitly pre-load config now that we use proper Stateable interface
-	// The supervisor will ensure components are ready before dependent components use them
-
-	// Order is important here- the config manager must be started first,
-	// then the server core, and then any others.
-	runnables := []supervisor.Runnable{
-		cManager,
-		serverCore,
-		httpRunner,
+	// Register the HTTP runner with the transaction manager as a saga participant
+	if err := txmgrOrchestrator.RegisterParticipant(httpRunner); err != nil {
+		return fmt.Errorf("failed to register HTTP runner with saga orchestrator: %w", err)
 	}
-	super, err := supervisor.New(
+
+	// Add HTTP runner to runnables
+	runnables = append(runnables, httpRunner)
+	pid0, err := supervisor.New(
+		supervisor.WithContext(ctx),
 		supervisor.WithLogHandler(logHandler),
 		supervisor.WithRunnables(runnables...),
-		supervisor.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create supervisor: %w", err)
 	}
-	if err := super.Run(); err != nil {
+	if err := pid0.Run(); err != nil {
 		return fmt.Errorf("failed to run server: %w", err)
 	}
 
-	logger.Info("Server shutdown complete")
+	logger.Debug("Server shutdown complete")
 	return nil
 }

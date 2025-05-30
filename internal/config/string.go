@@ -22,7 +22,7 @@ func ConfigTree(cfg *Config) string {
 	loggingTree := cfg.Logging.ToTree()
 	t.Child(loggingTree.Tree())
 
-	// Create a properly nested tree of listeners with consistent styling
+	// Create a nested tree of listeners with consistent styling
 	if len(cfg.Listeners) > 0 {
 		listenersRoot := fancy.NewComponentTree(
 			styles.FormatSection("Listeners", len(cfg.Listeners)),
@@ -34,7 +34,7 @@ func ConfigTree(cfg *Config) string {
 		t.Child(listenersRoot.Tree())
 	}
 
-	// Create a properly nested tree of endpoints with consistent styling
+	// Create a nested tree of endpoints with consistent styling
 	if len(cfg.Endpoints) > 0 {
 		endpointsRoot := fancy.NewComponentTree(
 			styles.FormatSection("Endpoints", len(cfg.Endpoints)),
@@ -46,7 +46,7 @@ func ConfigTree(cfg *Config) string {
 		t.Child(endpointsRoot.Tree())
 	}
 
-	// Create a properly nested tree of apps with consistent styling
+	// Create a nested tree of apps with consistent styling
 	if len(cfg.Apps) > 0 {
 		appsRoot := fancy.NewComponentTree(styles.FormatSection("Apps", len(cfg.Apps)))
 		for _, app := range cfg.Apps {

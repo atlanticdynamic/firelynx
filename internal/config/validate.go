@@ -7,7 +7,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
-	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 )
 
 // Validatable defines an interface for objects that can validate themselves.
@@ -20,7 +19,7 @@ type Validatable interface {
 	Validate() error
 }
 
-// Validate performs comprehensive validation of the configuration
+// Validate recursively validates all configuration components and their cross-references
 func (c *Config) Validate() error {
 	// Validate version
 	if err := c.validateVersion(); err != nil {
@@ -162,15 +161,15 @@ func (c *Config) validateEndpoints(listenerIds map[string]bool) []error {
 	return errs
 }
 
-// validateRouteTypesMatchListenerType ensures that routes in an endpoint have rule types
+// validateRouteTypesMatchListenerType verifies that routes in an endpoint have rule types
 // that are compatible with the listener type the endpoint is attached to.
 //
 // This validation enforces semantic correctness at configuration load time to prevent
-// runtime errors, ensuring that:
+// runtime errors by verifying that:
 // 1. HTTP routes (Route.rule of type HttpRule) are only attached to HTTP listeners
 // 2. gRPC routes (Route.rule of type GrpcRule) are only attached to gRPC listeners
 //
-// Failed validation will prevent the configuration from being accepted, ensuring
+// Failed validation will prevent the configuration from being accepted so
 // runtime components only receive semantically valid configurations.
 func (c *Config) validateRouteTypesMatchListenerType(
 	endpoint endpoints.Endpoint,
@@ -237,8 +236,8 @@ func (c *Config) validateAppsAndRoutes() error {
 	// Create slice of route refs for app validation
 	routeRefs := c.collectRouteReferences()
 
-	// Validate route references to apps against built-in app IDs
-	if err := c.Apps.ValidateRouteAppReferencesWithBuiltIns(routeRefs, serverApps.GetBuiltInAppIDs()); err != nil {
+	// Validate that routes only reference apps defined in the configuration
+	if err := c.Apps.ValidateRouteAppReferences(routeRefs); err != nil {
 		errs = append(errs, err)
 	}
 

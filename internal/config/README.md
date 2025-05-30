@@ -4,11 +4,13 @@ This package defines the domain model for the Firelynx server configuration and 
 
 ## Core Purpose
 
-The domain configuration layer serves exactly three purposes:
+The domain configuration layer serves as the bridge between the protobuf layer and the rest of the application. It provides three functions:
 
 1. **Convert from proto to domain config**: Transform serialized protocol buffer data into strongly-typed Go domain models
-2. **Semantically validate config**: Verify relationships between resources, check valid app names and inputs, ensure referential integrity
+2. **Semantic validation**: Verify relationships beyond TOML syntax - confirming apps exist, listener IDs are mapped to endpoints, route conditions are valid, and maintaining referential integrity across the configuration graph
 3. **Convert back to proto**: Transform domain models back to protocol buffers for serialization
+
+The semantic validation ensures configuration consistency that cannot be enforced at the TOML or protobuf schema level, such as verifying that all referenced app IDs actually exist in the apps collection.
 
 ### Important Boundaries
 
@@ -137,7 +139,7 @@ Each sub-package follows a consistent file organization pattern:
 
 * **Proto Conversion (`proto.go`)**: Handles bidirectional conversion between domain models and protobuf representations for the top-level Config type. Each sub-package contains its own proto conversion for its specific types.
 
-* **Validation (`validate.go`)**: Performs comprehensive validation of configurations, ensuring integrity and consistency across all components. Delegates to sub-package validation for type-specific validation.
+* **Validation (`validate.go`)**: Performs validation of configurations, checking integrity and consistency across all components. Delegates to sub-package validation for type-specific validation.
 
 * **Querying (`query.go`)**: Provides helper functions to extract specific subsets of configuration. Enables filtering by various criteria and retrieving related objects.
 
@@ -245,7 +247,7 @@ The domain model contains several key relationships:
 1. **Listeners and Endpoints**:
    - Endpoints reference one or more Listeners through the `ListenerIDs` field
    - Each Listener can be referenced by multiple Endpoints
-   - This many-to-many relationship allows flexible protocol mappings
+   - This many-to-many relationship allows the same endpoint to be accessible from multiple listeners
 
 2. **Endpoints and Routes**:
    - Each Endpoint contains multiple Routes
@@ -260,7 +262,7 @@ The domain model contains several key relationships:
 4. **App Types**:
    - `App` is the container for any app configuration
    - Three main app types implement the `AppConfig` interface:
-     - `Echo`: Simple app that echoes back information
+     - `Echo`: App that returns a configured response
      - `AppScript`: Script app using a specific evaluator (Risor, Starlark, Extism)
      - `CompositeScript`: References multiple script apps via `ScriptAppIDs`
 
@@ -368,7 +370,7 @@ The configuration model follows a clear structure:
 - Routes within Endpoints reference Apps via AppID
 - Routes use different Condition types to determine routing rules
 - Apps can contain different configurations implementing the AppConfig interface:
-  - Echo: Simple response app
+  - Echo: Response app
   - AppScript: Script with an evaluator (Risor, Starlark, Extism)
   - CompositeScript: Collection of script apps
 
@@ -390,7 +392,7 @@ The apps package encapsulates all application-related configuration:
 
 ### Echo Apps (`internal/config/apps/echo`)
 
-The echo package provides a simple app type that echoes back request information:
+The echo package provides an app type that returns a configured response:
 
 * **Types (`echo.go`)**: Defines the `Echo` struct and methods.
 * **Proto Conversion (`proto.go`)**: Converts between domain Echo and protobuf.
@@ -462,4 +464,3 @@ Within each sub-package:
 2. **Domain Methods**: Domain objects implement methods for common operations like validation, conversion, and string representation.
 3. **Type Safety**: Enums are implemented as typed constants with validation methods.
 4. **Error Handling**: Each package defines its own error types and validation logic.
-5. **Testing**: Comprehensive tests for all functionality.

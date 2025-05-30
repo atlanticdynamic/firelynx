@@ -12,6 +12,7 @@ import (
 
 // TestServerCmd_EmptyFlags verifies that running the server with no flags returns an error
 func TestServerCmd_EmptyFlags(t *testing.T) {
+	t.Parallel()
 	// Create a command with empty flags
 	cmd := &cli.Command{
 		Flags: []cli.Flag{
@@ -28,5 +29,5 @@ func TestServerCmd_EmptyFlags(t *testing.T) {
 	ok := errors.As(result, &exitErr)
 	require.True(t, ok, "Expected cli.ExitCoder, got %T", result)
 	assert.Equal(t, 1, exitErr.ExitCode())
-	assert.Equal(t, "either --config or --listen flag is required", exitErr.Error())
+	assert.Equal(t, invalidArgsErrorMsg, exitErr.Error())
 }

@@ -1,0 +1,608 @@
+//go:build integration
+// +build integration
+
+package http_test
+
+import (
+	"context"
+	_ "embed"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
+	"github.com/atlanticdynamic/firelynx/internal/logging"
+	httplistener "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
+	"github.com/atlanticdynamic/firelynx/internal/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// Embedded TOML test configs
+var (
+	//go:embed testdata/empty_config.toml
+	emptyConfigTOML string
+
+	//go:embed testdata/two_listeners.toml
+	twoListenersTOML string
+
+	//go:embed testdata/one_listener.toml
+	oneListenerTOML string
+
+	//go:embed testdata/echo_app.toml
+	echoAppTOML string
+
+	//go:embed testdata/route_v1.toml
+	routeV1TOML string
+
+	//go:embed testdata/route_v1_v2.toml
+	routeV1V2TOML string
+
+	//go:embed testdata/invalid_address.toml
+	invalidAddressTOML string
+
+	//go:embed testdata/duplicate_ports.toml
+	duplicatePortsTOML string
+
+	//go:embed testdata/listener_with_route.toml
+	listenerWithRouteTOML string
+)
+
+// replacePorts replaces port placeholders in TOML content
+func replacePorts(toml string, replacements map[string]string) string {
+	result := toml
+	for placeholder, port := range replacements {
+		result = strings.ReplaceAll(result, placeholder, port)
+	}
+	return result
+}
+
+// waitForHTTPServer waits for an HTTP server to be accessible
+func waitForHTTPServer(t *testing.T, url string, expectedStatus int) {
+	t.Helper()
+	assert.Eventually(t, func() bool {
+		resp, err := http.Get(url)
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == expectedStatus
+	}, 2*time.Second, 50*time.Millisecond, "HTTP server should be accessible at %s", url)
+}
+
+// waitForHTTPServerDown waits for an HTTP server to be inaccessible
+func waitForHTTPServerDown(t *testing.T, url string) {
+	t.Helper()
+	assert.Eventually(t, func() bool {
+		_, err := http.Get(url)
+		return err != nil
+	}, 2*time.Second, 50*time.Millisecond, "HTTP server should be down at %s", url)
+}
+
+// TestHTTPClusterDynamicListeners tests adding and removing HTTP listeners dynamically
+func TestHTTPClusterDynamicListeners(t *testing.T) {
+	// Enable debug logging for this test
+	logging.SetupLogger("debug")
+
+	ctx := t.Context()
+
+	// Create transaction storage and saga orchestrator
+	txStore := txstorage.NewMemoryStorage()
+	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+
+	// Create HTTP runner
+	httpRunner, err := httplistener.NewRunner()
+	require.NoError(t, err)
+
+	// Register HTTP runner with orchestrator
+	err = saga.RegisterParticipant(httpRunner)
+	require.NoError(t, err)
+
+	// Start the HTTP runner
+	runnerErrCh := make(chan error, 1)
+	go func() {
+		runnerErrCh <- httpRunner.Run(ctx)
+	}()
+
+	// Wait for runner to start
+	require.Eventually(t, func() bool {
+		return httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+
+	// Test 1: Start with no listeners
+	config1, err := config.NewConfigFromBytes([]byte(emptyConfigTOML))
+	require.NoError(t, err)
+
+	tx1, err := transaction.FromTest("no-listeners", config1, nil)
+	require.NoError(t, err)
+	err = tx1.RunValidation()
+	require.NoError(t, err)
+	err = saga.ProcessTransaction(ctx, tx1)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", tx1.GetState())
+
+	// Test 2: Add a listener with a route (so it actually starts)
+	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
+
+	config2Data := replacePorts(listenerWithRouteTOML, map[string]string{
+		"{{PORT}}": port,
+	})
+	config2, err := config.NewConfigFromBytes([]byte(config2Data))
+	require.NoError(t, err)
+
+	tx2, err := transaction.FromTest("add-listener", config2, nil)
+	require.NoError(t, err)
+	err = tx2.RunValidation()
+	require.NoError(t, err)
+	err = saga.ProcessTransaction(ctx, tx2)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", tx2.GetState())
+
+	// Wait for listener to be accessible and test the route
+	assert.Eventually(t, func() bool {
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/test", port))
+		if err != nil {
+			t.Logf("Request error: %v", err)
+			return false
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Logf("Read body error: %v", err)
+			return false
+		}
+
+		t.Logf("Response status: %d, body: %s", resp.StatusCode, string(body))
+
+		if resp.StatusCode != http.StatusOK {
+			return false
+		}
+
+		return strings.Contains(string(body), "Test response")
+	}, 2*time.Second, 50*time.Millisecond, "Listener with route should be accessible")
+
+	// Test 3: Remove the listener
+	config3, err := config.NewConfigFromBytes([]byte(emptyConfigTOML))
+	require.NoError(t, err)
+
+	tx3, err := transaction.FromTest("remove-listener", config3, nil)
+	require.NoError(t, err)
+	err = tx3.RunValidation()
+	require.NoError(t, err)
+	err = saga.ProcessTransaction(ctx, tx3)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", tx3.GetState())
+
+	// Verify listener is gone
+	waitForHTTPServerDown(t, fmt.Sprintf("http://127.0.0.1:%s/", port))
+
+	// Stop the HTTP runner
+	httpRunner.Stop()
+	assert.Eventually(t, func() bool {
+		return !httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+}
+
+// TestHTTPClusterWithRoutesAndApps tests full end-to-end with apps and routes
+func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
+	ctx := t.Context()
+
+	// Create transaction storage and saga orchestrator
+	txStore := txstorage.NewMemoryStorage()
+	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+
+	// Create HTTP runner
+	httpRunner, err := httplistener.NewRunner()
+	require.NoError(t, err)
+
+	// Register HTTP runner with orchestrator
+	err = saga.RegisterParticipant(httpRunner)
+	require.NoError(t, err)
+
+	// Start the HTTP runner
+	runnerErrCh := make(chan error, 1)
+	go func() {
+		runnerErrCh <- httpRunner.Run(ctx)
+	}()
+
+	// Wait for runner to start
+	require.Eventually(t, func() bool {
+		return httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+
+	// Create configuration with listener, endpoint, route and app
+	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
+
+	configData := replacePorts(echoAppTOML, map[string]string{
+		"{{PORT}}": port,
+	})
+	testConfig, err := config.NewConfigFromBytes([]byte(configData))
+	require.NoError(t, err)
+
+	// Create transaction
+	tx, err := transaction.FromTest("echo-app-test", testConfig, nil)
+	require.NoError(t, err)
+	err = tx.RunValidation()
+	require.NoError(t, err)
+	err = saga.ProcessTransaction(ctx, tx)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", tx.GetState())
+
+	// Wait for echo endpoint to be accessible and verify response
+	assert.Eventually(t, func() bool {
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/echo", port))
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return false
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return false
+		}
+
+		return strings.Contains(string(body), "Echo says: Hello!")
+	}, 2*time.Second, 50*time.Millisecond, "Echo endpoint should return expected response")
+
+	// Test non-existent path
+	resp2, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/notfound", port))
+	require.NoError(t, err)
+	defer resp2.Body.Close()
+	assert.Equal(t, http.StatusNotFound, resp2.StatusCode)
+
+	// Stop the HTTP runner
+	httpRunner.Stop()
+	assert.Eventually(t, func() bool {
+		return !httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+}
+
+// TestHTTPClusterRouteUpdates tests updating routes on existing listeners
+func TestHTTPClusterRouteUpdates(t *testing.T) {
+	// Enable debug logging for this test
+	logging.SetupLogger("debug")
+
+	ctx := t.Context()
+
+	// Create transaction storage and saga orchestrator
+	txStore := txstorage.NewMemoryStorage()
+	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+
+	// Create HTTP runner
+	httpRunner, err := httplistener.NewRunner()
+	require.NoError(t, err)
+
+	// Register HTTP runner with orchestrator
+	err = saga.RegisterParticipant(httpRunner)
+	require.NoError(t, err)
+
+	// Start the HTTP runner
+	runnerErrCh := make(chan error, 1)
+	go func() {
+		runnerErrCh <- httpRunner.Run(ctx)
+	}()
+
+	// Wait for runner to start
+	require.Eventually(t, func() bool {
+		return httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+
+	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
+
+	// Step 1: Create listener with one route
+	config1Data := replacePorts(routeV1TOML, map[string]string{
+		"{{PORT}}": port,
+	})
+	config1, err := config.NewConfigFromBytes([]byte(config1Data))
+	require.NoError(t, err)
+
+	tx1, err := transaction.FromTest("initial-route", config1, nil)
+	require.NoError(t, err)
+	err = tx1.RunValidation()
+	require.NoError(t, err)
+	err = saga.ProcessTransaction(ctx, tx1)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", tx1.GetState())
+
+	// Wait for initial route to work
+	assert.Eventually(t, func() bool {
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/v1", port))
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return false
+		}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return false
+		}
+
+		return strings.Contains(string(body), "V1: Response")
+	}, 2*time.Second, 50*time.Millisecond, "V1 route should work")
+
+	// Step 2: Add a second route
+	config2Data := replacePorts(routeV1V2TOML, map[string]string{
+		"{{PORT}}": port,
+	})
+	config2, err := config.NewConfigFromBytes([]byte(config2Data))
+	require.NoError(t, err)
+
+	tx2, err := transaction.FromTest("add-route", config2, nil)
+	require.NoError(t, err)
+	err = tx2.RunValidation()
+	require.NoError(t, err)
+	err = saga.ProcessTransaction(ctx, tx2)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", tx2.GetState())
+
+	// Wait for both routes to work
+	assert.Eventually(t, func() bool {
+		// Check V1 route
+		resp1, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/v1", port))
+		if err != nil {
+			t.Logf("V1 request error: %v", err)
+			return false
+		}
+		defer resp1.Body.Close()
+
+		if resp1.StatusCode != http.StatusOK {
+			t.Logf("V1 response status: %d", resp1.StatusCode)
+			return false
+		}
+
+		body1, err := io.ReadAll(resp1.Body)
+		if err != nil {
+			t.Logf("V1 read body error: %v", err)
+			return false
+		}
+
+		if !strings.Contains(string(body1), "V1: Response") {
+			t.Logf("V1 unexpected body: %s", string(body1))
+			return false
+		}
+
+		// Check V2 route
+		resp2, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/v2", port))
+		if err != nil {
+			t.Logf("V2 request error: %v", err)
+			return false
+		}
+		defer resp2.Body.Close()
+
+		if resp2.StatusCode != http.StatusOK {
+			t.Logf("V2 response status: %d", resp2.StatusCode)
+			return false
+		}
+
+		body2, err := io.ReadAll(resp2.Body)
+		if err != nil {
+			t.Logf("V2 read body error: %v", err)
+			return false
+		}
+
+		if !strings.Contains(string(body2), "V2: Response") {
+			t.Logf("V2 unexpected body: %s", string(body2))
+			return false
+		}
+
+		return true
+	}, 5*time.Second, 50*time.Millisecond, "Both V1 and V2 routes should work")
+
+	// Stop the HTTP runner
+	httpRunner.Stop()
+	assert.Eventually(t, func() bool {
+		return !httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+}
+
+// TestHTTPClusterErrorHandling tests error scenarios
+func TestHTTPClusterErrorHandling(t *testing.T) {
+	ctx := t.Context()
+
+	// Create transaction storage and saga orchestrator
+	txStore := txstorage.NewMemoryStorage()
+	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+
+	// Create HTTP runner with short siphon timeout for testing
+	httpRunner, err := httplistener.NewRunner(
+		httplistener.WithSiphonTimeout(100 * time.Millisecond),
+	)
+	require.NoError(t, err)
+
+	// Register HTTP runner with orchestrator
+	err = saga.RegisterParticipant(httpRunner)
+	require.NoError(t, err)
+
+	// Start the HTTP runner
+	runnerErrCh := make(chan error, 1)
+	go func() {
+		runnerErrCh <- httpRunner.Run(ctx)
+	}()
+
+	// Wait for runner to start
+	require.Eventually(t, func() bool {
+		return httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+
+	// Test 1: Invalid address format
+	config1, err := config.NewConfigFromBytes([]byte(invalidAddressTOML))
+	require.NoError(t, err)
+
+	tx1, err := transaction.FromTest("bad-address", config1, nil)
+	require.NoError(t, err)
+	err = tx1.RunValidation()
+	require.NoError(t, err)
+	err = saga.ProcessTransaction(ctx, tx1)
+	require.NoError(t, err)
+	// Transaction should complete, but server won't start successfully
+	assert.Equal(t, "completed", tx1.GetState())
+
+	// Test 2: Port already in use
+	// First, create a listener on a specific port
+	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
+	config2Data := replacePorts(oneListenerTOML, map[string]string{
+		"{{PORT1}}": port,
+	})
+	config2, err := config.NewConfigFromBytes([]byte(config2Data))
+	require.NoError(t, err)
+
+	tx2, err := transaction.FromTest("first-listener", config2, nil)
+	require.NoError(t, err)
+	err = tx2.RunValidation()
+	require.NoError(t, err)
+	err = saga.ProcessTransaction(ctx, tx2)
+	require.NoError(t, err)
+	assert.Equal(t, "completed", tx2.GetState())
+
+	// Server won't start (no routes), but transaction completes
+	waitForHTTPServerDown(t, fmt.Sprintf("http://127.0.0.1:%s/", port))
+
+	// Test 3: Try to create config with duplicate listener addresses - should fail during config loading
+	config3Data := replacePorts(duplicatePortsTOML, map[string]string{
+		"{{PORT}}": port,
+	})
+	config3, err := config.NewConfigFromBytes([]byte(config3Data))
+	// Config creation should fail due to duplicate listener addresses
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate ID: listener address")
+	assert.Nil(t, config3)
+
+	// Stop the HTTP runner
+	httpRunner.Stop()
+	assert.Eventually(t, func() bool {
+		return !httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+}
+
+// TestHTTPClusterSagaCompensation tests rollback when participant fails
+func TestHTTPClusterSagaCompensation(t *testing.T) {
+	ctx := t.Context()
+
+	// Create transaction storage and saga orchestrator
+	txStore := txstorage.NewMemoryStorage()
+	saga := orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+
+	// Create HTTP runner
+	httpRunner, err := httplistener.NewRunner()
+	require.NoError(t, err)
+
+	// Create a mock participant that will fail
+	failingParticipant := &MockFailingParticipant{
+		name: "failing-participant",
+	}
+
+	// Register participants
+	err = saga.RegisterParticipant(httpRunner)
+	require.NoError(t, err)
+	err = saga.RegisterParticipant(failingParticipant)
+	require.NoError(t, err)
+
+	// Start the HTTP runner
+	runnerErrCh := make(chan error, 1)
+	go func() {
+		runnerErrCh <- httpRunner.Run(ctx)
+	}()
+
+	// Wait for runner to start
+	require.Eventually(t, func() bool {
+		return httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+
+	// Create configuration
+	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
+	configData := replacePorts(oneListenerTOML, map[string]string{
+		"{{PORT1}}": port,
+	})
+	testConfig, err := config.NewConfigFromBytes([]byte(configData))
+	require.NoError(t, err)
+
+	// Create transaction
+	tx, err := transaction.FromTest("compensation-test", testConfig, nil)
+	require.NoError(t, err)
+	err = tx.RunValidation()
+	require.NoError(t, err)
+
+	// Process transaction - should fail due to failing participant
+	err = saga.ProcessTransaction(ctx, tx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "intentional failure")
+
+	// Verify transaction is in compensated state (since compensation was successful)
+	assert.Equal(t, "compensated", tx.GetState())
+
+	// Verify HTTP runner compensated (no listeners should be running)
+	waitForHTTPServerDown(t, fmt.Sprintf("http://127.0.0.1:%s/", port))
+
+	// Stop the HTTP runner
+	httpRunner.Stop()
+	assert.Eventually(t, func() bool {
+		return !httpRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond)
+}
+
+// MockFailingParticipant is a saga participant that always fails
+type MockFailingParticipant struct {
+	name string
+}
+
+func (m *MockFailingParticipant) String() string {
+	return m.name
+}
+
+func (m *MockFailingParticipant) Run(ctx context.Context) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (m *MockFailingParticipant) Stop() {}
+
+func (m *MockFailingParticipant) GetState() string {
+	return "running"
+}
+
+func (m *MockFailingParticipant) IsRunning() bool {
+	return true
+}
+
+func (m *MockFailingParticipant) GetStateChan(ctx context.Context) <-chan string {
+	ch := make(chan string)
+	go func() {
+		<-ctx.Done()
+		close(ch)
+	}()
+	return ch
+}
+
+func (m *MockFailingParticipant) StageConfig(
+	ctx context.Context,
+	tx *transaction.ConfigTransaction,
+) error {
+	return fmt.Errorf("intentional failure for testing")
+}
+
+func (m *MockFailingParticipant) CompensateConfig(
+	ctx context.Context,
+	tx *transaction.ConfigTransaction,
+) error {
+	return nil
+}
+
+func (m *MockFailingParticipant) CommitConfig(ctx context.Context) error {
+	return nil
+}

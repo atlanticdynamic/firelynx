@@ -95,3 +95,65 @@ func TestHTTPRoute_String(t *testing.T) {
 		})
 	}
 }
+
+func TestGRPCRoute_String(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		route    GRPCRoute
+		expected string
+	}{
+		{
+			name: "Service only",
+			route: GRPCRoute{
+				Service: "service.v1",
+				AppID:   "app1",
+			},
+			expected: "GRPCRoute: service.v1 -> app1",
+		},
+		{
+			name: "Service and Method",
+			route: GRPCRoute{
+				Service: "service.v1",
+				Method:  "GetUser",
+				AppID:   "app2",
+			},
+			expected: "GRPCRoute: service.v1.GetUser -> app2",
+		},
+		{
+			name: "With Static Data",
+			route: GRPCRoute{
+				Service: "service.v2",
+				Method:  "CreateUser",
+				AppID:   "app3",
+				StaticData: map[string]any{
+					"key1": "value1",
+					"key2": 42,
+				},
+			},
+			expected: "GRPCRoute: service.v2.CreateUser -> app3 (with StaticData)",
+		},
+		{
+			name: "Service only with Static Data",
+			route: GRPCRoute{
+				Service: "service.v3",
+				AppID:   "app4",
+				StaticData: map[string]any{
+					"config": "value",
+				},
+			},
+			expected: "GRPCRoute: service.v3 -> app4 (with StaticData)",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := tc.route.String()
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}

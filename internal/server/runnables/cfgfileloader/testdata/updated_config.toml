@@ -1,0 +1,26 @@
+version = "v1"
+
+[[listeners]]
+id = "updated"
+address = ":9090"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+drain_timeout = "5s"
+
+[[apps]]
+id = "echo"
+
+[apps.echo]
+response = "Hello, Updated World!"
+
+[[endpoints]]
+id = "updated-endpoint"
+listener_id = "updated"
+
+[[endpoints.routes]]
+app_id = "echo"
+[endpoints.routes.http]
+path_prefix = "/updated"
