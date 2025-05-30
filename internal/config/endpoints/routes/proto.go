@@ -9,7 +9,7 @@ import (
 // ToProto converts a Route to a protobuf Route
 func (r *Route) ToProto() *pb.Route {
 	route := &pb.Route{
-		AppId: &r.AppID,
+		AppId: protobaggins.StringToProto(r.AppID),
 	}
 
 	// Convert static data if present
@@ -33,13 +33,8 @@ func RouteFromProto(r *pb.Route) Route {
 		return Route{}
 	}
 
-	var appID string
-	if r.AppId != nil {
-		appID = *r.AppId
-	}
-
 	route := Route{
-		AppID: appID,
+		AppID: protobaggins.StringFromProto(r.AppId),
 	}
 
 	// Convert static data

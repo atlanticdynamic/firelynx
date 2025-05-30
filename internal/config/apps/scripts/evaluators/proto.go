@@ -4,7 +4,7 @@ import (
 	"time"
 
 	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"google.golang.org/protobuf/proto"
+	"github.com/robbyt/protobaggins"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -20,7 +20,7 @@ func RisorEvaluatorFromProto(proto *settingsv1alpha1.RisorEvaluator) *RisorEvalu
 	}
 
 	return &RisorEvaluator{
-		Code:    proto.GetCode(),
+		Code:    protobaggins.StringFromProto(proto.Code),
 		Timeout: timeout,
 	}
 }
@@ -37,7 +37,7 @@ func (r *RisorEvaluator) ToProto() *settingsv1alpha1.RisorEvaluator {
 	}
 
 	return &settingsv1alpha1.RisorEvaluator{
-		Code:    proto.String(r.Code),
+		Code:    protobaggins.StringToProto(r.Code),
 		Timeout: timeout,
 	}
 }
@@ -54,7 +54,7 @@ func StarlarkEvaluatorFromProto(proto *settingsv1alpha1.StarlarkEvaluator) *Star
 	}
 
 	return &StarlarkEvaluator{
-		Code:    proto.GetCode(),
+		Code:    protobaggins.StringFromProto(proto.Code),
 		Timeout: timeout,
 	}
 }
@@ -71,7 +71,7 @@ func (s *StarlarkEvaluator) ToProto() *settingsv1alpha1.StarlarkEvaluator {
 	}
 
 	return &settingsv1alpha1.StarlarkEvaluator{
-		Code:    proto.String(s.Code),
+		Code:    protobaggins.StringToProto(s.Code),
 		Timeout: timeout,
 	}
 }
@@ -83,8 +83,8 @@ func ExtismEvaluatorFromProto(proto *settingsv1alpha1.ExtismEvaluator) *ExtismEv
 	}
 
 	return &ExtismEvaluator{
-		Code:       proto.GetCode(),
-		Entrypoint: proto.GetEntrypoint(),
+		Code:       protobaggins.StringFromProto(proto.Code),
+		Entrypoint: protobaggins.StringFromProto(proto.Entrypoint),
 	}
 }
 
@@ -95,8 +95,8 @@ func (e *ExtismEvaluator) ToProto() *settingsv1alpha1.ExtismEvaluator {
 	}
 
 	return &settingsv1alpha1.ExtismEvaluator{
-		Code:       proto.String(e.Code),
-		Entrypoint: proto.String(e.Entrypoint),
+		Code:       protobaggins.StringToProto(e.Code),
+		Entrypoint: protobaggins.StringToProto(e.Entrypoint),
 	}
 }
 

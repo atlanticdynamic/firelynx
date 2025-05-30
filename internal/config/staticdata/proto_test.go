@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/robbyt/protobaggins"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -82,16 +83,9 @@ func TestFromProto(t *testing.T) {
 			MergeMode: &mergeMode,
 		}
 
-		strValue, err := structpb.NewValue("value")
-		require.NoError(t, err)
-		numValue, err := structpb.NewValue(42.0)
-		require.NoError(t, err)
-		boolValue, err := structpb.NewValue(true)
-		require.NoError(t, err)
-
-		pb.Data["string"] = strValue
-		pb.Data["number"] = numValue
-		pb.Data["bool"] = boolValue
+		pb.Data["string"] = protobaggins.TryNewStructValue("value")
+		pb.Data["number"] = protobaggins.TryNewStructValue(42.0)
+		pb.Data["bool"] = protobaggins.TryNewStructValue(true)
 
 		sd, err := FromProto(pb)
 		require.NoError(t, err)

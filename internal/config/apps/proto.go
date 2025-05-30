@@ -11,7 +11,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
-	"google.golang.org/protobuf/proto"
+	"github.com/robbyt/protobaggins"
 )
 
 // AppType represents the type of application
@@ -76,7 +76,7 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 
 		pbType := appTypeToProto(appType)
 		app := &pb.AppDefinition{
-			Id:   proto.String(a.ID),
+			Id:   protobaggins.StringToProto(a.ID),
 			Type: &pbType,
 		}
 
@@ -171,7 +171,7 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 	}
 
 	app := App{
-		ID: pbApp.GetId(),
+		ID: protobaggins.StringFromProto(pbApp.Id),
 	}
 
 	// Get app type from proto
