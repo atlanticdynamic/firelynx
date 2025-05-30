@@ -143,7 +143,7 @@ func (r *Runner) boot() error {
 	return nil
 }
 
-// loadConfigFromDisk loads the configuration from disk
+// loadConfigFromDisk loads the configuration from disk. It does not validate the config.
 func (r *Runner) loadConfigFromDisk() (*config.Config, error) {
 	return config.NewConfig(r.filePath)
 }

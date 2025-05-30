@@ -405,6 +405,7 @@ func TestConfigFileReload(t *testing.T) {
 	// Update config file to add new route
 	cfg, err := config.NewConfigFromBytes([]byte(initialConfig))
 	require.NoError(t, err, "Should parse config")
+	require.NoError(t, cfg.Validate(), "Should validate config")
 
 	// Add new route and app using domain objects
 	cfg.Endpoints[0].Routes = append(cfg.Endpoints[0].Routes, routes.Route{
@@ -500,6 +501,7 @@ func TestNewConfigFromBytes(t *testing.T) {
 	// Test with the basic config
 	cfg, err := config.NewConfigFromBytes([]byte(basicConfigTOML))
 	require.NoError(t, err, "Should create config from bytes")
+	require.NoError(t, cfg.Validate(), "Should validate config")
 	assert.Equal(t, "v1", cfg.Version)
 	assert.Equal(t, "warn", string(cfg.Logging.Level))
 	assert.Len(t, cfg.Listeners, 1)

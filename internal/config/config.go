@@ -33,6 +33,9 @@ type Config struct {
 	Endpoints endpoints.EndpointCollection
 	Apps      apps.AppCollection
 
+	// ValidationCompleted is set after the config has been validated. If the config is invalid, this will still be true.
+	ValidationCompleted bool
+
 	// TODO: remove initial raw protobuf to save memory
 	rawProto any
 }
@@ -44,7 +47,7 @@ func (c *Config) Equals(other *Config) bool {
 	return proto.Equal(thisProto, otherProto)
 }
 
-// NewConfig loads configuration from a TOML file path, converts it to the domain model, and validates it.
+// NewConfig loads configuration from a TOML file path, converts it to the domain model. It does NOT validate the config.
 func NewConfig(filePath string) (*Config, error) {
 	// Get loader from file
 	ld, err := loader.NewLoaderFromFilePath(filePath)
@@ -64,17 +67,12 @@ func NewConfig(filePath string) (*Config, error) {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
 	}
 
-	// Validate the domain config
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
-	}
-
 	return config, nil
 }
 
 // NewFromProto creates a domain Config from a protobuf ServerConfig.
 // This is the recommended function for converting from protobuf to domain model as it handles
-// defaults, validation, and error collection.
+// defaults and error collection. It does NOT validate the config.
 func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	if pbConfig == nil {
 		return nil, fmt.Errorf("nil protobuf config")
@@ -125,7 +123,7 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	return config, errors.Join(appErrz...)
 }
 
-// NewConfigFromBytes loads configuration from TOML bytes, converts it to the domain model, and validates it.
+// NewConfigFromBytes loads configuration from TOML bytes, converts it to the domain model. It does NOT validate the config.
 func NewConfigFromBytes(data []byte) (*Config, error) {
 	// Create a TOML loader from bytes using a function literal that returns the interface
 	ld, err := loader.NewLoaderFromBytes(data, func(d []byte) loader.Loader {
@@ -145,14 +143,11 @@ func NewConfigFromBytes(data []byte) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
 	}
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
-	}
 
 	return config, nil
 }
 
-// NewConfigFromReader loads configuration from an io.Reader providing TOML data, converts it, and validates it.
+// NewConfigFromReader loads configuration from an io.Reader providing TOML data, converts it to the domain model. It does NOT validate the config.
 func NewConfigFromReader(reader io.Reader) (*Config, error) {
 	// Create a TOML loader from reader using a function literal that returns the interface
 	ld, err := loader.NewLoaderFromReader(reader, func(d []byte) loader.Loader {
@@ -171,9 +166,6 @@ func NewConfigFromReader(reader io.Reader) (*Config, error) {
 	config, err := NewFromProto(protoConfig)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
-	}
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrFailedToValidateConfig, err)
 	}
 
 	return config, nil

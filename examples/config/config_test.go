@@ -31,7 +31,6 @@ func TestLoadingAllExampleConfigs(t *testing.T) {
 			cfg, err := config.NewConfigFromBytes(data)
 			require.NoError(t, err, "Failed to load config from %s", entry.Name())
 			require.NotNil(t, cfg, "Config should not be nil for %s", entry.Name())
-
 			require.NoError(t, cfg.Validate(), "Validation failed for %s", entry.Name())
 		})
 	}
@@ -48,30 +47,29 @@ func TestInvalidConfigValidation(t *testing.T) {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".toml") {
 			continue
 		}
+
 		t.Run(entry.Name(), func(t *testing.T) {
 			data, err := invalidFiles.ReadFile("testdata/invalid/" + entry.Name())
 			require.NoError(t, err, "Failed to read embedded invalid file: %s", entry.Name())
 
-			// Attempt to load and validate the config
+			// Attempt to load the config
 			cfg, err := config.NewConfigFromBytes(data)
+			// If parsing fails, that's one way to fail
+			if err != nil {
+				t.Logf("Config %s failed during parsing: %v", entry.Name(), err)
+				return
+			}
 
-			// We expect either parsing to fail or validation to fail
-			if err == nil {
-				// If parsing succeeded, ensure validation fails
-				require.NotNil(t, cfg, "Config should not be nil for %s", entry.Name())
-				err = cfg.Validate()
-				require.Error(t, err, "Config %s should fail validation", entry.Name())
-				t.Logf("Validation error for %s: %v", entry.Name(), err)
-			} else {
-				// The config failed during parsing/validation
-				t.Logf("Config %s failed: %v", entry.Name(), err)
+			// If parsing succeeded, validation must fail
+			require.NotNil(t, cfg, "Config should not be nil for %s", entry.Name())
+			err = cfg.Validate()
+			require.Error(t, err, "Config %s should fail validation", entry.Name())
+			t.Logf("Validation error for %s: %v", entry.Name(), err)
 
-				// Check for the expected error message about non-existent listener IDs
-				if entry.Name() == "invalid_listener_id.toml" {
-					errorMsg := err.Error()
-					require.Contains(t, errorMsg, "references non-existent listener ID",
-						"Error should mention non-existent listener IDs")
-				}
+			// Check for specific error messages
+			if entry.Name() == "invalid_listener_id.toml" {
+				require.Contains(t, err.Error(), "references non-existent listener ID",
+					"Error should mention non-existent listener IDs")
 			}
 		})
 	}
