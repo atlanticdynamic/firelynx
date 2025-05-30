@@ -1,33 +1,21 @@
 # HTTP Listener
 
-The HTTP listener package implements HTTP protocol support as a saga participant in the configuration transaction system.
+The HTTP listener provides dynamic HTTP server management as part of the configuration transaction system. It acts as a saga participant, applying configuration changes in coordination with other system components.
 
 ## Purpose
 
-The HTTP listener provides:
-
-1. HTTP server lifecycle management
-2. Request routing to configured applications
-3. Saga participant implementation for configuration updates
-4. Dynamic route and listener management
-
-## Components
-
-- **runner.go**: Main HTTP listener runnable implementing supervisor interfaces
-- **saga.go**: Implements StageConfig/CommitConfig for transaction participation
-- **state.go**: Manages listener state and configuration
-- **cfg/**: Configuration adapters for converting domain config to HTTP-specific structures
-
-## Saga Participation
-
-As a saga participant, the HTTP listener:
-
-1. **StageConfig**: Validates and prepares new HTTP configuration without applying
-2. **CommitConfig**: Applies staged configuration, restarting HTTP servers as needed
-3. **CompensateConfig**: Rolls back to previous configuration if needed
-
-Configuration updates require brief service interruption as HTTP servers restart with new bindings.
+- Manages the lifecycle of one or more HTTP servers based on the active configuration
+- Routes requests to applications as specified by the current configuration
+- Applies configuration updates transactionally, supporting rollback and staged changes
 
 ## Integration
 
-The HTTP listener registers with the saga orchestrator and participates in configuration transactions alongside other system components.
+The HTTP listener is registered as a saga participant with the orchestrator. During a configuration transaction, it:
+
+- Prepares new HTTP server state without applying it (StageConfig)
+- Commits the new configuration if all participants succeed (CommitConfig)
+- Rolls back to the previous configuration if needed (CompensateConfig)
+
+The HTTP listener is managed by the supervisor and started with other runnables. It is notified of configuration changes by the transaction manager and updates its state accordingly.
+
+This design allows coordinated, transactional updates to HTTP listeners with minimal downtime and automatic rollback on failure.

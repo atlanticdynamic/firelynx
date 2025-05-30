@@ -1,18 +1,26 @@
-# gRPC Configuration Server
+# gRPC Transport Layer (`server`)
 
-The `server` package implements the gRPC server for the configuration service.
+This package provides a testable abstraction over gRPC server operations, enabling:
 
-## gRPC Error Codes
+- Decoupling configuration logic from transport concerns
+- Unit testing without network dependencies
+- Clean separation between API and implementation
 
-The server uses standard gRPC status codes:
+## Design
 
-- `codes.InvalidArgument`: Configuration validation failures
-- `codes.Internal`: Unexpected server errors
-- `codes.Unavailable`: Server temporarily unavailable
+The package separates business logic (in `Runner`) from transport concerns (in `GRPCManager`). `GRPCManager` implements the `GRPCServer` interface that `Runner` depends on, allowing for easy testing with mock implementations.
 
-## Implementation
+## Usage
 
-- **server.go**: gRPC server implementation
-- **helpers.go**: Utility functions for request handling
+```go
+// In production:
+mgr, _ := server.NewGRPCManager(logger, ":7070", cfgService)
+_ = mgr.Start(ctx)
 
-The server validates configurations and returns structured error messages with appropriate gRPC status codes, enabling clients to handle different error types appropriately.
+// In tests:
+mockServer := &mockGRPCServer{}
+runner := cfgservice.NewRunner(...)
+runner.SetGRPCServer(mockServer)
+```
+
+`GRPCManager` handles network concerns while `Runner` implements the business logic.

@@ -1,32 +1,44 @@
-# Configuration Service
+# Configuration Service (`cfgservice`)
 
-The `cfgservice` package provides a gRPC service for configuration updates, creating validated configuration transactions for the transaction manager.
+`cfgservice` hosts the gRPC `ConfigService` API used by clients to read and update the running configuration.
 
-## Purpose
+## Responsibilities
 
-This component serves as an API-based configuration source:
+* Provide two RPCs
+  * `UpdateConfig` – accept a `pb.ServerConfig`, convert to domain config, create a `transaction.ConfigTransaction`, run `RunValidation`, and forward the transaction to the transaction-manager channel.
+  * `GetConfig` – return a deep clone of the current active configuration from storage.
+* Manage a `GRPCServer` instance and implement `supervisor.Runnable` for orderly startup and shutdown.
+* Expose functional options (`WithLogger`, `WithGRPCServer`, `WithConfigTransactionStorage`, etc.) to aid testing and integration.
 
-1. Exposes gRPC ConfigService for remote configuration updates
-2. Receives protobuf configurations via UpdateConfig RPC
-3. Validates configurations and creates ConfigTransaction objects
-4. Sends transactions to txmgr via channel
+## Out of Scope
 
-## Service Interface
+* Transaction orchestration and persistence – handled by `txmgr`.
+* File-based configuration sources – handled by `cfgfileloader`.
 
-The service implements the ConfigService gRPC interface:
+## Key Types
 
-- `UpdateConfig`: Accepts new configuration and returns success/failure
-- `GetConfig`: Returns current active configuration
+```go
+// Runner implements supervisor.Runnable and pb.ConfigServiceServer.
+type Runner struct { /* see runner.go */ }
 
-## Implementation
+// Option configures a Runner.
+type Option func(*Runner)
+```
 
-The configuration service:
+## Quick Start
 
-- Converts protobuf to domain configuration model
-- Performs semantic validation before creating transactions
-- Returns appropriate gRPC status codes (InvalidArgument for validation errors)
-- Includes metadata (request ID, timestamp) in transactions
+```go
+import (
+    "github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgservice"
+    "github.com/atlanticdynamic/firelynx/internal/config/transaction"
+    "github.com/robbyt/go-supervisor/supervisor"
+)
 
-## Integration
+txCh := make(chan *transaction.ConfigTransaction, 1)
+svc, _ := cfgservice.NewRunner("0.0.0.0:7070", txCh)
 
-The cfgservice is one of two configuration sources (along with cfgfileloader) that feed validated transactions to the transaction manager for saga-based rollout.
+sup := supervisor.New("cfgservice", svc)
+_ = sup.Run()
+```
+
+`UpdateConfig` calls are validated before being placed on `txCh`; `txmgr` consumes the channel to coordinate rollout.

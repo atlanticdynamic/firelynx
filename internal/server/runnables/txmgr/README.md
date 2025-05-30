@@ -1,46 +1,66 @@
-# Transaction Manager
+# Transaction Manager (`txmgr`)
 
-The `txmgr` package implements configuration transaction management using a saga pattern. It coordinates configuration updates across system participants - all participants successfully apply changes or all roll back to the previous state.
+The `txmgr` package implements configuration transaction management using the saga pattern. It coordinates configuration changes across system components to ensure atomicity and consistency.
 
-## Purpose
+## Overview
 
-The transaction manager serves as the central coordinator for configuration changes:
+The transaction manager acts as a coordinator for configuration changes throughout the system. It receives validated configuration transactions and orchestrates their application across all registered participants. The system guarantees that either all participants successfully apply changes or all revert to their previous state.
 
-1. Receives validated configuration transactions from configuration sources
-2. Orchestrates two-phase commit across registered participants  
-3. Ensures atomic application or rollback of configuration changes
-4. Maintains transaction state for recovery
+_Note: The transaction manager builds on the configuration transaction layer (`internal/config/transaction`), which provides the validated transaction object, state machine, and error aggregation for each configuration change._
 
-## Components
+## Architecture
 
-- **orchestrator/**: Saga orchestrator implementing two-phase commit protocol
-- **txstorage/**: Transaction state persistence and recovery
-- **participants.go**: Interface definitions for saga participants
-- **runner.go**: Transaction manager runnable for go-supervisor integration
+### Orchestrator
 
-## Transaction Flow
+The orchestrator implements the saga pattern with a two-phase commit protocol. During system initialization, participants register with the orchestrator through the runner. The orchestrator:
 
-1. Configuration sources (cfgfileloader, cfgservice) create validated transactions
-2. Transaction manager receives transactions via channel
-3. Orchestrator coordinates two-phase commit across participants
-4. Participants implement StageConfig/CommitConfig for atomic updates
-5. Transaction storage tracks state for recovery and rollback
+- Manages the staging phase, where participants validate and prepare configuration changes.
+- Coordinates the commit phase after successful staging across all participants.
+- Handles the compensation phase if any participant fails, ensuring system rollback.
+- Uses a state machine to track transaction status throughout its lifecycle.
 
-The transaction manager integrates with go-supervisor as a runnable component and uses go-fsm state machines for transaction lifecycle tracking.
+Transaction processing begins when the orchestrator receives a validated transaction. It distributes this transaction to all registered participants for staging. If all participants successfully stage the changes, the orchestrator signals them to commit. If any participant fails during staging, the orchestrator coordinates compensation across all participants that have already staged changes.
 
-## Participant Interface
+### Transaction Storage
 
-Components participate in transactions by implementing:
+The transaction storage subsystem maintains transaction state for durability and recovery:
+
+- Persists transaction metadata and content.
+- Tracks transaction lifecycle states.
+- Enables recovery of interrupted transactions after system restart.
+- Provides rollback capabilities when transactions fail.
+
+The storage system is injected into the transaction manager during initialization and maintains transaction integrity across restarts.
+
+### Participant Interface
+
+Components participate in transactions by implementing the `SagaParticipant` interface:
 
 ```go
 type SagaParticipant interface {
     supervisor.Runnable
     supervisor.Stateable
-    
+
     StageConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
-    CompensateConfig(ctx context.Context, tx *transaction.ConfigTransaction) error  
+    CompensateConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
     CommitConfig(ctx context.Context) error
 }
 ```
 
-Participants must not implement `supervisor.Reloadable` to avoid conflicts with the saga-managed `CommitConfig` method.
+Participants implement the following methods:
+
+- `StageConfig`: Validates and prepares configuration changes.
+- `CompensateConfig`: Reverts staged changes if a transaction aborts.
+- `CommitConfig`: Applies configuration changes after successful staging.
+
+### Initialization
+
+The transaction manager requires a transaction storage implementation and an orchestrator. These are configured during initialization and passed to the transaction manager's runner. The `Run` method starts the transaction processing pipeline and connects it to the transaction channel.
+
+The transaction manager integrates with go-supervisor as a runnable component. Configuration transactions are delivered from configuration sources (such as `cfgfileloader` and `cfgservice`) to the transaction manager for processing.
+
+## Transaction Flow
+
+Configuration sources create validated transactions that are sent to the transaction manager. The orchestrator distributes these transactions to all participants for staging. After successful staging, participants commit the changes. If any participant fails, the orchestrator coordinates rollback to maintain consistency.
+
+The transaction manager handles recovery by persisting transaction state, allowing it to resume interrupted transactions after system restart.

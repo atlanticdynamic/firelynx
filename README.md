@@ -33,11 +33,14 @@ make install
 ### Running the Server
 
 ```bash
-# Start with a configuration file (gRPC config API disabled)
+# Start with a configuration file (gRPC config API services disabled)
 firelynx server --config /path/to/config.toml
 
-# Start with an empty configuration, but enable the gRPC config API
+# Start with an empty configuration (enable gRPC services on port 8765)
 firelynx server --listen :8765
+
+# Start with an initial config AND enable the gRPC listener for updates
+firelynx server --config /path/to/config.toml --listen :8765
 
 # Use the client CLI to interact with the server
 firelynx client --server localhost:8765
@@ -49,52 +52,7 @@ firelynx uses TOML configuration files with the following structure:
 
 ```toml
 # firelynx Server Configuration
-[[listeners]]
-id = "mcp_listener"
-protocol = "mcp"
-address = "localhost:8765"
-
-[listeners.protocol_options.mcp]
-connection_timeout = "60s"
-max_connections = 100
-
-[[endpoints]]
-id = "tools_endpoint"
-listener_id = "mcp_listener"
-app_id = "sample_tools"
-
-[endpoints.route]
-mcp_resource = "tools/call"
-
-[[apps]]
-id = "sample_tools"
-
-[apps.app_type.mcp]
-name = "Sample Tools"
-description = "Example tools for demonstration"
-
-[apps.app_type.mcp.mcp_implementation.tool]
-script = '''
-// Tool implementation in Risor
-result := ctx.get("input", "") + " processed"
-return {
-  "isError": false,
-  "content": result
-}
-'''
-engine = "risor"
-parameter_schema = '''
-{
-  "type": "object",
-  "properties": {
-    "input": {
-      "type": "string",
-      "description": "Input to process"
-    }
-  },
-  "required": ["input"]
-}
-'''
+# TBD...
 ```
 
 ## Architecture
@@ -105,22 +63,11 @@ firelynx follows a three-layer architecture:
 2. **Endpoints**: Connection mapping between listeners and applications
 3. **Applications**: Functional components including script apps and MCP implementations
 
-
-## MCP Protocol Support
-
-firelynx implements the following MCP protocol features:
-
-- **Tools**: Create custom tools that Claude can use to perform actions
-- **Prompts**: Define prompt templates with arguments
-- **Resources**: Access and retrieve content from various sources
-
-For more information on the MCP protocol, visit the [official documentation](https://modelcontextprotocol.io/).
-
 ## Development
 
 ### Prerequisites
 
-- Go 1.20 or later
+- Go 1.24 or later
 - Protocol Buffer compiler and tools (`buf`)
 
 ### Building from Source
@@ -133,11 +80,14 @@ cd firelynx
 # Generate protobuf code
 make protogen
 
-# Build the binary
-make build
-
 # Run tests
 make test
+
+# Compile the binary
+make build
+
+# Run the compiled server/client binary
+./bin/firelynx --help
 ```
 
 ## Documentation

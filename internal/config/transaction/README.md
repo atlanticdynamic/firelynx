@@ -1,55 +1,67 @@
-# Config Transaction Package
+# Configuration Transaction Layer
 
-The `transaction` package uses a saga pattern for configuration changes. It handles validated configuration transactions that can be applied or rolled back.
+`internal/config/transaction` manages the lifecycle of a validated `config.Config` using a saga-style finite-state machine. It coordinates runtime components so a configuration change is either entirely applied or rolled back.
 
-## Package Contents
+## Responsibilities
 
-A configuration transaction contains:
+* Generate metadata (UUID, source, request ID, timestamps).
+* Hold a domain `*config.Config` and derived app instances.
+* Drive a finite-state machine (`finitestate.SagaMachine`).
+* Register participants and track their individual states.
+* Collect structured logs via `loglater.LogCollector`.
+* Classify and aggregate errors (validation, terminal, accumulated).
 
-- **Domain Config**: Configuration from `internal/config`
-- **Participant Tracking**: State management for participating components
-- **State Machine**: Transaction lifecycle state tracking
-- **Transaction ID**: UUID for correlation
-- **Source Information**: Origin (file, API, test)
-- **Log Collection**: Transaction logs
+## Out of Scope
 
-## Implementation
+* Parsing or validating configuration data — handled by `internal/config`.
+* Starting or stopping runtime components — handled by server packages.
 
-### State Machines
+## State Machine Overview
 
-- **Transaction FSM**: Tracks lifecycle states
-- **Participant FSM**: Each component has its own state machine
-- **Coordinated Changes**: Changes apply to all components or none
+```
+created → validating ↔ invalid
+           ↓
+         validated → executing → succeeded → reloading → completed
+                               ↘ failed → compensating → compensated
+                                ↘ error
+```
 
-Transaction states: created → validated → executing → succeeded/failed → reloading/compensating → completed/compensated
+Valid transitions are declared in `finitestate.SagaTransitions`.
 
-### Error Handling
+## Primary Errors Returned by the ConfigTransaction Methods
 
-The transaction system categorizes errors into three types using sentinel error wrapping:
+| Marker               | Meaning                                   |
+|----------------------|-------------------------------------------|
+| `ErrValidationFailed`| Configuration failed domain validation    |
+| `ErrTerminalError`   | Unrecoverable infrastructure fault        |
+| `ErrAccumulatedError`| Non-fatal issue collected during progress |
 
-#### Error Types
+## Constructors
 
-1. **Validation Errors** (`ErrValidationFailed`): Configuration validation failures
-   - Triggered by `MarkInvalid(err)`
-   - Result in `StateInvalid` (terminal state)
-   - Example: Invalid configuration syntax, missing required fields
+The `*config.Config` object must be be loaded before creating a transaction.
+```go
+transaction.FromFile(path string, cfg *config.Config, h slog.Handler)
+transaction.FromAPI(requestID string, cfg *config.Config, h slog.Handler)
+transaction.FromTest(testName string, cfg *config.Config, h slog.Handler)
+```
 
-2. **Terminal Errors** (`ErrTerminalError`): Unrecoverable system errors
-   - Triggered by `MarkError(err)` or `MarkFailed(err)`
-   - Result in `StateError` or `StateFailed`
-   - Example: Database connection failure, filesystem errors
+## Quick Start
 
-3. **Accumulated Errors** (`ErrAccumulatedError`): Non-fatal errors collected before state transitions
-   - Added via `AddError(err)`
-   - Do not trigger state transitions
-   - Example: Warning conditions, recoverable failures
+```go
+cfg, _ := config.NewConfig("config.toml")
 
-#### Error Collection
+// nil handler uses a default slog text handler.
+tx, err := transaction.FromFile("config.toml", cfg, nil)
+if err != nil {
+    log.Fatal(err)
+}
 
-All errors are stored in a unified slice and retrieved via `GetErrors()`. Each error is wrapped with its type using `fmt.Errorf("%w: %w", errorType, originalErr)`. Use `errors.Is()` to check error types.
+if err := tx.RunValidation(); err != nil {
+    log.Printf("invalid config: %v", err)
+    return
+}
 
-### Constructors
+log.Printf("transaction %s in state %s", tx.GetTransactionID(), tx.GetState())
+```
 
-- `FromFile(path, config, logger)`: File-based transactions
-- `FromAPI(requestID, config, logger)`: API-based transactions
-- `FromTest(testName, config, logger)`: Test transactions
+There are many other phases to the transaction lifecycle, but they are handled by the `txmgr` Runnable.
