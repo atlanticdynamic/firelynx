@@ -21,6 +21,8 @@ type Validatable interface {
 
 // Validate recursively validates all configuration components and their cross-references
 func (c *Config) Validate() error {
+	c.ValidationCompleted = true
+
 	// Validate version
 	if err := c.validateVersion(); err != nil {
 		return err

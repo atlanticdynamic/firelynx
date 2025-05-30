@@ -119,6 +119,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	// Test 1: Start with no listeners
 	config1, err := config.NewConfigFromBytes([]byte(emptyConfigTOML))
 	require.NoError(t, err)
+	require.NoError(t, config1.Validate(), "Should validate config")
 
 	tx1, err := transaction.FromTest("no-listeners", config1, nil)
 	require.NoError(t, err)
@@ -136,6 +137,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	})
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)
+	require.NoError(t, config2.Validate(), "Should validate config")
 
 	tx2, err := transaction.FromTest("add-listener", config2, nil)
 	require.NoError(t, err)
@@ -172,6 +174,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	// Test 3: Remove the listener
 	config3, err := config.NewConfigFromBytes([]byte(emptyConfigTOML))
 	require.NoError(t, err)
+	require.NoError(t, config3.Validate(), "Should validate config")
 
 	tx3, err := transaction.FromTest("remove-listener", config3, nil)
 	require.NoError(t, err)
@@ -226,6 +229,7 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 	})
 	testConfig, err := config.NewConfigFromBytes([]byte(configData))
 	require.NoError(t, err)
+	require.NoError(t, testConfig.Validate(), "Should validate config")
 
 	// Create transaction
 	tx, err := transaction.FromTest("echo-app-test", testConfig, nil)
@@ -307,6 +311,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	})
 	config1, err := config.NewConfigFromBytes([]byte(config1Data))
 	require.NoError(t, err)
+	require.NoError(t, config1.Validate(), "Should validate config")
 
 	tx1, err := transaction.FromTest("initial-route", config1, nil)
 	require.NoError(t, err)
@@ -342,6 +347,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	})
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)
+	require.NoError(t, config2.Validate(), "Should validate config")
 
 	tx2, err := transaction.FromTest("add-route", config2, nil)
 	require.NoError(t, err)
@@ -411,7 +417,6 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	}, time.Second, 10*time.Millisecond)
 }
 
-// TestHTTPClusterErrorHandling tests error scenarios
 func TestHTTPClusterErrorHandling(t *testing.T) {
 	ctx := t.Context()
 
@@ -440,54 +445,66 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 		return httpRunner.IsRunning()
 	}, time.Second, 10*time.Millisecond)
 
-	// Test 1: Invalid address format
-	config1, err := config.NewConfigFromBytes([]byte(invalidAddressTOML))
-	require.NoError(t, err)
-
-	tx1, err := transaction.FromTest("bad-address", config1, nil)
-	require.NoError(t, err)
-	err = tx1.RunValidation()
-	require.NoError(t, err)
-	err = saga.ProcessTransaction(ctx, tx1)
-	require.NoError(t, err)
-	// Transaction should complete, but server won't start successfully
-	assert.Equal(t, "completed", tx1.GetState())
-
-	// Test 2: Port already in use
-	// First, create a listener on a specific port
+	// Get a random port for testing
 	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
-	config2Data := replacePorts(oneListenerTOML, map[string]string{
-		"{{PORT1}}": port,
+
+	t.Run("invalid-address", func(t *testing.T) {
+		// Test 1: Invalid address format
+		config1, err := config.NewConfigFromBytes([]byte(invalidAddressTOML))
+		require.NoError(t, err)
+		require.NoError(t, config1.Validate(), "Should validate config")
+
+		tx1, err := transaction.FromTest("bad-address", config1, nil)
+		require.NoError(t, err)
+		err = tx1.RunValidation()
+		require.NoError(t, err)
+		err = saga.ProcessTransaction(ctx, tx1)
+		require.NoError(t, err)
+		// Transaction should complete, but server won't start successfully
+		assert.Equal(t, "completed", tx1.GetState())
 	})
-	config2, err := config.NewConfigFromBytes([]byte(config2Data))
-	require.NoError(t, err)
 
-	tx2, err := transaction.FromTest("first-listener", config2, nil)
-	require.NoError(t, err)
-	err = tx2.RunValidation()
-	require.NoError(t, err)
-	err = saga.ProcessTransaction(ctx, tx2)
-	require.NoError(t, err)
-	assert.Equal(t, "completed", tx2.GetState())
+	t.Run("port-in-use", func(t *testing.T) {
+		config2Data := replacePorts(oneListenerTOML, map[string]string{
+			"{{PORT1}}": port,
+		})
+		config2, err := config.NewConfigFromBytes([]byte(config2Data))
+		require.NoError(t, err)
+		require.NoError(t, config2.Validate(), "Should validate config")
 
-	// Server won't start (no routes), but transaction completes
-	waitForHTTPServerDown(t, fmt.Sprintf("http://127.0.0.1:%s/", port))
+		tx2, err := transaction.FromTest("first-listener", config2, nil)
+		require.NoError(t, err)
+		err = tx2.RunValidation()
+		require.NoError(t, err)
+		err = saga.ProcessTransaction(ctx, tx2)
+		require.NoError(t, err)
+		assert.Equal(t, "completed", tx2.GetState())
 
-	// Test 3: Try to create config with duplicate listener addresses - should fail during config loading
-	config3Data := replacePorts(duplicatePortsTOML, map[string]string{
-		"{{PORT}}": port,
+		// Server won't start (no routes), but transaction completes
+		waitForHTTPServerDown(t, fmt.Sprintf("http://127.0.0.1:%s/", port))
 	})
-	config3, err := config.NewConfigFromBytes([]byte(config3Data))
-	// Config creation should fail due to duplicate listener addresses
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "duplicate ID: listener address")
-	assert.Nil(t, config3)
 
-	// Stop the HTTP runner
-	httpRunner.Stop()
-	assert.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
-	}, time.Second, 10*time.Millisecond)
+	t.Run("duplicate-ports", func(t *testing.T) {
+		config3Data := replacePorts(duplicatePortsTOML, map[string]string{
+			"{{PORT}}": port,
+		})
+		config3, err := config.NewConfigFromBytes([]byte(config3Data))
+		require.NoError(t, err, "Config creation should succeed")
+		require.NotNil(t, config3)
+
+		// Validation should fail due to duplicate listener addresses
+		err = config3.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate ID: listener address")
+	})
+
+	t.Cleanup(func() {
+		// Stop the HTTP runner
+		httpRunner.Stop()
+		assert.Eventually(t, func() bool {
+			return !httpRunner.IsRunning()
+		}, time.Second, 10*time.Millisecond)
+	})
 }
 
 // TestHTTPClusterSagaCompensation tests rollback when participant fails
@@ -531,6 +548,7 @@ func TestHTTPClusterSagaCompensation(t *testing.T) {
 	})
 	testConfig, err := config.NewConfigFromBytes([]byte(configData))
 	require.NoError(t, err)
+	require.NoError(t, testConfig.Validate(), "Should validate config")
 
 	// Create transaction
 	tx, err := transaction.FromTest("compensation-test", testConfig, nil)

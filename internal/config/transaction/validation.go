@@ -9,23 +9,27 @@ import (
 
 // RunValidation marks the transaction as being validated
 func (tx *ConfigTransaction) RunValidation() error {
+	logger := tx.logger.WithGroup("validation")
 	// Handle nil config case
 	if tx.domainConfig == nil {
 		tx.setStateInvalid([]error{ErrNilConfig})
 		return fmt.Errorf("%w: %w", ErrValidationFailed, ErrNilConfig)
 	}
+	if tx.domainConfig.ValidationCompleted {
+		logger.Warn("Configuration validation already completed, running again...")
+	}
 
 	// Transition to validating state
 	err := tx.fsm.Transition(finitestate.StateValidating)
 	if err != nil {
-		tx.logger.Error(
+		logger.Error(
 			"Failed to transition to state",
 			"error", err,
 			"targetState", finitestate.StateValidating,
 			"currentState", tx.GetState())
 		return err
 	}
-	tx.logger.Debug("Validation started", "state", finitestate.StateValidating)
+	logger.Debug("Validation started", "state", finitestate.StateValidating)
 
 	// Perform actual validation
 	err = tx.domainConfig.Validate()
@@ -41,9 +45,10 @@ func (tx *ConfigTransaction) RunValidation() error {
 
 // setStateValid marks the transaction as valid after successful validation
 func (tx *ConfigTransaction) setStateValid() {
+	logger := tx.logger.WithGroup("validation")
 	err := tx.fsm.Transition(finitestate.StateValidated)
 	if err != nil {
-		tx.logger.Error(
+		logger.Error(
 			"Failed to transition to state",
 			"error", err,
 			"targetState", finitestate.StateValidated,
@@ -53,16 +58,17 @@ func (tx *ConfigTransaction) setStateValid() {
 	}
 
 	tx.IsValid.Store(true)
-	tx.logger.Debug(
+	logger.Debug(
 		"Validation successful",
 		"state", finitestate.StateValidated)
 }
 
 // setStateInvalid marks the transaction as invalid after failed validation
 func (tx *ConfigTransaction) setStateInvalid(errs []error) {
+	logger := tx.logger.WithGroup("validation")
 	err := tx.fsm.Transition(finitestate.StateInvalid)
 	if err != nil {
-		tx.logger.Error(
+		logger.Error(
 			"Failed to transition to state",
 			"error", err,
 			"targetState", finitestate.StateInvalid,
@@ -81,7 +87,7 @@ func (tx *ConfigTransaction) setStateInvalid(errs []error) {
 		tx.errors = append(tx.errors, err)
 	}
 
-	tx.logger.Warn(
+	logger.Warn(
 		"Validation failed",
 		"errors", errs,
 		"errorCount", len(errs),

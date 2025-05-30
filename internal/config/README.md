@@ -43,6 +43,7 @@ The saga logic lives entirely in the transaction package; the domain layer is on
 
 ```go
 cfg, _ := config.NewConfig("config.toml")
+_ = cfg.Validate()
 
 fmt.Println(cfg.Version)
 listener := cfg.Listeners.FindByID("public-http")

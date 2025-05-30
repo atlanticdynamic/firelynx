@@ -53,6 +53,7 @@ func TestHTTPListenerMinimalSaga(t *testing.T) {
 	// Create config from string
 	testConfig, err := config.NewConfigFromBytes([]byte(configData))
 	require.NoError(t, err)
+	require.NoError(t, testConfig.Validate(), "Should validate config")
 
 	// Create a config transaction
 	tx, err := transaction.FromTest(t.Name(), testConfig, nil)
@@ -126,6 +127,7 @@ func TestHTTPListenerConfigUpdate(t *testing.T) {
 	config1Data := `version = "v1"`
 	config1, err := config.NewConfigFromBytes([]byte(config1Data))
 	require.NoError(t, err)
+	require.NoError(t, config1.Validate(), "Should validate config")
 
 	tx1, err := transaction.FromTest("config-1", config1, nil)
 	require.NoError(t, err)
@@ -150,6 +152,7 @@ write_timeout = "30s"
 `
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)
+	require.NoError(t, config2.Validate(), "Should validate config")
 
 	tx2, err := transaction.FromTest("config-2", config2, nil)
 	require.NoError(t, err)
