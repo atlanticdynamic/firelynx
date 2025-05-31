@@ -1,7 +1,6 @@
 package txmgr
 
 import (
-	"context"
 	"log/slog"
 )
 
@@ -26,17 +25,6 @@ func WithLogger(logger *slog.Logger) Option {
 	return func(r *Runner) error {
 		if logger != nil {
 			r.logger = logger
-		}
-		return nil
-	}
-}
-
-// WithContext sets a custom parent context for the Runner instance.
-// This allows for more granular control over cancellation and timeouts.
-func WithContext(ctx context.Context) Option {
-	return func(r *Runner) error {
-		if ctx != nil {
-			r.parentCtx = ctx
 		}
 		return nil
 	}

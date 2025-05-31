@@ -43,7 +43,6 @@ func Run(
 	// Create the transaction manager, which has a transaction "siphon" channel
 	txMan, err := txmgr.NewRunner(
 		txmgrOrchestrator,
-		txmgr.WithContext(ctx),
 		txmgr.WithLogHandler(logHandler),
 	)
 	if err != nil {
