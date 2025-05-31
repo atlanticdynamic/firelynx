@@ -53,45 +53,47 @@ func TestCondition_FromProto(t *testing.T) {
 		assert.Equal(t, "", httpCond.Method)
 	})
 
-	t.Run("GrpcRule", func(t *testing.T) {
-		service := "example.Service"
-		method := "GetData"
-		pbRoute := &pb.Route{
-			Rule: &pb.Route_Grpc{
-				Grpc: &pb.GrpcRule{
-					Service: &service,
-					Method:  &method,
-				},
-			},
-		}
-		cond := FromProto(pbRoute)
-		assert.NotNil(t, cond)
-		assert.Equal(t, TypeGRPC, cond.Type())
-		assert.Equal(t, service+"."+method, cond.Value())
-		grpcCond, ok := cond.(GRPC)
-		assert.True(t, ok)
-		assert.Equal(t, service, grpcCond.Service)
-		assert.Equal(t, method, grpcCond.Method)
-	})
+	// TODO: Uncomment when gRPC support is re-enabled
+	// t.Run("GrpcRule", func(t *testing.T) {
+	// 	service := "example.Service"
+	// 	method := "GetData"
+	// 	pbRoute := &pb.Route{
+	// 		Rule: &pb.Route_Grpc{
+	// 			Grpc: &pb.GrpcRule{
+	// 				Service: &service,
+	// 				Method:  &method,
+	// 			},
+	// 		},
+	// 	}
+	// 	cond := FromProto(pbRoute)
+	// 	assert.NotNil(t, cond)
+	// 	assert.Equal(t, TypeGRPC, cond.Type())
+	// 	assert.Equal(t, service+"."+method, cond.Value())
+	// 	grpcCond, ok := cond.(GRPC)
+	// 	assert.True(t, ok)
+	// 	assert.Equal(t, service, grpcCond.Service)
+	// 	assert.Equal(t, method, grpcCond.Method)
+	// })
 
-	t.Run("GrpcRuleNoMethod", func(t *testing.T) {
-		service := "example.Service"
-		pbRoute := &pb.Route{
-			Rule: &pb.Route_Grpc{
-				Grpc: &pb.GrpcRule{
-					Service: &service,
-				},
-			},
-		}
-		cond := FromProto(pbRoute)
-		assert.NotNil(t, cond)
-		assert.Equal(t, TypeGRPC, cond.Type())
-		assert.Equal(t, service, cond.Value())
-		grpcCond, ok := cond.(GRPC)
-		assert.True(t, ok)
-		assert.Equal(t, service, grpcCond.Service)
-		assert.Equal(t, "", grpcCond.Method)
-	})
+	// TODO: Uncomment when gRPC support is re-enabled
+	// t.Run("GrpcRuleNoMethod", func(t *testing.T) {
+	// 	service := "example.Service"
+	// 	pbRoute := &pb.Route{
+	// 		Rule: &pb.Route_Grpc{
+	// 			Grpc: &pb.GrpcRule{
+	// 				Service: &service,
+	// 			},
+	// 		},
+	// 	}
+	// 	cond := FromProto(pbRoute)
+	// 	assert.NotNil(t, cond)
+	// 	assert.Equal(t, TypeGRPC, cond.Type())
+	// 	assert.Equal(t, service, cond.Value())
+	// 	grpcCond, ok := cond.(GRPC)
+	// 	assert.True(t, ok)
+	// 	assert.Equal(t, service, grpcCond.Service)
+	// 	assert.Equal(t, "", grpcCond.Method)
+	// })
 
 	t.Run("NoRule", func(t *testing.T) {
 		pbRoute := &pb.Route{}
@@ -137,27 +139,29 @@ func TestCondition_ToProto(t *testing.T) {
 		assert.Nil(t, httpRule.Http.Method)
 	})
 
-	t.Run("GrpcRule", func(t *testing.T) {
-		cond := NewGRPC("example.Service", "GetData")
-		pbRoute := &pb.Route{}
-		ToProto(cond, pbRoute)
-		assert.NotNil(t, pbRoute.Rule)
-		grpcRule, ok := pbRoute.Rule.(*pb.Route_Grpc)
-		assert.True(t, ok)
-		assert.NotNil(t, grpcRule.Grpc)
-		assert.Equal(t, "example.Service", *grpcRule.Grpc.Service)
-		assert.Equal(t, "GetData", *grpcRule.Grpc.Method)
-	})
+	// TODO: Uncomment when gRPC support is re-enabled
+	// t.Run("GrpcRule", func(t *testing.T) {
+	// 	cond := NewGRPC("example.Service", "GetData")
+	// 	pbRoute := &pb.Route{}
+	// 	ToProto(cond, pbRoute)
+	// 	assert.NotNil(t, pbRoute.Rule)
+	// 	grpcRule, ok := pbRoute.Rule.(*pb.Route_Grpc)
+	// 	assert.True(t, ok)
+	// 	assert.NotNil(t, grpcRule.Grpc)
+	// 	assert.Equal(t, "example.Service", *grpcRule.Grpc.Service)
+	// 	assert.Equal(t, "GetData", *grpcRule.Grpc.Method)
+	// })
 
-	t.Run("GrpcRuleNoMethod", func(t *testing.T) {
-		cond := NewGRPC("example.Service", "")
-		pbRoute := &pb.Route{}
-		ToProto(cond, pbRoute)
-		assert.NotNil(t, pbRoute.Rule)
-		grpcRule, ok := pbRoute.Rule.(*pb.Route_Grpc)
-		assert.True(t, ok)
-		assert.NotNil(t, grpcRule.Grpc)
-		assert.Equal(t, "example.Service", *grpcRule.Grpc.Service)
-		assert.Nil(t, grpcRule.Grpc.Method)
-	})
+	// TODO: Uncomment when gRPC support is re-enabled
+	// t.Run("GrpcRuleNoMethod", func(t *testing.T) {
+	// 	cond := NewGRPC("example.Service", "")
+	// 	pbRoute := &pb.Route{}
+	// 	ToProto(cond, pbRoute)
+	// 	assert.NotNil(t, pbRoute.Rule)
+	// 	grpcRule, ok := pbRoute.Rule.(*pb.Route_Grpc)
+	// 	assert.True(t, ok)
+	// 	assert.NotNil(t, grpcRule.Grpc)
+	// 	assert.Equal(t, "example.Service", *grpcRule.Grpc.Service)
+	// 	assert.Nil(t, grpcRule.Grpc.Method)
+	// })
 }

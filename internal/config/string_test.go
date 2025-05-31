@@ -14,7 +14,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
-	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,23 +36,6 @@ func TestConfigString(t *testing.T) {
 			},
 			expectedSubstr: []string{
 				"Firelynx Config (" + version.Version + ")",
-			},
-		},
-		{
-			name: "Config with logging",
-			setupConfig: func() *Config {
-				return &Config{
-					Version: version.Version,
-					Logging: logs.Config{
-						Format: logs.FormatJSON,
-						Level:  logs.LevelInfo,
-					},
-				}
-			},
-			expectedSubstr: []string{
-				"Logging",
-				"Format: json",
-				"Level: info",
 			},
 		},
 		{
@@ -142,10 +124,6 @@ func TestConfigString(t *testing.T) {
 			setupConfig: func() *Config {
 				return &Config{
 					Version: version.Version,
-					Logging: logs.Config{
-						Format: logs.FormatJSON,
-						Level:  logs.LevelInfo,
-					},
 					Listeners: listeners.ListenerCollection{
 						{
 							ID:      "http-listener",
@@ -178,9 +156,6 @@ func TestConfigString(t *testing.T) {
 			},
 			expectedSubstr: []string{
 				"Firelynx Config (" + version.Version + ")",
-				"Logging",
-				"Format: json",
-				"Level: info",
 				"Listeners (1)",
 				"http-listener",
 				"Endpoints (1)",
@@ -219,10 +194,6 @@ func TestConfigTree(t *testing.T) {
 	// Test that the ConfigTree function returns the same result as String
 	config := &Config{
 		Version: version.Version,
-		Logging: logs.Config{
-			Format: logs.FormatJSON,
-			Level:  logs.LevelInfo,
-		},
 		Listeners: listeners.ListenerCollection{
 			{
 				ID:      "http-listener",

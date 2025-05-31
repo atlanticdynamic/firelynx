@@ -2,6 +2,7 @@
   "$id": "settings.v1alpha1.GrpcRule.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "description": "TODO: still needs to be implemented",
   "properties": {
     "method": {
       "type": "string"

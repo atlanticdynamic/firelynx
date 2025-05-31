@@ -7,6 +7,7 @@
 package v1alpha1
 
 import (
+	v1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -76,10 +77,9 @@ func (Listener_Type) EnumDescriptor() ([]byte, []int) {
 type ServerConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Version       *string                `protobuf:"bytes,1,opt,name=version,def=v1" json:"version,omitempty"`
-	Logging       *LogOptions            `protobuf:"bytes,2,opt,name=logging" json:"logging,omitempty"`
-	Listeners     []*Listener            `protobuf:"bytes,3,rep,name=listeners" json:"listeners,omitempty"`
-	Endpoints     []*Endpoint            `protobuf:"bytes,4,rep,name=endpoints" json:"endpoints,omitempty"`
-	Apps          []*AppDefinition       `protobuf:"bytes,5,rep,name=apps" json:"apps,omitempty"`
+	Listeners     []*Listener            `protobuf:"bytes,2,rep,name=listeners" json:"listeners,omitempty"`
+	Endpoints     []*Endpoint            `protobuf:"bytes,3,rep,name=endpoints" json:"endpoints,omitempty"`
+	Apps          []*AppDefinition       `protobuf:"bytes,4,rep,name=apps" json:"apps,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -124,13 +124,6 @@ func (x *ServerConfig) GetVersion() string {
 		return *x.Version
 	}
 	return Default_ServerConfig_Version
-}
-
-func (x *ServerConfig) GetLogging() *LogOptions {
-	if x != nil {
-		return x.Logging
-	}
-	return nil
 }
 
 func (x *ServerConfig) GetListeners() []*Listener {
@@ -404,6 +397,7 @@ type Endpoint struct {
 	Id            *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                   // unique name for this endpoint
 	ListenerId    *string                `protobuf:"bytes,2,opt,name=listener_id,json=listenerId" json:"listener_id,omitempty"` // listener this endpoint is attached to
 	Routes        []*Route               `protobuf:"bytes,3,rep,name=routes" json:"routes,omitempty"`                           // routes that direct traffic to apps
+	Middlewares   []*v1.Middleware       `protobuf:"bytes,4,rep,name=middlewares" json:"middlewares,omitempty"`                 // middlewares layers to apply to requests/responses
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -459,15 +453,22 @@ func (x *Endpoint) GetRoutes() []*Route {
 	return nil
 }
 
+func (x *Endpoint) GetMiddlewares() []*v1.Middleware {
+	if x != nil {
+		return x.Middlewares
+	}
+	return nil
+}
+
 // Route defines a rule for directing traffic from an endpoint to an app
 type Route struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	AppId      *string                `protobuf:"bytes,1,opt,name=app_id,json=appId" json:"app_id,omitempty"`                // the app name this route directs traffic to
-	StaticData *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"` // static data to pass to the app
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	AppId       *string                `protobuf:"bytes,1,opt,name=app_id,json=appId" json:"app_id,omitempty"`                // the app name this route directs traffic to
+	StaticData  *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"` // static data to pass to the app
+	Middlewares []*v1.Middleware       `protobuf:"bytes,3,rep,name=middlewares" json:"middlewares,omitempty"`                 // middlewares layers to apply to requests/responses
 	// Types that are valid to be assigned to Rule:
 	//
 	//	*Route_Http
-	//	*Route_Grpc
 	Rule          isRoute_Rule `protobuf_oneof:"rule"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -517,6 +518,13 @@ func (x *Route) GetStaticData() *StaticData {
 	return nil
 }
 
+func (x *Route) GetMiddlewares() []*v1.Middleware {
+	if x != nil {
+		return x.Middlewares
+	}
+	return nil
+}
+
 func (x *Route) GetRule() isRoute_Rule {
 	if x != nil {
 		return x.Rule
@@ -533,30 +541,15 @@ func (x *Route) GetHttp() *HttpRule {
 	return nil
 }
 
-func (x *Route) GetGrpc() *GrpcRule {
-	if x != nil {
-		if x, ok := x.Rule.(*Route_Grpc); ok {
-			return x.Grpc
-		}
-	}
-	return nil
-}
-
 type isRoute_Rule interface {
 	isRoute_Rule()
 }
 
 type Route_Http struct {
-	Http *HttpRule `protobuf:"bytes,3,opt,name=http,oneof"`
-}
-
-type Route_Grpc struct {
-	Grpc *GrpcRule `protobuf:"bytes,4,opt,name=grpc,oneof"`
+	Http *HttpRule `protobuf:"bytes,100,opt,name=http,oneof"` //GrpcRule grpc = 40; // TODO
 }
 
 func (*Route_Http) isRoute_Rule() {}
-
-func (*Route_Grpc) isRoute_Rule() {}
 
 type HttpRule struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -610,6 +603,7 @@ func (x *HttpRule) GetMethod() string {
 	return ""
 }
 
+// TODO: still needs to be implemented
 type GrpcRule struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Service       *string                `protobuf:"bytes,1,opt,name=service" json:"service,omitempty"`
@@ -666,13 +660,12 @@ var File_settings_v1alpha1_settings_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\n" +
-	" settings/v1alpha1/settings.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1csettings/v1alpha1/apps.proto\x1a\x1fsettings/v1alpha1/logging.proto\x1a#settings/v1alpha1/static_data.proto\"\x91\x02\n" +
+	" settings/v1alpha1/settings.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1csettings/v1alpha1/apps.proto\x1a0settings/v1alpha1/middleware/v1/middleware.proto\x1a#settings/v1alpha1/static_data.proto\"\xd8\x01\n" +
 	"\fServerConfig\x12\x1c\n" +
-	"\aversion\x18\x01 \x01(\t:\x02v1R\aversion\x127\n" +
-	"\alogging\x18\x02 \x01(\v2\x1d.settings.v1alpha1.LogOptionsR\alogging\x129\n" +
-	"\tlisteners\x18\x03 \x03(\v2\x1b.settings.v1alpha1.ListenerR\tlisteners\x129\n" +
-	"\tendpoints\x18\x04 \x03(\v2\x1b.settings.v1alpha1.EndpointR\tendpoints\x124\n" +
-	"\x04apps\x18\x05 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xc1\x02\n" +
+	"\aversion\x18\x01 \x01(\t:\x02v1R\aversion\x129\n" +
+	"\tlisteners\x18\x02 \x03(\v2\x1b.settings.v1alpha1.ListenerR\tlisteners\x129\n" +
+	"\tendpoints\x18\x03 \x03(\v2\x1b.settings.v1alpha1.EndpointR\tendpoints\x124\n" +
+	"\x04apps\x18\x04 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xc1\x02\n" +
 	"\bListener\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\x12?\n" +
@@ -692,18 +685,19 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\x13GrpcListenerOptions\x12I\n" +
 	"\x13max_connection_idle\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x11maxConnectionIdle\x12G\n" +
 	"\x12max_connection_age\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x10maxConnectionAge\x124\n" +
-	"\x16max_concurrent_streams\x18\x03 \x01(\x05R\x14maxConcurrentStreams\"m\n" +
+	"\x16max_concurrent_streams\x18\x03 \x01(\x05R\x14maxConcurrentStreams\"\xbc\x01\n" +
 	"\bEndpoint\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vlistener_id\x18\x02 \x01(\tR\n" +
 	"listenerId\x120\n" +
-	"\x06routes\x18\x03 \x03(\v2\x18.settings.v1alpha1.RouteR\x06routes\"\xcc\x01\n" +
+	"\x06routes\x18\x03 \x03(\v2\x18.settings.v1alpha1.RouteR\x06routes\x12M\n" +
+	"\vmiddlewares\x18\x04 \x03(\v2+.settings.v1alpha1.middleware.v1.MiddlewareR\vmiddlewares\"\xe8\x01\n" +
 	"\x05Route\x12\x15\n" +
 	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12>\n" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
-	"staticData\x121\n" +
-	"\x04http\x18\x03 \x01(\v2\x1b.settings.v1alpha1.HttpRuleH\x00R\x04http\x121\n" +
-	"\x04grpc\x18\x04 \x01(\v2\x1b.settings.v1alpha1.GrpcRuleH\x00R\x04grpcB\x06\n" +
+	"staticData\x12M\n" +
+	"\vmiddlewares\x18\x03 \x03(\v2+.settings.v1alpha1.middleware.v1.MiddlewareR\vmiddlewares\x121\n" +
+	"\x04http\x18d \x01(\v2\x1b.settings.v1alpha1.HttpRuleH\x00R\x04httpB\x06\n" +
 	"\x04rule\"C\n" +
 	"\bHttpRule\x12\x1f\n" +
 	"\vpath_prefix\x18\x01 \x01(\tR\n" +
@@ -737,29 +731,29 @@ var file_settings_v1alpha1_settings_proto_goTypes = []any{
 	(*Route)(nil),               // 6: settings.v1alpha1.Route
 	(*HttpRule)(nil),            // 7: settings.v1alpha1.HttpRule
 	(*GrpcRule)(nil),            // 8: settings.v1alpha1.GrpcRule
-	(*LogOptions)(nil),          // 9: settings.v1alpha1.LogOptions
-	(*AppDefinition)(nil),       // 10: settings.v1alpha1.AppDefinition
-	(*durationpb.Duration)(nil), // 11: google.protobuf.Duration
+	(*AppDefinition)(nil),       // 9: settings.v1alpha1.AppDefinition
+	(*durationpb.Duration)(nil), // 10: google.protobuf.Duration
+	(*v1.Middleware)(nil),       // 11: settings.v1alpha1.middleware.v1.Middleware
 	(*StaticData)(nil),          // 12: settings.v1alpha1.StaticData
 }
 var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
-	9,  // 0: settings.v1alpha1.ServerConfig.logging:type_name -> settings.v1alpha1.LogOptions
-	2,  // 1: settings.v1alpha1.ServerConfig.listeners:type_name -> settings.v1alpha1.Listener
-	5,  // 2: settings.v1alpha1.ServerConfig.endpoints:type_name -> settings.v1alpha1.Endpoint
-	10, // 3: settings.v1alpha1.ServerConfig.apps:type_name -> settings.v1alpha1.AppDefinition
-	0,  // 4: settings.v1alpha1.Listener.type:type_name -> settings.v1alpha1.Listener.Type
-	3,  // 5: settings.v1alpha1.Listener.http:type_name -> settings.v1alpha1.HttpListenerOptions
-	4,  // 6: settings.v1alpha1.Listener.grpc:type_name -> settings.v1alpha1.GrpcListenerOptions
-	11, // 7: settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
-	11, // 8: settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
-	11, // 9: settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
-	11, // 10: settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
-	11, // 11: settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
-	11, // 12: settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
-	6,  // 13: settings.v1alpha1.Endpoint.routes:type_name -> settings.v1alpha1.Route
+	2,  // 0: settings.v1alpha1.ServerConfig.listeners:type_name -> settings.v1alpha1.Listener
+	5,  // 1: settings.v1alpha1.ServerConfig.endpoints:type_name -> settings.v1alpha1.Endpoint
+	9,  // 2: settings.v1alpha1.ServerConfig.apps:type_name -> settings.v1alpha1.AppDefinition
+	0,  // 3: settings.v1alpha1.Listener.type:type_name -> settings.v1alpha1.Listener.Type
+	3,  // 4: settings.v1alpha1.Listener.http:type_name -> settings.v1alpha1.HttpListenerOptions
+	4,  // 5: settings.v1alpha1.Listener.grpc:type_name -> settings.v1alpha1.GrpcListenerOptions
+	10, // 6: settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
+	10, // 7: settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
+	10, // 8: settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
+	10, // 9: settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
+	10, // 10: settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
+	10, // 11: settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
+	6,  // 12: settings.v1alpha1.Endpoint.routes:type_name -> settings.v1alpha1.Route
+	11, // 13: settings.v1alpha1.Endpoint.middlewares:type_name -> settings.v1alpha1.middleware.v1.Middleware
 	12, // 14: settings.v1alpha1.Route.static_data:type_name -> settings.v1alpha1.StaticData
-	7,  // 15: settings.v1alpha1.Route.http:type_name -> settings.v1alpha1.HttpRule
-	8,  // 16: settings.v1alpha1.Route.grpc:type_name -> settings.v1alpha1.GrpcRule
+	11, // 15: settings.v1alpha1.Route.middlewares:type_name -> settings.v1alpha1.middleware.v1.Middleware
+	7,  // 16: settings.v1alpha1.Route.http:type_name -> settings.v1alpha1.HttpRule
 	17, // [17:17] is the sub-list for method output_type
 	17, // [17:17] is the sub-list for method input_type
 	17, // [17:17] is the sub-list for extension type_name
@@ -773,7 +767,6 @@ func file_settings_v1alpha1_settings_proto_init() {
 		return
 	}
 	file_settings_v1alpha1_apps_proto_init()
-	file_settings_v1alpha1_logging_proto_init()
 	file_settings_v1alpha1_static_data_proto_init()
 	file_settings_v1alpha1_settings_proto_msgTypes[1].OneofWrappers = []any{
 		(*Listener_Http)(nil),
@@ -781,7 +774,6 @@ func file_settings_v1alpha1_settings_proto_init() {
 	}
 	file_settings_v1alpha1_settings_proto_msgTypes[5].OneofWrappers = []any{
 		(*Route_Http)(nil),
-		(*Route_Grpc)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -1,0 +1,70 @@
+{
+  "$id": "settings.v1alpha1.middleware.v1.ConsoleLoggerConfig.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Configuration for console logger middleware",
+  "patternProperties": {
+    "^(excludeMethods)$": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "^(excludePaths)$": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "^(includeOnlyMethods)$": {
+      "description": "Method filtering",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "^(includeOnlyPaths)$": {
+      "description": "Path filtering - paths are matched as prefixes",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "properties": {
+    "exclude_methods": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "exclude_paths": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "fields": {
+      "$ref": "settings.v1alpha1.middleware.v1.LogOptionsHTTP.schema.json"
+    },
+    "include_only_methods": {
+      "description": "Method filtering",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "include_only_paths": {
+      "description": "Path filtering - paths are matched as prefixes",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "options": {
+      "$ref": "settings.v1alpha1.middleware.v1.LogOptionsGeneral.schema.json"
+    }
+  },
+  "title": "Console Logger Config",
+  "type": "object"
+}

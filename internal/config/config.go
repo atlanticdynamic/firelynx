@@ -11,7 +11,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
-	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"google.golang.org/protobuf/proto"
 )
@@ -28,7 +27,6 @@ const (
 // Config represents the complete server configuration
 type Config struct {
 	Version   string
-	Logging   logs.Config
 	Listeners listeners.ListenerCollection
 	Endpoints endpoints.EndpointCollection
 	Apps      apps.AppCollection
@@ -87,10 +85,6 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 
 	if pbConfig.Version != nil && *pbConfig.Version != "" {
 		config.Version = *pbConfig.Version
-	}
-
-	if pbConfig.Logging != nil {
-		config.Logging = logs.FromProto(pbConfig.Logging)
 	}
 
 	if pbConfig.Listeners != nil {

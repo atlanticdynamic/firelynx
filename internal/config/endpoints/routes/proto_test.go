@@ -37,20 +37,21 @@ func TestRouteCollection_ToProto(t *testing.T) {
 			},
 			want: 2,
 		},
-		{
-			name: "collection with gRPC routes",
-			routes: RouteCollection{
-				{
-					AppID:     "app1",
-					Condition: conditions.NewGRPC("Service1", "Method1"),
-				},
-				{
-					AppID:     "app2",
-					Condition: conditions.NewGRPC("Service2", ""),
-				},
-			},
-			want: 2,
-		},
+		// TODO: Uncomment when gRPC support is re-enabled
+		// {
+		// 	name: "collection with gRPC routes",
+		// 	routes: RouteCollection{
+		// 		{
+		// 			AppID:     "app1",
+		// 			Condition: conditions.NewGRPC("Service1", "Method1"),
+		// 		},
+		// 		{
+		// 			AppID:     "app2",
+		// 			Condition: conditions.NewGRPC("Service2", ""),
+		// 		},
+		// 	},
+		// 	want: 2,
+		// },
 	}
 
 	for _, tt := range tests {
@@ -114,16 +115,17 @@ func TestRouteCollectionFromProto(t *testing.T) {
 						},
 					},
 				},
-				{
-					AppId: proto.String("app2"),
-					Rule: &pb.Route_Grpc{
-						Grpc: &pb.GrpcRule{
-							Service: proto.String("Service1"),
-						},
-					},
-				},
+				// TODO: Uncomment when gRPC support is re-enabled
+				// {
+				// 	AppId: proto.String("app2"),
+				// 	Rule: &pb.Route_Grpc{
+				// 		Grpc: &pb.GrpcRule{
+				// 			Service: proto.String("Service1"),
+				// 		},
+				// 	},
+				// },
 			},
-			want: 2,
+			want: 1,
 		},
 		{
 			name: "all nil elements",
@@ -190,37 +192,39 @@ func TestRoute_ToProto(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "GRPC Service",
-			route: Route{
-				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1", ""),
-			},
-			expected: &pb.Route{
-				AppId: proto.String("app2"),
-				Rule: &pb.Route_Grpc{
-					Grpc: &pb.GrpcRule{
-						Service: proto.String("service.v1"),
-					},
-				},
-			},
-		},
-		{
-			name: "GRPC Service with Method",
-			route: Route{
-				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1", "GetData"),
-			},
-			expected: &pb.Route{
-				AppId: proto.String("app2"),
-				Rule: &pb.Route_Grpc{
-					Grpc: &pb.GrpcRule{
-						Service: proto.String("service.v1"),
-						Method:  proto.String("GetData"),
-					},
-				},
-			},
-		},
+		// TODO: Uncomment when gRPC support is re-enabled
+		// {
+		// 	name: "GRPC Service",
+		// 	route: Route{
+		// 		AppID:     "app2",
+		// 		Condition: conditions.NewGRPC("service.v1", ""),
+		// 	},
+		// 	expected: &pb.Route{
+		// 		AppId: proto.String("app2"),
+		// 		Rule: &pb.Route_Grpc{
+		// 			Grpc: &pb.GrpcRule{
+		// 				Service: proto.String("service.v1"),
+		// 			},
+		// 		},
+		// 	},
+		// },
+		// TODO: Uncomment when gRPC support is re-enabled
+		// {
+		// 	name: "GRPC Service with Method",
+		// 	route: Route{
+		// 		AppID:     "app2",
+		// 		Condition: conditions.NewGRPC("service.v1", "GetData"),
+		// 	},
+		// 	expected: &pb.Route{
+		// 		AppId: proto.String("app2"),
+		// 		Rule: &pb.Route_Grpc{
+		// 			Grpc: &pb.GrpcRule{
+		// 				Service: proto.String("service.v1"),
+		// 				Method:  proto.String("GetData"),
+		// 			},
+		// 		},
+		// 	},
+		// },
 		{
 			name: "With Static Data",
 			route: Route{
@@ -267,16 +271,17 @@ func TestRoute_ToProto(t *testing.T) {
 				if expHttpRule.Method != nil {
 					assert.Equal(t, expHttpRule.GetMethod(), httpRule.GetMethod())
 				}
-			} else if tc.expected.GetGrpc() != nil {
-				assert.NotNil(t, actual.GetGrpc())
-				grpcRule := actual.GetGrpc()
-				expGrpcRule := tc.expected.GetGrpc()
-
-				assert.Equal(t, expGrpcRule.GetService(), grpcRule.GetService())
-
-				if expGrpcRule.Method != nil {
-					assert.Equal(t, expGrpcRule.GetMethod(), grpcRule.GetMethod())
-				}
+				// TODO: Uncomment when gRPC support is re-enabled
+				// } else if tc.expected.GetGrpc() != nil {
+				// 	assert.NotNil(t, actual.GetGrpc())
+				// 	grpcRule := actual.GetGrpc()
+				// 	expGrpcRule := tc.expected.GetGrpc()
+				//
+				// 	assert.Equal(t, expGrpcRule.GetService(), grpcRule.GetService())
+				//
+				// 	if expGrpcRule.Method != nil {
+				// 		assert.Equal(t, expGrpcRule.GetMethod(), grpcRule.GetMethod())
+				// 	}
 			}
 
 			// Check static data
@@ -339,37 +344,39 @@ func TestFromProto(t *testing.T) {
 				Condition: conditions.NewHTTP("/api/v1", "GET"),
 			},
 		},
-		{
-			name: "GRPC Service",
-			pbRoute: &pb.Route{
-				AppId: proto.String("app2"),
-				Rule: &pb.Route_Grpc{
-					Grpc: &pb.GrpcRule{
-						Service: proto.String("service.v1"),
-					},
-				},
-			},
-			expected: Route{
-				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1", ""),
-			},
-		},
-		{
-			name: "GRPC Service with Method",
-			pbRoute: &pb.Route{
-				AppId: proto.String("app2"),
-				Rule: &pb.Route_Grpc{
-					Grpc: &pb.GrpcRule{
-						Service: proto.String("service.v1"),
-						Method:  proto.String("GetData"),
-					},
-				},
-			},
-			expected: Route{
-				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1", "GetData"),
-			},
-		},
+		// TODO: Uncomment when gRPC support is re-enabled
+		// {
+		// 	name: "GRPC Service",
+		// 	pbRoute: &pb.Route{
+		// 		AppId: proto.String("app2"),
+		// 		Rule: &pb.Route_Grpc{
+		// 			Grpc: &pb.GrpcRule{
+		// 				Service: proto.String("service.v1"),
+		// 			},
+		// 		},
+		// 	},
+		// 	expected: Route{
+		// 		AppID:     "app2",
+		// 		Condition: conditions.NewGRPC("service.v1", ""),
+		// 	},
+		// },
+		// TODO: Uncomment when gRPC support is re-enabled
+		// {
+		// 	name: "GRPC Service with Method",
+		// 	pbRoute: &pb.Route{
+		// 		AppId: proto.String("app2"),
+		// 		Rule: &pb.Route_Grpc{
+		// 			Grpc: &pb.GrpcRule{
+		// 				Service: proto.String("service.v1"),
+		// 				Method:  proto.String("GetData"),
+		// 			},
+		// 		},
+		// 	},
+		// 	expected: Route{
+		// 		AppID:     "app2",
+		// 		Condition: conditions.NewGRPC("service.v1", "GetData"),
+		// 	},
+		// },
 		{
 			name: "With Static Data",
 			pbRoute: &pb.Route{
@@ -418,11 +425,12 @@ func TestFromProto(t *testing.T) {
 					assert.True(t, ok)
 					assert.Equal(t, cond.PathPrefix, actualHttp.PathPrefix)
 					assert.Equal(t, cond.Method, actualHttp.Method)
-				case conditions.GRPC:
-					actualGRPC, ok := actual.Condition.(conditions.GRPC)
-					assert.True(t, ok)
-					assert.Equal(t, cond.Service, actualGRPC.Service)
-					assert.Equal(t, cond.Method, actualGRPC.Method)
+					// TODO: Uncomment when gRPC support is re-enabled
+					// case conditions.GRPC:
+					// 	actualGRPC, ok := actual.Condition.(conditions.GRPC)
+					// 	assert.True(t, ok)
+					// 	assert.Equal(t, cond.Service, actualGRPC.Service)
+					// 	assert.Equal(t, cond.Method, actualGRPC.Method)
 				}
 			}
 

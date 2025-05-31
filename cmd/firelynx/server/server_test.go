@@ -503,7 +503,6 @@ func TestNewConfigFromBytes(t *testing.T) {
 	require.NoError(t, err, "Should create config from bytes")
 	require.NoError(t, cfg.Validate(), "Should validate config")
 	assert.Equal(t, "v1", cfg.Version)
-	assert.Equal(t, "warn", string(cfg.Logging.Level))
 	assert.Len(t, cfg.Listeners, 1)
 	assert.Len(t, cfg.Endpoints, 1)
 	assert.Len(t, cfg.Apps, 1)
