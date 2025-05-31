@@ -27,6 +27,7 @@ install: protogen
 ## protogen: Generate code from protobuf definitions
 .PHONY: protogen
 protogen: clean
+	buf lint
 	buf generate
 
 ## test: Run tests with race detection and coverage
