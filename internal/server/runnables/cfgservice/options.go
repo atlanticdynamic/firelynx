@@ -1,7 +1,6 @@
 package cfgservice
 
 import (
-	"context"
 	"log/slog"
 )
 
@@ -42,12 +41,5 @@ func WithConfigTransactionStorage(storage configTransactionStorage) Option {
 		if storage != nil {
 			r.txStorage = storage
 		}
-	}
-}
-
-// WithContext sets a custom context for the Runner instance.
-func WithContext(ctx context.Context) Option {
-	return func(r *Runner) {
-		r.parentCtx = ctx
 	}
 }

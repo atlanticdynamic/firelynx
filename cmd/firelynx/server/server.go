@@ -73,7 +73,6 @@ func Run(
 		cfgService, err := cfgservice.NewRunner(
 			listenAddr,
 			txSiphon,
-			cfgservice.WithContext(ctx),
 			cfgservice.WithLogHandler(logHandler),
 			cfgservice.WithConfigTransactionStorage(txStorage),
 		)

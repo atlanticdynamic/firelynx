@@ -404,35 +404,4 @@ func TestRun(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "gRPC server is already running")
 	})
-
-	t.Run("parent_context_cancellation", func(t *testing.T) {
-		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
-		r := h.runner
-
-		// Create a parent context that we can cancel
-		parentCtx, parentCancel := context.WithCancel(context.Background())
-		r.parentCtx = parentCtx
-
-		// Run in a goroutine
-		runErrCh := make(chan error, 1)
-		go func() {
-			runErrCh <- r.Run(t.Context())
-		}()
-
-		// Wait for server to start
-		require.Eventually(t, func() bool {
-			return r.IsRunning()
-		}, 1*time.Second, 10*time.Millisecond)
-
-		// Cancel parent context
-		parentCancel()
-
-		// Wait for Run to complete
-		select {
-		case err := <-runErrCh:
-			assert.NoError(t, err)
-		case <-time.After(200 * time.Millisecond):
-			t.Fatal("Run did not complete in time")
-		}
-	})
 }
