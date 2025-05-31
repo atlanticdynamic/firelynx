@@ -23,12 +23,12 @@ type Runner struct {
 	filePath             string
 	lastValidTransaction atomic.Pointer[transaction.ConfigTransaction]
 
-	// runCtx is passed in to Run, and is used to cancel the Run loop
-	runCtx    context.Context
-	runCancel context.CancelFunc
-	txSiphon  chan<- *transaction.ConfigTransaction
-	fsm       finitestate.Machine
-	logger    *slog.Logger
+	// ctx is passed in to Run, and is used to cancel the Run loop
+	ctx      context.Context
+	cancel   context.CancelFunc
+	txSiphon chan<- *transaction.ConfigTransaction
+	fsm      finitestate.Machine
+	logger   *slog.Logger
 }
 
 // NewRunner creates a new Runner instance used for loading cfg files from disk
@@ -49,7 +49,7 @@ func NewRunner(
 		txSiphon:             txSiphon,
 		logger:               slog.Default().WithGroup("cfgfileloader.Runner"),
 		lastValidTransaction: atomic.Pointer[transaction.ConfigTransaction]{},
-		runCtx:               context.Background(),
+		ctx:                  context.Background(),
 	}
 
 	// Apply functional options
@@ -81,7 +81,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to transition to booting state: %w", err)
 	}
 
-	r.runCtx, r.runCancel = context.WithCancel(ctx)
+	r.ctx, r.cancel = context.WithCancel(ctx)
 
 	// Load the initial configuration
 	if err := r.boot(); err != nil {
@@ -97,7 +97,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	// block here waiting for a context cancellation
-	<-r.runCtx.Done()
+	<-r.ctx.Done()
 	r.logger.Debug("Run context canceled")
 	return r.shutdown()
 }
@@ -128,7 +128,7 @@ func (r *Runner) boot() error {
 		select {
 		case r.txSiphon <- tx:
 			r.logger.Debug("Initial transaction sent to siphon", "id", tx.ID)
-		case <-r.runCtx.Done():
+		case <-r.ctx.Done():
 			r.logger.Debug("Context cancelled while sending initial transaction")
 		}
 	}()
@@ -158,7 +158,7 @@ func (r *Runner) validate(cfg *config.Config) (*transaction.ConfigTransaction, e
 // Stop implements the supervisor.Runnable interface
 func (r *Runner) Stop() {
 	r.logger.Debug("Stopping Runner")
-	r.runCancel()
+	r.cancel()
 }
 
 // shutdown performs graceful shutdown of the config file loader
@@ -233,7 +233,7 @@ func (r *Runner) Reload() {
 	select {
 	case r.txSiphon <- tx:
 		r.logger.Debug("Config changed, transaction sent to siphon", "id", tx.ID)
-	case <-r.runCtx.Done():
+	case <-r.ctx.Done():
 		r.logger.Debug("Context cancelled while sending transaction")
 	}
 }
