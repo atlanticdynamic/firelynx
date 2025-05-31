@@ -45,7 +45,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener"),
 					Address: proto.String("127.0.0.1:8080"),
-					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 30),
@@ -75,7 +75,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("grpc-listener"),
 					Address: proto.String("127.0.0.1:9090"),
-					Type:    pb.ListenerType_LISTENER_TYPE_GRPC.Enum(),
+					Type:    pb.Listener_TYPE_GRPC.Enum(),
 					ProtocolOptions: &pb.Listener_Grpc{
 						Grpc: &pb.GrpcListenerOptions{
 							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
@@ -121,7 +121,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener-1"),
 					Address: proto.String("127.0.0.1:8080"),
-					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 30),
@@ -132,7 +132,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener-2"),
 					Address: proto.String("127.0.0.1:8081"),
-					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 15),
@@ -143,7 +143,7 @@ func TestToProto(t *testing.T) {
 				{
 					Id:      proto.String("grpc-listener"),
 					Address: proto.String("127.0.0.1:9090"),
-					Type:    pb.ListenerType_LISTENER_TYPE_GRPC.Enum(),
+					Type:    pb.Listener_TYPE_GRPC.Enum(),
 					ProtocolOptions: &pb.Listener_Grpc{
 						Grpc: &pb.GrpcListenerOptions{
 							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
@@ -266,7 +266,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener"),
 					Address: proto.String("127.0.0.1:8080"),
-					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 30),
@@ -298,7 +298,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      proto.String("grpc-listener"),
 					Address: proto.String("127.0.0.1:9090"),
-					Type:    pb.ListenerType_LISTENER_TYPE_GRPC.Enum(),
+					Type:    pb.Listener_TYPE_GRPC.Enum(),
 					ProtocolOptions: &pb.Listener_Grpc{
 						Grpc: &pb.GrpcListenerOptions{
 							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
@@ -328,7 +328,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      proto.String("http-listener-1"),
 					Address: proto.String("127.0.0.1:8080"),
-					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 30),
@@ -339,7 +339,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      proto.String("grpc-listener"),
 					Address: proto.String("127.0.0.1:9090"),
-					Type:    pb.ListenerType_LISTENER_TYPE_GRPC.Enum(),
+					Type:    pb.Listener_TYPE_GRPC.Enum(),
 					ProtocolOptions: &pb.Listener_Grpc{
 						Grpc: &pb.GrpcListenerOptions{
 							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
@@ -391,7 +391,7 @@ func TestFromProto(t *testing.T) {
 				{
 					Id:      nil,
 					Address: nil,
-					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{},
 					},

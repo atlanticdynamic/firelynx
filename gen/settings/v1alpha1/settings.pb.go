@@ -23,64 +23,63 @@ const (
 )
 
 // ListenerType defines the type of listener
-type ListenerType int32
+type Listener_Type int32
 
 const (
-	ListenerType_LISTENER_TYPE_UNSPECIFIED ListenerType = 0
-	ListenerType_LISTENER_TYPE_HTTP        ListenerType = 1
-	ListenerType_LISTENER_TYPE_GRPC        ListenerType = 2
+	Listener_TYPE_UNSPECIFIED Listener_Type = 0
+	Listener_TYPE_HTTP        Listener_Type = 1
+	Listener_TYPE_GRPC        Listener_Type = 2
 )
 
-// Enum value maps for ListenerType.
+// Enum value maps for Listener_Type.
 var (
-	ListenerType_name = map[int32]string{
-		0: "LISTENER_TYPE_UNSPECIFIED",
-		1: "LISTENER_TYPE_HTTP",
-		2: "LISTENER_TYPE_GRPC",
+	Listener_Type_name = map[int32]string{
+		0: "TYPE_UNSPECIFIED",
+		1: "TYPE_HTTP",
+		2: "TYPE_GRPC",
 	}
-	ListenerType_value = map[string]int32{
-		"LISTENER_TYPE_UNSPECIFIED": 0,
-		"LISTENER_TYPE_HTTP":        1,
-		"LISTENER_TYPE_GRPC":        2,
+	Listener_Type_value = map[string]int32{
+		"TYPE_UNSPECIFIED": 0,
+		"TYPE_HTTP":        1,
+		"TYPE_GRPC":        2,
 	}
 )
 
-func (x ListenerType) Enum() *ListenerType {
-	p := new(ListenerType)
+func (x Listener_Type) Enum() *Listener_Type {
+	p := new(Listener_Type)
 	*p = x
 	return p
 }
 
-func (x ListenerType) String() string {
+func (x Listener_Type) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (ListenerType) Descriptor() protoreflect.EnumDescriptor {
+func (Listener_Type) Descriptor() protoreflect.EnumDescriptor {
 	return file_settings_v1alpha1_settings_proto_enumTypes[0].Descriptor()
 }
 
-func (ListenerType) Type() protoreflect.EnumType {
+func (Listener_Type) Type() protoreflect.EnumType {
 	return &file_settings_v1alpha1_settings_proto_enumTypes[0]
 }
 
-func (x ListenerType) Number() protoreflect.EnumNumber {
+func (x Listener_Type) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use ListenerType.Descriptor instead.
-func (ListenerType) EnumDescriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use Listener_Type.Descriptor instead.
+func (Listener_Type) EnumDescriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{1, 0}
 }
 
 // Server configuration root message
 type ServerConfig struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Version *string                `protobuf:"bytes,1,opt,name=version,def=v1" json:"version,omitempty"`
-	Logging *LogOptions            `protobuf:"bytes,2,opt,name=logging" json:"logging,omitempty"`
-	// Core components
-	Listeners     []*Listener      `protobuf:"bytes,3,rep,name=listeners" json:"listeners,omitempty"`
-	Endpoints     []*Endpoint      `protobuf:"bytes,4,rep,name=endpoints" json:"endpoints,omitempty"`
-	Apps          []*AppDefinition `protobuf:"bytes,5,rep,name=apps" json:"apps,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       *string                `protobuf:"bytes,1,opt,name=version,def=v1" json:"version,omitempty"`
+	Logging       *LogOptions            `protobuf:"bytes,2,opt,name=logging" json:"logging,omitempty"`
+	Listeners     []*Listener            `protobuf:"bytes,3,rep,name=listeners" json:"listeners,omitempty"`
+	Endpoints     []*Endpoint            `protobuf:"bytes,4,rep,name=endpoints" json:"endpoints,omitempty"`
+	Apps          []*AppDefinition       `protobuf:"bytes,5,rep,name=apps" json:"apps,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -158,9 +157,9 @@ func (x *ServerConfig) GetApps() []*AppDefinition {
 // Listener configures a protocol/socket layer service (there could be multiple)
 type Listener struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
-	Id      *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                          // unique name for this listener
-	Address *string                `protobuf:"bytes,2,opt,name=address" json:"address,omitempty"`                                // ":8080", "unix:/tmp/sock.sock", etc.
-	Type    *ListenerType          `protobuf:"varint,3,opt,name=type,enum=settings.v1alpha1.ListenerType" json:"type,omitempty"` // type of listener (HTTP, gRPC, etc.)
+	Id      *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                                 // unique name for this listener
+	Address *string                `protobuf:"bytes,2,opt,name=address" json:"address,omitempty"`                                       // ":8080", "unix:/tmp/sock.sock", etc.
+	Type    *Listener_Type         `protobuf:"varint,3,opt,name=type,enum=settings.v1alpha1.Listener_Type,def=1" json:"type,omitempty"` // type of listener (HTTP, gRPC, etc.)
 	// Protocol-specific options
 	//
 	// Types that are valid to be assigned to ProtocolOptions:
@@ -171,6 +170,11 @@ type Listener struct {
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
+
+// Default values for Listener fields.
+const (
+	Default_Listener_Type = Listener_TYPE_HTTP
+)
 
 func (x *Listener) Reset() {
 	*x = Listener{}
@@ -216,11 +220,11 @@ func (x *Listener) GetAddress() string {
 	return ""
 }
 
-func (x *Listener) GetType() ListenerType {
+func (x *Listener) GetType() Listener_Type {
 	if x != nil && x.Type != nil {
 		return *x.Type
 	}
-	return ListenerType_LISTENER_TYPE_UNSPECIFIED
+	return Default_Listener_Type
 }
 
 func (x *Listener) GetProtocolOptions() isListener_ProtocolOptions {
@@ -668,13 +672,17 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\alogging\x18\x02 \x01(\v2\x1d.settings.v1alpha1.LogOptionsR\alogging\x129\n" +
 	"\tlisteners\x18\x03 \x03(\v2\x1b.settings.v1alpha1.ListenerR\tlisteners\x129\n" +
 	"\tendpoints\x18\x04 \x03(\v2\x1b.settings.v1alpha1.EndpointR\tendpoints\x124\n" +
-	"\x04apps\x18\x05 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xf9\x01\n" +
+	"\x04apps\x18\x05 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xc1\x02\n" +
 	"\bListener\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aaddress\x18\x02 \x01(\tR\aaddress\x123\n" +
-	"\x04type\x18\x03 \x01(\x0e2\x1f.settings.v1alpha1.ListenerTypeR\x04type\x12<\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\x12?\n" +
+	"\x04type\x18\x03 \x01(\x0e2 .settings.v1alpha1.Listener.Type:\tTYPE_HTTPR\x04type\x12<\n" +
 	"\x04http\x18\x04 \x01(\v2&.settings.v1alpha1.HttpListenerOptionsH\x00R\x04http\x12<\n" +
-	"\x04grpc\x18\x05 \x01(\v2&.settings.v1alpha1.GrpcListenerOptionsH\x00R\x04grpcB\x12\n" +
+	"\x04grpc\x18\x05 \x01(\v2&.settings.v1alpha1.GrpcListenerOptionsH\x00R\x04grpc\":\n" +
+	"\x04Type\x12\x14\n" +
+	"\x10TYPE_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tTYPE_HTTP\x10\x01\x12\r\n" +
+	"\tTYPE_GRPC\x10\x02B\x12\n" +
 	"\x10protocol_options\"\x91\x02\n" +
 	"\x13HttpListenerOptions\x12<\n" +
 	"\fread_timeout\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vreadTimeout\x12>\n" +
@@ -703,11 +711,7 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\x06method\x18\x02 \x01(\tR\x06method\"<\n" +
 	"\bGrpcRule\x12\x18\n" +
 	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
-	"\x06method\x18\x02 \x01(\tR\x06method*]\n" +
-	"\fListenerType\x12\x1d\n" +
-	"\x19LISTENER_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
-	"\x12LISTENER_TYPE_HTTP\x10\x01\x12\x16\n" +
-	"\x12LISTENER_TYPE_GRPC\x10\x02B;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
+	"\x06method\x18\x02 \x01(\tR\x06methodB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_settings_proto_rawDescOnce sync.Once
@@ -724,7 +728,7 @@ func file_settings_v1alpha1_settings_proto_rawDescGZIP() []byte {
 var file_settings_v1alpha1_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_settings_v1alpha1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_settings_v1alpha1_settings_proto_goTypes = []any{
-	(ListenerType)(0),           // 0: settings.v1alpha1.ListenerType
+	(Listener_Type)(0),          // 0: settings.v1alpha1.Listener.Type
 	(*ServerConfig)(nil),        // 1: settings.v1alpha1.ServerConfig
 	(*Listener)(nil),            // 2: settings.v1alpha1.Listener
 	(*HttpListenerOptions)(nil), // 3: settings.v1alpha1.HttpListenerOptions
@@ -743,7 +747,7 @@ var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
 	2,  // 1: settings.v1alpha1.ServerConfig.listeners:type_name -> settings.v1alpha1.Listener
 	5,  // 2: settings.v1alpha1.ServerConfig.endpoints:type_name -> settings.v1alpha1.Endpoint
 	10, // 3: settings.v1alpha1.ServerConfig.apps:type_name -> settings.v1alpha1.AppDefinition
-	0,  // 4: settings.v1alpha1.Listener.type:type_name -> settings.v1alpha1.ListenerType
+	0,  // 4: settings.v1alpha1.Listener.type:type_name -> settings.v1alpha1.Listener.Type
 	3,  // 5: settings.v1alpha1.Listener.http:type_name -> settings.v1alpha1.HttpListenerOptions
 	4,  // 6: settings.v1alpha1.Listener.grpc:type_name -> settings.v1alpha1.GrpcListenerOptions
 	11, // 7: settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration

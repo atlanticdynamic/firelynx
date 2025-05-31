@@ -20,11 +20,11 @@
       "anyOf": [
         {
           "enum": [
-            "LISTENER_TYPE_UNSPECIFIED",
-            "LISTENER_TYPE_HTTP",
-            "LISTENER_TYPE_GRPC"
+            "TYPE_UNSPECIFIED",
+            "TYPE_HTTP",
+            "TYPE_GRPC"
           ],
-          "title": "Listener Type",
+          "title": "Type",
           "type": "string"
         },
         {

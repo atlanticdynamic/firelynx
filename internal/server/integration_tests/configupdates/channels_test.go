@@ -115,7 +115,7 @@ func TestConfigChannels_BasicFlow(t *testing.T) {
 			{
 				Id:      proto.String("test_listener"),
 				Address: proto.String(":8080"),
-				Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+				Type:    pb.Listener_TYPE_HTTP.Enum(),
 				ProtocolOptions: &pb.Listener_Http{
 					Http: &pb.HttpListenerOptions{},
 				},
@@ -220,7 +220,7 @@ func TestConfigChannels_MultipleUpdates(t *testing.T) {
 				{
 					Id:      proto.String("test_listener_" + string(rune('1'+i))),
 					Address: proto.String(":808" + string(rune('0'+i))),
-					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{},
 					},

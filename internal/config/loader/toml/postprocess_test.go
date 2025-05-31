@@ -15,26 +15,26 @@ func TestProcessListenerType(t *testing.T) {
 	tests := []struct {
 		name           string
 		typeStr        string
-		expectedType   pbSettings.ListenerType
+		expectedType   pbSettings.Listener_Type
 		expectError    bool
 		expectedErrMsg string
 	}{
 		{
 			name:         "HTTP Listener Type",
 			typeStr:      "http",
-			expectedType: pbSettings.ListenerType_LISTENER_TYPE_HTTP,
+			expectedType: pbSettings.Listener_TYPE_HTTP,
 			expectError:  false,
 		},
 		{
 			name:         "gRPC Listener Type",
 			typeStr:      "grpc",
-			expectedType: pbSettings.ListenerType_LISTENER_TYPE_GRPC,
+			expectedType: pbSettings.Listener_TYPE_GRPC,
 			expectError:  false,
 		},
 		{
 			name:           "Unsupported Listener Type",
 			typeStr:        "websocket",
-			expectedType:   pbSettings.ListenerType_LISTENER_TYPE_UNSPECIFIED,
+			expectedType:   pbSettings.Listener_TYPE_UNSPECIFIED,
 			expectError:    true,
 			expectedErrMsg: "unsupported listener type: websocket",
 		},
@@ -120,13 +120,13 @@ func TestProcessListeners(t *testing.T) {
 		// Check that types were set correctly
 		assert.Equal(
 			t,
-			pbSettings.ListenerType_LISTENER_TYPE_HTTP,
+			pbSettings.Listener_TYPE_HTTP,
 			config.Listeners[0].GetType(),
 			"First listener should be HTTP",
 		)
 		assert.Equal(
 			t,
-			pbSettings.ListenerType_LISTENER_TYPE_GRPC,
+			pbSettings.Listener_TYPE_GRPC,
 			config.Listeners[1].GetType(),
 			"Second listener should be gRPC",
 		)
@@ -185,12 +185,12 @@ func TestProcessListeners(t *testing.T) {
 		errs := processListeners(config, configMap)
 		assert.Empty(t, errs, "Should not return errors for missing type field")
 
-		// Type should not be set in the listener
+		// Type should not be set in the listener, so it returns the default
 		assert.Equal(
 			t,
-			pbSettings.ListenerType_LISTENER_TYPE_UNSPECIFIED,
+			pbSettings.Listener_TYPE_HTTP,
 			config.Listeners[0].GetType(),
-			"Type should be unspecified",
+			"Type should be default (HTTP)",
 		)
 	})
 
@@ -229,7 +229,7 @@ func TestProcessListeners(t *testing.T) {
 		// Check that type was set for the first listener only
 		assert.Equal(
 			t,
-			pbSettings.ListenerType_LISTENER_TYPE_HTTP,
+			pbSettings.Listener_TYPE_HTTP,
 			config.Listeners[0].GetType(),
 			"First listener should be HTTP",
 		)
@@ -256,12 +256,12 @@ func TestProcessListeners(t *testing.T) {
 		errs := processListeners(config, configMap)
 		assert.Empty(t, errs, "Did not expect errors")
 
-		// Type should not be set in the listener
+		// Type should not be set in the listener, so it returns the default
 		assert.Equal(
 			t,
-			pbSettings.ListenerType_LISTENER_TYPE_UNSPECIFIED,
+			pbSettings.Listener_TYPE_HTTP,
 			config.Listeners[0].GetType(),
-			"Type should still be unspecified",
+			"Type should be default (HTTP)",
 		)
 	})
 }
