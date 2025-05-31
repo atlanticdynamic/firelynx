@@ -16,11 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Define a custom type for context keys to avoid collisions
-type contextKey string
-
-const testContextKey contextKey = "test"
-
 // For testing only - a minimal config
 func mockConfig() *config.Config {
 	return &config.Config{
@@ -87,13 +82,6 @@ func TestNewRunner(t *testing.T) {
 		// The logger should be set (can't easily verify internals but we know it's set)
 	})
 
-	t.Run("with custom context", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), testContextKey, "value")
-		runner, err := NewRunner(WithContext(ctx))
-		assert.NoError(t, err)
-		assert.NotNil(t, runner)
-	})
-
 	t.Run("with custom handler", func(t *testing.T) {
 		handler := slog.Default().Handler()
 		runner, err := NewRunner(WithLogHandler(handler))
@@ -108,10 +96,8 @@ func TestNewRunner(t *testing.T) {
 	})
 
 	t.Run("with multiple options", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), testContextKey, "value")
 		logger := slog.Default().With("test", "logger")
 		runner, err := NewRunner(
-			WithContext(ctx),
 			WithLogger(logger),
 		)
 		assert.NoError(t, err)
