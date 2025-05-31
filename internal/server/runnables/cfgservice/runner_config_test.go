@@ -237,7 +237,7 @@ func TestUpdateConfig(t *testing.T) {
 				{
 					Id:      &listenerId,
 					Address: &listenerAddr,
-					Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{},
 					},
@@ -319,7 +319,7 @@ func TestUpdateConfig(t *testing.T) {
 					{
 						Id:      proto.String("listener_A"),
 						Address: proto.String(":8080"),
-						Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+						Type:    pb.Listener_TYPE_HTTP.Enum(),
 						ProtocolOptions: &pb.Listener_Http{
 							Http: &pb.HttpListenerOptions{},
 						},
@@ -332,7 +332,7 @@ func TestUpdateConfig(t *testing.T) {
 					{
 						Id:      proto.String("listener_B"),
 						Address: proto.String(":8081"),
-						Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+						Type:    pb.Listener_TYPE_HTTP.Enum(),
 						ProtocolOptions: &pb.Listener_Http{
 							Http: &pb.HttpListenerOptions{},
 						},
@@ -415,7 +415,7 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 			{
 				Id:      proto.String("test_listener"),
 				Address: proto.String(":8080"),
-				Type:    pb.ListenerType_LISTENER_TYPE_HTTP.Enum(),
+				Type:    pb.Listener_TYPE_HTTP.Enum(),
 				ProtocolOptions: &pb.Listener_Http{
 					Http: &pb.HttpListenerOptions{},
 				},

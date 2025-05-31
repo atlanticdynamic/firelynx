@@ -23,7 +23,7 @@ func (listeners ListenerCollection) ToProto() []*pb.Listener {
 		}
 
 		// Convert the listener type
-		pbType := pb.ListenerType(l.Type)
+		pbType := pb.Listener_Type(l.Type)
 		pbListener.Type = &pbType
 
 		// Convert options

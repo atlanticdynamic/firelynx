@@ -13,25 +13,23 @@ option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 message ServerConfig {
   string version = 1 [default = "v1"];
   LogOptions logging = 2;
-
-  // Core components
   repeated Listener listeners = 3;
   repeated Endpoint endpoints = 4;
   repeated AppDefinition apps = 5;
 }
 
-// ListenerType defines the type of listener
-enum ListenerType {
-  LISTENER_TYPE_UNSPECIFIED = 0;
-  LISTENER_TYPE_HTTP = 1;
-  LISTENER_TYPE_GRPC = 2;
-}
-
 // Listener configures a protocol/socket layer service (there could be multiple)
 message Listener {
+  // ListenerType defines the type of listener
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_HTTP = 1;
+    TYPE_GRPC = 2;
+  }
+
   string id = 1; // unique name for this listener
   string address = 2; // ":8080", "unix:/tmp/sock.sock", etc.
-  ListenerType type = 3; // type of listener (HTTP, gRPC, etc.)
+  Type type = 3 [default = TYPE_HTTP]; // type of listener (HTTP, gRPC, etc.)
 
   // Protocol-specific options
   oneof protocol_options {
@@ -60,7 +58,6 @@ message Endpoint {
   string id = 1; // unique name for this endpoint
   string listener_id = 2; // listener this endpoint is attached to
   repeated Route routes = 3; // routes that direct traffic to apps
-  // TODO: add authentication, rate limiting, etc.
 }
 
 // Route defines a rule for directing traffic from an endpoint to an app

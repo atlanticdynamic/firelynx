@@ -63,16 +63,16 @@ func processListeners(config *pbSettings.ServerConfig, configMap map[string]any)
 
 // processListenerType sets the listener type from string to enum
 func processListenerType(listener *pbSettings.Listener, typeVal string) []error {
-	var listenerType pbSettings.ListenerType
+	var listenerType pbSettings.Listener_Type
 	var errList []error
 
 	switch typeVal {
 	case "http":
-		listenerType = pbSettings.ListenerType_LISTENER_TYPE_HTTP
+		listenerType = pbSettings.Listener_TYPE_HTTP
 	case "grpc":
-		listenerType = pbSettings.ListenerType_LISTENER_TYPE_GRPC
+		listenerType = pbSettings.Listener_TYPE_GRPC
 	default:
-		listenerType = pbSettings.ListenerType_LISTENER_TYPE_UNSPECIFIED
+		listenerType = pbSettings.Listener_TYPE_UNSPECIFIED
 		errList = append(errList, fmt.Errorf("%w: %s", errz.ErrUnsupportedListenerType, typeVal))
 	}
 	listener.Type = &listenerType
