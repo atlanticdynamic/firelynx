@@ -60,7 +60,6 @@ func Run(
 		cfgFileLoader, err := cfgfileloader.NewRunner(
 			configPath,
 			txSiphon,
-			cfgfileloader.WithContext(ctx),
 			cfgfileloader.WithLogHandler(logHandler),
 		)
 		if err != nil {

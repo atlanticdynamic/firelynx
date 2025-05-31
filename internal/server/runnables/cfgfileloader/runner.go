@@ -26,7 +26,6 @@ type Runner struct {
 	// runCtx is passed in to Run, and is used to cancel the Run loop
 	runCtx    context.Context
 	runCancel context.CancelFunc
-	parentCtx context.Context
 	txSiphon  chan<- *transaction.ConfigTransaction
 	fsm       finitestate.Machine
 	logger    *slog.Logger
@@ -50,7 +49,6 @@ func NewRunner(
 		txSiphon:             txSiphon,
 		logger:               slog.Default().WithGroup("cfgfileloader.Runner"),
 		lastValidTransaction: atomic.Pointer[transaction.ConfigTransaction]{},
-		parentCtx:            context.Background(),
 		runCtx:               context.Background(),
 	}
 
@@ -99,13 +97,8 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	// block here waiting for a context cancellation
-	select {
-	case <-r.parentCtx.Done():
-		r.logger.Debug("Parent context canceled")
-	case <-r.runCtx.Done():
-		r.logger.Debug("Run context canceled")
-	}
-
+	<-r.runCtx.Done()
+	r.logger.Debug("Run context canceled")
 	return r.shutdown()
 }
 

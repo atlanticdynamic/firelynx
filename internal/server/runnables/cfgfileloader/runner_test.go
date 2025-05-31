@@ -82,20 +82,14 @@ func TestNewRunner(t *testing.T) {
 		assert.Contains(t, h.runner.filePath, validConfigFilename)
 		assert.NotNil(t, h.runner.logger)
 		assert.NotNil(t, h.runner.fsm)
-		assert.Equal(t, context.Background(), h.runner.parentCtx)
 	})
 
 	t.Run("applies custom options", func(t *testing.T) {
-		type testKey string
-		customLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-		customCtx := context.WithValue(context.Background(), testKey("test"), "value")
-
+		l := slog.Default()
 		h := newTestHarness(t, "/test/path",
-			WithLogger(customLogger),
-			WithContext(customCtx),
+			WithLogger(l),
 		)
-		assert.Equal(t, customLogger, h.runner.logger)
-		assert.Equal(t, customCtx, h.runner.parentCtx)
+		assert.Equal(t, l, h.runner.logger)
 	})
 
 	t.Run("errors on nil siphon", func(t *testing.T) {
