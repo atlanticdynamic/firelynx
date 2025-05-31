@@ -2,7 +2,6 @@ package toml
 
 import (
 	"embed"
-	"fmt"
 	"testing"
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
@@ -19,10 +18,6 @@ func TestTomlLoader_Basic(t *testing.T) {
 	t.Run("SimpleConfig", func(t *testing.T) {
 		loader := NewTomlLoader([]byte(`
 version = "v1"
-
-[logging]
-format = "txt"
-level = "debug"
 `))
 
 		config, err := loader.LoadProto()
@@ -31,11 +26,6 @@ level = "debug"
 
 		// Basic validation
 		assert.Equal(t, "v1", config.GetVersion(), "Expected version 'v1'")
-
-		// Check logging options
-		require.NotNil(t, config.Logging, "Logging config should not be nil")
-		assert.Equal(t, int32(1), int32(config.Logging.GetFormat()), "Expected TXT format")
-		assert.Equal(t, int32(1), int32(config.Logging.GetLevel()), "Expected DEBUG level")
 	})
 
 	// Test invalid TOML
@@ -62,10 +52,6 @@ version = "v1"
 	t.Run("UnsupportedVersion", func(t *testing.T) {
 		loader := NewTomlLoader([]byte(`
 version = "v2"
-
-[logging]
-format = "txt"
-level = "debug"
 `))
 
 		_, err := loader.LoadProto()
@@ -77,11 +63,10 @@ level = "debug"
 	// Test default version when none specified
 	t.Run("DefaultVersion", func(t *testing.T) {
 		loader := NewTomlLoader([]byte(`
-# No version specified
-
-[logging]
-format = "txt"
-level = "debug"
+# Config with no explicit version - should default to v1
+listeners = []
+endpoints = []
+apps = []
 `))
 
 		config, err := loader.LoadProto()
@@ -103,101 +88,6 @@ func TestTomlLoader_GetProtoConfig(t *testing.T) {
 	config := loader.GetProtoConfig()
 	assert.NotNil(t, config, "GetProtoConfig should return a non-nil config")
 	assert.Equal(t, "v1", config.GetVersion(), "Expected version 'v1'")
-}
-
-// TestTomlLoader_LogFormatsAndLevels tests the post-processing of log formats and levels
-func TestTomlLoader_LogFormatsAndLevels(t *testing.T) {
-	formats := []string{"json", "txt", "text"}
-	levels := []string{"debug", "info", "warn", "warning", "error", "fatal"}
-
-	for _, format := range formats {
-		for _, level := range levels {
-			tomlData := []byte(fmt.Sprintf(`
-version = "v1"
-
-[logging]
-format = "%s"
-level = "%s"
-`, format, level))
-
-			loader := NewTomlLoader(tomlData)
-			config, err := loader.LoadProto()
-
-			if level == "warning" {
-				// "warning" should be treated as "warn"
-				level = "warn"
-			}
-
-			formatName := format
-			if format == "text" {
-				// "text" should be treated as "txt"
-				formatName = "txt"
-			}
-
-			require.NoError(
-				t,
-				err,
-				"Failed to load config with format=%s, level=%s",
-				format,
-				level,
-			)
-			require.NotNil(t, config.Logging, "Logging config should not be nil")
-
-			expectedFormatMsg := fmt.Sprintf(
-				"Expected %s format for input '%s'",
-				formatName,
-				format,
-			)
-			expectedLevelMsg := fmt.Sprintf("Expected %s level for input '%s'", level, level)
-
-			// Check that formats and levels were correctly processed
-			switch formatName {
-			case "json":
-				assert.Equal(t, int32(2), int32(config.Logging.GetFormat()), expectedFormatMsg)
-			case "txt":
-				assert.Equal(t, int32(1), int32(config.Logging.GetFormat()), expectedFormatMsg)
-			}
-
-			switch level {
-			case "debug":
-				assert.Equal(t, int32(1), int32(config.Logging.GetLevel()), expectedLevelMsg)
-			case "info":
-				assert.Equal(t, int32(2), int32(config.Logging.GetLevel()), expectedLevelMsg)
-			case "warn":
-				assert.Equal(t, int32(3), int32(config.Logging.GetLevel()), expectedLevelMsg)
-			case "error":
-				assert.Equal(t, int32(4), int32(config.Logging.GetLevel()), expectedLevelMsg)
-			case "fatal":
-				assert.Equal(t, int32(5), int32(config.Logging.GetLevel()), expectedLevelMsg)
-			}
-		}
-	}
-
-	// Test invalid format and level
-	t.Run("InvalidFormatAndLevel", func(t *testing.T) {
-		loader := NewTomlLoader([]byte(`
-version = "v1"
-
-[logging]
-format = "invalid"
-level = "invalid"
-`))
-
-		_, err := loader.LoadProto()
-		require.Error(t, err, "Expected error for invalid format and level")
-		assert.Contains(
-			t,
-			err.Error(),
-			"unsupported log format: invalid",
-			"Error should indicate invalid format",
-		)
-		assert.Contains(
-			t,
-			err.Error(),
-			"unsupported log level: invalid",
-			"Error should indicate invalid level",
-		)
-	})
 }
 
 // TestTomlLoader_ListenerOptions tests the parsing of protocol options for listeners
@@ -367,7 +257,7 @@ func TestTomlLoader_MultipleRouteTypes(t *testing.T) {
 	assert.Equal(t, "mixed_endpoint", endpoint.GetId(), "Wrong endpoint ID")
 
 	// Check all routes
-	require.Len(t, endpoint.Routes, 2, "Should have 2 HTTP routes")
+	require.Len(t, endpoint.Routes, 2, "Should have 2 routes")
 
 	// Count HTTP routes
 	httpCount := 0
@@ -381,7 +271,7 @@ func TestTomlLoader_MultipleRouteTypes(t *testing.T) {
 			t.Logf("  HTTP path: %q", *httpRule.PathPrefix)
 			assert.Contains(
 				t,
-				[]string{"/echo1", "/api/v3"},
+				[]string{"/echo1", "/echo2"},
 				*httpRule.PathPrefix,
 				"Unexpected HTTP path prefix",
 			)
@@ -654,19 +544,19 @@ version = "v1"
 
 	// Test post-processing error
 	t.Run("PostProcessError", func(t *testing.T) {
-		// Create a simple loader
+		// Create a loader with invalid listener type
 		loader := NewTomlLoader([]byte(`
 version = "v1"
 
-[logging]
-format = "invalid"
-level = "invalid"
+[[listeners]]
+id = "test"
+address = ":8080"
+type = "invalid"
 `))
 
 		// Loading should fail due to validation errors
 		_, err := loader.LoadProto()
 		require.Error(t, err, "Expected error for post-processing")
-		assert.Contains(t, err.Error(), "unsupported log format: invalid")
-		assert.Contains(t, err.Error(), "unsupported log level: invalid")
+		assert.Contains(t, err.Error(), "unsupported listener type: invalid")
 	})
 }

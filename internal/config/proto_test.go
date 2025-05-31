@@ -15,7 +15,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
-	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -31,7 +30,6 @@ func TestEmptyConfigToProto(t *testing.T) {
 
 	// Check default values
 	assert.Equal(t, "", *pbConfig.Version, "Empty config should have empty version")
-	assert.Nil(t, pbConfig.Logging, "Empty config should have nil logging")
 	assert.Empty(t, pbConfig.Listeners, "Empty config should have no listeners")
 	assert.Empty(t, pbConfig.Endpoints, "Empty config should have no endpoints")
 	assert.Empty(t, pbConfig.Apps, "Empty config should have no apps")
@@ -80,10 +78,6 @@ func TestFullConfigToProto(t *testing.T) {
 	// Create a config with all component types
 	config := &Config{
 		Version: "v1alpha1",
-		Logging: logs.Config{
-			Format: logs.FormatJSON,
-			Level:  logs.LevelInfo,
-		},
 		Listeners: listeners.ListenerCollection{
 			{
 				ID:      "http-listener",
@@ -128,11 +122,6 @@ func TestFullConfigToProto(t *testing.T) {
 	// Verify version
 	assert.Equal(t, "v1alpha1", *pbConfig.Version)
 
-	// Verify logging
-	require.NotNil(t, pbConfig.Logging)
-	assert.Equal(t, pb.LogFormat_LOG_FORMAT_JSON, pbConfig.Logging.GetFormat())
-	assert.Equal(t, pb.LogLevel_LOG_LEVEL_INFO, pbConfig.Logging.GetLevel())
-
 	// Verify listeners
 	require.Len(t, pbConfig.Listeners, 1)
 
@@ -171,10 +160,6 @@ func TestFullConfigRoundTrip(t *testing.T) {
 	// Create a config with all component types
 	originalConfig := &Config{
 		Version: "v1alpha1",
-		Logging: logs.Config{
-			Format: logs.FormatJSON,
-			Level:  logs.LevelInfo,
-		},
 		Listeners: listeners.ListenerCollection{
 			{
 				ID:      "http-listener",
@@ -216,10 +201,6 @@ func TestFullConfigRoundTrip(t *testing.T) {
 
 	// Verify the round-trip conversion preserved all values
 	assert.Equal(t, originalConfig.Version, resultConfig.Version)
-
-	// Verify logging
-	assert.Equal(t, originalConfig.Logging.Format, resultConfig.Logging.Format)
-	assert.Equal(t, originalConfig.Logging.Level, resultConfig.Logging.Level)
 
 	// Verify listeners
 	require.Len(t, resultConfig.Listeners, 1)

@@ -8,17 +8,12 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
-	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 )
 
 // ToProto converts the domain Config to a protobuf ServerConfig
 func (c *Config) ToProto() *pb.ServerConfig {
 	config := &pb.ServerConfig{
 		Version: &c.Version,
-	}
-
-	if c.Logging.Format != "" || c.Logging.Level != "" {
-		config.Logging = c.Logging.ToProto()
 	}
 
 	config.Listeners = c.Listeners.ToProto()
@@ -42,11 +37,6 @@ func fromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	config := &Config{
 		Version:  *pbConfig.Version,
 		rawProto: pbConfig,
-	}
-
-	// Convert logging config
-	if pbConfig.Logging != nil {
-		config.Logging = logs.FromProto(pbConfig.Logging)
 	}
 
 	// Convert listeners using the listeners package's FromProto method

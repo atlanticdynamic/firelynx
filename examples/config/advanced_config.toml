@@ -1,10 +1,6 @@
 # Sample firelynx configuration file
 version = "v1"
 
-[logging]
-level = "info"
-format = "json"
-
 # --- Listeners ---
 
 [[listeners]]
@@ -50,16 +46,6 @@ path_prefix = "/api/v1/products"
 app_id = "order-processor"
 [endpoints.routes.http]
 path_prefix = "/api/v1/orders"
-
-[[endpoints]]
-id = "internal-services"
-listener_id = "http-internal"
-
-# Route HTTP path '/api/internal/inventory' to inventory-app
-[[endpoints.routes]]
-app_id = "inventory-app"
-[endpoints.routes.http]
-path_prefix = "/api/internal/inventory"
 
 # --- Applications ---
 

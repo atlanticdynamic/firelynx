@@ -74,10 +74,4 @@ var (
 
 	// ErrInvalidEndpointFormat is returned when an endpoint has invalid format
 	ErrInvalidEndpointFormat = errors.New("invalid endpoint format")
-
-	// ErrUnsupportedLogFormat is returned when a log format is unsupported
-	ErrUnsupportedLogFormat = errors.New("unsupported log format")
-
-	// ErrUnsupportedLogLevel is returned when a log level is unsupported
-	ErrUnsupportedLogLevel = errors.New("unsupported log level")
 )

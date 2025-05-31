@@ -23,7 +23,7 @@ path_prefix = "/echo1"
 [[endpoints.routes]]
 app_id = "http_app"
 [endpoints.routes.http]
-path_prefix = "/api/v3"
+path_prefix = "/echo2"
 
 [[apps]]
 id = "echo_app"
@@ -33,4 +33,4 @@ response = "Test response"
 [[apps]]
 id = "http_app"
 [apps.echo]
-response = "HTTP response"
+response = "Another response"

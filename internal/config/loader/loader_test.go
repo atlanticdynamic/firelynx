@@ -20,10 +20,6 @@ func TestNewLoaderFromFilePath(t *testing.T) {
 	// Write a simple test configuration
 	testConfig := `
 version = "v1"
-
-[logging]
-format = "json"
-level = "info"
 `
 	err := os.WriteFile(configPath, []byte(testConfig), 0o644)
 	require.NoError(t, err, "Failed to write test config file")
@@ -39,9 +35,6 @@ level = "info"
 
 		// Basic validation
 		assert.Equal(t, "v1", config.GetVersion(), "Expected version 'v1'")
-		require.NotNil(t, config.Logging, "Logging config should not be nil")
-		assert.Equal(t, int32(2), int32(config.Logging.GetFormat()), "Expected JSON format")
-		assert.Equal(t, int32(2), int32(config.Logging.GetLevel()), "Expected INFO level")
 	})
 
 	// Test file not found
@@ -73,10 +66,6 @@ func TestNewLoaderFromReader(t *testing.T) {
 		tomlConfig := `
 version = "v1"
 
-[logging]
-format = "json"
-level = "info"
-
 [[listeners]]
 id = "reader_listener"
 address = ":9090"
@@ -96,9 +85,6 @@ address = ":9090"
 		assert.Equal(t, "v1", config.GetVersion(), "Expected version 'v1'")
 
 		// Check logging options
-		require.NotNil(t, config.Logging, "Logging config should not be nil")
-		assert.Equal(t, int32(2), int32(config.Logging.GetFormat()), "Expected JSON format")
-		assert.Equal(t, int32(2), int32(config.Logging.GetLevel()), "Expected INFO level")
 
 		// Check listener
 		require.Len(t, config.Listeners, 1, "Expected 1 listener")
@@ -134,10 +120,6 @@ func TestNewLoaderFromBytes(t *testing.T) {
 	t.Run("ValidBytes", func(t *testing.T) {
 		configBytes := []byte(`
 version = "v1"
-
-[logging]
-format = "txt"
-level = "debug"
 `)
 
 		loader, err := NewLoaderFromBytes(configBytes, func(data []byte) Loader {
@@ -152,11 +134,6 @@ level = "debug"
 
 		// Basic validation
 		assert.Equal(t, "v1", config.GetVersion(), "Expected version 'v1'")
-
-		// Check logging options
-		require.NotNil(t, config.Logging, "Logging config should not be nil")
-		assert.Equal(t, int32(1), int32(config.Logging.GetFormat()), "Expected TXT format")
-		assert.Equal(t, int32(1), int32(config.Logging.GetLevel()), "Expected DEBUG level")
 	})
 }
 
