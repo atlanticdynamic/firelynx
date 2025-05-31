@@ -56,9 +56,7 @@ func NewRunner(options ...Option) (*Runner, error) {
 
 	// Create httpcluster with default unbuffered siphon channel
 	cluster, err := httpcluster.NewRunner(
-		httpcluster.WithContext(r.parentCtx),
 		httpcluster.WithLogger(r.logger.WithGroup("cluster")),
-		// Siphon buffer defaults to 0 (unbuffered)
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create httpcluster runner: %w", err)
