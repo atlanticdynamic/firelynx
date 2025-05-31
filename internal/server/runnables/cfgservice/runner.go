@@ -43,13 +43,12 @@ type Runner struct {
 	// Transaction storage for configuration history
 	txStorage configTransactionStorage
 
-	// runCtx is passed in to Run, and is used to cancel the Run loop
-	runCtx    context.Context
-	runCancel context.CancelFunc
-	parentCtx context.Context
-	txSiphon  chan<- *transaction.ConfigTransaction
-	fsm       finitestate.Machine
-	logger    *slog.Logger
+	// ctx is passed in to Run, and is used to cancel the Run loop
+	ctx      context.Context
+	cancel   context.CancelFunc
+	txSiphon chan<- *transaction.ConfigTransaction
+	fsm      finitestate.Machine
+	logger   *slog.Logger
 }
 
 // NewRunner creates a new Runner instance with required listenAddr and transaction siphon.
@@ -68,7 +67,6 @@ func NewRunner(
 	r := &Runner{
 		listenAddr: listenAddr,
 		txSiphon:   txSiphon,
-		parentCtx:  context.Background(),
 		logger:     slog.Default().WithGroup("cfgservice.Runner"),
 	}
 
@@ -110,7 +108,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		return fmt.Errorf("failed to transition to booting state: %w", err)
 	}
 
-	r.runCtx, r.runCancel = context.WithCancel(ctx)
+	r.ctx, r.cancel = context.WithCancel(ctx)
 
 	r.grpcLock.RLock()
 	grpcServer := r.grpcServer
@@ -151,12 +149,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	// block here waiting for a context cancellation
-	select {
-	case <-r.runCtx.Done():
-		// context was canceled, so we're done
-	case <-r.parentCtx.Done():
-		// parent context was canceled, so we're done
-	}
+	<-r.ctx.Done()
 
 	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
 		return fmt.Errorf("failed to transition to stopping state: %w", err)
@@ -187,8 +180,8 @@ func (r *Runner) Stop() {
 	r.logger.Debug("Stopping Runner")
 
 	// Cancel the context and let Run() handle the state transitions
-	if r.runCancel != nil {
-		r.runCancel()
+	if r.cancel != nil {
+		r.cancel()
 	}
 }
 
@@ -291,14 +284,6 @@ func (r *Runner) UpdateConfig(
 		logger.Debug("Transaction sent to siphon", "id", tx.ID)
 	case <-ctx.Done():
 		logger.Warn("Context cancelled while sending transaction", "id", tx.ID)
-		success := false
-		return &pb.UpdateConfigResponse{
-			Success: &success,
-			Error:   proto.String("context cancelled"),
-			Config:  req.Config,
-		}, nil
-	case <-r.parentCtx.Done():
-		logger.Warn("Parent context cancelled while sending transaction", "id", tx.ID)
 		success := false
 		return &pb.UpdateConfigResponse{
 			Success: &success,

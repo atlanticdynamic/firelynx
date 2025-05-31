@@ -20,10 +20,9 @@ type Runner struct {
 	configMgr *cfg.Manager
 	logger    *slog.Logger
 
-	runCtx    context.Context
-	runCancel context.CancelFunc
-	parentCtx context.Context
-	mutex     sync.RWMutex
+	ctx    context.Context
+	cancel context.CancelFunc
+	mutex  sync.RWMutex
 
 	// Configuration options
 	siphonTimeout       time.Duration
@@ -41,7 +40,6 @@ var (
 func NewRunner(options ...Option) (*Runner, error) {
 	r := &Runner{
 		logger:              slog.Default().WithGroup("http.Runner"),
-		parentCtx:           context.Background(),
 		siphonTimeout:       60 * time.Second, // timeout for sending config through cluster siphon channel
 		clusterReadyTimeout: 30 * time.Second, // timeout for waiting for cluster to become ready
 	}
@@ -74,12 +72,11 @@ func (r *Runner) String() string {
 // Run starts the HTTP cluster runner
 func (r *Runner) Run(ctx context.Context) error {
 	r.logger.Debug("Starting HTTP runner")
-	r.mutex.Lock()
-
 	ctx, ctxCancel := context.WithCancel(ctx)
 	defer ctxCancel()
-	r.runCtx = ctx
-	r.runCancel = ctxCancel
+	r.mutex.Lock()
+	r.ctx = ctx
+	r.cancel = ctxCancel
 
 	// The httpcluster will start with no servers and wait for configuration
 	go func() {
@@ -108,8 +105,8 @@ func (r *Runner) Stop() {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	if r.runCancel != nil {
-		r.runCancel()
+	if r.cancel != nil {
+		r.cancel()
 	}
 }
 

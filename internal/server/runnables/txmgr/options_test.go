@@ -1,7 +1,6 @@
 package txmgr
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -55,29 +54,4 @@ func TestWithLogger(t *testing.T) {
 
 	// Logger should remain unchanged
 	assert.Equal(t, originalLogger, r.logger)
-}
-
-func TestWithContext(t *testing.T) {
-	// Create a context
-	ctx := context.Background()
-
-	// Create a runner with this option
-	r := &Runner{}
-	opt := WithContext(ctx)
-	err := opt(r)
-	assert.NoError(t, err)
-
-	// Verify the context was set
-	assert.NotNil(t, r.parentCtx)
-	assert.Equal(t, ctx, r.parentCtx)
-
-	// Test with nil context (shouldn't change anything)
-	r = &Runner{} // Reset
-	var n context.Context = nil
-	opt = WithContext(n)
-	err = opt(r)
-	assert.NoError(t, err)
-
-	// Context should not be set
-	assert.Nil(t, r.parentCtx)
 }

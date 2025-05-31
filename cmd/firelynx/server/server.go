@@ -43,7 +43,6 @@ func Run(
 	// Create the transaction manager, which has a transaction "siphon" channel
 	txMan, err := txmgr.NewRunner(
 		txmgrOrchestrator,
-		txmgr.WithContext(ctx),
 		txmgr.WithLogHandler(logHandler),
 	)
 	if err != nil {
@@ -61,7 +60,6 @@ func Run(
 		cfgFileLoader, err := cfgfileloader.NewRunner(
 			configPath,
 			txSiphon,
-			cfgfileloader.WithContext(ctx),
 			cfgfileloader.WithLogHandler(logHandler),
 		)
 		if err != nil {
@@ -75,7 +73,6 @@ func Run(
 		cfgService, err := cfgservice.NewRunner(
 			listenAddr,
 			txSiphon,
-			cfgservice.WithContext(ctx),
 			cfgservice.WithLogHandler(logHandler),
 			cfgservice.WithConfigTransactionStorage(txStorage),
 		)
@@ -91,7 +88,6 @@ func Run(
 	// Create an HTTP runner with the logger
 	httpRunner, err := http.NewRunner(
 		http.WithLogHandler(logHandler),
-		http.WithContext(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP runner: %w", err)

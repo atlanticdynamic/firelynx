@@ -1,19 +1,11 @@
 package http
 
 import (
-	"context"
 	"log/slog"
 	"time"
 )
 
 type Option func(*Runner)
-
-// WithContext sets a custom context for the Runner instance.
-func WithContext(ctx context.Context) Option {
-	return func(r *Runner) {
-		r.parentCtx = ctx
-	}
-}
 
 // WithLogHandler sets a custom slog handler for the Runner instance.
 func WithLogHandler(handler slog.Handler) Option {

@@ -29,7 +29,7 @@ var (
 // Runner implements the transaction manager using a siphon pattern
 // following the design of httpcluster for configuration handling.
 type Runner struct {
-	// Transaction siphon channel - UNBUFFERED for ordering and synchronization
+	// Transaction siphon channel for receiving config transactions from external
 	txSiphon chan *transaction.ConfigTransaction
 
 	// Saga orchestrator for processing
@@ -39,9 +39,8 @@ type Runner struct {
 	fsm finitestate.Machine
 
 	// Context management
-	parentCtx context.Context
-	runCtx    context.Context
-	runCancel context.CancelFunc
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// Options
 	logger *slog.Logger
@@ -58,9 +57,9 @@ func NewRunner(
 
 	r := &Runner{
 		sagaOrchestrator: sagaOrchestrator,
-		txSiphon:         make(chan *transaction.ConfigTransaction), // UNBUFFERED
 		logger:           slog.Default().WithGroup("txmgr.Runner"),
-		parentCtx:        context.Background(),
+		// this should almost always be unbuffered
+		txSiphon: make(chan *transaction.ConfigTransaction),
 	}
 
 	// Apply options
@@ -97,8 +96,8 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	runCtx, runCancel := context.WithCancel(ctx)
-	r.runCtx = runCtx
-	r.runCancel = runCancel
+	r.ctx = runCtx
+	r.cancel = runCancel
 	defer runCancel()
 
 	// Transition to running - we're ready to receive on the siphon
@@ -113,18 +112,12 @@ func (r *Runner) Run(ctx context.Context) error {
 		select {
 		case <-runCtx.Done():
 			logger.Debug("Run context cancelled")
-			return r.shutdown(runCtx)
-
-		case <-r.parentCtx.Done():
-			logger.Debug("Parent context cancelled")
-			return r.shutdown(runCtx)
-
+			return r.shutdown()
 		case tx, ok := <-r.txSiphon:
 			if !ok {
 				logger.Debug("Transaction siphon closed")
-				return r.shutdown(runCtx)
+				return r.shutdown()
 			}
-
 			logger.Debug("Received transaction", "id", tx.ID)
 			if err := r.processTransaction(runCtx, tx); err != nil {
 				logger.Error("Failed to process transaction",
@@ -142,13 +135,13 @@ func (r *Runner) Run(ctx context.Context) error {
 // Stop signals the transaction manager to stop.
 func (r *Runner) Stop() {
 	r.logger.Debug("Stop called")
-	if r.runCancel != nil {
-		r.runCancel()
+	if r.cancel != nil {
+		r.cancel()
 	}
 }
 
 // shutdown performs graceful shutdown of the transaction manager.
-func (r *Runner) shutdown(_ context.Context) error {
+func (r *Runner) shutdown() error {
 	logger := r.logger.WithGroup("shutdown")
 	logger.Debug("Transaction manager shutting down")
 

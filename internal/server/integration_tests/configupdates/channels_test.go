@@ -159,7 +159,6 @@ func TestConfigChannels_CfgFileLoaderIntegration(t *testing.T) {
 	fileLoader, err := cfgfileloader.NewRunner(
 		configFile,
 		h.txSiphon,
-		cfgfileloader.WithContext(h.ctx),
 	)
 	require.NoError(t, err)
 
