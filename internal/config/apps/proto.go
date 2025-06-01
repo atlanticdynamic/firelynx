@@ -25,7 +25,7 @@ const (
 	AppTypeComposite AppType = "composite_script"
 )
 
-// appTypeToProto converts from domain AppType to protobuf AppDefinition_Type enum
+// appTypeToProto converts from domain AppType to protobuf AppType enum
 func appTypeToProto(appType AppType) pb.AppDefinition_Type {
 	switch appType {
 	case AppTypeScript:
@@ -39,7 +39,7 @@ func appTypeToProto(appType AppType) pb.AppDefinition_Type {
 	}
 }
 
-// appTypeFromProto converts from protobuf AppDefinition_Type enum to domain AppType
+// appTypeFromProto converts from protobuf AppType enum to domain AppType
 func appTypeFromProto(pbAppType pb.AppDefinition_Type) AppType {
 	switch pbAppType {
 	case pb.AppDefinition_TYPE_SCRIPT:
