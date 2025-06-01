@@ -25,20 +25,20 @@ func FromProto(route *pb.Route) Condition {
 		return NewHTTP(pathPrefix, method)
 	}
 
-	// Handle gRPC rule
-	if grpcRule := route.GetGrpc(); grpcRule != nil {
-		service := ""
-		if grpcRule.Service != nil {
-			service = *grpcRule.Service
-		}
+	// Handle gRPC rule - TODO: uncomment when grpc field is added to Route
+	// if grpcRule := route.GetGrpc(); grpcRule != nil {
+	// 	service := ""
+	// 	if grpcRule.Service != nil {
+	// 		service = *grpcRule.Service
+	// 	}
 
-		method := ""
-		if grpcRule.Method != nil {
-			method = *grpcRule.Method
-		}
+	// 	method := ""
+	// 	if grpcRule.Method != nil {
+	// 		method = *grpcRule.Method
+	// 	}
 
-		return NewGRPC(service, method)
-	}
+	// 	return NewGRPC(service, method)
+	// }
 
 	// No condition found
 	return nil
@@ -61,12 +61,13 @@ func ToProto(cond Condition, route *pb.Route) {
 		route.Rule = &pb.Route_Http{Http: httpRule}
 
 	case GRPC:
-		grpcRule := &pb.GrpcRule{
-			Service: &c.Service,
-		}
-		if c.Method != "" {
-			grpcRule.Method = &c.Method
-		}
-		route.Rule = &pb.Route_Grpc{Grpc: grpcRule}
+		// TODO: uncomment when grpc field is added to Route
+		// grpcRule := &pb.GrpcRule{
+		// 	Service: &c.Service,
+		// }
+		// if c.Method != "" {
+		// 	grpcRule.Method = &c.Method
+		// }
+		// route.Rule = &pb.Route_Grpc{Grpc: grpcRule}
 	}
 }

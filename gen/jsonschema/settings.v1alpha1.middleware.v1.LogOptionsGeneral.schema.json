@@ -1,5 +1,5 @@
 {
-  "$id": "settings.v1alpha1.LogOptions.jsonschema.json",
+  "$id": "settings.v1alpha1.middleware.v1.LogOptionsGeneral.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -7,11 +7,11 @@
       "anyOf": [
         {
           "enum": [
-            "LOG_FORMAT_UNSPECIFIED",
-            "LOG_FORMAT_TXT",
-            "LOG_FORMAT_JSON"
+            "FORMAT_UNSPECIFIED",
+            "FORMAT_TXT",
+            "FORMAT_JSON"
           ],
-          "title": "Log Format",
+          "title": "Format",
           "type": "string"
         },
         {
@@ -25,14 +25,14 @@
       "anyOf": [
         {
           "enum": [
-            "LOG_LEVEL_UNSPECIFIED",
-            "LOG_LEVEL_DEBUG",
-            "LOG_LEVEL_INFO",
-            "LOG_LEVEL_WARN",
-            "LOG_LEVEL_ERROR",
-            "LOG_LEVEL_FATAL"
+            "LEVEL_UNSPECIFIED",
+            "LEVEL_DEBUG",
+            "LEVEL_INFO",
+            "LEVEL_WARN",
+            "LEVEL_ERROR",
+            "LEVEL_FATAL"
           ],
-          "title": "Log Level",
+          "title": "Level",
           "type": "string"
         },
         {
@@ -43,6 +43,6 @@
       ]
     }
   },
-  "title": "Log Options",
+  "title": "Log Options General",
   "type": "object"
 }

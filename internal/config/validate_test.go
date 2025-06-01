@@ -14,7 +14,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
-	"github.com/atlanticdynamic/firelynx/internal/config/logs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -629,10 +628,6 @@ func TestConfig_Validate(t *testing.T) {
 			name: "Valid config",
 			config: &Config{
 				Version: VersionLatest,
-				Logging: logs.Config{
-					Format: logs.FormatJSON,
-					Level:  logs.LevelInfo,
-				},
 				Listeners: listeners.ListenerCollection{
 					{
 						ID:      "http1",
@@ -674,18 +669,6 @@ func TestConfig_Validate(t *testing.T) {
 			},
 			expectError: true,
 			errorType:   ErrUnsupportedConfigVer,
-		},
-		{
-			name: "Invalid logging config",
-			config: &Config{
-				Version: VersionLatest,
-				Logging: logs.Config{
-					Format: "invalid", // Invalid format
-					Level:  logs.LevelInfo,
-				},
-			},
-			expectError: true,
-			errorType:   ErrFailedToValidateConfig,
 		},
 		{
 			name: "Invalid listener",

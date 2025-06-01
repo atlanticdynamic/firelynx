@@ -50,7 +50,6 @@ func validateAction(ctx context.Context, cmd *cli.Command) error {
 	// Print a compact representation, by default
 	fmt.Printf("\nConfig Summary:\n")
 	fmt.Printf("- Version: %s\n", cfg.Version)
-	fmt.Printf("- Logging: level=%s format=%s\n", cfg.Logging.Level, cfg.Logging.Format)
 	fmt.Printf("- Listeners: %d\n", len(cfg.Listeners))
 	fmt.Printf("- Endpoints: %d\n", len(cfg.Endpoints))
 	fmt.Printf("- Apps: %d\n", len(cfg.Apps))

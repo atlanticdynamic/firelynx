@@ -22,9 +22,6 @@
       },
       "type": "array"
     },
-    "logging": {
-      "$ref": "settings.v1alpha1.LogOptions.schema.json"
-    },
     "version": {
       "type": "string"
     }

@@ -40,32 +40,33 @@ func TestFromProto(t *testing.T) {
 		assert.Equal(t, method, httpCond.Method, "HTTP method should match input")
 	})
 
-	t.Run("GrpcRule", func(t *testing.T) {
-		// Create a proto route with a gRPC rule
-		service := "service.Test"
-		method := "GetData"
-		protoRoute := &pb.Route{
-			Rule: &pb.Route_Grpc{
-				Grpc: &pb.GrpcRule{
-					Service: &service,
-					Method:  &method,
-				},
-			},
-		}
-
-		// Convert to condition
-		condition := FromProto(protoRoute)
-
-		// Verify condition type and value
-		assert.NotNil(t, condition, "Condition should not be nil")
-		assert.Equal(t, TypeGRPC, condition.Type(), "Condition should be gRPC type")
-
-		// Perform type assertion to ensure it's a GRPC condition
-		grpcCond, ok := condition.(GRPC)
-		assert.True(t, ok, "Condition should be of type GRPC")
-		assert.Equal(t, service, grpcCond.Service, "gRPC service should match input")
-		assert.Equal(t, method, grpcCond.Method, "gRPC method should match input")
-	})
+	// TODO: Uncomment when gRPC support is re-enabled
+	// t.Run("GrpcRule", func(t *testing.T) {
+	// 	// Create a proto route with a gRPC rule
+	// 	service := "service.Test"
+	// 	method := "GetData"
+	// 	protoRoute := &pb.Route{
+	// 		Rule: &pb.Route_Grpc{
+	// 			Grpc: &pb.GrpcRule{
+	// 				Service: &service,
+	// 				Method:  &method,
+	// 			},
+	// 		},
+	// 	}
+	//
+	// 	// Convert to condition
+	// 	:= FromProto(protoRoute)
+	//
+	// 	// Verify condition type and value
+	// 	assert.NotNil(t, condition, "Condition should not be nil")
+	// 	assert.Equal(t, TypeGRPC, condition.Type(), "Condition should be gRPC type")
+	//
+	// 	// Perform type assertion to ensure it's a GRPC condition
+	// 	grpcCond, ok := condition.(GRPC)
+	// 	assert.True(t, ok, "Condition should be of type GRPC")
+	// 	assert.Equal(t, service, grpcCond.Service, "gRPC service should match input")
+	// 	assert.Equal(t, method, grpcCond.Method, "gRPC method should match input")
+	// })
 
 	t.Run("NoCondition", func(t *testing.T) {
 		pbRoute := &pb.Route{}
@@ -104,20 +105,21 @@ func TestToProto(t *testing.T) {
 		assert.Equal(t, "POST", *httpRule.Method, "HTTP method should match input")
 	})
 
-	t.Run("GRPC", func(t *testing.T) {
-		// Create a GRPC condition
-		grpcCond := NewGRPC("service.Test", "GetData")
-
-		// Create a proto route
-		protoRoute := &pb.Route{}
-
-		// Convert condition to proto
-		ToProto(grpcCond, protoRoute)
-
-		// Verify the proto rule
-		grpcRule := protoRoute.GetGrpc()
-		assert.NotNil(t, grpcRule, "gRPC rule should not be nil")
-		assert.Equal(t, "service.Test", *grpcRule.Service, "gRPC service should match input")
-		assert.Equal(t, "GetData", *grpcRule.Method, "gRPC method should match input")
-	})
+	// TODO: Uncomment when gRPC support is re-enabled
+	// t.Run("GRPC", func(t *testing.T) {
+	// 	// Create a GRPC condition
+	// 	grpcCond := NewGRPC("service.Test", "GetData")
+	//
+	// 	// Create a proto route
+	// 	protoRoute := &pb.Route{}
+	//
+	// 	// Convert condition to proto
+	// 	ToProto(grpcCond, protoRoute)
+	//
+	// 	// Verify the proto rule
+	// 	grpcRule := protoRoute.GetGrpc()
+	// 	assert.NotNil(t, grpcRule, "gRPC rule should not be nil")
+	// 	assert.Equal(t, "service.Test", *grpcRule.Service, "gRPC service should match input")
+	// 	assert.Equal(t, "GetData", *grpcRule.Method, "gRPC method should match input")
+	// })
 }

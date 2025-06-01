@@ -30,11 +30,6 @@ func (c *Config) Validate() error {
 
 	var errs []error
 
-	// Validate logging
-	if err := c.Logging.Validate(); err != nil {
-		errs = append(errs, fmt.Errorf("logging config: %w", err))
-	}
-
 	// Validate listeners and collect their IDs for reference validation
 	listenerIds, listenerErrs := c.validateListeners()
 	errs = append(errs, listenerErrs...)

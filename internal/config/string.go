@@ -18,10 +18,6 @@ func ConfigTree(cfg *Config) string {
 	t := fancy.Tree()
 	t.Root(fancy.RootStyle.Render(fmt.Sprintf("Firelynx Config (%s)", cfg.Version)))
 
-	// Add logging section
-	loggingTree := cfg.Logging.ToTree()
-	t.Child(loggingTree.Tree())
-
 	// Create a nested tree of listeners with consistent styling
 	if len(cfg.Listeners) > 0 {
 		listenersRoot := fancy.NewComponentTree(
