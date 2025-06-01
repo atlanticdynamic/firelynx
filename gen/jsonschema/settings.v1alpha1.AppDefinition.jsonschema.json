@@ -25,12 +25,12 @@
       "anyOf": [
         {
           "enum": [
-            "APP_TYPE_UNSPECIFIED",
-            "APP_TYPE_SCRIPT",
-            "APP_TYPE_COMPOSITE_SCRIPT",
-            "APP_TYPE_ECHO"
+            "TYPE_UNSPECIFIED",
+            "TYPE_SCRIPT",
+            "TYPE_COMPOSITE_SCRIPT",
+            "TYPE_ECHO"
           ],
-          "title": "App Type",
+          "title": "Type",
           "type": "string"
         },
         {

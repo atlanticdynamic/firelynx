@@ -22,63 +22,63 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type AppType int32
+type AppDefinition_Type int32
 
 const (
-	AppType_APP_TYPE_UNSPECIFIED      AppType = 0
-	AppType_APP_TYPE_SCRIPT           AppType = 1
-	AppType_APP_TYPE_COMPOSITE_SCRIPT AppType = 2
-	AppType_APP_TYPE_ECHO             AppType = 3
+	AppDefinition_TYPE_UNSPECIFIED      AppDefinition_Type = 0
+	AppDefinition_TYPE_SCRIPT           AppDefinition_Type = 1
+	AppDefinition_TYPE_COMPOSITE_SCRIPT AppDefinition_Type = 2
+	AppDefinition_TYPE_ECHO             AppDefinition_Type = 3
 )
 
-// Enum value maps for AppType.
+// Enum value maps for AppDefinition_Type.
 var (
-	AppType_name = map[int32]string{
-		0: "APP_TYPE_UNSPECIFIED",
-		1: "APP_TYPE_SCRIPT",
-		2: "APP_TYPE_COMPOSITE_SCRIPT",
-		3: "APP_TYPE_ECHO",
+	AppDefinition_Type_name = map[int32]string{
+		0: "TYPE_UNSPECIFIED",
+		1: "TYPE_SCRIPT",
+		2: "TYPE_COMPOSITE_SCRIPT",
+		3: "TYPE_ECHO",
 	}
-	AppType_value = map[string]int32{
-		"APP_TYPE_UNSPECIFIED":      0,
-		"APP_TYPE_SCRIPT":           1,
-		"APP_TYPE_COMPOSITE_SCRIPT": 2,
-		"APP_TYPE_ECHO":             3,
+	AppDefinition_Type_value = map[string]int32{
+		"TYPE_UNSPECIFIED":      0,
+		"TYPE_SCRIPT":           1,
+		"TYPE_COMPOSITE_SCRIPT": 2,
+		"TYPE_ECHO":             3,
 	}
 )
 
-func (x AppType) Enum() *AppType {
-	p := new(AppType)
+func (x AppDefinition_Type) Enum() *AppDefinition_Type {
+	p := new(AppDefinition_Type)
 	*p = x
 	return p
 }
 
-func (x AppType) String() string {
+func (x AppDefinition_Type) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (AppType) Descriptor() protoreflect.EnumDescriptor {
+func (AppDefinition_Type) Descriptor() protoreflect.EnumDescriptor {
 	return file_settings_v1alpha1_apps_proto_enumTypes[0].Descriptor()
 }
 
-func (AppType) Type() protoreflect.EnumType {
+func (AppDefinition_Type) Type() protoreflect.EnumType {
 	return &file_settings_v1alpha1_apps_proto_enumTypes[0]
 }
 
-func (x AppType) Number() protoreflect.EnumNumber {
+func (x AppDefinition_Type) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use AppType.Descriptor instead.
-func (AppType) EnumDescriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use AppDefinition_Type.Descriptor instead.
+func (AppDefinition_Type) EnumDescriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{0, 0}
 }
 
 // App definitions (reusable across endpoints)
 type AppDefinition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                           // The unique name or identifier for the app
-	Type  *AppType               `protobuf:"varint,2,opt,name=type,enum=settings.v1alpha1.AppType,def=0" json:"type,omitempty"` // The type of app
+	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                                      // The unique name or identifier for the app
+	Type  *AppDefinition_Type    `protobuf:"varint,2,opt,name=type,enum=settings.v1alpha1.AppDefinition_Type,def=0" json:"type,omitempty"` // The type of app
 	// The configuration for the app
 	//
 	// Types that are valid to be assigned to Config:
@@ -93,7 +93,7 @@ type AppDefinition struct {
 
 // Default values for AppDefinition fields.
 const (
-	Default_AppDefinition_Type = AppType_APP_TYPE_UNSPECIFIED
+	Default_AppDefinition_Type = AppDefinition_TYPE_UNSPECIFIED
 )
 
 func (x *AppDefinition) Reset() {
@@ -133,7 +133,7 @@ func (x *AppDefinition) GetId() string {
 	return ""
 }
 
-func (x *AppDefinition) GetType() AppType {
+func (x *AppDefinition) GetType() AppDefinition_Type {
 	if x != nil && x.Type != nil {
 		return *x.Type
 	}
@@ -561,13 +561,18 @@ var File_settings_v1alpha1_apps_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\n" +
-	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a#settings/v1alpha1/static_data.proto\"\xad\x02\n" +
+	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a#settings/v1alpha1/static_data.proto\"\x8d\x03\n" +
 	"\rAppDefinition\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12D\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x1a.settings.v1alpha1.AppType:\x14APP_TYPE_UNSPECIFIEDR\x04type\x126\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12K\n" +
+	"\x04type\x18\x02 \x01(\x0e2%.settings.v1alpha1.AppDefinition.Type:\x10TYPE_UNSPECIFIEDR\x04type\x126\n" +
 	"\x06script\x18\x03 \x01(\v2\x1c.settings.v1alpha1.ScriptAppH\x00R\x06script\x12R\n" +
 	"\x10composite_script\x18\x04 \x01(\v2%.settings.v1alpha1.CompositeScriptAppH\x00R\x0fcompositeScript\x120\n" +
-	"\x04echo\x18\x05 \x01(\v2\x1a.settings.v1alpha1.EchoAppH\x00R\x04echoB\b\n" +
+	"\x04echo\x18\x05 \x01(\v2\x1a.settings.v1alpha1.EchoAppH\x00R\x04echo\"W\n" +
+	"\x04Type\x12\x14\n" +
+	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vTYPE_SCRIPT\x10\x01\x12\x19\n" +
+	"\x15TYPE_COMPOSITE_SCRIPT\x10\x02\x12\r\n" +
+	"\tTYPE_ECHO\x10\x03B\b\n" +
 	"\x06config\"\x95\x02\n" +
 	"\tScriptApp\x12>\n" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
@@ -592,12 +597,7 @@ const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
 	"staticData\"%\n" +
 	"\aEchoApp\x12\x1a\n" +
-	"\bresponse\x18\x01 \x01(\tR\bresponse*j\n" +
-	"\aAppType\x12\x18\n" +
-	"\x14APP_TYPE_UNSPECIFIED\x10\x00\x12\x13\n" +
-	"\x0fAPP_TYPE_SCRIPT\x10\x01\x12\x1d\n" +
-	"\x19APP_TYPE_COMPOSITE_SCRIPT\x10\x02\x12\x11\n" +
-	"\rAPP_TYPE_ECHO\x10\x03B;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
+	"\bresponse\x18\x01 \x01(\tR\bresponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_apps_proto_rawDescOnce sync.Once
@@ -614,7 +614,7 @@ func file_settings_v1alpha1_apps_proto_rawDescGZIP() []byte {
 var file_settings_v1alpha1_apps_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_settings_v1alpha1_apps_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_settings_v1alpha1_apps_proto_goTypes = []any{
-	(AppType)(0),                // 0: settings.v1alpha1.AppType
+	(AppDefinition_Type)(0),     // 0: settings.v1alpha1.AppDefinition.Type
 	(*AppDefinition)(nil),       // 1: settings.v1alpha1.AppDefinition
 	(*ScriptApp)(nil),           // 2: settings.v1alpha1.ScriptApp
 	(*RisorEvaluator)(nil),      // 3: settings.v1alpha1.RisorEvaluator
@@ -626,7 +626,7 @@ var file_settings_v1alpha1_apps_proto_goTypes = []any{
 	(*durationpb.Duration)(nil), // 9: google.protobuf.Duration
 }
 var file_settings_v1alpha1_apps_proto_depIdxs = []int32{
-	0,  // 0: settings.v1alpha1.AppDefinition.type:type_name -> settings.v1alpha1.AppType
+	0,  // 0: settings.v1alpha1.AppDefinition.type:type_name -> settings.v1alpha1.AppDefinition.Type
 	2,  // 1: settings.v1alpha1.AppDefinition.script:type_name -> settings.v1alpha1.ScriptApp
 	6,  // 2: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.CompositeScriptApp
 	7,  // 3: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.EchoApp

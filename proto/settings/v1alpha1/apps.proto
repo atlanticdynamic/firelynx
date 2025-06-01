@@ -7,17 +7,17 @@ import "settings/v1alpha1/static_data.proto";
 
 option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
-enum AppType {
-  APP_TYPE_UNSPECIFIED = 0;
-  APP_TYPE_SCRIPT = 1;
-  APP_TYPE_COMPOSITE_SCRIPT = 2;
-  APP_TYPE_ECHO = 3;
-}
-
 // App definitions (reusable across endpoints)
 message AppDefinition {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_SCRIPT = 1;
+    TYPE_COMPOSITE_SCRIPT = 2;
+    TYPE_ECHO = 3;
+  }
+
   string id = 1; // The unique name or identifier for the app
-  AppType type = 2 [default = APP_TYPE_UNSPECIFIED]; // The type of app
+  Type type = 2 [default = TYPE_UNSPECIFIED]; // The type of app
 
   // The configuration for the app
   oneof config {
