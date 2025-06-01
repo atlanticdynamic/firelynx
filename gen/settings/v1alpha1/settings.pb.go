@@ -28,7 +28,6 @@ type Listener_Type int32
 const (
 	Listener_TYPE_UNSPECIFIED Listener_Type = 0
 	Listener_TYPE_HTTP        Listener_Type = 1
-	Listener_TYPE_GRPC        Listener_Type = 2
 )
 
 // Enum value maps for Listener_Type.
@@ -36,12 +35,10 @@ var (
 	Listener_Type_name = map[int32]string{
 		0: "TYPE_UNSPECIFIED",
 		1: "TYPE_HTTP",
-		2: "TYPE_GRPC",
 	}
 	Listener_Type_value = map[string]int32{
 		"TYPE_UNSPECIFIED": 0,
 		"TYPE_HTTP":        1,
-		"TYPE_GRPC":        2,
 	}
 )
 
@@ -159,13 +156,12 @@ type Listener struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Id      *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                                 // unique name for this listener
 	Address *string                `protobuf:"bytes,2,opt,name=address" json:"address,omitempty"`                                       // ":8080", "unix:/tmp/sock.sock", etc.
-	Type    *Listener_Type         `protobuf:"varint,3,opt,name=type,enum=settings.v1alpha1.Listener_Type,def=1" json:"type,omitempty"` // type of listener (HTTP, gRPC, etc.)
+	Type    *Listener_Type         `protobuf:"varint,3,opt,name=type,enum=settings.v1alpha1.Listener_Type,def=1" json:"type,omitempty"` // type of listener
 	// Protocol-specific options
 	//
 	// Types that are valid to be assigned to ProtocolOptions:
 	//
 	//	*Listener_Http
-	//	*Listener_Grpc
 	ProtocolOptions isListener_ProtocolOptions `protobuf_oneof:"protocol_options"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -243,15 +239,6 @@ func (x *Listener) GetHttp() *HttpListenerOptions {
 	return nil
 }
 
-func (x *Listener) GetGrpc() *GrpcListenerOptions {
-	if x != nil {
-		if x, ok := x.ProtocolOptions.(*Listener_Grpc); ok {
-			return x.Grpc
-		}
-	}
-	return nil
-}
-
 type isListener_ProtocolOptions interface {
 	isListener_ProtocolOptions()
 }
@@ -260,13 +247,7 @@ type Listener_Http struct {
 	Http *HttpListenerOptions `protobuf:"bytes,4,opt,name=http,oneof"`
 }
 
-type Listener_Grpc struct {
-	Grpc *GrpcListenerOptions `protobuf:"bytes,5,opt,name=grpc,oneof"`
-}
-
 func (*Listener_Http) isListener_ProtocolOptions() {}
-
-func (*Listener_Grpc) isListener_ProtocolOptions() {}
 
 // HTTP listener specific options
 type HttpListenerOptions struct {
@@ -337,67 +318,6 @@ func (x *HttpListenerOptions) GetDrainTimeout() *durationpb.Duration {
 	return nil
 }
 
-// gRPC listener specific options
-type GrpcListenerOptions struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	MaxConnectionIdle    *durationpb.Duration   `protobuf:"bytes,1,opt,name=max_connection_idle,json=maxConnectionIdle" json:"max_connection_idle,omitempty"`
-	MaxConnectionAge     *durationpb.Duration   `protobuf:"bytes,2,opt,name=max_connection_age,json=maxConnectionAge" json:"max_connection_age,omitempty"`
-	MaxConcurrentStreams *int32                 `protobuf:"varint,3,opt,name=max_concurrent_streams,json=maxConcurrentStreams" json:"max_concurrent_streams,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
-}
-
-func (x *GrpcListenerOptions) Reset() {
-	*x = GrpcListenerOptions{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GrpcListenerOptions) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GrpcListenerOptions) ProtoMessage() {}
-
-func (x *GrpcListenerOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GrpcListenerOptions.ProtoReflect.Descriptor instead.
-func (*GrpcListenerOptions) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *GrpcListenerOptions) GetMaxConnectionIdle() *durationpb.Duration {
-	if x != nil {
-		return x.MaxConnectionIdle
-	}
-	return nil
-}
-
-func (x *GrpcListenerOptions) GetMaxConnectionAge() *durationpb.Duration {
-	if x != nil {
-		return x.MaxConnectionAge
-	}
-	return nil
-}
-
-func (x *GrpcListenerOptions) GetMaxConcurrentStreams() int32 {
-	if x != nil && x.MaxConcurrentStreams != nil {
-		return *x.MaxConcurrentStreams
-	}
-	return 0
-}
-
 // Endpoint connects: listener -> routes -> apps
 type Endpoint struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -410,7 +330,7 @@ type Endpoint struct {
 
 func (x *Endpoint) Reset() {
 	*x = Endpoint{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[4]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -422,7 +342,7 @@ func (x *Endpoint) String() string {
 func (*Endpoint) ProtoMessage() {}
 
 func (x *Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[4]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -435,7 +355,7 @@ func (x *Endpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Endpoint.ProtoReflect.Descriptor instead.
 func (*Endpoint) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{4}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Endpoint) GetId() string {
@@ -467,7 +387,6 @@ type Route struct {
 	// Types that are valid to be assigned to Rule:
 	//
 	//	*Route_Http
-	//	*Route_Grpc
 	Rule          isRoute_Rule `protobuf_oneof:"rule"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -475,7 +394,7 @@ type Route struct {
 
 func (x *Route) Reset() {
 	*x = Route{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[5]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -487,7 +406,7 @@ func (x *Route) String() string {
 func (*Route) ProtoMessage() {}
 
 func (x *Route) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[5]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -500,7 +419,7 @@ func (x *Route) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Route.ProtoReflect.Descriptor instead.
 func (*Route) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{5}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Route) GetAppId() string {
@@ -533,15 +452,6 @@ func (x *Route) GetHttp() *HttpRule {
 	return nil
 }
 
-func (x *Route) GetGrpc() *GrpcRule {
-	if x != nil {
-		if x, ok := x.Rule.(*Route_Grpc); ok {
-			return x.Grpc
-		}
-	}
-	return nil
-}
-
 type isRoute_Rule interface {
 	isRoute_Rule()
 }
@@ -550,13 +460,7 @@ type Route_Http struct {
 	Http *HttpRule `protobuf:"bytes,3,opt,name=http,oneof"`
 }
 
-type Route_Grpc struct {
-	Grpc *GrpcRule `protobuf:"bytes,4,opt,name=grpc,oneof"`
-}
-
 func (*Route_Http) isRoute_Rule() {}
-
-func (*Route_Grpc) isRoute_Rule() {}
 
 type HttpRule struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -568,7 +472,7 @@ type HttpRule struct {
 
 func (x *HttpRule) Reset() {
 	*x = HttpRule{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[6]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +484,7 @@ func (x *HttpRule) String() string {
 func (*HttpRule) ProtoMessage() {}
 
 func (x *HttpRule) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[6]
+	mi := &file_settings_v1alpha1_settings_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +497,7 @@ func (x *HttpRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HttpRule.ProtoReflect.Descriptor instead.
 func (*HttpRule) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{6}
+	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *HttpRule) GetPathPrefix() string {
@@ -610,58 +514,6 @@ func (x *HttpRule) GetMethod() string {
 	return ""
 }
 
-type GrpcRule struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Service       *string                `protobuf:"bytes,1,opt,name=service" json:"service,omitempty"`
-	Method        *string                `protobuf:"bytes,2,opt,name=method" json:"method,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GrpcRule) Reset() {
-	*x = GrpcRule{}
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GrpcRule) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GrpcRule) ProtoMessage() {}
-
-func (x *GrpcRule) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_settings_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GrpcRule.ProtoReflect.Descriptor instead.
-func (*GrpcRule) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_settings_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *GrpcRule) GetService() string {
-	if x != nil && x.Service != nil {
-		return *x.Service
-	}
-	return ""
-}
-
-func (x *GrpcRule) GetMethod() string {
-	if x != nil && x.Method != nil {
-		return *x.Method
-	}
-	return ""
-}
-
 var File_settings_v1alpha1_settings_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_settings_proto_rawDesc = "" +
@@ -672,45 +524,35 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\alogging\x18\x02 \x01(\v2\x1d.settings.v1alpha1.LogOptionsR\alogging\x129\n" +
 	"\tlisteners\x18\x03 \x03(\v2\x1b.settings.v1alpha1.ListenerR\tlisteners\x129\n" +
 	"\tendpoints\x18\x04 \x03(\v2\x1b.settings.v1alpha1.EndpointR\tendpoints\x124\n" +
-	"\x04apps\x18\x05 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xc1\x02\n" +
+	"\x04apps\x18\x05 \x03(\v2 .settings.v1alpha1.AppDefinitionR\x04apps\"\xf4\x01\n" +
 	"\bListener\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\x12?\n" +
 	"\x04type\x18\x03 \x01(\x0e2 .settings.v1alpha1.Listener.Type:\tTYPE_HTTPR\x04type\x12<\n" +
-	"\x04http\x18\x04 \x01(\v2&.settings.v1alpha1.HttpListenerOptionsH\x00R\x04http\x12<\n" +
-	"\x04grpc\x18\x05 \x01(\v2&.settings.v1alpha1.GrpcListenerOptionsH\x00R\x04grpc\":\n" +
+	"\x04http\x18\x04 \x01(\v2&.settings.v1alpha1.HttpListenerOptionsH\x00R\x04http\"+\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\r\n" +
-	"\tTYPE_HTTP\x10\x01\x12\r\n" +
-	"\tTYPE_GRPC\x10\x02B\x12\n" +
+	"\tTYPE_HTTP\x10\x01B\x12\n" +
 	"\x10protocol_options\"\x91\x02\n" +
 	"\x13HttpListenerOptions\x12<\n" +
 	"\fread_timeout\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vreadTimeout\x12>\n" +
 	"\rwrite_timeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\fwriteTimeout\x12<\n" +
 	"\fidle_timeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\vidleTimeout\x12>\n" +
-	"\rdrain_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fdrainTimeout\"\xdf\x01\n" +
-	"\x13GrpcListenerOptions\x12I\n" +
-	"\x13max_connection_idle\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x11maxConnectionIdle\x12G\n" +
-	"\x12max_connection_age\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x10maxConnectionAge\x124\n" +
-	"\x16max_concurrent_streams\x18\x03 \x01(\x05R\x14maxConcurrentStreams\"m\n" +
+	"\rdrain_timeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\fdrainTimeout\"m\n" +
 	"\bEndpoint\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vlistener_id\x18\x02 \x01(\tR\n" +
 	"listenerId\x120\n" +
-	"\x06routes\x18\x03 \x03(\v2\x18.settings.v1alpha1.RouteR\x06routes\"\xcc\x01\n" +
+	"\x06routes\x18\x03 \x03(\v2\x18.settings.v1alpha1.RouteR\x06routes\"\x99\x01\n" +
 	"\x05Route\x12\x15\n" +
 	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12>\n" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
 	"staticData\x121\n" +
-	"\x04http\x18\x03 \x01(\v2\x1b.settings.v1alpha1.HttpRuleH\x00R\x04http\x121\n" +
-	"\x04grpc\x18\x04 \x01(\v2\x1b.settings.v1alpha1.GrpcRuleH\x00R\x04grpcB\x06\n" +
+	"\x04http\x18\x03 \x01(\v2\x1b.settings.v1alpha1.HttpRuleH\x00R\x04httpB\x06\n" +
 	"\x04rule\"C\n" +
 	"\bHttpRule\x12\x1f\n" +
 	"\vpath_prefix\x18\x01 \x01(\tR\n" +
 	"pathPrefix\x12\x16\n" +
-	"\x06method\x18\x02 \x01(\tR\x06method\"<\n" +
-	"\bGrpcRule\x12\x18\n" +
-	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06methodB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
@@ -726,45 +568,39 @@ func file_settings_v1alpha1_settings_proto_rawDescGZIP() []byte {
 }
 
 var file_settings_v1alpha1_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_settings_v1alpha1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_settings_v1alpha1_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_settings_v1alpha1_settings_proto_goTypes = []any{
 	(Listener_Type)(0),          // 0: settings.v1alpha1.Listener.Type
 	(*ServerConfig)(nil),        // 1: settings.v1alpha1.ServerConfig
 	(*Listener)(nil),            // 2: settings.v1alpha1.Listener
 	(*HttpListenerOptions)(nil), // 3: settings.v1alpha1.HttpListenerOptions
-	(*GrpcListenerOptions)(nil), // 4: settings.v1alpha1.GrpcListenerOptions
-	(*Endpoint)(nil),            // 5: settings.v1alpha1.Endpoint
-	(*Route)(nil),               // 6: settings.v1alpha1.Route
-	(*HttpRule)(nil),            // 7: settings.v1alpha1.HttpRule
-	(*GrpcRule)(nil),            // 8: settings.v1alpha1.GrpcRule
-	(*LogOptions)(nil),          // 9: settings.v1alpha1.LogOptions
-	(*AppDefinition)(nil),       // 10: settings.v1alpha1.AppDefinition
-	(*durationpb.Duration)(nil), // 11: google.protobuf.Duration
-	(*StaticData)(nil),          // 12: settings.v1alpha1.StaticData
+	(*Endpoint)(nil),            // 4: settings.v1alpha1.Endpoint
+	(*Route)(nil),               // 5: settings.v1alpha1.Route
+	(*HttpRule)(nil),            // 6: settings.v1alpha1.HttpRule
+	(*LogOptions)(nil),          // 7: settings.v1alpha1.LogOptions
+	(*AppDefinition)(nil),       // 8: settings.v1alpha1.AppDefinition
+	(*durationpb.Duration)(nil), // 9: google.protobuf.Duration
+	(*StaticData)(nil),          // 10: settings.v1alpha1.StaticData
 }
 var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
-	9,  // 0: settings.v1alpha1.ServerConfig.logging:type_name -> settings.v1alpha1.LogOptions
+	7,  // 0: settings.v1alpha1.ServerConfig.logging:type_name -> settings.v1alpha1.LogOptions
 	2,  // 1: settings.v1alpha1.ServerConfig.listeners:type_name -> settings.v1alpha1.Listener
-	5,  // 2: settings.v1alpha1.ServerConfig.endpoints:type_name -> settings.v1alpha1.Endpoint
-	10, // 3: settings.v1alpha1.ServerConfig.apps:type_name -> settings.v1alpha1.AppDefinition
+	4,  // 2: settings.v1alpha1.ServerConfig.endpoints:type_name -> settings.v1alpha1.Endpoint
+	8,  // 3: settings.v1alpha1.ServerConfig.apps:type_name -> settings.v1alpha1.AppDefinition
 	0,  // 4: settings.v1alpha1.Listener.type:type_name -> settings.v1alpha1.Listener.Type
 	3,  // 5: settings.v1alpha1.Listener.http:type_name -> settings.v1alpha1.HttpListenerOptions
-	4,  // 6: settings.v1alpha1.Listener.grpc:type_name -> settings.v1alpha1.GrpcListenerOptions
-	11, // 7: settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
-	11, // 8: settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
-	11, // 9: settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
-	11, // 10: settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
-	11, // 11: settings.v1alpha1.GrpcListenerOptions.max_connection_idle:type_name -> google.protobuf.Duration
-	11, // 12: settings.v1alpha1.GrpcListenerOptions.max_connection_age:type_name -> google.protobuf.Duration
-	6,  // 13: settings.v1alpha1.Endpoint.routes:type_name -> settings.v1alpha1.Route
-	12, // 14: settings.v1alpha1.Route.static_data:type_name -> settings.v1alpha1.StaticData
-	7,  // 15: settings.v1alpha1.Route.http:type_name -> settings.v1alpha1.HttpRule
-	8,  // 16: settings.v1alpha1.Route.grpc:type_name -> settings.v1alpha1.GrpcRule
-	17, // [17:17] is the sub-list for method output_type
-	17, // [17:17] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	9,  // 6: settings.v1alpha1.HttpListenerOptions.read_timeout:type_name -> google.protobuf.Duration
+	9,  // 7: settings.v1alpha1.HttpListenerOptions.write_timeout:type_name -> google.protobuf.Duration
+	9,  // 8: settings.v1alpha1.HttpListenerOptions.idle_timeout:type_name -> google.protobuf.Duration
+	9,  // 9: settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
+	5,  // 10: settings.v1alpha1.Endpoint.routes:type_name -> settings.v1alpha1.Route
+	10, // 11: settings.v1alpha1.Route.static_data:type_name -> settings.v1alpha1.StaticData
+	6,  // 12: settings.v1alpha1.Route.http:type_name -> settings.v1alpha1.HttpRule
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_settings_proto_init() }
@@ -777,11 +613,9 @@ func file_settings_v1alpha1_settings_proto_init() {
 	file_settings_v1alpha1_static_data_proto_init()
 	file_settings_v1alpha1_settings_proto_msgTypes[1].OneofWrappers = []any{
 		(*Listener_Http)(nil),
-		(*Listener_Grpc)(nil),
 	}
-	file_settings_v1alpha1_settings_proto_msgTypes[5].OneofWrappers = []any{
+	file_settings_v1alpha1_settings_proto_msgTypes[4].OneofWrappers = []any{
 		(*Route_Http)(nil),
-		(*Route_Grpc)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -789,7 +623,7 @@ func file_settings_v1alpha1_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_settings_proto_rawDesc), len(file_settings_v1alpha1_settings_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

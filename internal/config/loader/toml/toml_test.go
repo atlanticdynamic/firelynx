@@ -367,11 +367,10 @@ func TestTomlLoader_MultipleRouteTypes(t *testing.T) {
 	assert.Equal(t, "mixed_endpoint", endpoint.GetId(), "Wrong endpoint ID")
 
 	// Check all routes
-	require.Len(t, endpoint.Routes, 3, "Should have 3 routes (2 HTTP, 1 gRPC)")
+	require.Len(t, endpoint.Routes, 2, "Should have 2 HTTP routes")
 
-	// Count HTTP and gRPC routes
+	// Count HTTP routes
 	httpCount := 0
-	grpcCount := 0
 
 	for i, route := range endpoint.Routes {
 		t.Logf("Route %d: app_id=%s", i, route.GetAppId())
@@ -382,23 +381,15 @@ func TestTomlLoader_MultipleRouteTypes(t *testing.T) {
 			t.Logf("  HTTP path: %q", *httpRule.PathPrefix)
 			assert.Contains(
 				t,
-				[]string{"/echo1", "/echo2"},
+				[]string{"/echo1", "/api/v3"},
 				*httpRule.PathPrefix,
 				"Unexpected HTTP path prefix",
 			)
-		}
-
-		// Check if it's a gRPC route
-		if grpcRule := route.GetGrpc(); grpcRule != nil {
-			grpcCount++
-			t.Logf("  gRPC service: %q", *grpcRule.Service)
-			assert.Equal(t, "test.Service", *grpcRule.Service, "Unexpected gRPC service")
 		}
 	}
 
 	// Verify counts
 	assert.Equal(t, 2, httpCount, "Should have 2 HTTP routes")
-	assert.Equal(t, 1, grpcCount, "Should have 1 gRPC route")
 }
 
 // TestTomlLoader_EmptyRoutes tests handling of empty routes in endpoints
@@ -499,10 +490,6 @@ func TestRouteDuplication(t *testing.T) {
 	httpRule = checkRoute.GetHttp()
 	assert.NotNil(t, httpRule)
 	assert.Equal(t, "/echo", *httpRule.PathPrefix)
-
-	// Make sure there's no grpc field populated
-	grpcRule := checkRoute.GetGrpc()
-	assert.Nil(t, grpcRule, "gRPC rule should be nil")
 
 	// Make sure the oneof field is correctly set to HTTP rule
 	assert.IsType(t, &pbSettings.Route_Http{}, checkRoute.Rule)

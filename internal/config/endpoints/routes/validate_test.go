@@ -26,10 +26,10 @@ func TestRoute_Validate(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "Valid gRPC route",
+			name: "Valid HTTP route with method",
 			route: Route{
 				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1", ""),
+				Condition: conditions.NewHTTP("/api/v2", "POST"),
 			},
 			expectError: false,
 		},
@@ -60,10 +60,10 @@ func TestRoute_Validate(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "Invalid gRPC service",
+			name: "Invalid HTTP path",
 			route: Route{
 				AppID:     "app2",
-				Condition: conditions.NewGRPC("", ""),
+				Condition: conditions.NewHTTP("", ""),
 			},
 			expectError: true,
 		},

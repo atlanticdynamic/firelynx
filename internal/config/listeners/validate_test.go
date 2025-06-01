@@ -31,12 +31,12 @@ func TestListener_Validate(t *testing.T) {
 			wantError: false,
 		},
 		{
-			name: "Valid GRPC Listener",
+			name: "Valid HTTP Listener 2",
 			listener: Listener{
-				ID:      "grpc1",
+				ID:      "http2",
 				Address: ":9090",
-				Type:    TypeGRPC,
-				Options: options.NewGRPC(), // Use constructor for valid defaults
+				Type:    TypeHTTP,
+				Options: options.NewHTTP(), // Use constructor for valid defaults
 			},
 			wantError: false,
 		},

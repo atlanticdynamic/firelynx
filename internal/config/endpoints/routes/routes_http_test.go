@@ -23,7 +23,7 @@ func TestGetStructuredHTTPRoutes_Specific(t *testing.T) {
 			},
 			{
 				AppID:     "app3",
-				Condition: conditions.NewGRPC("service.Test", ""),
+				Condition: conditions.NewHTTP("/path3", "POST"),
 			},
 		}
 
@@ -31,7 +31,7 @@ func TestGetStructuredHTTPRoutes_Specific(t *testing.T) {
 		httpRoutes := routes.GetStructuredHTTPRoutes()
 
 		// Verify HTTP routes
-		assert.Len(t, httpRoutes, 2, "Should have 2 HTTP routes")
+		assert.Len(t, httpRoutes, 3, "Should have 3 HTTP routes")
 
 		// Verify first HTTP route
 		assert.Equal(t, "app1", httpRoutes[0].AppID, "AppID should match")
@@ -67,14 +67,9 @@ func TestGetStructuredHTTPRoutes_Specific(t *testing.T) {
 		assert.Len(t, httpRoutes, 0, "Should have 0 HTTP routes")
 	})
 
-	t.Run("No HTTP Routes", func(t *testing.T) {
-		// Create a collection of routes with no HTTP conditions
-		routes := RouteCollection{
-			{
-				AppID:     "app1",
-				Condition: conditions.NewGRPC("service.Test", ""),
-			},
-		}
+	t.Run("Empty Routes", func(t *testing.T) {
+		// Create an empty collection of routes
+		routes := RouteCollection{}
 
 		// Get HTTP routes
 		httpRoutes := routes.GetStructuredHTTPRoutes()

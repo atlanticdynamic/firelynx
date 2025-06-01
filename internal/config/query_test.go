@@ -22,7 +22,6 @@ import (
 func setupTestConfig() *Config {
 	// Create test listeners
 	httpOptions := options.NewHTTP()
-	grpcOptions := options.NewGRPC()
 
 	httpListener := listeners.Listener{
 		ID:      "http_listener",
@@ -30,11 +29,11 @@ func setupTestConfig() *Config {
 		Type:    listeners.TypeHTTP,
 		Options: httpOptions,
 	}
-	grpcListener := listeners.Listener{
-		ID:      "grpc_listener",
-		Address: "localhost:9090",
-		Type:    listeners.TypeGRPC,
-		Options: grpcOptions,
+	httpListener2 := listeners.Listener{
+		ID:      "http_listener_2",
+		Address: "localhost:8081",
+		Type:    listeners.TypeHTTP,
+		Options: httpOptions,
 	}
 
 	// Create test apps
@@ -83,16 +82,16 @@ func setupTestConfig() *Config {
 		Routes:     []routes.Route{httpRoute},
 	}
 
-	// Create test endpoints and routes for GRPC
-	grpcCondition := conditions.NewGRPC("TestPackage.TestService", "")
-	grpcRoute := routes.Route{
+	// Create test endpoints and routes for second HTTP listener
+	httpCondition2 := conditions.NewHTTP("/risor", "")
+	httpRoute2 := routes.Route{
 		AppID:     "risor_app",
-		Condition: grpcCondition,
+		Condition: httpCondition2,
 	}
-	grpcEndpoint := endpoints.Endpoint{
-		ID:         "grpc_endpoint",
-		ListenerID: "grpc_listener",
-		Routes:     []routes.Route{grpcRoute},
+	httpEndpoint2 := endpoints.Endpoint{
+		ID:         "http_endpoint_2",
+		ListenerID: "http_listener_2",
+		Routes:     []routes.Route{httpRoute2},
 	}
 
 	// Create an endpoint attached to both listeners
@@ -108,21 +107,21 @@ func setupTestConfig() *Config {
 		ListenerID: "http_listener",
 		Routes:     []routes.Route{multiRoute},
 	}
-	multiGrpcEndpoint := endpoints.Endpoint{
-		ID:         "multi_grpc_endpoint",
-		ListenerID: "grpc_listener",
+	multiHttpEndpoint2 := endpoints.Endpoint{
+		ID:         "multi_http_endpoint_2",
+		ListenerID: "http_listener_2",
 		Routes:     []routes.Route{multiRoute},
 	}
 
 	// Create the final config
 	config := &Config{
 		Version:   version.Version,
-		Listeners: listeners.ListenerCollection{httpListener, grpcListener},
+		Listeners: listeners.ListenerCollection{httpListener, httpListener2},
 		Endpoints: endpoints.EndpointCollection{
 			httpEndpoint,
-			grpcEndpoint,
+			httpEndpoint2,
 			multiHttpEndpoint,
-			multiGrpcEndpoint,
+			multiHttpEndpoint2,
 		},
 		Apps: apps.AppCollection{echoApp, scriptApp, starScriptApp},
 	}
@@ -146,10 +145,10 @@ func TestGetListenerByID(t *testing.T) {
 			expectedResult: "http_listener",
 		},
 		{
-			name:           "Find existing GRPC listener",
-			listenerID:     "grpc_listener",
+			name:           "Find existing second HTTP listener",
+			listenerID:     "http_listener_2",
 			expectedFound:  true,
-			expectedResult: "grpc_listener",
+			expectedResult: "http_listener_2",
 		},
 		{
 			name:          "Non-existent listener returns nil",
@@ -220,9 +219,9 @@ func TestGetEndpointsForListener(t *testing.T) {
 			expectedCount: 2, // http_endpoint and multi_http_endpoint
 		},
 		{
-			name:          "Get endpoints for GRPC listener",
-			listenerID:    "grpc_listener",
-			expectedCount: 2, // grpc_endpoint and multi_grpc_endpoint
+			name:          "Get endpoints for second HTTP listener",
+			listenerID:    "http_listener_2",
+			expectedCount: 2, // http_endpoint_2 and multi_http_endpoint_2
 		},
 		{
 			name:          "Non-existent listener returns empty list",
@@ -255,10 +254,10 @@ func TestFindEndpoint(t *testing.T) {
 			expectedResult: "http_endpoint",
 		},
 		{
-			name:           "Find existing GRPC endpoint",
-			endpointID:     "grpc_endpoint",
+			name:           "Find existing second HTTP endpoint",
+			endpointID:     "http_endpoint_2",
 			expectedFound:  true,
-			expectedResult: "grpc_endpoint",
+			expectedResult: "http_endpoint_2",
 		},
 		{
 			name:          "Non-existent endpoint returns nil",
@@ -400,12 +399,7 @@ func TestGetListenersByType(t *testing.T) {
 		{
 			name:          "Get HTTP type listeners",
 			listenerType:  listeners.TypeHTTP,
-			expectedCount: 1,
-		},
-		{
-			name:          "Get GRPC type listeners",
-			listenerType:  listeners.TypeGRPC,
-			expectedCount: 1,
+			expectedCount: 2,
 		},
 	}
 
@@ -420,15 +414,11 @@ func TestGetListenersByType(t *testing.T) {
 func TestGetHTTPListeners(t *testing.T) {
 	config := setupTestConfig()
 	result := config.GetHTTPListeners()
-	assert.Len(t, result, 1)
-	assert.Equal(t, "http_listener", result[0].ID)
-}
-
-func TestGetGRPCListeners(t *testing.T) {
-	config := setupTestConfig()
-	result := config.GetGRPCListeners()
-	assert.Len(t, result, 1)
-	assert.Equal(t, "grpc_listener", result[0].ID)
+	assert.Len(t, result, 2)
+	// Check that we have both HTTP listeners
+	ids := []string{result[0].ID, result[1].ID}
+	assert.Contains(t, ids, "http_listener")
+	assert.Contains(t, ids, "http_listener_2")
 }
 
 func TestGetEndpointsByListenerID(t *testing.T) {
@@ -445,9 +435,9 @@ func TestGetEndpointsByListenerID(t *testing.T) {
 			expectedCount: 2, // http_endpoint and multi_http_endpoint
 		},
 		{
-			name:          "Get endpoints for GRPC listener",
-			listenerID:    "grpc_listener",
-			expectedCount: 2, // grpc_endpoint and multi_grpc_endpoint
+			name:          "Get endpoints for second HTTP listener",
+			listenerID:    "http_listener_2",
+			expectedCount: 2, // http_endpoint_2 and multi_http_endpoint_2
 		},
 		{
 			name:          "Non-existent listener returns empty list",
@@ -480,10 +470,10 @@ func TestGetEndpointIDsForListener(t *testing.T) {
 			expectedIDs:   []string{"http_endpoint", "multi_http_endpoint"},
 		},
 		{
-			name:          "Get endpoint IDs for GRPC listener",
-			listenerID:    "grpc_listener",
+			name:          "Get endpoint IDs for second HTTP listener",
+			listenerID:    "http_listener_2",
 			expectedCount: 2,
-			expectedIDs:   []string{"grpc_endpoint", "multi_grpc_endpoint"},
+			expectedIDs:   []string{"http_endpoint_2", "multi_http_endpoint_2"},
 		},
 		{
 			name:          "Non-existent listener returns empty list",
@@ -526,10 +516,10 @@ func TestGetEndpointToListenerIDMapping(t *testing.T) {
 
 	// Expected mapping based on the test config
 	expected := map[string]string{
-		"http_endpoint":       "http_listener",
-		"multi_http_endpoint": "http_listener",
-		"grpc_endpoint":       "grpc_listener",
-		"multi_grpc_endpoint": "grpc_listener",
+		"http_endpoint":         "http_listener",
+		"multi_http_endpoint":   "http_listener",
+		"http_endpoint_2":       "http_listener_2",
+		"multi_http_endpoint_2": "http_listener_2",
 	}
 
 	// Verify the mapping

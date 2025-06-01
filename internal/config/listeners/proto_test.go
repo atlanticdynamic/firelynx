@@ -58,36 +58,7 @@ func TestToProto(t *testing.T) {
 			},
 		},
 		{
-			name: "Single gRPC listener",
-			listeners: ListenerCollection{
-				{
-					ID:      "grpc-listener",
-					Address: "127.0.0.1:9090",
-					Type:    TypeGRPC,
-					Options: options.GRPC{
-						MaxConnectionIdle:    time.Minute * 5,
-						MaxConnectionAge:     time.Minute * 30,
-						MaxConcurrentStreams: 100,
-					},
-				},
-			},
-			expected: []*pb.Listener{
-				{
-					Id:      proto.String("grpc-listener"),
-					Address: proto.String("127.0.0.1:9090"),
-					Type:    pb.Listener_TYPE_GRPC.Enum(),
-					ProtocolOptions: &pb.Listener_Grpc{
-						Grpc: &pb.GrpcListenerOptions{
-							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
-							MaxConnectionAge:     durationpb.New(time.Minute * 30),
-							MaxConcurrentStreams: proto.Int32(100),
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "Multiple listeners",
+			name: "Multiple HTTP listeners",
 			listeners: ListenerCollection{
 				{
 					ID:      "http-listener-1",
@@ -105,15 +76,6 @@ func TestToProto(t *testing.T) {
 					Options: options.HTTP{
 						ReadTimeout:  time.Second * 15,
 						WriteTimeout: time.Second * 20,
-					},
-				},
-				{
-					ID:      "grpc-listener",
-					Address: "127.0.0.1:9090",
-					Type:    TypeGRPC,
-					Options: options.GRPC{
-						MaxConnectionIdle:    time.Minute * 5,
-						MaxConcurrentStreams: 100,
 					},
 				},
 			},
@@ -137,17 +99,6 @@ func TestToProto(t *testing.T) {
 						Http: &pb.HttpListenerOptions{
 							ReadTimeout:  durationpb.New(time.Second * 15),
 							WriteTimeout: durationpb.New(time.Second * 20),
-						},
-					},
-				},
-				{
-					Id:      proto.String("grpc-listener"),
-					Address: proto.String("127.0.0.1:9090"),
-					Type:    pb.Listener_TYPE_GRPC.Enum(),
-					ProtocolOptions: &pb.Listener_Grpc{
-						Grpc: &pb.GrpcListenerOptions{
-							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
-							MaxConcurrentStreams: proto.Int32(100),
 						},
 					},
 				},
@@ -178,8 +129,7 @@ func TestToProto(t *testing.T) {
 				assert.Equal(t, expectedListener.Type, actualListener.Type)
 
 				// Check protocol options
-				switch {
-				case expectedListener.GetHttp() != nil:
+				if expectedListener.GetHttp() != nil {
 					http := actualListener.GetHttp()
 					require.NotNil(t, http, "HTTP options should not be nil")
 
@@ -210,33 +160,6 @@ func TestToProto(t *testing.T) {
 							t,
 							expectHttp.DrainTimeout.AsDuration(),
 							http.DrainTimeout.AsDuration(),
-						)
-					}
-
-				case expectedListener.GetGrpc() != nil:
-					grpc := actualListener.GetGrpc()
-					require.NotNil(t, grpc, "gRPC options should not be nil")
-
-					expectGrpc := expectedListener.GetGrpc()
-					if expectGrpc.MaxConnectionIdle != nil {
-						assert.Equal(
-							t,
-							expectGrpc.MaxConnectionIdle.AsDuration(),
-							grpc.MaxConnectionIdle.AsDuration(),
-						)
-					}
-					if expectGrpc.MaxConnectionAge != nil {
-						assert.Equal(
-							t,
-							expectGrpc.MaxConnectionAge.AsDuration(),
-							grpc.MaxConnectionAge.AsDuration(),
-						)
-					}
-					if expectGrpc.MaxConcurrentStreams != nil {
-						assert.Equal(
-							t,
-							*expectGrpc.MaxConcurrentStreams,
-							*grpc.MaxConcurrentStreams,
 						)
 					}
 				}
@@ -293,37 +216,7 @@ func TestFromProto(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "Single gRPC listener",
-			pbListeners: []*pb.Listener{
-				{
-					Id:      proto.String("grpc-listener"),
-					Address: proto.String("127.0.0.1:9090"),
-					Type:    pb.Listener_TYPE_GRPC.Enum(),
-					ProtocolOptions: &pb.Listener_Grpc{
-						Grpc: &pb.GrpcListenerOptions{
-							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
-							MaxConnectionAge:     durationpb.New(time.Minute * 30),
-							MaxConcurrentStreams: proto.Int32(100),
-						},
-					},
-				},
-			},
-			expected: ListenerCollection{
-				{
-					ID:      "grpc-listener",
-					Address: "127.0.0.1:9090",
-					Type:    TypeGRPC,
-					Options: options.GRPC{
-						MaxConnectionIdle:    time.Minute * 5,
-						MaxConnectionAge:     time.Minute * 30,
-						MaxConcurrentStreams: 100,
-					},
-				},
-			},
-			expectedError: false,
-		},
-		{
-			name: "Multiple listeners",
+			name: "Multiple HTTP listeners",
 			pbListeners: []*pb.Listener{
 				{
 					Id:      proto.String("http-listener-1"),
@@ -337,13 +230,13 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 				{
-					Id:      proto.String("grpc-listener"),
-					Address: proto.String("127.0.0.1:9090"),
-					Type:    pb.Listener_TYPE_GRPC.Enum(),
-					ProtocolOptions: &pb.Listener_Grpc{
-						Grpc: &pb.GrpcListenerOptions{
-							MaxConnectionIdle:    durationpb.New(time.Minute * 5),
-							MaxConcurrentStreams: proto.Int32(100),
+					Id:      proto.String("http-listener-2"),
+					Address: proto.String("127.0.0.1:8081"),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
+					ProtocolOptions: &pb.Listener_Http{
+						Http: &pb.HttpListenerOptions{
+							ReadTimeout:  durationpb.New(time.Second * 15),
+							WriteTimeout: durationpb.New(time.Second * 20),
 						},
 					},
 				},
@@ -361,13 +254,14 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 				{
-					ID:      "grpc-listener",
-					Address: "127.0.0.1:9090",
-					Type:    TypeGRPC,
-					Options: options.GRPC{
-						MaxConnectionIdle:    time.Minute * 5,
-						MaxConcurrentStreams: 100,
-						MaxConnectionAge:     options.DefaultGRPCMaxConnectionAge, // Default value
+					ID:      "http-listener-2",
+					Address: "127.0.0.1:8081",
+					Type:    TypeHTTP,
+					Options: options.HTTP{
+						ReadTimeout:  time.Second * 15,
+						WriteTimeout: time.Second * 20,
+						IdleTimeout:  options.DefaultHTTPIdleTimeout,  // Default value
+						DrainTimeout: options.DefaultHTTPDrainTimeout, // Default value
 					},
 				},
 			},
@@ -439,8 +333,7 @@ func TestFromProto(t *testing.T) {
 				assert.Equal(t, expectedListener.Type, actual.Type)
 
 				// Check options based on type
-				switch expectedListener.Type {
-				case TypeHTTP:
+				if expectedListener.Type == TypeHTTP {
 					expectedOpts, _ := expectedListener.Options.(options.HTTP)
 					actualOpts, ok := actual.Options.(options.HTTP)
 					require.True(t, ok, "Expected HTTP options but got different type")
@@ -451,21 +344,6 @@ func TestFromProto(t *testing.T) {
 					assert.Equal(t, expectedOpts.WriteTimeout, actualOpts.WriteTimeout)
 					assert.Equal(t, expectedOpts.IdleTimeout, actualOpts.IdleTimeout)
 					assert.Equal(t, expectedOpts.DrainTimeout, actualOpts.DrainTimeout)
-
-				case TypeGRPC:
-					expectedOpts, _ := expectedListener.Options.(options.GRPC)
-					actualOpts, ok := actual.Options.(options.GRPC)
-					require.True(t, ok, "Expected gRPC options but got different type")
-
-					// Only check the fields explicitly set in test cases
-					// This correctly handles both explicit values and default values
-					assert.Equal(t, expectedOpts.MaxConnectionIdle, actualOpts.MaxConnectionIdle)
-					assert.Equal(t, expectedOpts.MaxConnectionAge, actualOpts.MaxConnectionAge)
-					assert.Equal(
-						t,
-						expectedOpts.MaxConcurrentStreams,
-						actualOpts.MaxConcurrentStreams,
-					)
 				}
 			}
 		})
@@ -524,13 +402,14 @@ func TestRoundTripConversion(t *testing.T) {
 			},
 		},
 		{
-			ID:      "grpc-listener",
-			Address: "127.0.0.1:9090",
-			Type:    TypeGRPC,
-			Options: options.GRPC{
-				MaxConnectionIdle:    time.Minute * 5,
-				MaxConnectionAge:     time.Minute * 30,
-				MaxConcurrentStreams: 100,
+			ID:      "http-listener-2",
+			Address: "127.0.0.1:8081",
+			Type:    TypeHTTP,
+			Options: options.HTTP{
+				ReadTimeout:  time.Second * 15,
+				WriteTimeout: time.Second * 20,
+				IdleTimeout:  time.Second * 30,
+				DrainTimeout: time.Second * 10,
 			},
 		},
 	}
@@ -553,8 +432,7 @@ func TestRoundTripConversion(t *testing.T) {
 		assert.Equal(t, orig.Type, actual.Type)
 
 		// Check options
-		switch origOpts := orig.Options.(type) {
-		case options.HTTP:
+		if origOpts, ok := orig.Options.(options.HTTP); ok {
 			actualOpts, ok := actual.Options.(options.HTTP)
 			require.True(t, ok)
 
@@ -562,14 +440,6 @@ func TestRoundTripConversion(t *testing.T) {
 			assert.Equal(t, origOpts.WriteTimeout, actualOpts.WriteTimeout)
 			assert.Equal(t, origOpts.IdleTimeout, actualOpts.IdleTimeout)
 			assert.Equal(t, origOpts.DrainTimeout, actualOpts.DrainTimeout)
-
-		case options.GRPC:
-			actualOpts, ok := actual.Options.(options.GRPC)
-			require.True(t, ok)
-
-			assert.Equal(t, origOpts.MaxConnectionIdle, actualOpts.MaxConnectionIdle)
-			assert.Equal(t, origOpts.MaxConnectionAge, actualOpts.MaxConnectionAge)
-			assert.Equal(t, origOpts.MaxConcurrentStreams, actualOpts.MaxConcurrentStreams)
 		}
 	}
 }

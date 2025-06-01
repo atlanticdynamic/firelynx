@@ -24,17 +24,15 @@ message Listener {
   enum Type {
     TYPE_UNSPECIFIED = 0;
     TYPE_HTTP = 1;
-    TYPE_GRPC = 2;
   }
 
   string id = 1; // unique name for this listener
   string address = 2; // ":8080", "unix:/tmp/sock.sock", etc.
-  Type type = 3 [default = TYPE_HTTP]; // type of listener (HTTP, gRPC, etc.)
+  Type type = 3 [default = TYPE_HTTP]; // type of listener
 
   // Protocol-specific options
   oneof protocol_options {
     HttpListenerOptions http = 4;
-    GrpcListenerOptions grpc = 5;
   }
 }
 
@@ -44,13 +42,6 @@ message HttpListenerOptions {
   google.protobuf.Duration write_timeout = 2;
   google.protobuf.Duration idle_timeout = 3;
   google.protobuf.Duration drain_timeout = 4;
-}
-
-// gRPC listener specific options
-message GrpcListenerOptions {
-  google.protobuf.Duration max_connection_idle = 1;
-  google.protobuf.Duration max_connection_age = 2;
-  int32 max_concurrent_streams = 3;
 }
 
 // Endpoint connects: listener -> routes -> apps
@@ -66,7 +57,6 @@ message Route {
   StaticData static_data = 2; // static data to pass to the app
   oneof rule {
     HttpRule http = 3;
-    GrpcRule grpc = 4;
   }
 }
 
@@ -75,7 +65,3 @@ message HttpRule {
   string method = 2;
 }
 
-message GrpcRule {
-  string service = 1;
-  string method = 2;
-}

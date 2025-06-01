@@ -13,7 +13,6 @@ type Type string
 const (
 	Unknown  Type = ""
 	TypeHTTP Type = "http"
-	TypeGRPC Type = "grpc"
 )
 
 // Options represents protocol-specific options for listeners
@@ -27,5 +26,4 @@ type Options interface {
 // Common option-specific error types
 var (
 	ErrInvalidHTTPOptions = errors.New("invalid HTTP listener options")
-	ErrInvalidGRPCOptions = errors.New("invalid gRPC listener options")
 )

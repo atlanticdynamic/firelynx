@@ -15,9 +15,6 @@
     "app_id": {
       "type": "string"
     },
-    "grpc": {
-      "$ref": "settings.v1alpha1.GrpcRule.schema.json"
-    },
     "http": {
       "$ref": "settings.v1alpha1.HttpRule.schema.json"
     },

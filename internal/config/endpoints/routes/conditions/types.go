@@ -13,7 +13,6 @@ type Type string
 const (
 	Unknown  Type = ""
 	TypeHTTP Type = "http_path"
-	TypeGRPC Type = "grpc_service"
 	TypeMCP  Type = "mcp_resource" // For future use with MCP protocol
 )
 
@@ -31,8 +30,6 @@ func TypeString(t Type) string {
 	switch t {
 	case TypeHTTP:
 		return "HTTP Path"
-	case TypeGRPC:
-		return "gRPC Service"
 	case TypeMCP:
 		return "MCP Resource"
 	case Unknown:

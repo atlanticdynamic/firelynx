@@ -22,11 +22,6 @@ func TestType_Values(t *testing.T) {
 			typeVal:  TypeHTTP,
 			expected: "http",
 		},
-		{
-			name:     "GRPC type",
-			typeVal:  TypeGRPC,
-			expected: "grpc",
-		},
 	}
 
 	for _, tt := range tests {
@@ -39,7 +34,4 @@ func TestType_Values(t *testing.T) {
 func TestOptions_Interface(t *testing.T) {
 	// Test that HTTPOptions implements Options interface
 	var _ Options = HTTP{}
-
-	// Test that GRPCOptions implements Options interface
-	var _ Options = GRPC{}
 }

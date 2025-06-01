@@ -21,14 +21,9 @@ app_id = "echo_app"
 path_prefix = "/echo1"
 
 [[endpoints.routes]]
-app_id = "echo_app"
+app_id = "http_app"
 [endpoints.routes.http]
-path_prefix = "/echo2"
-
-[[endpoints.routes]]
-app_id = "grpc_app"
-[endpoints.routes.grpc]
-service = "test.Service"
+path_prefix = "/api/v3"
 
 [[apps]]
 id = "echo_app"
@@ -36,6 +31,6 @@ id = "echo_app"
 response = "Test response"
 
 [[apps]]
-id = "grpc_app"
+id = "http_app"
 [apps.echo]
-response = "GRPC response"
+response = "HTTP response"

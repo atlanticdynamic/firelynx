@@ -9,7 +9,6 @@ import "errors"
 // Common condition-specific error types
 var (
 	ErrInvalidHTTPCondition = errors.New("invalid HTTP path condition")
-	ErrInvalidGRPCCondition = errors.New("invalid gRPC service condition")
 	ErrEmptyValue           = errors.New("empty condition value")
 	ErrInvalidConditionType = errors.New("invalid condition type")
 )
