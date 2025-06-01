@@ -22,27 +22,27 @@ func TestAppTypeConversions(t *testing.T) {
 		testCases := []struct {
 			name     string
 			appType  AppType
-			expected pb.AppType
+			expected pb.AppDefinition_Type
 		}{
 			{
 				name:     "Script",
 				appType:  AppTypeScript,
-				expected: pb.AppType_APP_TYPE_SCRIPT,
+				expected: pb.AppDefinition_TYPE_SCRIPT,
 			},
 			{
 				name:     "Composite",
 				appType:  AppTypeComposite,
-				expected: pb.AppType_APP_TYPE_COMPOSITE_SCRIPT,
+				expected: pb.AppDefinition_TYPE_COMPOSITE_SCRIPT,
 			},
 			{
 				name:     "Echo",
 				appType:  AppTypeEcho,
-				expected: pb.AppType_APP_TYPE_ECHO,
+				expected: pb.AppDefinition_TYPE_ECHO,
 			},
 			{
 				name:     "Unknown",
 				appType:  AppTypeUnknown,
-				expected: pb.AppType_APP_TYPE_UNSPECIFIED,
+				expected: pb.AppDefinition_TYPE_UNSPECIFIED,
 			},
 		}
 
@@ -57,27 +57,27 @@ func TestAppTypeConversions(t *testing.T) {
 	t.Run("ProtoToDomain", func(t *testing.T) {
 		testCases := []struct {
 			name     string
-			pbType   pb.AppType
+			pbType   pb.AppDefinition_Type
 			expected AppType
 		}{
 			{
 				name:     "Script",
-				pbType:   pb.AppType_APP_TYPE_SCRIPT,
+				pbType:   pb.AppDefinition_TYPE_SCRIPT,
 				expected: AppTypeScript,
 			},
 			{
 				name:     "Composite",
-				pbType:   pb.AppType_APP_TYPE_COMPOSITE_SCRIPT,
+				pbType:   pb.AppDefinition_TYPE_COMPOSITE_SCRIPT,
 				expected: AppTypeComposite,
 			},
 			{
 				name:     "Echo",
-				pbType:   pb.AppType_APP_TYPE_ECHO,
+				pbType:   pb.AppDefinition_TYPE_ECHO,
 				expected: AppTypeEcho,
 			},
 			{
 				name:     "Unspecified",
-				pbType:   pb.AppType_APP_TYPE_UNSPECIFIED,
+				pbType:   pb.AppDefinition_TYPE_UNSPECIFIED,
 				expected: AppTypeUnknown,
 			},
 		}
@@ -96,7 +96,7 @@ func TestFromProtoConversions(t *testing.T) {
 
 	t.Run("ScriptApp", func(t *testing.T) {
 		// Create a protobuf AppDefinition with a script app
-		scriptType := pb.AppType_APP_TYPE_SCRIPT
+		scriptType := pb.AppDefinition_TYPE_SCRIPT
 		pbApp := &pb.AppDefinition{
 			Id:   proto.String("test-script-app"),
 			Type: &scriptType,
@@ -133,7 +133,7 @@ func TestFromProtoConversions(t *testing.T) {
 
 	t.Run("CompositeScriptApp", func(t *testing.T) {
 		// Create a protobuf AppDefinition with a composite script app
-		compositeType := pb.AppType_APP_TYPE_COMPOSITE_SCRIPT
+		compositeType := pb.AppDefinition_TYPE_COMPOSITE_SCRIPT
 		pbApp := &pb.AppDefinition{
 			Id:   proto.String("test-composite-app"),
 			Type: &compositeType,
@@ -160,7 +160,7 @@ func TestFromProtoConversions(t *testing.T) {
 
 	t.Run("EchoApp", func(t *testing.T) {
 		// Create a protobuf AppDefinition with an echo app
-		echoType := pb.AppType_APP_TYPE_ECHO
+		echoType := pb.AppDefinition_TYPE_ECHO
 		pbApp := &pb.AppDefinition{
 			Id:   proto.String("test-echo-app"),
 			Type: &echoType,
@@ -187,7 +187,7 @@ func TestFromProtoConversions(t *testing.T) {
 
 	t.Run("TypeMismatch", func(t *testing.T) {
 		// Create a protobuf AppDefinition with mismatched type and config
-		echoType := pb.AppType_APP_TYPE_ECHO
+		echoType := pb.AppDefinition_TYPE_ECHO
 		pbApp := &pb.AppDefinition{
 			Id:   proto.String("mismatched-app"),
 			Type: &echoType,
@@ -227,9 +227,9 @@ func TestFromProtoConversions(t *testing.T) {
 
 	t.Run("MultipleApps", func(t *testing.T) {
 		// Create multiple app definitions with types
-		scriptType := pb.AppType_APP_TYPE_SCRIPT
-		compositeType := pb.AppType_APP_TYPE_COMPOSITE_SCRIPT
-		echoType := pb.AppType_APP_TYPE_ECHO
+		scriptType := pb.AppDefinition_TYPE_SCRIPT
+		compositeType := pb.AppDefinition_TYPE_COMPOSITE_SCRIPT
+		echoType := pb.AppDefinition_TYPE_ECHO
 
 		pbApps := []*pb.AppDefinition{
 			{
@@ -309,7 +309,7 @@ func TestToProtoConversions(t *testing.T) {
 
 		// Verify conversion
 		assert.Equal(t, "test-script-app", pbApp.GetId())
-		assert.Equal(t, pb.AppType_APP_TYPE_SCRIPT, pbApp.GetType(), "AppType should be SCRIPT")
+		assert.Equal(t, pb.AppDefinition_TYPE_SCRIPT, pbApp.GetType(), "AppType should be SCRIPT")
 		assert.NotNil(t, pbApp.GetScript(), "Expected Script field to be set")
 		assert.NotNil(t, pbApp.GetScript().GetRisor(), "Expected Risor evaluator to be set")
 		assert.Equal(t, "return 'hello'", pbApp.GetScript().GetRisor().GetCode())
@@ -330,7 +330,7 @@ func TestToProtoConversions(t *testing.T) {
 		assert.Equal(t, "test-composite-app", pbApp.GetId())
 		assert.Equal(
 			t,
-			pb.AppType_APP_TYPE_COMPOSITE_SCRIPT,
+			pb.AppDefinition_TYPE_COMPOSITE_SCRIPT,
 			pbApp.GetType(),
 			"AppType should be COMPOSITE_SCRIPT",
 		)
@@ -358,7 +358,7 @@ func TestToProtoConversions(t *testing.T) {
 
 		pbApp := pbApps[0]
 		assert.Equal(t, "test-echo-app", pbApp.GetId())
-		assert.Equal(t, pb.AppType_APP_TYPE_ECHO, pbApp.GetType(), "AppType should be ECHO")
+		assert.Equal(t, pb.AppDefinition_TYPE_ECHO, pbApp.GetType(), "AppType should be ECHO")
 		assert.NotNil(t, pbApp.GetEcho(), "Expected Echo field to be set")
 		assert.Equal(t, "Hello, world!", pbApp.GetEcho().GetResponse())
 	})
@@ -395,7 +395,7 @@ func TestToProtoConversions(t *testing.T) {
 		assert.Equal(t, "script-app", pbApps[0].GetId())
 		assert.Equal(
 			t,
-			pb.AppType_APP_TYPE_SCRIPT,
+			pb.AppDefinition_TYPE_SCRIPT,
 			pbApps[0].GetType(),
 			"First app should be SCRIPT type",
 		)
@@ -404,7 +404,7 @@ func TestToProtoConversions(t *testing.T) {
 		assert.Equal(t, "composite-app", pbApps[1].GetId())
 		assert.Equal(
 			t,
-			pb.AppType_APP_TYPE_COMPOSITE_SCRIPT,
+			pb.AppDefinition_TYPE_COMPOSITE_SCRIPT,
 			pbApps[1].GetType(),
 			"Second app should be COMPOSITE_SCRIPT type",
 		)
@@ -417,7 +417,7 @@ func TestToProtoConversions(t *testing.T) {
 		assert.Equal(t, "echo-app", pbApps[2].GetId())
 		assert.Equal(
 			t,
-			pb.AppType_APP_TYPE_ECHO,
+			pb.AppDefinition_TYPE_ECHO,
 			pbApps[2].GetType(),
 			"Third app should be ECHO type",
 		)

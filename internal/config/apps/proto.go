@@ -25,28 +25,28 @@ const (
 	AppTypeComposite AppType = "composite_script"
 )
 
-// appTypeToProto converts from domain AppType to protobuf AppType enum
-func appTypeToProto(appType AppType) pb.AppType {
+// appTypeToProto converts from domain AppType to protobuf AppDefinition_Type enum
+func appTypeToProto(appType AppType) pb.AppDefinition_Type {
 	switch appType {
 	case AppTypeScript:
-		return pb.AppType_APP_TYPE_SCRIPT
+		return pb.AppDefinition_TYPE_SCRIPT
 	case AppTypeComposite:
-		return pb.AppType_APP_TYPE_COMPOSITE_SCRIPT
+		return pb.AppDefinition_TYPE_COMPOSITE_SCRIPT
 	case AppTypeEcho:
-		return pb.AppType_APP_TYPE_ECHO
+		return pb.AppDefinition_TYPE_ECHO
 	default:
-		return pb.AppType_APP_TYPE_UNSPECIFIED
+		return pb.AppDefinition_TYPE_UNSPECIFIED
 	}
 }
 
-// appTypeFromProto converts from protobuf AppType enum to domain AppType
-func appTypeFromProto(pbAppType pb.AppType) AppType {
+// appTypeFromProto converts from protobuf AppDefinition_Type enum to domain AppType
+func appTypeFromProto(pbAppType pb.AppDefinition_Type) AppType {
 	switch pbAppType {
-	case pb.AppType_APP_TYPE_SCRIPT:
+	case pb.AppDefinition_TYPE_SCRIPT:
 		return AppTypeScript
-	case pb.AppType_APP_TYPE_COMPOSITE_SCRIPT:
+	case pb.AppDefinition_TYPE_COMPOSITE_SCRIPT:
 		return AppTypeComposite
-	case pb.AppType_APP_TYPE_ECHO:
+	case pb.AppDefinition_TYPE_ECHO:
 		return AppTypeEcho
 	default:
 		return AppTypeUnknown
