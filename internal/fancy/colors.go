@@ -14,6 +14,7 @@ var (
 	ColorGreen    = lipgloss.Color("82")  // Green
 	ColorYellow   = lipgloss.Color("228") // Yellow
 	ColorCyan     = lipgloss.Color("45")  // Cyan
+	ColorRed      = lipgloss.Color("196") // Red
 	ColorGray     = lipgloss.Color("250") // Light gray
 	ColorWhite    = lipgloss.Color("15")  // White
 	ColorDarkGray = lipgloss.Color("240") // Dark gray for branches

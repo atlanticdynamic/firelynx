@@ -43,6 +43,7 @@ package routes
 import (
 	"fmt"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
@@ -55,9 +56,10 @@ type RouteCollection []Route
 
 // Route represents a rule for directing traffic to an application
 type Route struct {
-	AppID      string
-	StaticData map[string]any
-	Condition  conditions.Condition
+	AppID       string
+	StaticData  map[string]any
+	Condition   conditions.Condition
+	Middlewares middleware.MiddlewareCollection
 }
 
 // ToTree returns a styled tree node for this Route
