@@ -69,8 +69,6 @@ func processListenerType(listener *pbSettings.Listener, typeVal string) []error 
 	switch typeVal {
 	case "http":
 		listenerType = pbSettings.Listener_TYPE_HTTP
-	case "grpc":
-		listenerType = pbSettings.Listener_TYPE_GRPC
 	default:
 		listenerType = pbSettings.Listener_TYPE_UNSPECIFIED
 		errList = append(errList, fmt.Errorf("%w: %s", errz.ErrUnsupportedListenerType, typeVal))

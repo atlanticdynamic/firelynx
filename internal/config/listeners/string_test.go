@@ -67,31 +67,6 @@ func TestListener_String(t *testing.T) {
 			},
 		},
 		{
-			name: "GRPC Listener Basic",
-			listener: Listener{
-				ID:      "grpc1",
-				Address: ":50051",
-				Type:    TypeGRPC,
-				Options: options.GRPC{},
-			},
-			expected: "Listener grpc1 (GRPC) - :50051",
-		},
-		{
-			name: "GRPC Listener With Options",
-			listener: Listener{
-				ID:      "grpc2",
-				Address: ":50052",
-				Type:    TypeGRPC,
-				Options: options.GRPC{
-					MaxConnectionIdle: 30 * time.Minute,
-				},
-			},
-			contains: []string{
-				"Listener grpc2 (GRPC) - :50052",
-				"MaxConnectionIdle: 30m0s",
-			},
-		},
-		{
 			name: "Listener With Custom Options",
 			listener: Listener{
 				ID:      "custom",
@@ -143,22 +118,6 @@ func TestListener_ToTree(t *testing.T) {
 				"http1", ":8080", "http",
 			},
 		},
-		{
-			name: "GRPC Listener With Options",
-			listener: Listener{
-				ID:      "grpc1",
-				Address: ":50051",
-				Type:    TypeGRPC,
-				Options: options.GRPC{
-					MaxConnectionIdle:    30 * time.Minute,
-					MaxConnectionAge:     1 * time.Hour,
-					MaxConcurrentStreams: 100,
-				},
-			},
-			contains: []string{
-				"grpc1", ":50051", "grpc",
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -185,27 +144,6 @@ func TestListener_ToTree_WithHTTPOptions(t *testing.T) {
 			WriteTimeout: 10 * time.Second,
 			IdleTimeout:  60 * time.Second,
 			DrainTimeout: 30 * time.Second,
-		},
-	}
-
-	// Call ToTree and verify it doesn't panic
-	result := listener.ToTree()
-	assert.NotNil(t, result, "ToTree should not return nil")
-}
-
-// Test Listener.ToTree method with GRPC Options
-func TestListener_ToTree_WithGRPCOptions(t *testing.T) {
-	t.Parallel()
-
-	// Create a listener with GRPC Options
-	listener := Listener{
-		ID:      "grpc1",
-		Address: ":50051",
-		Type:    TypeGRPC,
-		Options: options.GRPC{
-			MaxConnectionIdle:    30 * time.Minute,
-			MaxConnectionAge:     1 * time.Hour,
-			MaxConcurrentStreams: 100,
 		},
 	}
 

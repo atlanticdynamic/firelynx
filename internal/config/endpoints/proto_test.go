@@ -83,9 +83,6 @@ func TestEndpoint_ToProto(t *testing.T) {
 					case *pb.Route_Http:
 						assert.NotNil(t, actualRoute.GetHttp())
 						assert.Equal(t, expectedRoute.GetHttp().PathPrefix, actualRoute.GetHttp().PathPrefix)
-					case *pb.Route_Grpc:
-						assert.NotNil(t, actualRoute.GetGrpc())
-						assert.Equal(t, expectedRoute.GetGrpc().Service, actualRoute.GetGrpc().Service)
 					default:
 						t.Fatalf("Unknown rule type: %T", expectedRoute.Rule)
 					}
@@ -114,21 +111,6 @@ func TestRoute_ToProto(t *testing.T) {
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
 						PathPrefix: proto.String("/api/v1"),
-					},
-				},
-			},
-		},
-		{
-			name: "GRPC Service",
-			route: routes.Route{
-				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1", ""),
-			},
-			expected: &pb.Route{
-				AppId: proto.String("app2"),
-				Rule: &pb.Route_Grpc{
-					Grpc: &pb.GrpcRule{
-						Service: proto.String("service.v1"),
 					},
 				},
 			},
@@ -173,10 +155,6 @@ func TestRoute_ToProto(t *testing.T) {
 				httpRule := actual.GetHttp()
 				assert.NotNil(t, httpRule)
 				assert.Equal(t, tc.expected.GetHttp().PathPrefix, httpRule.PathPrefix)
-			case *pb.Route_Grpc:
-				grpcRule := actual.GetGrpc()
-				assert.NotNil(t, grpcRule)
-				assert.Equal(t, tc.expected.GetGrpc().Service, grpcRule.Service)
 			default:
 				t.Fatalf("Unknown rule type: %T", tc.expected.Rule)
 			}
@@ -213,11 +191,11 @@ func TestEndpoints_ToProto(t *testing.T) {
 		},
 		{
 			ID:         "endpoint2",
-			ListenerID: "grpc1",
+			ListenerID: "http2",
 			Routes: []routes.Route{
 				{
 					AppID:     "app2",
-					Condition: conditions.NewGRPC("service.v1", ""),
+					Condition: conditions.NewHTTP("/api/v2", ""),
 				},
 			},
 		},
@@ -240,13 +218,13 @@ func TestEndpoints_ToProto(t *testing.T) {
 		},
 		{
 			Id:         proto.String("endpoint2"),
-			ListenerId: proto.String("grpc1"),
+			ListenerId: proto.String("http2"),
 			Routes: []*pb.Route{
 				{
 					AppId: proto.String("app2"),
-					Rule: &pb.Route_Grpc{
-						Grpc: &pb.GrpcRule{
-							Service: proto.String("service.v1"),
+					Rule: &pb.Route_Http{
+						Http: &pb.HttpRule{
+							PathPrefix: proto.String("/api/v2"),
 						},
 					},
 				},
@@ -272,9 +250,6 @@ func TestEndpoints_ToProto(t *testing.T) {
 			case *pb.Route_Http:
 				assert.NotNil(t, actualRoute.GetHttp())
 				assert.Equal(t, expectedRoute.GetHttp().PathPrefix, actualRoute.GetHttp().PathPrefix)
-			case *pb.Route_Grpc:
-				assert.NotNil(t, actualRoute.GetGrpc())
-				assert.Equal(t, expectedRoute.GetGrpc().Service, actualRoute.GetGrpc().Service)
 			default:
 				t.Fatalf("Unknown rule type: %T", expectedRoute.Rule)
 			}
@@ -354,13 +329,13 @@ func TestFromProto(t *testing.T) {
 				},
 				{
 					Id:         proto.String("endpoint2"),
-					ListenerId: proto.String("grpc1"),
+					ListenerId: proto.String("http2"),
 					Routes: []*pb.Route{
 						{
 							AppId: proto.String("app2"),
-							Rule: &pb.Route_Grpc{
-								Grpc: &pb.GrpcRule{
-									Service: proto.String("service.v1"),
+							Rule: &pb.Route_Http{
+								Http: &pb.HttpRule{
+									PathPrefix: proto.String("/api/v2"),
 								},
 							},
 						},
@@ -380,11 +355,11 @@ func TestFromProto(t *testing.T) {
 				},
 				{
 					ID:         "endpoint2",
-					ListenerID: "grpc1",
+					ListenerID: "http2",
 					Routes: []routes.Route{
 						{
 							AppID:     "app2",
-							Condition: conditions.NewGRPC("service.v1", ""),
+							Condition: conditions.NewHTTP("/api/v2", ""),
 						},
 					},
 				},

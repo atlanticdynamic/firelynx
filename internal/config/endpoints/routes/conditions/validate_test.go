@@ -8,7 +8,7 @@ import (
 
 func TestValidateType(t *testing.T) {
 	t.Run("ValidTypes", func(t *testing.T) {
-		validTypes := []Type{TypeHTTP, TypeGRPC, TypeMCP}
+		validTypes := []Type{TypeHTTP, TypeMCP}
 		for _, validType := range validTypes {
 			err := ValidateType(validType)
 			assert.NoError(t, err, "Type %s should be valid", validType)

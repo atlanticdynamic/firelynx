@@ -5,7 +5,7 @@ import "fmt"
 // ValidateType checks if a condition Type is supported
 func ValidateType(t Type) error {
 	switch t {
-	case TypeHTTP, TypeGRPC, TypeMCP:
+	case TypeHTTP, TypeMCP:
 		return nil
 	case Unknown:
 		return fmt.Errorf("%w: empty condition type", ErrInvalidConditionType)

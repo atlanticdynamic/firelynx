@@ -188,7 +188,6 @@ func (c *Config) validateRouteTypesMatchListenerType(
 	// Define which condition types are compatible with which listener types
 	compatibleTypes := map[listeners.Type][]conditions.Type{
 		listeners.TypeHTTP: {conditions.TypeHTTP},
-		listeners.TypeGRPC: {conditions.TypeGRPC},
 	}
 
 	// Validate that all routes in this endpoint have a compatible type with the listener

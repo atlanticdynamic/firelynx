@@ -32,10 +32,6 @@ func (listeners ListenerCollection) ToProto() []*pb.Listener {
 			pbListener.ProtocolOptions = &pb.Listener_Http{
 				Http: options.HTTPToProto(opts),
 			}
-		case options.GRPC:
-			pbListener.ProtocolOptions = &pb.Listener_Grpc{
-				Grpc: options.GRPCToProto(opts),
-			}
 		}
 
 		pbListeners = append(pbListeners, pbListener)
@@ -65,8 +61,6 @@ func FromProto(pbListeners []*pb.Listener) (ListenerCollection, error) {
 		// Convert protocol-specific options
 		if http := l.GetHttp(); http != nil {
 			listenerObj.Options = options.HTTPFromProto(http)
-		} else if grpc := l.GetGrpc(); grpc != nil {
-			listenerObj.Options = options.GRPCFromProto(grpc)
 		} else {
 			return nil, fmt.Errorf("listener '%s' has unknown protocol options", listenerObj.ID)
 		}

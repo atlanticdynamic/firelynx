@@ -106,37 +106,3 @@ func (r RouteCollection) GetStructuredHTTPRoutes() []HTTPRoute {
 
 	return httpRoutes
 }
-
-// GetStructuredGRPCRoutes returns gRPC routes from this collection in a structured format.
-func (r RouteCollection) GetStructuredGRPCRoutes() []GRPCRoute {
-	var grpcRoutes []GRPCRoute
-
-	for _, route := range r {
-		// Skip non-gRPC routes
-		if route.Condition == nil {
-			continue
-		}
-
-		// Use string comparison instead of direct type comparison
-		if string(route.Condition.Type()) != string(conditions.TypeGRPC) {
-			continue
-		}
-
-		// Get the gRPC condition
-		grpcCond, ok := route.Condition.(conditions.GRPC)
-		if !ok {
-			continue
-		}
-
-		grpcRoute := GRPCRoute{
-			Service:    grpcCond.Service,
-			Method:     grpcCond.Method,
-			AppID:      route.AppID,
-			StaticData: route.StaticData,
-		}
-
-		grpcRoutes = append(grpcRoutes, grpcRoute)
-	}
-
-	return grpcRoutes
-}

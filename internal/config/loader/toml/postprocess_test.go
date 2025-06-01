@@ -26,12 +26,6 @@ func TestProcessListenerType(t *testing.T) {
 			expectError:  false,
 		},
 		{
-			name:         "gRPC Listener Type",
-			typeStr:      "grpc",
-			expectedType: pbSettings.Listener_TYPE_GRPC,
-			expectError:  false,
-		},
-		{
 			name:           "Unsupported Listener Type",
 			typeStr:        "websocket",
 			expectedType:   pbSettings.Listener_TYPE_UNSPECIFIED,
@@ -108,7 +102,7 @@ func TestProcessListeners(t *testing.T) {
 				map[string]any{
 					"id":      "listener2",
 					"address": ":8081",
-					"type":    "grpc",
+					"type":    "http",
 				},
 			},
 		}
@@ -126,9 +120,9 @@ func TestProcessListeners(t *testing.T) {
 		)
 		assert.Equal(
 			t,
-			pbSettings.Listener_TYPE_GRPC,
+			pbSettings.Listener_TYPE_HTTP,
 			config.Listeners[1].GetType(),
-			"Second listener should be gRPC",
+			"Second listener should be HTTP",
 		)
 	})
 

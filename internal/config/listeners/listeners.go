@@ -56,7 +56,6 @@ type Type int32
 const (
 	TypeUnspecified Type = 0
 	TypeHTTP        Type = 1
-	TypeGRPC        Type = 2
 )
 
 // ListenerCollection is a collection of Listener objects
@@ -84,8 +83,6 @@ func (l *Listener) GetTypeString() string {
 	switch l.Type {
 	case TypeHTTP:
 		return "HTTP"
-	case TypeGRPC:
-		return "GRPC"
 	default:
 		return "Unknown"
 	}
@@ -139,14 +136,4 @@ func (l *Listener) GetIdleTimeout() time.Duration {
 	}
 
 	return httpOpts.GetIdleTimeout()
-}
-
-// GetGRPCOptions safely extracts GRPCOptions from a Listener
-func (l *Listener) GetGRPCOptions() (options.GRPC, bool) {
-	if l.Options == nil || l.Options.Type() != options.TypeGRPC {
-		return options.GRPC{}, false
-	}
-
-	grpcOpts, ok := l.Options.(options.GRPC)
-	return grpcOpts, ok
 }

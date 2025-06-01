@@ -95,15 +95,6 @@ func TestFullConfigToProto(t *testing.T) {
 					DrainTimeout: 15 * time.Second,
 				},
 			},
-			{
-				ID:      "grpc-listener",
-				Address: "127.0.0.1:9090",
-				Options: options.GRPC{
-					MaxConnectionIdle:    5 * time.Minute,
-					MaxConnectionAge:     30 * time.Minute,
-					MaxConcurrentStreams: 100,
-				},
-			},
 		},
 		Endpoints: endpoints.EndpointCollection{
 			{
@@ -119,16 +110,6 @@ func TestFullConfigToProto(t *testing.T) {
 					},
 				},
 			},
-			{
-				ID:         "grpc-endpoint",
-				ListenerID: "grpc-listener",
-				Routes: []routes.Route{
-					{
-						AppID:     "script-app",
-						Condition: conditions.NewGRPC("example.Service", ""),
-					},
-				},
-			},
 		},
 		Apps: apps.AppCollection{
 			{
@@ -136,16 +117,6 @@ func TestFullConfigToProto(t *testing.T) {
 				Config: &echo.EchoApp{
 					Response: "Hello, World!",
 				},
-			},
-			{
-				ID: "script-app",
-				Config: scripts.NewAppScript(
-					nil,
-					&evaluators.RisorEvaluator{
-						Code:    "return { body: 'Hello from script!' }",
-						Timeout: 5 * time.Second,
-					},
-				),
 			},
 		},
 	}
@@ -163,7 +134,7 @@ func TestFullConfigToProto(t *testing.T) {
 	assert.Equal(t, pb.LogLevel_LOG_LEVEL_INFO, pbConfig.Logging.GetLevel())
 
 	// Verify listeners
-	require.Len(t, pbConfig.Listeners, 2)
+	require.Len(t, pbConfig.Listeners, 1)
 
 	// HTTP listener
 	httpListener := findListenerByID(pbConfig.Listeners, "http-listener")
@@ -172,16 +143,8 @@ func TestFullConfigToProto(t *testing.T) {
 	require.NotNil(t, httpListener.GetHttp())
 	assert.NotNil(t, httpListener.GetHttp().GetReadTimeout())
 
-	// gRPC listener
-	grpcListener := findListenerByID(pbConfig.Listeners, "grpc-listener")
-	require.NotNil(t, grpcListener)
-	assert.Equal(t, "127.0.0.1:9090", *grpcListener.Address)
-	require.NotNil(t, grpcListener.GetGrpc())
-	assert.NotNil(t, grpcListener.GetGrpc().GetMaxConnectionIdle())
-	assert.Equal(t, int32(100), *grpcListener.GetGrpc().MaxConcurrentStreams)
-
 	// Verify endpoints
-	require.Len(t, pbConfig.Endpoints, 2)
+	require.Len(t, pbConfig.Endpoints, 1)
 
 	// HTTP endpoint
 	httpEndpoint := findEndpointByID(pbConfig.Endpoints, "http-endpoint")
@@ -192,34 +155,14 @@ func TestFullConfigToProto(t *testing.T) {
 	assert.Equal(t, "/echo", httpEndpoint.Routes[0].GetHttp().GetPathPrefix())
 	require.NotNil(t, httpEndpoint.Routes[0].StaticData)
 
-	// gRPC endpoint
-	grpcEndpoint := findEndpointByID(pbConfig.Endpoints, "grpc-endpoint")
-	require.NotNil(t, grpcEndpoint)
-	assert.Equal(t, "grpc-listener", *grpcEndpoint.ListenerId)
-	require.Len(t, grpcEndpoint.Routes, 1)
-	assert.Equal(t, "script-app", *grpcEndpoint.Routes[0].AppId)
-	assert.Equal(t, "example.Service", grpcEndpoint.Routes[0].GetGrpc().GetService())
-
 	// Verify apps
-	require.Len(t, pbConfig.Apps, 2)
+	require.Len(t, pbConfig.Apps, 1)
 
 	// Echo app
 	echoApp := findAppByID(pbConfig.Apps, "echo-app")
 	require.NotNil(t, echoApp)
 	require.NotNil(t, echoApp.GetEcho())
 	assert.Equal(t, "Hello, World!", echoApp.GetEcho().GetResponse())
-
-	// Script app
-	scriptApp := findAppByID(pbConfig.Apps, "script-app")
-	require.NotNil(t, scriptApp)
-	require.NotNil(t, scriptApp.GetScript())
-	require.NotNil(t, scriptApp.GetScript().GetRisor())
-	assert.Equal(
-		t,
-		"return { body: 'Hello from script!' }",
-		scriptApp.GetScript().GetRisor().GetCode(),
-	)
-	assert.Equal(t, int64(5), scriptApp.GetScript().GetRisor().GetTimeout().GetSeconds())
 }
 
 func TestFullConfigRoundTrip(t *testing.T) {

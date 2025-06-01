@@ -81,11 +81,6 @@ func (c *Config) GetHTTPListeners() listeners.ListenerCollection {
 	return c.GetListenersByType(listeners.TypeHTTP)
 }
 
-// GetGRPCListeners returns only the listeners of GRPC type
-func (c *Config) GetGRPCListeners() listeners.ListenerCollection {
-	return c.GetListenersByType(listeners.TypeGRPC)
-}
-
 //
 // Reverse lookup and convenience methods
 //

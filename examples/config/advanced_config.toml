@@ -18,14 +18,14 @@ write_timeout = "10s"
 drain_timeout = "30s"
 
 [[listeners]]
-id = "grpc-internal"
+id = "http-internal"
 address = ":50051"
-type = "grpc"
+type = "http"
 
-[listeners.grpc]
-max_connection_idle = "3600s" # Changed from 1h
-max_connection_age = "86400s" # Changed from 24h
-max_concurrent_streams = 100
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+drain_timeout = "30s"
 
 # --- Endpoints ---
 
@@ -53,13 +53,13 @@ path_prefix = "/api/v1/orders"
 
 [[endpoints]]
 id = "internal-services"
-listener_id = "grpc-internal"
+listener_id = "http-internal"
 
-# Route gRPC service 'inventory.InventoryService' to inventory-app
+# Route HTTP path '/api/internal/inventory' to inventory-app
 [[endpoints.routes]]
 app_id = "inventory-app"
-[endpoints.routes.grpc]
-service = "inventory.InventoryService"
+[endpoints.routes.http]
+path_prefix = "/api/internal/inventory"
 
 # --- Applications ---
 
@@ -130,7 +130,7 @@ id = "inventory-app"
 [apps.script.extism]
 # code = "path/to/inventory_plugin.wasm"
 code = """(module)""" # Placeholder WASM
-entrypoint = "handle_grpc"
+entrypoint = "handle_http"
 
 # Order Processor (Composite)
 [[apps]]

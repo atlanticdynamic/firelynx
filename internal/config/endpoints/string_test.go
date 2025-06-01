@@ -62,7 +62,7 @@ func TestEndpoint_String(t *testing.T) {
 					},
 					{
 						AppID:     "app2",
-						Condition: conditions.NewGRPC("service.v1", ""),
+						Condition: conditions.NewHTTP("/api/v2", ""),
 					},
 				},
 			},
@@ -74,8 +74,8 @@ func TestEndpoint_String(t *testing.T) {
 				"app2",                // Second AppID
 				"http_path",           // First condition type
 				"/api/v1",             // First condition value
-				"grpc_service",        // Second condition type
-				"service.v1",          // Second condition value
+				"http_path",           // Second condition type
+				"/api/v2",             // Second condition value
 			},
 		},
 	}
@@ -111,12 +111,12 @@ func TestRoute_String(t *testing.T) {
 			expected: "Route http_path:/api/v1 -> app1",
 		},
 		{
-			name: "GRPC Route",
+			name: "HTTP Route with method",
 			route: routes.Route{
 				AppID:     "app2",
-				Condition: conditions.NewGRPC("service.v1", ""),
+				Condition: conditions.NewHTTP("/api/v2", "POST"),
 			},
-			expected: "Route grpc_service:service.v1 -> app2",
+			expected: "Route http_path:/api/v2 (POST) -> app2",
 		},
 		{
 			name: "With Static Data",
@@ -163,7 +163,7 @@ func TestEndpoints_String(t *testing.T) {
 			Routes: []routes.Route{
 				{
 					AppID:     "app2",
-					Condition: conditions.NewGRPC("service.v1", ""),
+					Condition: conditions.NewHTTP("/api/internal", ""),
 				},
 			},
 		},
@@ -176,7 +176,6 @@ func TestEndpoints_String(t *testing.T) {
 		"app1",
 		"app2",
 		"http_path",
-		"grpc_service",
 	}
 
 	result := endpoints.String()

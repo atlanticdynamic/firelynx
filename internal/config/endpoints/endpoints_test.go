@@ -28,24 +28,6 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 			expectedCount: 0,
 		},
 		{
-			name: "No HTTP Routes",
-			endpoint: Endpoint{
-				ID:         "endpoint1",
-				ListenerID: "listener1",
-				Routes: []routes.Route{
-					{
-						AppID:     "app1",
-						Condition: conditions.NewGRPC("service.v1", ""),
-					},
-					{
-						AppID:     "app2",
-						Condition: conditions.NewGRPC("service.v2", ""),
-					},
-				},
-			},
-			expectedCount: 0,
-		},
-		{
 			name: "Single HTTP Route",
 			endpoint: Endpoint{
 				ID:         "endpoint1",
@@ -54,10 +36,6 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 					{
 						AppID:     "app1",
 						Condition: conditions.NewHTTP("/api/v1", ""),
-					},
-					{
-						AppID:     "app2",
-						Condition: conditions.NewGRPC("service.v1", ""),
 					},
 				},
 			},
@@ -74,10 +52,6 @@ func TestEndpoint_GetStructuredHTTPRoutes(t *testing.T) {
 					{
 						AppID:     "app1",
 						Condition: conditions.NewHTTP("/api/v1", ""),
-					},
-					{
-						AppID:     "app2",
-						Condition: conditions.NewGRPC("service.v1", ""),
 					},
 					{
 						AppID:     "app3",

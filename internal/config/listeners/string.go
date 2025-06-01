@@ -47,8 +47,6 @@ func (t Type) String() string {
 	switch t {
 	case TypeHTTP:
 		return "HTTP"
-	case TypeGRPC:
-		return "GRPC"
 	default:
 		return fmt.Sprintf("Unknown(%d)", t)
 	}

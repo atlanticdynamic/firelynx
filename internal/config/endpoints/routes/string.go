@@ -55,19 +55,3 @@ func (r HTTPRoute) String() string {
 
 	return b.String()
 }
-
-// String returns a string representation of a GRPCRoute
-func (r GRPCRoute) String() string {
-	var b strings.Builder
-	if r.Method != "" {
-		fmt.Fprintf(&b, "GRPCRoute: %s.%s -> %s", r.Service, r.Method, r.AppID)
-	} else {
-		fmt.Fprintf(&b, "GRPCRoute: %s -> %s", r.Service, r.AppID)
-	}
-
-	if len(r.StaticData) > 0 {
-		fmt.Fprintf(&b, " (with StaticData)")
-	}
-
-	return b.String()
-}

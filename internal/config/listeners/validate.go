@@ -23,7 +23,7 @@ func (l *Listener) Validate() error {
 
 	// Validate Type
 	switch l.Type {
-	case TypeHTTP, TypeGRPC:
+	case TypeHTTP:
 		// Valid types
 	case TypeUnspecified:
 		errs = append(errs, fmt.Errorf("%w: type for listener '%s'",
@@ -47,8 +47,6 @@ func (l *Listener) Validate() error {
 	switch l.Type {
 	case TypeHTTP:
 		expectedOptionsType = options.TypeHTTP
-	case TypeGRPC:
-		expectedOptionsType = options.TypeGRPC
 	}
 
 	optionsType := l.Options.Type()
@@ -70,19 +68,6 @@ func (l *Listener) Validate() error {
 		// Validate HTTP-specific options
 		if optErr := opts.Validate(); optErr != nil {
 			errs = append(errs, fmt.Errorf("invalid HTTP options for listener '%s': %w",
-				l.ID, optErr))
-		}
-
-	case options.GRPC:
-		if l.Type != TypeGRPC {
-			errs = append(errs, fmt.Errorf(
-				"listener '%s' has gRPC options but type is '%s'",
-				l.ID, l.GetTypeString()))
-		}
-
-		// Validate gRPC-specific options
-		if optErr := opts.Validate(); optErr != nil {
-			errs = append(errs, fmt.Errorf("invalid gRPC options for listener '%s': %w",
 				l.ID, optErr))
 		}
 

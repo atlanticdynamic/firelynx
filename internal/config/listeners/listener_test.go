@@ -20,12 +20,6 @@ func TestListener_GetHTTPOptions(t *testing.T) {
 		},
 	}
 
-	// Create GRPC listener
-	grpcListener := &Listener{
-		ID:      "grpc1",
-		Options: options.GRPC{},
-	}
-
 	// Create HTTP listener with nil options
 	emptyListener := &Listener{
 		ID: "empty",
@@ -35,10 +29,6 @@ func TestListener_GetHTTPOptions(t *testing.T) {
 	httpOpts, ok := httpListener.GetHTTPOptions()
 	assert.True(t, ok)
 	assert.Equal(t, 5*time.Second, httpOpts.ReadTimeout)
-
-	// Test GRPC listener
-	_, ok = grpcListener.GetHTTPOptions()
-	assert.False(t, ok)
 
 	// Test HTTP listener with nil options
 	_, ok = emptyListener.GetHTTPOptions()
@@ -83,12 +73,6 @@ func TestListener_GetTimeouts(t *testing.T) {
 		},
 	}
 
-	// Create GRPC listener
-	grpcListener := &Listener{
-		ID:      "grpc",
-		Options: options.GRPC{},
-	}
-
 	// Test full listener timeouts (should use configured values)
 	assert.Equal(t, readDuration, fullListener.GetReadTimeout())
 	assert.Equal(t, writeDuration, fullListener.GetWriteTimeout())
@@ -106,12 +90,4 @@ func TestListener_GetTimeouts(t *testing.T) {
 	assert.Equal(t, options.DefaultHTTPWriteTimeout, invalidListener.GetWriteTimeout())
 	assert.Equal(t, options.DefaultHTTPDrainTimeout, invalidListener.GetDrainTimeout())
 	assert.Equal(t, options.DefaultHTTPIdleTimeout, invalidListener.GetIdleTimeout())
-
-	// Test GRPC listener (should use default values since it's not an HTTP listener)
-	assert.Equal(t, options.DefaultHTTPReadTimeout, grpcListener.GetReadTimeout())
-	assert.Equal(t, options.DefaultHTTPWriteTimeout, grpcListener.GetWriteTimeout())
-	assert.Equal(t, options.DefaultHTTPDrainTimeout, grpcListener.GetDrainTimeout())
-	assert.Equal(t, options.DefaultHTTPIdleTimeout, grpcListener.GetIdleTimeout())
-
-	// No need to test with different fallbacks since we no longer pass them
 }
