@@ -14,6 +14,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
 
@@ -225,8 +226,22 @@ func extractEndpointRoutes(
 			}
 		}
 
-		// Create the HTTP route with the handler
-		route, err := httpserver.NewRoute(routeID, httpRoute.PathPrefix, handlerFunc)
+		// Create middleware instances from the HTTP route configuration
+		middlewares, err := middleware.CreateMiddlewareCollection(httpRoute.Middlewares)
+		if err != nil {
+			errz = append(
+				errz,
+				fmt.Errorf("failed to create middleware for route %s: %w", routeID, err),
+			)
+			continue
+		}
+
+		// Create the HTTP route with the handler and middleware
+		route, err := httpserver.NewRouteWithMiddleware(
+			routeID,
+			httpRoute.PathPrefix,
+			handlerFunc,
+			middlewares...)
 		if err != nil {
 			errz = append(
 				errz,

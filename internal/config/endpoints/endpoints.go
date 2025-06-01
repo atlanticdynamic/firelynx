@@ -59,12 +59,26 @@ type Endpoint struct {
 
 // GetStructuredHTTPRoutes returns all HTTP routes for this endpoint in a structured format.
 // It extracts routes with HTTP conditions and returns them as the more type-safe HTTPRoute
-// structure with path, app ID, and static data explicitly defined.
+// structure with path, app ID, static data, and merged middleware explicitly defined.
 func (e *Endpoint) GetStructuredHTTPRoutes() []routes.HTTPRoute {
-	return e.Routes.GetStructuredHTTPRoutes()
+	httpRoutes := e.Routes.GetStructuredHTTPRoutes()
+
+	// Add merged middleware to each HTTP route
+	for i := range httpRoutes {
+		// Find the original route that corresponds to this HTTP route
+		for j := range e.Routes {
+			if e.Routes[j].AppID == httpRoutes[i].AppID {
+				// Merge endpoint and route middleware
+				httpRoutes[i].Middlewares = e.getMergedMiddleware(&e.Routes[j])
+				break
+			}
+		}
+	}
+
+	return httpRoutes
 }
 
-// GetMergedMiddleware merges endpoint-level middleware with route-level middleware.
+// getMergedMiddleware merges endpoint-level middleware with route-level middleware.
 // The method deduplicates middleware by ID (route middleware takes precedence over endpoint middleware)
 // and returns the result sorted alphabetically by middleware ID.
 //
@@ -72,24 +86,9 @@ func (e *Endpoint) GetStructuredHTTPRoutes() []routes.HTTPRoute {
 // - "00-authentication"
 // - "01-logger"
 // - "02-rate-limiter"
-func (e *Endpoint) GetMergedMiddleware(r *routes.Route) middleware.MiddlewareCollection {
+func (e *Endpoint) getMergedMiddleware(r *routes.Route) middleware.MiddlewareCollection {
 	if r == nil {
 		return e.Middlewares
 	}
 	return e.Middlewares.Merge(r.Middlewares)
-}
-
-// GetMergedMiddlewareForRouteID merges endpoint-level middleware with route-level middleware
-// for the route with the specified AppID. If no route is found with the given ID,
-// only the endpoint middleware is returned.
-// The method deduplicates middleware by ID (route middleware takes precedence over endpoint middleware)
-// and returns the result sorted alphabetically by middleware ID.
-func (e *Endpoint) GetMergedMiddlewareForRouteID(routeID string) middleware.MiddlewareCollection {
-	for _, route := range e.Routes {
-		if route.AppID == routeID {
-			return e.Middlewares.Merge(route.Middlewares)
-		}
-	}
-	// Route not found, return only endpoint middleware
-	return e.Middlewares
 }
