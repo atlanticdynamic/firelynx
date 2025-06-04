@@ -1,0 +1,24 @@
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.routes]]
+app_id = "echo"
+[endpoints.routes.http]
+path_prefix = "/"
+
+[[apps]]
+id = "echo"
+[apps.echo]
+response = "Hello, World!"

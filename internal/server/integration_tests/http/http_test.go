@@ -94,11 +94,11 @@ func TestIntegration_HTTP(t *testing.T) {
 	}
 
 	// Create echo route
-	echoRoute, err := httpserver.NewRoute("echo-route", "/api/echo", echoHandler)
+	echoRoute, err := httpserver.NewRouteFromHandlerFunc("echo-route", "/api/echo", echoHandler)
 	require.NoError(t, err)
 
 	// Create admin route
-	adminRoute, err := httpserver.NewRoute("admin-route", "/admin", adminHandler)
+	adminRoute, err := httpserver.NewRouteFromHandlerFunc("admin-route", "/admin", adminHandler)
 	require.NoError(t, err)
 
 	// Create hardcoded routes for testing
@@ -175,7 +175,7 @@ func TestIntegration_HTTP(t *testing.T) {
 			// Create a handler using the routes
 			mux := http.NewServeMux()
 			for _, route := range listenerRoutes {
-				mux.HandleFunc(route.Path, route.Handler)
+				mux.Handle(route.Path, &route)
 			}
 
 			// Create HTTP request and response recorder

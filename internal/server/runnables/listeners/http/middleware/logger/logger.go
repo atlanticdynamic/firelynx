@@ -1,4 +1,4 @@
-package middleware
+package logger
 
 import (
 	"bytes"
@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
-	"github.com/atlanticdynamic/firelynx/internal/logging"
-	"github.com/robbyt/go-supervisor/runnables/httpserver/middleware"
+	centralLogger "github.com/atlanticdynamic/firelynx/internal/logging"
+	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
 
 // ConsoleLogger is a middleware that logs HTTP requests based on configuration
@@ -21,8 +21,7 @@ type ConsoleLogger struct {
 
 // NewConsoleLogger creates a new console logger middleware with the provided configuration
 func NewConsoleLogger(cfg *logger.ConsoleLogger) *ConsoleLogger {
-	// Use the SetupHandler helper with the log level string
-	handler := logging.SetupHandler(string(cfg.Options.Level))
+	handler := centralLogger.SetupHandler(string(cfg.Options.Level))
 
 	return &ConsoleLogger{
 		cfg:    cfg,
@@ -31,40 +30,29 @@ func NewConsoleLogger(cfg *logger.ConsoleLogger) *ConsoleLogger {
 }
 
 // Middleware returns the middleware function
-func (cl *ConsoleLogger) Middleware() Middleware {
-	return func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			// Check if we should skip logging this request
-			if cl.shouldSkip(r) {
-				next(w, r)
-				return
-			}
+func (cl *ConsoleLogger) Middleware() httpserver.HandlerFunc {
+	return func(rp *httpserver.RequestProcessor) {
+		r := rp.Request()
 
-			start := time.Now()
-
-			// Create response writer wrapper to capture status code
-			rw := &middleware.ResponseWriter{
-				ResponseWriter: w,
-			}
-
-			// Prepare request body for logging if needed
-			var requestBody []byte
-			if cl.cfg.Fields.Request.Enabled && cl.cfg.Fields.Request.Body {
-				body, err := cl.readBody(r, int(cl.cfg.Fields.Request.MaxBodySize))
-				if err == nil {
-					requestBody = body
-				}
-			}
-
-			// Call the next handler
-			next(rw, r)
-
-			// Calculate duration
-			duration := time.Since(start)
-
-			// Log the request
-			cl.logRequest(r, rw, duration, requestBody)
+		if cl.shouldSkip(r) {
+			rp.Next()
+			return
 		}
+
+		start := time.Now()
+
+		var requestBody []byte
+		if cl.cfg.Fields.Request.Enabled && cl.cfg.Fields.Request.Body {
+			body, err := cl.readBody(r, int(cl.cfg.Fields.Request.MaxBodySize))
+			if err == nil {
+				requestBody = body
+			}
+		}
+
+		rp.Next()
+
+		duration := time.Since(start)
+		cl.logRequest(r, rp.Writer(), duration, requestBody, start)
 	}
 }
 
@@ -73,12 +61,20 @@ func (cl *ConsoleLogger) shouldSkip(r *http.Request) bool {
 	return cl.shouldSkipPath(r.URL.Path) || cl.shouldSkipMethod(r.Method)
 }
 
-// shouldSkipPath checks if the path should be skipped based on include/exclude rules
 func (cl *ConsoleLogger) shouldSkipPath(path string) bool {
-	// If includeOnly is specified, path must match one of the prefixes
-	if len(cl.cfg.IncludeOnlyPaths) > 0 {
+	return skipPathByPrefixes(path, cl.cfg.IncludeOnlyPaths, cl.cfg.ExcludePaths)
+}
+
+func (cl *ConsoleLogger) shouldSkipMethod(method string) bool {
+	return skipMethodByName(method, cl.cfg.IncludeOnlyMethods, cl.cfg.ExcludeMethods)
+}
+
+// skipPathByPrefixes determines if a path should be skipped based on prefix matching.
+// Split out as a standalone function to enable easy testing.
+func skipPathByPrefixes(path string, includePrefixes, excludePrefixes []string) bool {
+	if len(includePrefixes) > 0 {
 		included := false
-		for _, prefix := range cl.cfg.IncludeOnlyPaths {
+		for _, prefix := range includePrefixes {
 			if strings.HasPrefix(path, prefix) {
 				included = true
 				break
@@ -89,8 +85,7 @@ func (cl *ConsoleLogger) shouldSkipPath(path string) bool {
 		}
 	}
 
-	// Check if path matches any exclude prefix
-	for _, prefix := range cl.cfg.ExcludePaths {
+	for _, prefix := range excludePrefixes {
 		if strings.HasPrefix(path, prefix) {
 			return true
 		}
@@ -99,12 +94,12 @@ func (cl *ConsoleLogger) shouldSkipPath(path string) bool {
 	return false
 }
 
-// shouldSkipMethod checks if the method should be skipped based on include/exclude rules
-func (cl *ConsoleLogger) shouldSkipMethod(method string) bool {
-	// If includeOnly is specified, method must be in the list
-	if len(cl.cfg.IncludeOnlyMethods) > 0 {
+// skipMethodByName determines if an HTTP method should be skipped based on exact name matching.
+// Split out as a standalone function to enable easy testing.
+func skipMethodByName(method string, includeMethods, excludeMethods []string) bool {
+	if len(includeMethods) > 0 {
 		included := false
-		for _, m := range cl.cfg.IncludeOnlyMethods {
+		for _, m := range includeMethods {
 			if strings.EqualFold(method, m) {
 				included = true
 				break
@@ -115,8 +110,7 @@ func (cl *ConsoleLogger) shouldSkipMethod(method string) bool {
 		}
 	}
 
-	// Check if method is in exclude list
-	for _, m := range cl.cfg.ExcludeMethods {
+	for _, m := range excludeMethods {
 		if strings.EqualFold(method, m) {
 			return true
 		}
@@ -131,28 +125,25 @@ func (cl *ConsoleLogger) readBody(r *http.Request, maxSize int) ([]byte, error) 
 		return nil, nil
 	}
 
-	// Read the body
 	bodyBytes, err := io.ReadAll(io.LimitReader(r.Body, int64(maxSize)))
 	if err != nil {
 		return nil, err
 	}
 
-	// Restore the body for the handler
 	r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-
 	return bodyBytes, nil
 }
 
 // logRequest logs the HTTP request with configured fields
 func (cl *ConsoleLogger) logRequest(
 	r *http.Request,
-	rw *middleware.ResponseWriter,
+	rw httpserver.ResponseWriter,
 	duration time.Duration,
 	requestBody []byte,
+	requestTime time.Time,
 ) {
-	attrs := cl.buildLogAttributes(r, rw, duration, requestBody)
+	attrs := cl.buildLogAttributes(r, rw, duration, requestBody, requestTime)
 
-	// Determine log level based on status code
 	statusCode := rw.Status()
 	if statusCode == 0 {
 		statusCode = http.StatusOK
@@ -171,16 +162,32 @@ func (cl *ConsoleLogger) logRequest(
 // buildLogAttributes builds slog attributes based on the configuration
 func (cl *ConsoleLogger) buildLogAttributes(
 	r *http.Request,
-	rw *middleware.ResponseWriter,
+	rw httpserver.ResponseWriter,
 	duration time.Duration,
 	requestBody []byte,
+	requestTime time.Time,
 ) []slog.Attr {
-	fields := cl.cfg.Fields
 	attrs := make([]slog.Attr, 0, 20)
+	attrs = append(attrs, cl.buildCommonAttributes(r, requestTime)...)
+	attrs = append(attrs, cl.buildResponseAttributes(rw, duration)...)
 
-	// Common fields
+	if reqGroup := cl.buildRequestGroup(r, requestBody); reqGroup.Key != "" {
+		attrs = append(attrs, reqGroup)
+	}
+
+	if respGroup := cl.buildResponseGroup(rw); respGroup.Key != "" {
+		attrs = append(attrs, respGroup)
+	}
+
+	return attrs
+}
+
+func (cl *ConsoleLogger) buildCommonAttributes(r *http.Request, requestTime time.Time) []slog.Attr {
+	fields := cl.cfg.Fields
+	attrs := make([]slog.Attr, 0, 10)
+
 	if fields.Timestamp {
-		attrs = append(attrs, slog.Time("timestamp", time.Now()))
+		attrs = append(attrs, slog.Time("timestamp", requestTime))
 	}
 	if fields.Method {
 		attrs = append(attrs, slog.String("method", r.Method))
@@ -208,7 +215,16 @@ func (cl *ConsoleLogger) buildLogAttributes(
 		attrs = append(attrs, slog.String("scheme", scheme))
 	}
 
-	// Response fields
+	return attrs
+}
+
+func (cl *ConsoleLogger) buildResponseAttributes(
+	rw httpserver.ResponseWriter,
+	duration time.Duration,
+) []slog.Attr {
+	fields := cl.cfg.Fields
+	attrs := make([]slog.Attr, 0, 2)
+
 	if fields.StatusCode {
 		status := rw.Status()
 		if status == 0 {
@@ -220,82 +236,86 @@ func (cl *ConsoleLogger) buildLogAttributes(
 		attrs = append(attrs, slog.Duration("duration", duration))
 	}
 
-	// Request details
-	if fields.Request.Enabled {
-		reqAttrs := []slog.Attr{}
-
-		if fields.Request.Headers {
-			headers := cl.filterHeaders(
-				r.Header,
-				fields.Request.IncludeHeaders,
-				fields.Request.ExcludeHeaders,
-			)
-			if len(headers) > 0 {
-				reqAttrs = append(reqAttrs, slog.Any("headers", headers))
-			}
-		}
-
-		if fields.Request.Body && len(requestBody) > 0 {
-			reqAttrs = append(reqAttrs, slog.String("body", string(requestBody)))
-		}
-
-		if fields.Request.BodySize {
-			size := r.ContentLength
-			if size < 0 {
-				size = int64(len(requestBody))
-			}
-			reqAttrs = append(reqAttrs, slog.Int64("body_size", size))
-		}
-
-		if len(reqAttrs) > 0 {
-			// Convert []slog.Attr to []any for slog.Group
-			reqAny := make([]any, len(reqAttrs))
-			for i, attr := range reqAttrs {
-				reqAny[i] = attr
-			}
-			attrs = append(attrs, slog.Group("request", reqAny...))
-		}
-	}
-
-	// Response details
-	if fields.Response.Enabled {
-		respAttrs := []slog.Attr{}
-
-		if fields.Response.BodySize {
-			respAttrs = append(respAttrs, slog.Int("body_size", rw.BytesWritten()))
-		}
-
-		if len(respAttrs) > 0 {
-			// Convert []slog.Attr to []any for slog.Group
-			respAny := make([]any, len(respAttrs))
-			for i, attr := range respAttrs {
-				respAny[i] = attr
-			}
-			attrs = append(attrs, slog.Group("response", respAny...))
-		}
-	}
-
 	return attrs
+}
+
+func (cl *ConsoleLogger) buildRequestGroup(r *http.Request, requestBody []byte) slog.Attr {
+	if !cl.cfg.Fields.Request.Enabled {
+		return slog.Attr{}
+	}
+
+	reqAttrs := make([]slog.Attr, 0, 3)
+
+	if cl.cfg.Fields.Request.Headers {
+		headers := cl.filterHeaders(
+			r.Header,
+			cl.cfg.Fields.Request.IncludeHeaders,
+			cl.cfg.Fields.Request.ExcludeHeaders,
+		)
+		if len(headers) > 0 {
+			reqAttrs = append(reqAttrs, slog.Any("headers", headers))
+		}
+	}
+
+	if cl.cfg.Fields.Request.Body && len(requestBody) > 0 {
+		reqAttrs = append(reqAttrs, slog.String("body", string(requestBody)))
+	}
+
+	if cl.cfg.Fields.Request.BodySize {
+		size := r.ContentLength
+		if size < 0 {
+			size = int64(len(requestBody))
+		}
+		reqAttrs = append(reqAttrs, slog.Int64("body_size", size))
+	}
+
+	if len(reqAttrs) == 0 {
+		return slog.Attr{}
+	}
+
+	return slog.Group("request", cl.attrsToAny(reqAttrs)...)
+}
+
+func (cl *ConsoleLogger) buildResponseGroup(rw httpserver.ResponseWriter) slog.Attr {
+	if !cl.cfg.Fields.Response.Enabled {
+		return slog.Attr{}
+	}
+
+	respAttrs := make([]slog.Attr, 0, 1)
+
+	if cl.cfg.Fields.Response.BodySize {
+		respAttrs = append(respAttrs, slog.Int("body_size", rw.Size()))
+	}
+
+	if len(respAttrs) == 0 {
+		return slog.Attr{}
+	}
+
+	return slog.Group("response", cl.attrsToAny(respAttrs)...)
+}
+
+func (cl *ConsoleLogger) attrsToAny(attrs []slog.Attr) []any {
+	result := make([]any, len(attrs))
+	for i, attr := range attrs {
+		result[i] = attr
+	}
+	return result
 }
 
 // getClientIP extracts the client IP from the request
 func (cl *ConsoleLogger) getClientIP(r *http.Request) string {
-	// Check X-Forwarded-For header
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff != "" {
-		// Take the first IP in the list
 		if idx := strings.Index(xff, ","); idx != -1 {
 			return strings.TrimSpace(xff[:idx])
 		}
 		return xff
 	}
 
-	// Check X-Real-IP header
 	if xri := r.Header.Get("X-Real-IP"); xri != "" {
 		return xri
 	}
 
-	// Fall back to RemoteAddr
 	if idx := strings.LastIndex(r.RemoteAddr, ":"); idx != -1 {
 		return r.RemoteAddr[:idx]
 	}
@@ -310,7 +330,6 @@ func (cl *ConsoleLogger) filterHeaders(
 	result := make(map[string][]string)
 
 	for key, values := range headers {
-		// If include list is specified, header must be in it
 		if len(include) > 0 {
 			found := false
 			for _, h := range include {
@@ -324,7 +343,6 @@ func (cl *ConsoleLogger) filterHeaders(
 			}
 		}
 
-		// Check exclude list
 		excluded := false
 		for _, h := range exclude {
 			if strings.EqualFold(key, h) {

@@ -4,14 +4,15 @@ import (
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
-	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
+	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware/logger"
 )
 
 // CreateMiddleware creates a middleware instance from a configuration
 func CreateMiddleware(cfg middleware.Middleware) (Middleware, error) {
 	switch config := cfg.Config.(type) {
-	case *logger.ConsoleLogger:
-		consoleLogger := NewConsoleLogger(config)
+	case *configLogger.ConsoleLogger:
+		consoleLogger := logger.NewConsoleLogger(config)
 		return consoleLogger.Middleware(), nil
 	default:
 		return nil, fmt.Errorf("unsupported middleware type: %T", cfg.Config)

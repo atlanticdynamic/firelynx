@@ -237,7 +237,7 @@ func extractEndpointRoutes(
 		}
 
 		// Create the HTTP route with the handler and middleware
-		route, err := httpserver.NewRouteWithMiddleware(
+		route, err := httpserver.NewRouteFromHandlerFunc(
 			routeID,
 			httpRoute.PathPrefix,
 			handlerFunc,

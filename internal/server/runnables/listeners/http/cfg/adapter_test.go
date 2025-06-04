@@ -334,7 +334,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 			// Check each route's properties
 			for i, route := range routes {
 				// For route identity, we check if the handler works as expected rather than accessing fields directly
-				assert.NotNil(t, route.Handler, "Handler should not be nil for route %d", i)
+				assert.NotEmpty(t, route.Handlers, "Handlers should not be empty for route %d", i)
 
 				// Test the handler by making a request
 				w := httptest.NewRecorder()
@@ -360,7 +360,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 						Once()
 
 					// Call the handler
-					route.Handler(w, r)
+					route.ServeHTTP(w, r)
 
 					// Check response
 					assert.Equal(
@@ -635,7 +635,7 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 		Return(errors.New("app error")).
 		Once()
 
-	routes[0].Handler(w, r)
+	routes[0].ServeHTTP(w, r)
 
 	// Should get 500 error response
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -688,24 +688,24 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 		Return(nil).
 		Once()
 
-	routes[0].Handler(w, r)
+	routes[0].ServeHTTP(w, r)
 }
 
 func TestAdapterGetters(t *testing.T) {
 	// Create example HTTP route for testing
-	route1, err := httpserver.NewRoute(
+	route1, err := httpserver.NewRouteFromHandlerFunc(
 		"route-1",
 		"/api/test1",
 		func(w http.ResponseWriter, r *http.Request) {},
 	)
 	require.NoError(t, err)
-	route2, err := httpserver.NewRoute(
+	route2, err := httpserver.NewRouteFromHandlerFunc(
 		"route-2",
 		"/api/test2",
 		func(w http.ResponseWriter, r *http.Request) {},
 	)
 	require.NoError(t, err)
-	route3, err := httpserver.NewRoute(
+	route3, err := httpserver.NewRouteFromHandlerFunc(
 		"route-3",
 		"/api/test3",
 		func(w http.ResponseWriter, r *http.Request) {},
