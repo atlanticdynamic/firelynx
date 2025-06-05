@@ -8,17 +8,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware/logger"
 )
 
-// CreateMiddleware creates a middleware instance from a configuration
-func CreateMiddleware(cfg middleware.Middleware) (Middleware, error) {
-	switch config := cfg.Config.(type) {
-	case *configLogger.ConsoleLogger:
-		consoleLogger := logger.NewConsoleLogger(config)
-		return consoleLogger.Middleware(), nil
-	default:
-		return nil, fmt.Errorf("unsupported middleware type: %T", cfg.Config)
-	}
-}
-
 // CreateMiddlewareCollection creates multiple middleware instances from a collection
 func CreateMiddlewareCollection(collection middleware.MiddlewareCollection) ([]Middleware, error) {
 	if len(collection) == 0 {
@@ -28,7 +17,7 @@ func CreateMiddlewareCollection(collection middleware.MiddlewareCollection) ([]M
 	middlewares := make([]Middleware, 0, len(collection))
 
 	for _, cfg := range collection {
-		mw, err := CreateMiddleware(cfg)
+		mw, err := createMiddleware(cfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create middleware '%s': %w", cfg.ID, err)
 		}
@@ -36,4 +25,15 @@ func CreateMiddlewareCollection(collection middleware.MiddlewareCollection) ([]M
 	}
 
 	return middlewares, nil
+}
+
+// createMiddleware creates a middleware instance from a configuration
+func createMiddleware(cfg middleware.Middleware) (Middleware, error) {
+	switch config := cfg.Config.(type) {
+	case *configLogger.ConsoleLogger:
+		consoleLogger := logger.NewConsoleLogger(config)
+		return consoleLogger.Middleware(), nil
+	default:
+		return nil, fmt.Errorf("unsupported middleware type: %T", cfg.Config)
+	}
 }
