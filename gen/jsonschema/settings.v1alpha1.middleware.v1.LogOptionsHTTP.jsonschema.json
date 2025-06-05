@@ -25,6 +25,7 @@
       "type": "boolean"
     },
     "method": {
+      "description": "Common fields available for any HTTP log entry",
       "type": "boolean"
     },
     "path": {
@@ -48,10 +49,6 @@
     },
     "statusCode": {
       "description": "Response-specific fields (only available when response is present)",
-      "type": "boolean"
-    },
-    "timestamp": {
-      "description": "Common fields available for any HTTP log entry",
       "type": "boolean"
     }
   },

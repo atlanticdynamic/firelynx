@@ -17,7 +17,6 @@ func (c *ConsoleLogger) ToProto() any {
 			Level:  &level,
 		},
 		Fields: &pb.LogOptionsHTTP{
-			Timestamp:   &c.Fields.Timestamp,
 			Method:      &c.Fields.Method,
 			Path:        &c.Fields.Path,
 			ClientIp:    &c.Fields.ClientIP,
@@ -70,7 +69,6 @@ func FromProto(pbConfig *pb.ConsoleLoggerConfig) (*ConsoleLogger, error) {
 	// Convert HTTP fields
 	if pbConfig.Fields != nil {
 		config.Fields = LogOptionsHTTP{
-			Timestamp:   pbConfig.Fields.GetTimestamp(),
 			Method:      pbConfig.Fields.GetMethod(),
 			Path:        pbConfig.Fields.GetPath(),
 			ClientIP:    pbConfig.Fields.GetClientIp(),

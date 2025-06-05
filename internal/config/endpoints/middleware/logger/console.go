@@ -31,7 +31,6 @@ type LogOptionsGeneral struct {
 // LogOptionsHTTP represents HTTP-specific logging configuration
 type LogOptionsHTTP struct {
 	// Common fields available for any HTTP log entry
-	Timestamp   bool `json:"timestamp"   toml:"timestamp"`
 	Method      bool `json:"method"      toml:"method"`
 	Path        bool `json:"path"        toml:"path"`
 	ClientIP    bool `json:"clientIp"    toml:"client_ip"`
@@ -89,7 +88,6 @@ func NewConsoleLogger() *ConsoleLogger {
 			Level:  LevelInfo,
 		},
 		Fields: LogOptionsHTTP{
-			Timestamp:  true,
 			Method:     true,
 			Path:       true,
 			StatusCode: true,
@@ -169,9 +167,6 @@ func (c *ConsoleLogger) ToTree() *fancy.ComponentTree {
 
 	// HTTP fields
 	httpFields := []string{}
-	if c.Fields.Timestamp {
-		httpFields = append(httpFields, "timestamp")
-	}
 	if c.Fields.Method {
 		httpFields = append(httpFields, "method")
 	}

@@ -189,27 +189,25 @@ func (x *LogOptionsGeneral) GetLevel() LogOptionsGeneral_Level {
 type LogOptionsHTTP struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Common fields available for any HTTP log entry
-	Timestamp   *bool `protobuf:"varint,1,opt,name=timestamp,def=1" json:"timestamp,omitempty"`                  // include timestamp in logs
-	Method      *bool `protobuf:"varint,2,opt,name=method,def=1" json:"method,omitempty"`                        // include HTTP method (GET, POST, etc.)
-	Path        *bool `protobuf:"varint,3,opt,name=path,def=1" json:"path,omitempty"`                            // include request path
-	ClientIp    *bool `protobuf:"varint,4,opt,name=client_ip,json=clientIp" json:"client_ip,omitempty"`          // include client IP address
-	QueryParams *bool `protobuf:"varint,5,opt,name=query_params,json=queryParams" json:"query_params,omitempty"` // include query string parameters
-	Protocol    *bool `protobuf:"varint,6,opt,name=protocol" json:"protocol,omitempty"`                          // include protocol version (HTTP/1.1, HTTP/2, etc.)
-	Host        *bool `protobuf:"varint,7,opt,name=host" json:"host,omitempty"`                                  // include host from request (may differ from Host header)
-	Scheme      *bool `protobuf:"varint,8,opt,name=scheme" json:"scheme,omitempty"`                              // include request scheme (http, https)
+	Method      *bool `protobuf:"varint,1,opt,name=method,def=1" json:"method,omitempty"`                        // include HTTP method (GET, POST, etc.)
+	Path        *bool `protobuf:"varint,2,opt,name=path,def=1" json:"path,omitempty"`                            // include request path
+	ClientIp    *bool `protobuf:"varint,3,opt,name=client_ip,json=clientIp" json:"client_ip,omitempty"`          // include client IP address
+	QueryParams *bool `protobuf:"varint,4,opt,name=query_params,json=queryParams" json:"query_params,omitempty"` // include query string parameters
+	Protocol    *bool `protobuf:"varint,5,opt,name=protocol" json:"protocol,omitempty"`                          // include protocol version (HTTP/1.1, HTTP/2, etc.)
+	Host        *bool `protobuf:"varint,6,opt,name=host" json:"host,omitempty"`                                  // include host from request (may differ from Host header)
+	Scheme      *bool `protobuf:"varint,7,opt,name=scheme" json:"scheme,omitempty"`                              // include request scheme (http, https)
 	// Response-specific fields (only available when response is present)
-	StatusCode *bool `protobuf:"varint,9,opt,name=status_code,json=statusCode,def=1" json:"status_code,omitempty"` // include HTTP response status code
-	Duration   *bool `protobuf:"varint,10,opt,name=duration" json:"duration,omitempty"`                            // include request processing time (only meaningful for response logging)
+	StatusCode *bool `protobuf:"varint,8,opt,name=status_code,json=statusCode,def=1" json:"status_code,omitempty"` // include HTTP response status code
+	Duration   *bool `protobuf:"varint,9,opt,name=duration" json:"duration,omitempty"`                             // include request processing time (only meaningful for response logging)
 	// What to log for request and response
-	Request       *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,11,opt,name=request" json:"request,omitempty"`   // what to log for requests
-	Response      *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,12,opt,name=response" json:"response,omitempty"` // what to log for responses
+	Request       *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,10,opt,name=request" json:"request,omitempty"`   // what to log for requests
+	Response      *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,11,opt,name=response" json:"response,omitempty"` // what to log for responses
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 // Default values for LogOptionsHTTP fields.
 const (
-	Default_LogOptionsHTTP_Timestamp  = bool(true)
 	Default_LogOptionsHTTP_Method     = bool(true)
 	Default_LogOptionsHTTP_Path       = bool(true)
 	Default_LogOptionsHTTP_StatusCode = bool(true)
@@ -243,13 +241,6 @@ func (x *LogOptionsHTTP) ProtoReflect() protoreflect.Message {
 // Deprecated: Use LogOptionsHTTP.ProtoReflect.Descriptor instead.
 func (*LogOptionsHTTP) Descriptor() ([]byte, []int) {
 	return file_settings_v1alpha1_middleware_v1_logger_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *LogOptionsHTTP) GetTimestamp() bool {
-	if x != nil && x.Timestamp != nil {
-		return *x.Timestamp
-	}
-	return Default_LogOptionsHTTP_Timestamp
 }
 
 func (x *LogOptionsHTTP) GetMethod() bool {
@@ -535,22 +526,21 @@ const file_settings_v1alpha1_middleware_v1_logger_proto_rawDesc = "" +
 	"\n" +
 	"LEVEL_WARN\x10\x03\x12\x0f\n" +
 	"\vLEVEL_ERROR\x10\x04\x12\x0f\n" +
-	"\vLEVEL_FATAL\x10\x05\"\xe4\x05\n" +
-	"\x0eLogOptionsHTTP\x12\"\n" +
-	"\ttimestamp\x18\x01 \x01(\b:\x04trueR\ttimestamp\x12\x1c\n" +
-	"\x06method\x18\x02 \x01(\b:\x04trueR\x06method\x12\x18\n" +
-	"\x04path\x18\x03 \x01(\b:\x04trueR\x04path\x12\x1b\n" +
-	"\tclient_ip\x18\x04 \x01(\bR\bclientIp\x12!\n" +
-	"\fquery_params\x18\x05 \x01(\bR\vqueryParams\x12\x1a\n" +
-	"\bprotocol\x18\x06 \x01(\bR\bprotocol\x12\x12\n" +
-	"\x04host\x18\a \x01(\bR\x04host\x12\x16\n" +
-	"\x06scheme\x18\b \x01(\bR\x06scheme\x12%\n" +
-	"\vstatus_code\x18\t \x01(\b:\x04trueR\n" +
+	"\vLEVEL_FATAL\x10\x05\"\xc0\x05\n" +
+	"\x0eLogOptionsHTTP\x12\x1c\n" +
+	"\x06method\x18\x01 \x01(\b:\x04trueR\x06method\x12\x18\n" +
+	"\x04path\x18\x02 \x01(\b:\x04trueR\x04path\x12\x1b\n" +
+	"\tclient_ip\x18\x03 \x01(\bR\bclientIp\x12!\n" +
+	"\fquery_params\x18\x04 \x01(\bR\vqueryParams\x12\x1a\n" +
+	"\bprotocol\x18\x05 \x01(\bR\bprotocol\x12\x12\n" +
+	"\x04host\x18\x06 \x01(\bR\x04host\x12\x16\n" +
+	"\x06scheme\x18\a \x01(\bR\x06scheme\x12%\n" +
+	"\vstatus_code\x18\b \x01(\b:\x04trueR\n" +
 	"statusCode\x12\x1a\n" +
-	"\bduration\x18\n" +
-	" \x01(\bR\bduration\x12Y\n" +
-	"\arequest\x18\v \x01(\v2?.settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfigR\arequest\x12[\n" +
-	"\bresponse\x18\f \x01(\v2?.settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfigR\bresponse\x1a\xf2\x01\n" +
+	"\bduration\x18\t \x01(\bR\bduration\x12Y\n" +
+	"\arequest\x18\n" +
+	" \x01(\v2?.settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfigR\arequest\x12[\n" +
+	"\bresponse\x18\v \x01(\v2?.settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfigR\bresponse\x1a\xf2\x01\n" +
 	"\x0fDirectionConfig\x12\x1e\n" +
 	"\aenabled\x18\x01 \x01(\b:\x04trueR\aenabled\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\bR\x04body\x12\"\n" +

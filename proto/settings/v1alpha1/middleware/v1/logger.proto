@@ -36,22 +36,21 @@ message LogOptionsHTTP {
   }
 
   // Common fields available for any HTTP log entry
-  bool timestamp = 1 [default = true]; // include timestamp in logs
-  bool method = 2 [default = true]; // include HTTP method (GET, POST, etc.)
-  bool path = 3 [default = true]; // include request path
-  bool client_ip = 4; // include client IP address
-  bool query_params = 5; // include query string parameters
-  bool protocol = 6; // include protocol version (HTTP/1.1, HTTP/2, etc.)
-  bool host = 7; // include host from request (may differ from Host header)
-  bool scheme = 8; // include request scheme (http, https)
+  bool method = 1 [default = true]; // include HTTP method (GET, POST, etc.)
+  bool path = 2 [default = true]; // include request path
+  bool client_ip = 3; // include client IP address
+  bool query_params = 4; // include query string parameters
+  bool protocol = 5; // include protocol version (HTTP/1.1, HTTP/2, etc.)
+  bool host = 6; // include host from request (may differ from Host header)
+  bool scheme = 7; // include request scheme (http, https)
 
   // Response-specific fields (only available when response is present)
-  bool status_code = 9 [default = true]; // include HTTP response status code
-  bool duration = 10; // include request processing time (only meaningful for response logging)
+  bool status_code = 8 [default = true]; // include HTTP response status code
+  bool duration = 9; // include request processing time (only meaningful for response logging)
 
   // What to log for request and response
-  DirectionConfig request = 11; // what to log for requests
-  DirectionConfig response = 12; // what to log for responses
+  DirectionConfig request = 10; // what to log for requests
+  DirectionConfig response = 11; // what to log for responses
 }
 
 // Configuration for console logger middleware

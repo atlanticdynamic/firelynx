@@ -20,7 +20,6 @@ func TestConsoleLogger_ToProto(t *testing.T) {
 				Level:  LevelDebug,
 			},
 			Fields: LogOptionsHTTP{
-				Timestamp:   true,
 				Method:      true,
 				Path:        true,
 				ClientIP:    true,
@@ -66,7 +65,6 @@ func TestConsoleLogger_ToProto(t *testing.T) {
 		assert.Equal(t, pb.LogOptionsGeneral_LEVEL_DEBUG, pbConfig.Options.GetLevel())
 
 		// Verify HTTP fields
-		assert.True(t, pbConfig.Fields.GetTimestamp())
 		assert.True(t, pbConfig.Fields.GetMethod())
 		assert.True(t, pbConfig.Fields.GetPath())
 		assert.True(t, pbConfig.Fields.GetClientIp())
@@ -145,7 +143,6 @@ func TestFromProto(t *testing.T) {
 				}(),
 			},
 			Fields: &pb.LogOptionsHTTP{
-				Timestamp:   func() *bool { b := true; return &b }(),
 				Method:      func() *bool { b := false; return &b }(),
 				Path:        func() *bool { b := true; return &b }(),
 				ClientIp:    func() *bool { b := true; return &b }(),
@@ -189,7 +186,6 @@ func TestFromProto(t *testing.T) {
 		assert.Equal(t, LevelWarn, config.Options.Level)
 
 		// Verify HTTP fields
-		assert.True(t, config.Fields.Timestamp)
 		assert.False(t, config.Fields.Method)
 		assert.True(t, config.Fields.Path)
 		assert.True(t, config.Fields.ClientIP)
@@ -265,7 +261,6 @@ func TestRoundTrip(t *testing.T) {
 				Level:  LevelError,
 			},
 			Fields: LogOptionsHTTP{
-				Timestamp:   true,
 				Method:      false,
 				Path:        true,
 				ClientIP:    true,
