@@ -12,6 +12,70 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestResponseBuffer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("NewResponseBuffer initialization", func(t *testing.T) {
+		t.Parallel()
+
+		rb := NewResponseBuffer()
+		assert.NotNil(t, rb)
+		assert.NotNil(t, rb.buffer)
+		assert.NotNil(t, rb.headers)
+		assert.Equal(t, 0, rb.status)
+		assert.Equal(t, 0, rb.Size())
+		assert.False(t, rb.Written())
+	})
+
+	t.Run("Write functionality", func(t *testing.T) {
+		t.Parallel()
+
+		rb := NewResponseBuffer()
+		data := []byte("test response")
+
+		n, err := rb.Write(data)
+		assert.NoError(t, err)
+		assert.Equal(t, len(data), n)
+		assert.Equal(t, len(data), rb.Size())
+		assert.True(t, rb.Written())
+	})
+
+	t.Run("Header functionality", func(t *testing.T) {
+		t.Parallel()
+
+		rb := NewResponseBuffer()
+		rb.Header().Set("Content-Type", "application/json")
+		rb.Header().Set("X-Custom", "value")
+
+		assert.Equal(t, "application/json", rb.Header().Get("Content-Type"))
+		assert.Equal(t, "value", rb.Header().Get("X-Custom"))
+	})
+
+	t.Run("WriteHeader functionality", func(t *testing.T) {
+		t.Parallel()
+
+		rb := NewResponseBuffer()
+
+		rb.WriteHeader(201)
+		assert.Equal(t, 201, rb.Status())
+		assert.True(t, rb.Written())
+
+		// Second call should not change status
+		rb.WriteHeader(500)
+		assert.Equal(t, 201, rb.Status())
+	})
+
+	t.Run("Status defaults to 200 when written but no status set", func(t *testing.T) {
+		t.Parallel()
+
+		rb := NewResponseBuffer()
+		_, err := rb.Write([]byte("response"))
+		require.NoError(t, err)
+
+		assert.Equal(t, http.StatusOK, rb.Status())
+	})
+}
+
 func TestNewConsoleLogger(t *testing.T) {
 	t.Parallel()
 
@@ -20,27 +84,39 @@ func TestNewConsoleLogger(t *testing.T) {
 
 	consoleLogger := NewConsoleLogger(cfg)
 	assert.NotNil(t, consoleLogger)
-	assert.Equal(t, cfg, consoleLogger.cfg)
-	assert.NotNil(t, consoleLogger.logger)
+	assert.NotNil(t, consoleLogger.filter)
 }
 
 func TestConsoleLogger_Middleware(t *testing.T) {
 	t.Parallel()
 
-	cfg := logger.NewConsoleLogger()
-	consoleLogger := NewConsoleLogger(cfg)
-	middleware := consoleLogger.Middleware()
+	t.Run("Middleware function creation", func(t *testing.T) {
+		t.Parallel()
 
-	// Test that middleware function is created
-	assert.NotNil(t, middleware)
+		cfg := logger.NewConsoleLogger()
+		consoleLogger := NewConsoleLogger(cfg)
+		middleware := consoleLogger.Middleware()
 
-	// Test middleware execution using httpserver API
-	// The middleware expects a RequestProcessor, so we need to simulate that
-	// For now, we'll just verify the middleware is created properly
-	// The full integration test will be done at a higher level
+		assert.NotNil(t, middleware)
+	})
+
+	t.Run("Filter initialization", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := logger.NewConsoleLogger()
+		cfg.ExcludeMethods = []string{"OPTIONS"}
+		cfg.Fields.Request.Enabled = true
+		cfg.Fields.Response.Enabled = true
+
+		consoleLogger := NewConsoleLogger(cfg)
+		middleware := consoleLogger.Middleware()
+
+		assert.NotNil(t, middleware)
+		assert.NotNil(t, consoleLogger.filter)
+	})
 }
 
-func TestConsoleLogger_shouldSkipPath(t *testing.T) {
+func TestLogFilter_skipPath(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -97,14 +173,14 @@ func TestConsoleLogger_shouldSkipPath(t *testing.T) {
 			cfg.IncludeOnlyPaths = tt.includeOnlyPaths
 			cfg.ExcludePaths = tt.excludePaths
 
-			consoleLogger := NewConsoleLogger(cfg)
-			result := consoleLogger.shouldSkipPath(tt.path)
+			filter := newLogFilter(cfg)
+			result := filter.skipPath(tt.path)
 			assert.Equal(t, tt.shouldSkip, result)
 		})
 	}
 }
 
-func TestConsoleLogger_shouldSkipMethod(t *testing.T) {
+func TestLogFilter_skipMethod(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -160,31 +236,29 @@ func TestConsoleLogger_shouldSkipMethod(t *testing.T) {
 			cfg.IncludeOnlyMethods = tt.includeOnlyMethods
 			cfg.ExcludeMethods = tt.excludeMethods
 
-			consoleLogger := NewConsoleLogger(cfg)
-			result := consoleLogger.shouldSkipMethod(tt.method)
+			filter := newLogFilter(cfg)
+			result := filter.skipMethod(tt.method)
 			assert.Equal(t, tt.shouldSkip, result)
 		})
 	}
 }
 
-func TestConsoleLogger_readBody(t *testing.T) {
+func TestReadBody(t *testing.T) {
 	t.Parallel()
-
-	cfg := logger.NewConsoleLogger()
-	consoleLogger := NewConsoleLogger(cfg)
 
 	t.Run("Nil body", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
-		body, err := consoleLogger.readBody(req, 1024)
+		req.Body = nil // Explicitly set to nil
+		body, err := readBody(req, 1024)
 		assert.NoError(t, err)
-		assert.Empty(t, body) // Empty slice, not nil
+		assert.Nil(t, body)
 	})
 
 	t.Run("Read body with limit", func(t *testing.T) {
 		bodyContent := "test body content"
 		req := httptest.NewRequest("POST", "/test", strings.NewReader(bodyContent))
 
-		body, err := consoleLogger.readBody(req, 1024)
+		body, err := readBody(req, 1024)
 		require.NoError(t, err)
 		assert.Equal(t, bodyContent, string(body))
 
@@ -199,17 +273,14 @@ func TestConsoleLogger_readBody(t *testing.T) {
 		bodyContent := "this is a longer test body content"
 		req := httptest.NewRequest("POST", "/test", strings.NewReader(bodyContent))
 
-		body, err := consoleLogger.readBody(req, 10)
+		body, err := readBody(req, 10)
 		require.NoError(t, err)
 		assert.Equal(t, "this is a ", string(body))
 	})
 }
 
-func TestConsoleLogger_getClientIP(t *testing.T) {
+func TestGetClientIP(t *testing.T) {
 	t.Parallel()
-
-	cfg := logger.NewConsoleLogger()
-	consoleLogger := NewConsoleLogger(cfg)
 
 	tests := []struct {
 		name       string
@@ -261,17 +332,14 @@ func TestConsoleLogger_getClientIP(t *testing.T) {
 				req.Header.Set(key, value)
 			}
 
-			ip := consoleLogger.getClientIP(req)
+			ip := getClientIP(req)
 			assert.Equal(t, tt.expectedIP, ip)
 		})
 	}
 }
 
-func TestConsoleLogger_filterHeaders(t *testing.T) {
+func TestLogFilter_filterHeaders(t *testing.T) {
 	t.Parallel()
-
-	cfg := logger.NewConsoleLogger()
-	consoleLogger := NewConsoleLogger(cfg)
 
 	headers := http.Header{
 		"Content-Type":  []string{"application/json"},
@@ -318,7 +386,12 @@ func TestConsoleLogger_filterHeaders(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := consoleLogger.filterHeaders(headers, tt.include, tt.exclude)
+			cfg := logger.NewConsoleLogger()
+			cfg.Fields.Request.IncludeHeaders = tt.include
+			cfg.Fields.Request.ExcludeHeaders = tt.exclude
+			filter := newLogFilter(cfg)
+
+			result := filter.filterHeaders(headers)
 
 			assert.Len(t, result, len(tt.expectedHeaders))
 			for _, expectedHeader := range tt.expectedHeaders {
