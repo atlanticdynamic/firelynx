@@ -13,19 +13,18 @@ import (
 )
 
 const (
-	attrTimestamp = "timestamp"
-	attrMethod    = "method"
-	attrPath      = "path"
-	attrClientIP  = "client_ip"
-	attrQuery     = "query"
-	attrProtocol  = "protocol"
-	attrHost      = "host"
-	attrScheme    = "scheme"
-	attrStatus    = "status"
-	attrDuration  = "duration"
-	attrHeaders   = "headers"
-	attrBody      = "body"
-	attrBodySize  = "body_size"
+	attrMethod   = "method"
+	attrPath     = "path"
+	attrClientIP = "client_ip"
+	attrQuery    = "query"
+	attrProtocol = "protocol"
+	attrHost     = "host"
+	attrScheme   = "scheme"
+	attrStatus   = "status"
+	attrDuration = "duration"
+	attrHeaders  = "headers"
+	attrBody     = "body"
+	attrBodySize = "body_size"
 
 	groupRequest  = "request"
 	groupResponse = "response"
@@ -143,7 +142,6 @@ func (lf *logFilter) BuildLogAttrs(
 	duration time.Duration,
 	requestBody []byte,
 	responseBody []byte,
-	requestTime time.Time,
 ) []slog.Attr {
 	if lf.ShouldSkip(r) {
 		return nil
@@ -152,9 +150,6 @@ func (lf *logFilter) BuildLogAttrs(
 	attrs := make([]slog.Attr, 0, 20)
 
 	// Common fields
-	if lf.fields.Timestamp {
-		attrs = append(attrs, slog.Time(attrTimestamp, requestTime))
-	}
 	if lf.fields.Method {
 		attrs = append(attrs, slog.String(attrMethod, r.Method))
 	}
@@ -301,6 +296,26 @@ func (lf *logFilter) Log(ctx context.Context, attrs []slog.Attr) {
 	}
 
 	lf.logger.LogAttrs(ctx, level, logMessage, attrs...)
+}
+
+// RequestBodyLogEnabled returns true if request body logging is enabled
+func (lf *logFilter) RequestBodyLogEnabled() bool {
+	return lf.readRequestBody
+}
+
+// ResponseBodyLogEnabled returns true if response body logging is enabled
+func (lf *logFilter) ResponseBodyLogEnabled() bool {
+	return lf.readResponseBody
+}
+
+// MaxRequestBodySize returns the maximum size of request body to capture
+func (lf *logFilter) MaxRequestBodySize() int {
+	return lf.maxRequestBodySize
+}
+
+// MaxResponseBodySize returns the maximum size of response body to capture
+func (lf *logFilter) MaxResponseBodySize() int {
+	return lf.maxResponseBodySize
 }
 
 // getClientIP extracts client IP from request headers

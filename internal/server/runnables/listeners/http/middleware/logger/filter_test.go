@@ -258,7 +258,7 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 		req := httptest.NewRequest("OPTIONS", "/test", nil)
 		rw := NewMockResponseWriter()
 
-		attrs := filter.BuildLogAttrs(req, rw, time.Second, nil, nil, time.Now())
+		attrs := filter.BuildLogAttrs(req, rw, time.Second, nil, nil)
 		assert.Nil(t, attrs)
 	})
 
@@ -267,7 +267,6 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 
 		cfg := &logger.ConsoleLogger{
 			Fields: logger.LogOptionsHTTP{
-				Timestamp:   true,
 				Method:      true,
 				Path:        true,
 				ClientIP:    true,
@@ -290,13 +289,12 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 		rw := NewMockResponseWriter()
 		rw.statusCode = 200
 
-		startTime := time.Now()
 		duration := time.Millisecond * 100
 
-		attrs := filter.BuildLogAttrs(req, rw, duration, nil, nil, startTime)
+		attrs := filter.BuildLogAttrs(req, rw, duration, nil, nil)
 
 		require.NotNil(t, attrs)
-		assert.Len(t, attrs, 10) // All fields enabled
+		assert.Len(t, attrs, 9) // All fields enabled
 
 		// Verify specific attributes
 		attrMap := make(map[string]interface{})
@@ -330,7 +328,7 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 		reqHTTP.TLS = nil
 		rw := NewMockResponseWriter()
 
-		attrs := filter.BuildLogAttrs(reqHTTP, rw, 0, nil, nil, time.Now())
+		attrs := filter.BuildLogAttrs(reqHTTP, rw, 0, nil, nil)
 		require.Len(t, attrs, 1)
 		assert.Equal(t, schemeHTTP, attrs[0].Value.Any())
 
@@ -338,7 +336,7 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 		reqHTTPS := httptest.NewRequest("GET", "/test", nil)
 		reqHTTPS.TLS = &tls.ConnectionState{}
 
-		attrs = filter.BuildLogAttrs(reqHTTPS, rw, 0, nil, nil, time.Now())
+		attrs = filter.BuildLogAttrs(reqHTTPS, rw, 0, nil, nil)
 		require.Len(t, attrs, 1)
 		assert.Equal(t, schemeHTTPS, attrs[0].Value.Any())
 	})
@@ -356,7 +354,7 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
 		rw := NewMockResponseWriter() // Status defaults to 0
 
-		attrs := filter.BuildLogAttrs(req, rw, 0, nil, nil, time.Now())
+		attrs := filter.BuildLogAttrs(req, rw, 0, nil, nil)
 		require.Len(t, attrs, 1)
 		assert.Equal(t, int64(200), attrs[0].Value.Any())
 	})
@@ -391,7 +389,7 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 		requestBody := []byte(`{"test": "data"}`)
 		responseBody := []byte(`{"result": "ok"}`)
 
-		attrs := filter.BuildLogAttrs(req, rw, 0, requestBody, responseBody, time.Now())
+		attrs := filter.BuildLogAttrs(req, rw, 0, requestBody, responseBody)
 
 		require.Len(t, attrs, 2) // Request and response groups
 

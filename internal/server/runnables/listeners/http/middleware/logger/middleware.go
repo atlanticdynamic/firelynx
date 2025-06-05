@@ -2,7 +2,9 @@ package logger
 
 import (
 	"bytes"
+	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -10,58 +12,24 @@ import (
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
 
-// ResponseBuffer captures response data for logging
-type ResponseBuffer struct {
-	buffer  *bytes.Buffer
-	headers http.Header
-	status  int
-}
-
-func NewResponseBuffer() *ResponseBuffer {
-	return &ResponseBuffer{
-		buffer:  new(bytes.Buffer),
-		headers: make(http.Header),
-		status:  0,
-	}
-}
-
-// Header implements http.ResponseWriter
-func (rb *ResponseBuffer) Header() http.Header {
-	return rb.headers
-}
-
-// Write implements http.ResponseWriter
-func (rb *ResponseBuffer) Write(data []byte) (int, error) {
-	return rb.buffer.Write(data)
-}
-
-// WriteHeader implements http.ResponseWriter
-func (rb *ResponseBuffer) WriteHeader(statusCode int) {
-	if rb.status == 0 {
-		rb.status = statusCode
-	}
-}
-
-// Status implements httpserver.ResponseWriter
-func (rb *ResponseBuffer) Status() int {
-	if rb.status == 0 && rb.buffer.Len() > 0 {
-		return http.StatusOK
-	}
-	return rb.status
-}
-
-// Written implements httpserver.ResponseWriter
-func (rb *ResponseBuffer) Written() bool {
-	return rb.buffer.Len() > 0 || rb.status != 0
-}
-
-// Size implements httpserver.ResponseWriter
-func (rb *ResponseBuffer) Size() int {
-	return rb.buffer.Len()
+type filter interface {
+	ShouldSkip(*http.Request) bool
+	BuildLogAttrs(
+		r *http.Request,
+		rw httpserver.ResponseWriter,
+		duration time.Duration,
+		requestBody []byte,
+		responseBody []byte,
+	) []slog.Attr
+	Log(context.Context, []slog.Attr)
+	RequestBodyLogEnabled() bool
+	ResponseBodyLogEnabled() bool
+	MaxRequestBodySize() int
+	MaxResponseBodySize() int
 }
 
 type ConsoleLogger struct {
-	filter *logFilter
+	filter filter
 }
 
 func NewConsoleLogger(cfg *logger.ConsoleLogger) *ConsoleLogger {
@@ -82,8 +50,8 @@ func (cl *ConsoleLogger) Middleware() httpserver.HandlerFunc {
 		start := time.Now()
 
 		var requestBody []byte
-		if cl.filter.readRequestBody {
-			body, err := readBody(r, cl.filter.maxRequestBodySize)
+		if cl.filter.RequestBodyLogEnabled() {
+			body, err := readBody(r, cl.filter.MaxRequestBodySize())
 			if err == nil {
 				requestBody = body
 			}
@@ -91,7 +59,7 @@ func (cl *ConsoleLogger) Middleware() httpserver.HandlerFunc {
 
 		var responseBuffer *ResponseBuffer
 		var originalWriter httpserver.ResponseWriter
-		if cl.filter.readResponseBody {
+		if cl.filter.ResponseBodyLogEnabled() {
 			originalWriter = rp.Writer()
 			responseBuffer = NewResponseBuffer()
 			rp.SetWriter(responseBuffer)
@@ -100,11 +68,11 @@ func (cl *ConsoleLogger) Middleware() httpserver.HandlerFunc {
 		rp.Next()
 
 		var responseBody []byte
-		if cl.filter.readResponseBody && responseBuffer != nil {
+		if cl.filter.ResponseBodyLogEnabled() && responseBuffer != nil {
 			responseBody = responseBuffer.buffer.Bytes()
 
-			if len(responseBody) > cl.filter.maxResponseBodySize {
-				responseBody = responseBody[:cl.filter.maxResponseBodySize]
+			if len(responseBody) > cl.filter.MaxResponseBodySize() {
+				responseBody = responseBody[:cl.filter.MaxResponseBodySize()]
 			}
 
 			for key, values := range responseBuffer.Header() {
@@ -126,7 +94,7 @@ func (cl *ConsoleLogger) Middleware() httpserver.HandlerFunc {
 
 		// Build log attributes and write log entry
 		duration := time.Since(start)
-		attrs := cl.filter.BuildLogAttrs(r, rp.Writer(), duration, requestBody, responseBody, start)
+		attrs := cl.filter.BuildLogAttrs(r, rp.Writer(), duration, requestBody, responseBody)
 		cl.filter.Log(r.Context(), attrs)
 	}
 }
