@@ -1,9 +1,7 @@
 package logger
 
 import (
-	"context"
 	"crypto/tls"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -56,7 +54,6 @@ func TestNewLogFilter(t *testing.T) {
 		filter := newLogFilter(cfg)
 
 		require.NotNil(t, filter)
-		assert.NotNil(t, filter.logger)
 		assert.Empty(t, filter.methodInclude)
 		assert.Empty(t, filter.methodExclude)
 		assert.Empty(t, filter.headerInclude)
@@ -123,8 +120,8 @@ func TestNewLogFilter(t *testing.T) {
 		filter := newLogFilter(cfg)
 
 		require.NotNil(t, filter)
-		assert.True(t, filter.readRequestBody)
-		assert.True(t, filter.readResponseBody)
+		assert.True(t, filter.logReqBody)
+		assert.True(t, filter.logRespBody)
 		assert.Equal(t, 1024, filter.maxRequestBodySize)
 		assert.Equal(t, 2048, filter.maxResponseBodySize)
 	})
@@ -587,68 +584,5 @@ func TestLogFilter_filterHeaders_Integration(t *testing.T) {
 		assert.Contains(t, result, "Content-Type")
 		assert.Contains(t, result, "User-Agent")
 		assert.NotContains(t, result, "Authorization") // Excluded despite being included
-	})
-}
-
-func TestLogFilter_Log(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-
-	t.Run("Empty attributes - no logging", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := logger.NewConsoleLogger()
-		filter := newLogFilter(cfg)
-
-		// Should not panic or error
-		filter.Log(ctx, nil)
-		filter.Log(ctx, []slog.Attr{})
-	})
-
-	t.Run("Log level determination by status code", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := logger.NewConsoleLogger()
-		filter := newLogFilter(cfg)
-
-		tests := []struct {
-			statusCode    int
-			expectedLevel string // We can't easily test slog.Level, so we test behavior
-		}{
-			{200, "info"},
-			{201, "info"},
-			{400, "warn"},
-			{404, "warn"},
-			{500, "error"},
-			{503, "error"},
-		}
-
-		for _, tt := range tests {
-			t.Run(fmt.Sprintf("status_%d", tt.statusCode), func(t *testing.T) {
-				attrs := []slog.Attr{
-					slog.Int(attrStatus, tt.statusCode),
-				}
-
-				// This test mainly ensures no panics occur
-				// In a real scenario, you'd capture the log output to verify level
-				filter.Log(ctx, attrs)
-			})
-		}
-	})
-
-	t.Run("No status attribute defaults to info level", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := logger.NewConsoleLogger()
-		filter := newLogFilter(cfg)
-
-		attrs := []slog.Attr{
-			slog.String(attrMethod, "GET"),
-			slog.String(attrPath, "/test"),
-		}
-
-		// Should not panic and should use info level
-		filter.Log(ctx, attrs)
 	})
 }

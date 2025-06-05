@@ -1,14 +1,12 @@
 package logger
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
-	centralLogger "github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
 
@@ -31,8 +29,6 @@ const (
 
 	schemeHTTP  = "http"
 	schemeHTTPS = "https"
-
-	logMessage = "HTTP request"
 )
 
 // logFilter pre-computes filtering operations for request processing
@@ -45,13 +41,11 @@ type logFilter struct {
 	pathInclude []string
 	pathExclude []string
 
-	logger *slog.Logger
-
 	fields              logger.LogOptionsHTTP
 	maxRequestBodySize  int
 	maxResponseBodySize int
-	readRequestBody     bool
-	readResponseBody    bool
+	logReqBody          bool
+	logRespBody         bool
 }
 
 // newLogFilter creates a new log filter with pre-computed filtering maps
@@ -73,8 +67,6 @@ func newLogFilter(cfg *logger.ConsoleLogger) *logFilter {
 		headerExclude[strings.ToLower(header)] = true
 	}
 
-	handler := centralLogger.SetupHandler(string(cfg.Options.Level))
-
 	return &logFilter{
 		methodInclude:       methodInclude,
 		methodExclude:       methodExclude,
@@ -82,12 +74,11 @@ func newLogFilter(cfg *logger.ConsoleLogger) *logFilter {
 		headerExclude:       headerExclude,
 		pathInclude:         cfg.IncludeOnlyPaths,
 		pathExclude:         cfg.ExcludePaths,
-		logger:              slog.New(handler).WithGroup("http"),
 		fields:              cfg.Fields,
 		maxRequestBodySize:  int(cfg.Fields.Request.MaxBodySize),
 		maxResponseBodySize: int(cfg.Fields.Response.MaxBodySize),
-		readRequestBody:     cfg.Fields.Request.Enabled && cfg.Fields.Request.Body,
-		readResponseBody:    cfg.Fields.Response.Enabled && cfg.Fields.Response.Body,
+		logReqBody:          cfg.Fields.Request.Enabled && cfg.Fields.Request.Body,
+		logRespBody:         cfg.Fields.Response.Enabled && cfg.Fields.Response.Body,
 	}
 }
 
@@ -274,38 +265,14 @@ func (lf *logFilter) filterHeaders(headers http.Header) map[string][]string {
 	return result
 }
 
-// Log writes the log entry with appropriate level based on status code
-func (lf *logFilter) Log(ctx context.Context, attrs []slog.Attr) {
-	if len(attrs) == 0 {
-		return
-	}
-
-	// Determine log level from status code
-	level := slog.LevelInfo
-	for _, attr := range attrs {
-		if attr.Key == attrStatus {
-			if statusCode, ok := attr.Value.Any().(int); ok {
-				if statusCode >= 500 {
-					level = slog.LevelError
-				} else if statusCode >= 400 {
-					level = slog.LevelWarn
-				}
-			}
-			break
-		}
-	}
-
-	lf.logger.LogAttrs(ctx, level, logMessage, attrs...)
-}
-
 // RequestBodyLogEnabled returns true if request body logging is enabled
 func (lf *logFilter) RequestBodyLogEnabled() bool {
-	return lf.readRequestBody
+	return lf.logReqBody
 }
 
 // ResponseBodyLogEnabled returns true if response body logging is enabled
 func (lf *logFilter) ResponseBodyLogEnabled() bool {
-	return lf.readResponseBody
+	return lf.logRespBody
 }
 
 // MaxRequestBodySize returns the maximum size of request body to capture
