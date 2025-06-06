@@ -41,11 +41,11 @@ type logFilter struct {
 	pathInclude []string
 	pathExclude []string
 
-	fields              logger.LogOptionsHTTP
-	maxRequestBodySize  int
-	maxResponseBodySize int
-	logReqBody          bool
-	logRespBody         bool
+	fields                 logger.LogOptionsHTTP
+	maxRequestBodyLogSize  int
+	maxResponseBodyLogSize int
+	logReqBody             bool
+	logRespBody            bool
 }
 
 // newLogFilter creates a new log filter with pre-computed filtering maps
@@ -68,17 +68,17 @@ func newLogFilter(cfg *logger.ConsoleLogger) *logFilter {
 	}
 
 	return &logFilter{
-		methodInclude:       methodInclude,
-		methodExclude:       methodExclude,
-		headerInclude:       headerInclude,
-		headerExclude:       headerExclude,
-		pathInclude:         cfg.IncludeOnlyPaths,
-		pathExclude:         cfg.ExcludePaths,
-		fields:              cfg.Fields,
-		maxRequestBodySize:  int(cfg.Fields.Request.MaxBodySize),
-		maxResponseBodySize: int(cfg.Fields.Response.MaxBodySize),
-		logReqBody:          cfg.Fields.Request.Enabled && cfg.Fields.Request.Body,
-		logRespBody:         cfg.Fields.Response.Enabled && cfg.Fields.Response.Body,
+		methodInclude:          methodInclude,
+		methodExclude:          methodExclude,
+		headerInclude:          headerInclude,
+		headerExclude:          headerExclude,
+		pathInclude:            cfg.IncludeOnlyPaths,
+		pathExclude:            cfg.ExcludePaths,
+		fields:                 cfg.Fields,
+		maxRequestBodyLogSize:  int(cfg.Fields.Request.MaxBodySize),
+		maxResponseBodyLogSize: int(cfg.Fields.Response.MaxBodySize),
+		logReqBody:             cfg.Fields.Request.Enabled && cfg.Fields.Request.Body,
+		logRespBody:            cfg.Fields.Response.Enabled && cfg.Fields.Response.Body,
 	}
 }
 
@@ -275,14 +275,14 @@ func (lf *logFilter) ResponseBodyLogEnabled() bool {
 	return lf.logRespBody
 }
 
-// MaxRequestBodySize returns the maximum size of request body to capture
-func (lf *logFilter) MaxRequestBodySize() int {
-	return lf.maxRequestBodySize
+// MaxRequestBodyLogSize returns the maximum size of request body to log
+func (lf *logFilter) MaxRequestBodyLogSize() int {
+	return lf.maxRequestBodyLogSize
 }
 
-// MaxResponseBodySize returns the maximum size of response body to capture
-func (lf *logFilter) MaxResponseBodySize() int {
-	return lf.maxResponseBodySize
+// MaxResponseBodyLogSize returns the maximum size of response body to log
+func (lf *logFilter) MaxResponseBodyLogSize() int {
+	return lf.maxResponseBodyLogSize
 }
 
 // getClientIP extracts client IP from request headers

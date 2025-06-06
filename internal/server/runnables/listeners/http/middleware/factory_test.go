@@ -19,7 +19,7 @@ func TestCreateMiddleware(t *testing.T) {
 			Config: logger.NewConsoleLogger(),
 		}
 
-		mw, err := createMiddleware(cfg)
+		mw, err := createMiddleware(cfg.ID, cfg)
 		require.NoError(t, err)
 		assert.NotNil(t, mw)
 	})
@@ -30,7 +30,7 @@ func TestCreateMiddleware(t *testing.T) {
 			Config: &unsupportedConfig{},
 		}
 
-		mw, err := createMiddleware(cfg)
+		mw, err := createMiddleware(cfg.ID, cfg)
 		assert.Error(t, err)
 		assert.Nil(t, mw)
 		assert.Contains(t, err.Error(), "unsupported middleware type")

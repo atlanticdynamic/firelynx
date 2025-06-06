@@ -122,8 +122,8 @@ func TestNewLogFilter(t *testing.T) {
 		require.NotNil(t, filter)
 		assert.True(t, filter.logReqBody)
 		assert.True(t, filter.logRespBody)
-		assert.Equal(t, 1024, filter.maxRequestBodySize)
-		assert.Equal(t, 2048, filter.maxResponseBodySize)
+		assert.Equal(t, 1024, filter.maxRequestBodyLogSize)
+		assert.Equal(t, 2048, filter.maxResponseBodyLogSize)
 	})
 }
 

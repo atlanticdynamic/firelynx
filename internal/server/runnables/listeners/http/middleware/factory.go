@@ -17,7 +17,7 @@ func CreateMiddlewareCollection(collection middleware.MiddlewareCollection) ([]M
 	middlewares := make([]Middleware, 0, len(collection))
 
 	for _, cfg := range collection {
-		mw, err := createMiddleware(cfg)
+		mw, err := createMiddleware(cfg.ID, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create middleware '%s': %w", cfg.ID, err)
 		}
@@ -28,10 +28,10 @@ func CreateMiddlewareCollection(collection middleware.MiddlewareCollection) ([]M
 }
 
 // createMiddleware creates a middleware instance from a configuration
-func createMiddleware(cfg middleware.Middleware) (Middleware, error) {
+func createMiddleware(id string, cfg middleware.Middleware) (Middleware, error) {
 	switch config := cfg.Config.(type) {
 	case *configLogger.ConsoleLogger:
-		consoleLogger := logger.NewConsoleLogger(config)
+		consoleLogger := logger.NewConsoleLogger(id, config)
 		return consoleLogger.Middleware(), nil
 	default:
 		return nil, fmt.Errorf("unsupported middleware type: %T", cfg.Config)
