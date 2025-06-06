@@ -3,6 +3,7 @@
 package finitestate
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/robbyt/go-fsm"
@@ -56,16 +57,18 @@ var SagaTransitions = map[string][]string{
 	StateError: {}, // Error is a terminal state for unrecoverable errors
 }
 
-// SagaFactory creates saga state machines
-type SagaFactory struct{}
-
-// NewMachine creates a new saga state machine
-func (f *SagaFactory) NewMachine(handler slog.Handler) (Machine, error) {
-	return fsm.New(handler, StateCreated, SagaTransitions)
+type SagaFSM struct {
+	*fsm.Machine
 }
 
-// NewSagaMachine creates a new saga state machine directly
-func NewSagaMachine(handler slog.Handler) (Machine, error) {
-	factory := &SagaFactory{}
-	return factory.NewMachine(handler)
+func (s *SagaFSM) GetStateChan(ctx context.Context) <-chan string {
+	return s.GetStateChanWithOptions(ctx, fsm.WithSyncBroadcast())
+}
+
+func NewSagaFSM(handler slog.Handler) (*SagaFSM, error) {
+	machine, err := fsm.New(handler, StateCreated, SagaTransitions)
+	if err != nil {
+		return nil, err
+	}
+	return &SagaFSM{Machine: machine}, nil
 }

@@ -113,12 +113,12 @@ func TestRunner_PrepConfigPayload(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		// Create routes using NewRoute
-		route1, err := httpserver.NewRoute("route1", "/api/v1", testHandler)
+		// Create routes using NewRouteFromHandlerFunc
+		route1, err := httpserver.NewRouteFromHandlerFunc("route1", "/api/v1", testHandler)
 		require.NoError(t, err)
-		route2, err := httpserver.NewRoute("route2", "/api/v2", testHandler)
+		route2, err := httpserver.NewRouteFromHandlerFunc("route2", "/api/v2", testHandler)
 		require.NoError(t, err)
-		route3, err := httpserver.NewRoute("route3", "/health", testHandler)
+		route3, err := httpserver.NewRouteFromHandlerFunc("route3", "/health", testHandler)
 		require.NoError(t, err)
 
 		// Create adapter with multiple listeners
@@ -185,7 +185,7 @@ func TestRunner_PrepConfigPayload(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		route1, err := httpserver.NewRoute("route1", "/api", testHandler)
+		route1, err := httpserver.NewRouteFromHandlerFunc("route1", "/api", testHandler)
 		require.NoError(t, err)
 
 		adapter := &cfg.Adapter{
@@ -231,9 +231,9 @@ func TestRunner_InternalHelpers(t *testing.T) {
 		require.NoError(t, err)
 
 		testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
-		route1, err := httpserver.NewRoute("test1", "/test1", testHandler)
+		route1, err := httpserver.NewRouteFromHandlerFunc("test1", "/test1", testHandler)
 		require.NoError(t, err)
-		route2, err := httpserver.NewRoute("test2", "/test2", testHandler)
+		route2, err := httpserver.NewRouteFromHandlerFunc("test2", "/test2", testHandler)
 		require.NoError(t, err)
 
 		adapterRoutes := []httpserver.Route{*route1, *route2}
@@ -317,7 +317,7 @@ func TestRunner_SendConfigToCluster(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		route1, err := httpserver.NewRoute("route1", "/test", testHandler)
+		route1, err := httpserver.NewRouteFromHandlerFunc("route1", "/test", testHandler)
 		require.NoError(t, err)
 
 		adapter := &cfg.Adapter{
@@ -349,7 +349,7 @@ func TestRunner_SendConfigToCluster(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 
-		route1, err := httpserver.NewRoute("route1", "/test", testHandler)
+		route1, err := httpserver.NewRouteFromHandlerFunc("route1", "/test", testHandler)
 		require.NoError(t, err)
 
 		adapter := &cfg.Adapter{

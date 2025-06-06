@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewParticipantMachine(t *testing.T) {
+func TestNewParticipantFSM(t *testing.T) {
 	t.Parallel()
 
 	t.Run("creates new participant machine with correct initial state", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		machine, err := NewParticipantMachine(handler)
+		machine, err := NewParticipantFSM(handler)
 
 		require.NoError(t, err)
 		require.NotNil(t, machine)
@@ -27,7 +27,7 @@ func TestParticipantMachine(t *testing.T) {
 
 	setup := func() Machine {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		machine, err := NewParticipantMachine(handler)
+		machine, err := NewParticipantFSM(handler)
 		require.NoError(t, err)
 		return machine
 	}

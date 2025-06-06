@@ -23,6 +23,11 @@ func (e *Endpoint) Validate() error {
 	// Note: We can't validate listener references here because we don't have the context
 	// of all available listeners. That's done in the parent Config.Validate method.
 
+	// Validate Middlewares
+	if err := e.Middlewares.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("middlewares in endpoint '%s': %w", e.ID, err))
+	}
+
 	// Validate Routes
 	routeConditions := make(map[string]bool)
 	for i, route := range e.Routes {

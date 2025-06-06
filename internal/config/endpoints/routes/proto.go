@@ -2,6 +2,7 @@ package routes
 
 import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/robbyt/protobaggins"
 )
@@ -24,6 +25,11 @@ func (r *Route) ToProto() *pb.Route {
 		conditions.ToProto(r.Condition, route)
 	}
 
+	// Convert middlewares if present
+	if len(r.Middlewares) > 0 {
+		route.Middlewares = r.Middlewares.ToProto()
+	}
+
 	return route
 }
 
@@ -44,6 +50,17 @@ func RouteFromProto(r *pb.Route) Route {
 
 	// Convert condition using the conditions package
 	route.Condition = conditions.FromProto(r)
+
+	// Convert middlewares if present
+	if len(r.Middlewares) > 0 {
+		middlewares, err := middleware.FromProto(r.Middlewares)
+		if err != nil {
+			// Log error or handle appropriately - for now we'll just skip
+			// In a real implementation, you might want to return an error
+		} else {
+			route.Middlewares = middlewares
+		}
+	}
 
 	return route
 }

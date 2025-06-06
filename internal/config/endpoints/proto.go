@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/robbyt/protobaggins"
 )
@@ -28,6 +29,11 @@ func (e *Endpoint) ToProto() *pb.Endpoint {
 	// Convert routes if present
 	if len(e.Routes) > 0 {
 		pbEndpoint.Routes = e.Routes.ToProto()
+	}
+
+	// Convert middlewares if present
+	if len(e.Middlewares) > 0 {
+		pbEndpoint.Middlewares = e.Middlewares.ToProto()
 	}
 
 	return pbEndpoint
@@ -65,6 +71,15 @@ func FromProto(pbEndpoints []*pb.Endpoint) (EndpointCollection, error) {
 		// Convert routes
 		if len(e.Routes) > 0 {
 			ep.Routes = routes.FromProto(e.Routes)
+		}
+
+		// Convert middlewares
+		if len(e.Middlewares) > 0 {
+			middlewares, err := middleware.FromProto(e.Middlewares)
+			if err != nil {
+				return nil, fmt.Errorf("endpoint '%s' middleware: %w", id, err)
+			}
+			ep.Middlewares = middlewares
 		}
 
 		endpoints = append(endpoints, ep)

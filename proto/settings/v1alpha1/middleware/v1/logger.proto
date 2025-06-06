@@ -1,0 +1,68 @@
+edition = "2023";
+package settings.v1alpha1.middleware.v1;
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1";
+
+message LogOptionsGeneral {
+  enum Format {
+    FORMAT_UNSPECIFIED = 0;
+    FORMAT_TXT = 1;
+    FORMAT_JSON = 2;
+  }
+
+  enum Level {
+    LEVEL_UNSPECIFIED = 0;
+    LEVEL_DEBUG = 1;
+    LEVEL_INFO = 2;
+    LEVEL_WARN = 3;
+    LEVEL_ERROR = 4;
+    LEVEL_FATAL = 5;
+  }
+
+  Format format = 1 [default = FORMAT_UNSPECIFIED];
+  Level level = 2 [default = LEVEL_UNSPECIFIED];
+}
+
+message LogOptionsHTTP {
+  // Configuration for what gets logged for request or response
+  message DirectionConfig {
+    bool enabled = 1 [default = true]; // whether to log this direction at all
+    bool body = 2; // include the full body content
+    int32 max_body_size = 3; // body content larger than this will be truncated (0 for no limit)
+    bool body_size = 4; // include the size of the body in bytes
+    bool headers = 5; // include headers
+    repeated string include_headers = 6; // if set, only log these headers (e.g., ["Authorization", "X-Request-ID"])
+    repeated string exclude_headers = 7; // headers to exclude from logging (e.g., ["Cookie", "Set-Cookie"])
+  }
+
+  // Common fields available for any HTTP log entry
+  bool method = 1 [default = true]; // include HTTP method (GET, POST, etc.)
+  bool path = 2 [default = true]; // include request path
+  bool client_ip = 3; // include client IP address
+  bool query_params = 4; // include query string parameters
+  bool protocol = 5; // include protocol version (HTTP/1.1, HTTP/2, etc.)
+  bool host = 6; // include host from request (may differ from Host header)
+  bool scheme = 7; // include request scheme (http, https)
+
+  // Response-specific fields (only available when response is present)
+  bool status_code = 8 [default = true]; // include HTTP response status code
+  bool duration = 9; // include request processing time (only meaningful for response logging)
+
+  // What to log for request and response
+  DirectionConfig request = 10; // what to log for requests
+  DirectionConfig response = 11; // what to log for responses
+}
+
+// Configuration for console logger middleware
+message ConsoleLoggerConfig {
+  LogOptionsGeneral options = 1; // general logging options (format, level)
+  LogOptionsHTTP fields = 2; // HTTP-specific field selection and formatting
+
+  // Path filtering - paths are matched as prefixes
+  repeated string include_only_paths = 3; // if set, only log requests matching these path prefixes
+  repeated string exclude_paths = 4; // exclude requests matching these path prefixes (e.g., "/health", "/metrics")
+
+  // Method filtering
+  repeated string include_only_methods = 5; // if set, only log these HTTP methods (e.g., ["GET", "POST"])
+  repeated string exclude_methods = 6; // exclude these HTTP methods from logging (e.g., ["OPTIONS"])
+}

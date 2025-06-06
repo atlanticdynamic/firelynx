@@ -179,12 +179,12 @@ func TestProcessListeners(t *testing.T) {
 		errs := processListeners(config, configMap)
 		assert.Empty(t, errs, "Should not return errors for missing type field")
 
-		// Type should not be set in the listener, so it returns the default
+		// Type should default to HTTP when not specified
 		assert.Equal(
 			t,
 			pbSettings.Listener_TYPE_HTTP,
 			config.Listeners[0].GetType(),
-			"Type should be default (HTTP)",
+			"Type should default to HTTP",
 		)
 	})
 
@@ -250,12 +250,12 @@ func TestProcessListeners(t *testing.T) {
 		errs := processListeners(config, configMap)
 		assert.Empty(t, errs, "Did not expect errors")
 
-		// Type should not be set in the listener, so it returns the default
+		// Type should default to HTTP when not specified
 		assert.Equal(
 			t,
 			pbSettings.Listener_TYPE_HTTP,
 			config.Listeners[0].GetType(),
-			"Type should be default (HTTP)",
+			"Type should default to HTTP",
 		)
 	})
 }
@@ -435,144 +435,6 @@ func TestProcessEndpoints(t *testing.T) {
 			config.Endpoints[0].GetListenerId(),
 			"listener_id should be empty",
 		)
-	})
-}
-
-// TestProcessLogging tests the processLogging function
-func TestProcessLogging(t *testing.T) {
-	// Test with valid logging configuration
-	t.Run("ValidLogging", func(t *testing.T) {
-		// Create a config with no logging initially
-		config := &pbSettings.ServerConfig{}
-
-		// Create a config map with logging data
-		configMap := map[string]any{
-			"logging": map[string]any{
-				"format": "json",
-				"level":  "info",
-			},
-		}
-
-		// Process logging
-		errs := processLogging(config, configMap)
-		assert.Empty(t, errs, "Did not expect errors")
-
-		// Check that logging was created and values were set
-		require.NotNil(t, config.Logging, "Logging should be created")
-		assert.Equal(
-			t,
-			pbSettings.LogFormat_LOG_FORMAT_JSON,
-			config.Logging.GetFormat(),
-			"Format should be JSON",
-		)
-		assert.Equal(
-			t,
-			pbSettings.LogLevel_LOG_LEVEL_INFO,
-			config.Logging.GetLevel(),
-			"Level should be INFO",
-		)
-	})
-
-	// Test with existing logging configuration
-	t.Run("ExistingLogging", func(t *testing.T) {
-		// Create a config with existing logging
-		format := pbSettings.LogFormat_LOG_FORMAT_TXT
-		level := pbSettings.LogLevel_LOG_LEVEL_DEBUG
-		config := &pbSettings.ServerConfig{
-			Logging: &pbSettings.LogOptions{
-				Format: &format,
-				Level:  &level,
-			},
-		}
-
-		// Create a config map with different logging data
-		configMap := map[string]any{
-			"logging": map[string]any{
-				"format": "json",
-				"level":  "error",
-			},
-		}
-
-		// Process logging
-		errs := processLogging(config, configMap)
-		assert.Empty(t, errs, "Did not expect errors")
-
-		// Check that values were updated
-		assert.Equal(
-			t,
-			pbSettings.LogFormat_LOG_FORMAT_JSON,
-			config.Logging.GetFormat(),
-			"Format should be updated to JSON",
-		)
-		assert.Equal(
-			t,
-			pbSettings.LogLevel_LOG_LEVEL_ERROR,
-			config.Logging.GetLevel(),
-			"Level should be updated to ERROR",
-		)
-	})
-
-	// Test with invalid format and level
-	t.Run("InvalidFormatAndLevel", func(t *testing.T) {
-		// Create a config with no logging
-		config := &pbSettings.ServerConfig{}
-
-		// Create a config map with invalid logging data
-		configMap := map[string]any{
-			"logging": map[string]any{
-				"format": "invalid",
-				"level":  "unknown",
-			},
-		}
-
-		// Process logging
-		errs := processLogging(config, configMap)
-		assert.Len(
-			t,
-			errs,
-			2,
-			"Expected 2 errors for invalid format and level",
-		)
-
-		// Check specific errors
-		assert.ErrorIs(t, errs[0], errz.ErrUnsupportedLogFormat)
-		assert.ErrorIs(t, errs[1], errz.ErrUnsupportedLogLevel)
-	})
-
-	// Test with no logging map in the config map
-	t.Run("NoLoggingMap", func(t *testing.T) {
-		// Create a config with no logging
-		config := &pbSettings.ServerConfig{}
-
-		// Create a config map with no logging key
-		configMap := map[string]any{
-			// No logging key
-		}
-
-		// Process logging
-		errs := processLogging(config, configMap)
-		assert.Empty(t, errs, "Did not expect errors")
-
-		// Logging should not be created
-		assert.Nil(t, config.Logging, "Logging should not be created")
-	})
-
-	// Test with logging that's not a map
-	t.Run("LoggingNotMap", func(t *testing.T) {
-		// Create a config with no logging
-		config := &pbSettings.ServerConfig{}
-
-		// Create a config map with logging that's not a map
-		configMap := map[string]any{
-			"logging": "invalid", // Not a map
-		}
-
-		// Process logging
-		errs := processLogging(config, configMap)
-		assert.Empty(t, errs, "Did not expect errors when logging is not a map")
-
-		// Logging should not be created
-		assert.Nil(t, config.Logging, "Logging should not be created")
 	})
 }
 

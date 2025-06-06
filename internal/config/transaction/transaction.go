@@ -100,7 +100,7 @@ func New(
 		handler = slog.New(slog.NewTextHandler(os.Stdout, nil)).Handler()
 	}
 
-	sm, err := finitestate.NewSagaMachine(handler)
+	sm, err := finitestate.NewSagaFSM(handler)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create state machine: %w", err)
 	}

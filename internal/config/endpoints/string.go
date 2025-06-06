@@ -17,6 +17,7 @@ func (e *Endpoint) String() string {
 		fmt.Fprintf(&b, " [Listener: %s]", e.ListenerID)
 	}
 
+	fmt.Fprintf(&b, "\nMiddlewares: %d", len(e.Middlewares))
 	fmt.Fprintf(&b, "\nRoutes: %d", len(e.Routes))
 
 	for i, route := range e.Routes {
@@ -36,6 +37,12 @@ func (e *Endpoint) ToTree() *fancy.ComponentTree {
 		tree.AddChild(
 			styles.ListenerRef([]string{e.ListenerID}),
 		) // For compatibility with existing styles
+	}
+
+	// Add middlewares
+	if len(e.Middlewares) > 0 {
+		middlewareTree := e.Middlewares.ToTree()
+		tree.AddChild(middlewareTree.Tree())
 	}
 
 	// Add routes

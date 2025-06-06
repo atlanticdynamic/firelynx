@@ -18,6 +18,12 @@
     "http": {
       "$ref": "settings.v1alpha1.HttpRule.jsonschema.json"
     },
+    "middlewares": {
+      "items": {
+        "$ref": "settings.v1alpha1.middleware.v1.Middleware.jsonschema.json"
+      },
+      "type": "array"
+    },
     "staticData": {
       "$ref": "settings.v1alpha1.StaticData.jsonschema.json"
     }

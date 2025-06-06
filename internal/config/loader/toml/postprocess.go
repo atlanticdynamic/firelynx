@@ -20,9 +20,6 @@ func (l *TomlLoader) postProcessConfig(
 	errs := processListeners(config, configMap)
 	errList = append(errList, errs...)
 
-	errs = processLogging(config, configMap)
-	errList = append(errList, errs...)
-
 	errs = processEndpoints(config, configMap)
 	errList = append(errList, errs...)
 
@@ -74,76 +71,6 @@ func processListenerType(listener *pbSettings.Listener, typeVal string) []error 
 		errList = append(errList, fmt.Errorf("%w: %s", errz.ErrUnsupportedListenerType, typeVal))
 	}
 	listener.Type = &listenerType
-
-	return errList
-}
-
-// processLogging handles logging configuration post-processing
-func processLogging(config *pbSettings.ServerConfig, configMap map[string]any) []error {
-	errList := []error{}
-
-	if loggingMap, ok := configMap["logging"].(map[string]any); ok {
-		if config.Logging == nil {
-			config.Logging = &pbSettings.LogOptions{}
-		}
-
-		// Process log format
-		if formatStr, ok := loggingMap["format"].(string); ok {
-			errs := processLogFormat(config.Logging, formatStr)
-			errList = append(errList, errs...)
-		}
-
-		// Process log level
-		if levelStr, ok := loggingMap["level"].(string); ok {
-			errs := processLogLevel(config.Logging, levelStr)
-			errList = append(errList, errs...)
-		}
-	}
-
-	return errList
-}
-
-// processLogFormat sets the log format from string to enum
-func processLogFormat(logging *pbSettings.LogOptions, formatStr string) []error {
-	var errList []error
-
-	switch formatStr {
-	case "json":
-		format := pbSettings.LogFormat_LOG_FORMAT_JSON
-		logging.Format = &format
-	case "txt", "text":
-		format := pbSettings.LogFormat_LOG_FORMAT_TXT
-		logging.Format = &format
-	default:
-		errList = append(errList, fmt.Errorf("%w: %s", errz.ErrUnsupportedLogFormat, formatStr))
-	}
-
-	return errList
-}
-
-// processLogLevel sets the log level from string to enum
-func processLogLevel(logging *pbSettings.LogOptions, levelStr string) []error {
-	var errList []error
-
-	switch levelStr {
-	case "debug":
-		level := pbSettings.LogLevel_LOG_LEVEL_DEBUG
-		logging.Level = &level
-	case "info":
-		level := pbSettings.LogLevel_LOG_LEVEL_INFO
-		logging.Level = &level
-	case "warn", "warning":
-		level := pbSettings.LogLevel_LOG_LEVEL_WARN
-		logging.Level = &level
-	case "error":
-		level := pbSettings.LogLevel_LOG_LEVEL_ERROR
-		logging.Level = &level
-	case "fatal":
-		level := pbSettings.LogLevel_LOG_LEVEL_FATAL
-		logging.Level = &level
-	default:
-		errList = append(errList, fmt.Errorf("%w: %s", errz.ErrUnsupportedLogLevel, levelStr))
-	}
 
 	return errList
 }

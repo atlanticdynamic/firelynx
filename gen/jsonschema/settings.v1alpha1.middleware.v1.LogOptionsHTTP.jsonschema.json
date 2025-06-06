@@ -1,0 +1,57 @@
+{
+  "$id": "settings.v1alpha1.middleware.v1.LogOptionsHTTP.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "patternProperties": {
+    "^(client_ip)$": {
+      "type": "boolean"
+    },
+    "^(query_params)$": {
+      "type": "boolean"
+    },
+    "^(status_code)$": {
+      "description": "Response-specific fields (only available when response is present)",
+      "type": "boolean"
+    }
+  },
+  "properties": {
+    "clientIp": {
+      "type": "boolean"
+    },
+    "duration": {
+      "type": "boolean"
+    },
+    "host": {
+      "type": "boolean"
+    },
+    "method": {
+      "description": "Common fields available for any HTTP log entry",
+      "type": "boolean"
+    },
+    "path": {
+      "type": "boolean"
+    },
+    "protocol": {
+      "type": "boolean"
+    },
+    "queryParams": {
+      "type": "boolean"
+    },
+    "request": {
+      "$ref": "settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfig.jsonschema.json",
+      "description": "What to log for request and response"
+    },
+    "response": {
+      "$ref": "settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfig.jsonschema.json"
+    },
+    "scheme": {
+      "type": "boolean"
+    },
+    "statusCode": {
+      "description": "Response-specific fields (only available when response is present)",
+      "type": "boolean"
+    }
+  },
+  "title": "Log OptionsHTTP",
+  "type": "object"
+}

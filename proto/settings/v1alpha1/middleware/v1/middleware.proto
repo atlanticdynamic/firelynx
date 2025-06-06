@@ -1,0 +1,21 @@
+edition = "2023";
+package settings.v1alpha1.middleware.v1;
+
+import "settings/v1alpha1/middleware/v1/logger.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1";
+
+// Middleware defines a middleware component
+message Middleware {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_CONSOLE_LOGGER = 1;
+  }
+
+  string id = 1;
+  Type type = 2;
+
+  oneof config {
+    ConsoleLoggerConfig console_logger = 100;
+  }
+}

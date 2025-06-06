@@ -94,14 +94,8 @@ func TestSaveConfig(t *testing.T) {
 
 	// Create a test config
 	version := version.Version
-	format := pb.LogFormat_LOG_FORMAT_JSON
-	level := pb.LogLevel_LOG_LEVEL_INFO
 	testConfig := &pb.ServerConfig{
 		Version: &version,
-		Logging: &pb.LogOptions{
-			Level:  &level,
-			Format: &format,
-		},
 	}
 
 	// Save the config
@@ -119,10 +113,9 @@ func TestSaveConfig(t *testing.T) {
 	// Just check for some expected content (uppercase V in Version)
 	assert.Contains(t, string(content), "Version")
 
-	// Check for enum values (these will be numbers in the TOML output)
+	// Check for basic config structure
 	contentStr := string(content)
-	assert.Contains(t, contentStr, "Format")
-	assert.Contains(t, contentStr, "Level")
+	assert.Contains(t, contentStr, "Version")
 }
 
 func TestConnect(t *testing.T) {
@@ -209,10 +202,6 @@ func TestFormatConfig(t *testing.T) {
 			name: "valid config",
 			config: &pb.ServerConfig{
 				Version: &v,
-				Logging: &pb.LogOptions{
-					Level:  pb.LogLevel_LOG_LEVEL_INFO.Enum(),
-					Format: pb.LogFormat_LOG_FORMAT_JSON.Enum(),
-				},
 			},
 			wantErr: false,
 		},

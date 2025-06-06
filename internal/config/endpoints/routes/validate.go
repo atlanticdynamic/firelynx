@@ -24,6 +24,11 @@ func (r *Route) Validate() error {
 		}
 	}
 
+	// Validate Middlewares
+	if err := r.Middlewares.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("route middlewares: %w", err))
+	}
+
 	// StaticData validation could go here if needed
 	// For now, we accept any valid map[string]any
 

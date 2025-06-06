@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-// SetupLogger configures the default logger based on provided log level
-func SetupLogger(logLevel string) {
+// SetupHandler configures the default logger to use the provided handler
+func SetupHandler(logLevel string) slog.Handler {
 	reportCaller := false
 	reportTimestamp := false
 	lvl := log.InfoLevel
@@ -29,11 +29,15 @@ func SetupLogger(logLevel string) {
 		lvl = log.ErrorLevel
 	}
 
-	handler := log.NewWithOptions(os.Stderr, log.Options{
+	return log.NewWithOptions(os.Stderr, log.Options{
 		ReportTimestamp: reportTimestamp,
 		ReportCaller:    reportCaller,
 		Level:           lvl,
 	})
+}
 
+// SetupLogger configures the default logger based on provided log level
+func SetupLogger(logLevel string) {
+	handler := SetupHandler(logLevel)
 	slog.SetDefault(slog.New(handler))
 }
