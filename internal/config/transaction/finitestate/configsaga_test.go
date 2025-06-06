@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewSagaMachine(t *testing.T) {
+func TestNewSagaFSM(t *testing.T) {
 	t.Parallel()
 
 	t.Run("creates new saga machine with correct initial state", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		machine, err := NewSagaMachine(handler)
+		machine, err := NewSagaFSM(handler)
 
 		require.NoError(t, err)
 		assert.NotNil(t, machine)
@@ -31,7 +31,7 @@ func TestSagaMachine(t *testing.T) {
 	// setup creates a new state machine for each test
 	setup := func() Machine {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		machine, err := NewSagaMachine(handler)
+		machine, err := NewSagaFSM(handler)
 		require.NoError(t, err)
 		return machine
 	}

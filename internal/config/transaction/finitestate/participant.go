@@ -3,6 +3,7 @@
 package finitestate
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/robbyt/go-fsm"
@@ -30,16 +31,18 @@ var ParticipantTransitions = map[string][]string{
 	ParticipantError:        {},
 }
 
-// ParticipantFactory creates participant state machines
-type ParticipantFactory struct{}
-
-// NewMachine creates a new participant state machine
-func (f *ParticipantFactory) NewMachine(handler slog.Handler) (Machine, error) {
-	return fsm.New(handler, ParticipantNotStarted, ParticipantTransitions)
+type ParticipantFSM struct {
+	*fsm.Machine
 }
 
-// NewParticipantMachine creates a new participant state machine directly
-func NewParticipantMachine(handler slog.Handler) (Machine, error) {
-	factory := &ParticipantFactory{}
-	return factory.NewMachine(handler)
+func (p *ParticipantFSM) GetStateChan(ctx context.Context) <-chan string {
+	return p.GetStateChanWithOptions(ctx, fsm.WithSyncBroadcast())
+}
+
+func NewParticipantFSM(handler slog.Handler) (*ParticipantFSM, error) {
+	machine, err := fsm.New(handler, ParticipantNotStarted, ParticipantTransitions)
+	if err != nil {
+		return nil, err
+	}
+	return &ParticipantFSM{Machine: machine}, nil
 }

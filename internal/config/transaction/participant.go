@@ -23,7 +23,7 @@ type Participant struct {
 
 // NewParticipant creates a new saga participant with its own state machine.
 func NewParticipant(name string, handler slog.Handler) (*Participant, error) {
-	fsm, err := finitestate.NewParticipantMachine(handler)
+	fsm, err := finitestate.NewParticipantFSM(handler)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create participant state machine: %w", err)
 	}

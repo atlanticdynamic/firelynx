@@ -55,7 +55,21 @@ type Machine interface {
 	GetStateChanWithOptions(ctx context.Context, opts ...SubscriberOption) <-chan string
 }
 
+// ServerFSM embeds fsm.Machine and overrides GetStateChan for sync broadcast
+type ServerFSM struct {
+	*fsm.Machine
+}
+
+// GetStateChan returns a sync broadcast channel by default to ensure state updates are never dropped
+func (m *ServerFSM) GetStateChan(ctx context.Context) <-chan string {
+	return m.GetStateChanWithOptions(ctx, WithSyncBroadcast())
+}
+
 // New creates a new finite state machine with the specified logger using "standard" state transitions.
-func New(handler slog.Handler) (*fsm.Machine, error) {
-	return fsm.New(handler, StatusNew, TypicalTransitions)
+func New(handler slog.Handler) (Machine, error) {
+	machine, err := fsm.New(handler, StatusNew, TypicalTransitions)
+	if err != nil {
+		return nil, err
+	}
+	return &ServerFSM{Machine: machine}, nil
 }
