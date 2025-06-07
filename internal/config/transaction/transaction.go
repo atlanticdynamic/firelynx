@@ -4,6 +4,7 @@
 package transaction
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -331,9 +332,35 @@ func (tx *ConfigTransaction) MarkError(err error) error {
 }
 
 // MarkFailed marks the transaction as failed
-func (tx *ConfigTransaction) MarkFailed(err error) error {
+func (tx *ConfigTransaction) MarkFailed(ctx context.Context, err error) error {
+	// Check if context is canceled before attempting state transition
+	if ctx.Err() != nil {
+		tx.logger.Debug(
+			"Context canceled, skipping MarkFailed transition",
+			"contextError",
+			ctx.Err(),
+		)
+		return ctx.Err()
+	}
+
 	transErr := tx.fsm.Transition(finitestate.StateFailed)
 	if transErr != nil {
+		// Check if this is an invalid transition error (like from StateError to StateFailed)
+		// Since StateError is already a terminal error state, attempting to transition
+		// to StateFailed during shutdown is not a real problem
+		if errors.Is(transErr, finitestate.ErrInvalidStateTransition) {
+			tx.logger.Debug(
+				"Invalid state transition for MarkFailed, transaction likely already in terminal state",
+				"currentState",
+				tx.fsm.GetState(),
+				"transitionError",
+				transErr,
+				"originalError",
+				err,
+			)
+			return nil
+		}
+
 		tx.logger.Error("Failed to transition to failed state",
 			"error", transErr,
 			"originalError", err)

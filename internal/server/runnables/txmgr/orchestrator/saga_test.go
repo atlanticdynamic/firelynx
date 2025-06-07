@@ -174,6 +174,7 @@ func TestProcessTransaction_Success(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
 	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
+	ctx := t.Context()
 
 	// Create a test transaction
 	cfg := &config.Config{Version: "v1"}
@@ -202,7 +203,7 @@ func TestProcessTransaction_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	// Process the transaction
-	err = orchestrator.ProcessTransaction(context.Background(), tx)
+	err = orchestrator.ProcessTransaction(ctx, tx)
 	require.NoError(t, err)
 
 	// Verify expectations
@@ -220,6 +221,7 @@ func TestProcessTransaction_Failure(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
 	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
+	ctx := t.Context()
 
 	// Create a test transaction
 	cfg := &config.Config{Version: "v1"}
@@ -242,7 +244,7 @@ func TestProcessTransaction_Failure(t *testing.T) {
 	require.NoError(t, err)
 
 	// Process the transaction - should fail
-	err = orchestrator.ProcessTransaction(context.Background(), tx)
+	err = orchestrator.ProcessTransaction(ctx, tx)
 	require.Error(t, err)
 	assert.Equal(t, testErr, err)
 
@@ -264,6 +266,7 @@ func TestCompensateParticipants(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
 	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
+	ctx := t.Context()
 
 	// Create a test transaction
 	cfg := &config.Config{Version: "v1"}
@@ -275,7 +278,7 @@ func TestCompensateParticipants(t *testing.T) {
 	require.NoError(t, err)
 	err = tx.BeginExecution()
 	require.NoError(t, err)
-	err = tx.MarkFailed(errors.New("test error"))
+	err = tx.MarkFailed(ctx, errors.New("test error"))
 	require.NoError(t, err)
 
 	// Register two mock participants
@@ -301,7 +304,7 @@ func TestCompensateParticipants(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call compensation
-	orchestrator.compensateParticipants(context.Background(), tx)
+	orchestrator.compensateParticipants(ctx, tx)
 
 	// Participant1 should have been compensated since it succeeded
 	participant1.AssertExpectations(t)

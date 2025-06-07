@@ -2,6 +2,7 @@ package cfgservice
 
 import (
 	"context"
+	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 )
@@ -18,5 +19,5 @@ func (r *Runner) GetState() string {
 
 // GetStateChan returns a channel that emits the runner's state whenever it changes
 func (r *Runner) GetStateChan(ctx context.Context) <-chan string {
-	return r.fsm.GetStateChanWithOptions(ctx, finitestate.WithSyncBroadcast())
+	return r.fsm.GetStateChanWithOptions(ctx, finitestate.WithSyncTimeout(5*time.Second))
 }

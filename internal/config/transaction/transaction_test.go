@@ -242,6 +242,7 @@ func TestConfigTransaction_BeginReload(t *testing.T) {
 
 func TestConfigTransaction_BeginCompensation(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	tx, _ := setupTest(t)
 
@@ -256,7 +257,7 @@ func TestConfigTransaction_BeginCompensation(t *testing.T) {
 
 	// Mark as failed
 	failErr := errors.New("execution failed")
-	err = tx.MarkFailed(failErr)
+	err = tx.MarkFailed(ctx, failErr)
 	require.NoError(t, err)
 
 	// Now can begin compensation
@@ -267,6 +268,7 @@ func TestConfigTransaction_BeginCompensation(t *testing.T) {
 
 func TestConfigTransaction_MarkCompensated(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	tx, _ := setupTest(t)
 
@@ -278,7 +280,7 @@ func TestConfigTransaction_MarkCompensated(t *testing.T) {
 	require.NoError(t, err)
 	err = tx.BeginExecution()
 	require.NoError(t, err)
-	err = tx.MarkFailed(errors.New("failed"))
+	err = tx.MarkFailed(ctx, errors.New("failed"))
 	require.NoError(t, err)
 	err = tx.BeginCompensation()
 	require.NoError(t, err)
@@ -304,6 +306,7 @@ func TestConfigTransaction_MarkError(t *testing.T) {
 
 func TestConfigTransaction_MarkFailed(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	tx, _ := setupTest(t)
 
@@ -318,7 +321,7 @@ func TestConfigTransaction_MarkFailed(t *testing.T) {
 
 	// Mark as failed
 	failErr := errors.New("execution failed")
-	err = tx.MarkFailed(failErr)
+	err = tx.MarkFailed(ctx, failErr)
 	assert.NoError(t, err)
 	assert.Equal(t, finitestate.StateFailed, tx.GetState())
 	assert.Len(t, tx.errors, 1)
@@ -397,6 +400,7 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 	})
 
 	t.Run("BeginRollback", func(t *testing.T) {
+		ctx := t.Context()
 		tx, _ := setupTest(t)
 
 		// Setup to failed state
@@ -407,7 +411,7 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 		require.NoError(t, err)
 		err = tx.BeginExecution()
 		require.NoError(t, err)
-		err = tx.MarkFailed(errors.New("failed"))
+		err = tx.MarkFailed(ctx, errors.New("failed"))
 		require.NoError(t, err)
 
 		// BeginRollback should map to BeginCompensation
@@ -417,6 +421,7 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 	})
 
 	t.Run("MarkRolledBack", func(t *testing.T) {
+		ctx := t.Context()
 		tx, _ := setupTest(t)
 
 		// Setup to compensating state
@@ -427,7 +432,7 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 		require.NoError(t, err)
 		err = tx.BeginExecution()
 		require.NoError(t, err)
-		err = tx.MarkFailed(errors.New("failed"))
+		err = tx.MarkFailed(ctx, errors.New("failed"))
 		require.NoError(t, err)
 		err = tx.BeginCompensation()
 		require.NoError(t, err)
@@ -597,13 +602,14 @@ func TestTransactionLifecycle(t *testing.T) {
 	})
 
 	t.Run("validates compensation path", func(t *testing.T) {
+		ctx := t.Context()
 		tx, _ := setupTest(t)
 
 		require.NoError(t, tx.RunValidation())
 		require.NoError(t, tx.BeginExecution())
 
 		testErr := errors.New("something bad happened")
-		require.NoError(t, tx.MarkFailed(testErr))
+		require.NoError(t, tx.MarkFailed(ctx, testErr))
 		assert.Equal(t, finitestate.StateFailed, tx.GetState())
 
 		require.NoError(t, tx.BeginCompensation())
@@ -614,13 +620,14 @@ func TestTransactionLifecycle(t *testing.T) {
 	})
 
 	t.Run("validates failure path", func(t *testing.T) {
+		ctx := t.Context()
 		tx, _ := setupTest(t)
 
 		require.NoError(t, tx.RunValidation())
 		require.NoError(t, tx.BeginExecution())
 
 		testErr := errors.New("something bad happened")
-		require.NoError(t, tx.MarkFailed(testErr))
+		require.NoError(t, tx.MarkFailed(ctx, testErr))
 		assert.Equal(t, finitestate.StateFailed, tx.GetState())
 		assert.Len(t, tx.errors, 1)
 		assert.ErrorIs(t, tx.errors[0], ErrTerminalError)

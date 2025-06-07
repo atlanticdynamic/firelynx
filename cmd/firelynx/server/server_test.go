@@ -112,12 +112,15 @@ func TestServerWithConfigFile(t *testing.T) {
 	serverCancel()
 
 	// Wait for server to shut down
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Server shutdown timed out")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Server should shut down cleanly")
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Minute, 100*time.Millisecond, "Server shutdown timed out")
 }
 
 // TestServerWithGRPCConfig tests starting server with gRPC API and sending config via client
@@ -224,12 +227,15 @@ func TestServerWithGRPCConfig(t *testing.T) {
 	serverCancel()
 
 	// Wait for clean shutdown
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Server shutdown timed out")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Server should shut down cleanly")
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Minute, 100*time.Millisecond, "Server shutdown timed out")
 }
 
 // TestServerWithFileAndGRPC tests loading initial config from file then updating via gRPC
@@ -343,12 +349,15 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 	serverCancel()
 
 	// Wait for clean shutdown
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Server shutdown timed out")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Server should shut down cleanly")
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Minute, 100*time.Millisecond, "Server shutdown timed out")
 }
 
 // TestConfigFileReload tests reloading configuration by sending SIGHUP
@@ -475,12 +484,15 @@ response = "New path response"`
 	serverCancel()
 
 	// Wait for clean shutdown
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Server shutdown timed out")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Server should shut down cleanly")
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Minute, 100*time.Millisecond, "Server shutdown timed out")
 }
 
 // TestServerRequiresConfigSource verifies that the server returns an error

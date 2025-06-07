@@ -15,7 +15,7 @@ func TestGetRandomPort(t *testing.T) {
 
 func TestGetRandomPortUnique(t *testing.T) {
 	ports := make(map[int]bool)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		port := GetRandomPort(t)
 		assert.False(t, ports[port], "Port %d was already used", port)
 		ports[port] = true
@@ -26,7 +26,7 @@ func TestGetRandomPortConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	portChan := make(chan int, 20)
 
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

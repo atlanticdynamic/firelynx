@@ -5,8 +5,14 @@ package finitestate
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/robbyt/go-fsm"
+)
+
+// Error aliases from go-fsm for use in transaction handling
+var (
+	ErrInvalidStateTransition = fsm.ErrInvalidStateTransition
 )
 
 // Saga state constants
@@ -62,7 +68,7 @@ type SagaFSM struct {
 }
 
 func (s *SagaFSM) GetStateChan(ctx context.Context) <-chan string {
-	return s.GetStateChanWithOptions(ctx, fsm.WithSyncBroadcast())
+	return s.GetStateChanWithOptions(ctx, fsm.WithSyncTimeout(5*time.Second))
 }
 
 func NewSagaFSM(handler slog.Handler) (*SagaFSM, error) {
