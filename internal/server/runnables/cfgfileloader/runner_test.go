@@ -52,7 +52,7 @@ func newTestHarness(t *testing.T, filePath string, opts ...Option) *testHarness 
 	txSiphon := make(chan *transaction.ConfigTransaction, 10)
 	runner, err := NewRunner(filePath, txSiphon, opts...)
 	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	return &testHarness{
 		t:        t,
@@ -344,7 +344,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		state := h.runner.GetState()
 		assert.Equal(t, finitestate.StatusNew, state)
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 
 		stateCh := h.runner.GetStateChan(ctx)
@@ -357,11 +357,11 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		h := newTestHarness(t, "")
 
 		// Use separate contexts for state channel and runner
-		stateCtx, stateCancel := context.WithCancel(context.Background())
+		stateCtx, stateCancel := context.WithCancel(t.Context())
 		defer stateCancel()
 		stateCh := h.runner.GetStateChan(stateCtx)
 
-		runCtx, runCancel := context.WithCancel(context.Background())
+		runCtx, runCancel := context.WithCancel(t.Context())
 		errCh := make(chan error, 1)
 		go func() {
 			errCh <- h.runner.Run(runCtx)

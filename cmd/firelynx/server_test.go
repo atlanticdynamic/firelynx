@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -22,7 +21,7 @@ func TestServerCmd_EmptyFlags(t *testing.T) {
 	}
 
 	// Call the command action directly
-	result := serverCmd.Action(context.Background(), cmd)
+	result := serverCmd.Action(t.Context(), cmd)
 
 	// Verify we get the expected error
 	var exitErr cli.ExitCoder

@@ -72,6 +72,7 @@ type ConfigTransaction struct {
 	appCollection serverApps.AppLookup
 
 	// Validation state
+	// TODO: can we remove the errors[] field?
 	errors  []error // All errors (validation, terminal, accumulated) with wrapping
 	IsValid atomic.Bool
 }
@@ -202,7 +203,7 @@ func (tx *ConfigTransaction) MarkInvalid(err error) error {
 		return fErr
 	}
 
-	tx.logger.Error("Transaction validation failed",
+	tx.logger.Warn("Transaction validation failed",
 		"state", finitestate.StateInvalid,
 		"error", err)
 	return nil
@@ -349,8 +350,8 @@ func (tx *ConfigTransaction) MarkFailed(ctx context.Context, err error) error {
 		// Since StateError is already a terminal error state, attempting to transition
 		// to StateFailed during shutdown is not a real problem
 		if errors.Is(transErr, finitestate.ErrInvalidStateTransition) {
-			tx.logger.Debug(
-				"Invalid state transition for MarkFailed, transaction likely already in terminal state",
+			tx.logger.Warn(
+				"Invalid FSM transition for MarkFailed, transaction likely already in terminal state",
 				"currentState",
 				tx.fsm.GetState(),
 				"transitionError",
@@ -369,7 +370,7 @@ func (tx *ConfigTransaction) MarkFailed(ctx context.Context, err error) error {
 
 	// Only update state after successful transition
 	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrTerminalError, err))
-	tx.logger.Error("Transaction failed", "state", finitestate.StateFailed, "error", err)
+	tx.logger.Warn("Transaction failed", "state", finitestate.StateFailed, "error", err)
 	return nil
 }
 

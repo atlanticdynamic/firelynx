@@ -2,7 +2,6 @@
 package finitestate
 
 import (
-	"context"
 	"log/slog"
 	"os"
 	"testing"
@@ -148,7 +147,7 @@ func TestSagaMachine(t *testing.T) {
 
 	t.Run("GetStateChan provides state updates", func(t *testing.T) {
 		machine := setup()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		// Get the state channel
 		stateChan := machine.GetStateChan(ctx)

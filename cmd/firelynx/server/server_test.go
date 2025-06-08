@@ -46,7 +46,7 @@ func TestServerWithConfigFile(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
 	// Create a temp directory for the config file
@@ -129,7 +129,7 @@ func TestServerWithGRPCConfig(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
 
 	// Get free ports for gRPC and HTTP
@@ -244,7 +244,7 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
 
 	// Create a temp directory for the config file
@@ -366,7 +366,7 @@ func TestConfigFileReload(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
 
 	// Create a temp directory for the config file
@@ -498,7 +498,7 @@ response = "New path response"`
 // TestServerRequiresConfigSource verifies that the server returns an error
 // when neither config file nor gRPC address is provided
 func TestServerRequiresConfigSource(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: slog.LevelWarn,
 	}))

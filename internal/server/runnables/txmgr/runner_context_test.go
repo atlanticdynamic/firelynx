@@ -45,7 +45,7 @@ func TestMarkFailedOnErrorStateTransaction(t *testing.T) {
 
 	// Now try to call MarkFailed with a canceled context (like during shutdown)
 	// This should return early due to context cancellation, not attempt the invalid transition
-	canceledCtx, cancel := context.WithCancel(context.Background())
+	canceledCtx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	err = tx.MarkFailed(canceledCtx, errors.New("saga processing failed: context canceled"))
@@ -54,7 +54,7 @@ func TestMarkFailedOnErrorStateTransaction(t *testing.T) {
 
 	// With non-canceled context, should handle invalid transition gracefully
 	err = tx.MarkFailed(
-		context.Background(),
+		t.Context(),
 		errors.New("saga processing failed: context canceled"),
 	)
 	assert.NoError(
@@ -105,7 +105,7 @@ func TestTransactionManagerWithErroredTransaction(t *testing.T) {
 	failingOrchestrator := &errorReturningOrchestrator{}
 
 	// Create context for cancellation
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// Create transaction manager
 	logger := slog.New(handler)

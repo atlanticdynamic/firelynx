@@ -94,7 +94,7 @@ func TestGRPCServer_Success(t *testing.T) {
 	// No need to verify interface implementation, it's in the same package
 
 	// Start the server
-	ctx := context.Background()
+	ctx := t.Context()
 	err = srv.Start(ctx)
 	require.NoError(t, err)
 
@@ -158,7 +158,7 @@ func TestGRPCServer_Integration(t *testing.T) {
 	srv.listener = listener
 
 	// Start the server
-	ctx := context.Background()
+	ctx := t.Context()
 	if err := srv.Start(ctx); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestGRPCServer_Integration(t *testing.T) {
 	assert.NotEmpty(t, srv.GetListenAddress())
 
 	// Create a client using the bufconn dialer
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	// Use target scheme compatible with name resolver
@@ -275,13 +275,13 @@ func TestClientServerCommunication(t *testing.T) {
 			grpcServer := srv
 
 			// Start the server
-			ctx := context.Background()
+			ctx := t.Context()
 			err = grpcServer.Start(ctx)
 			require.NoError(t, err)
 			defer grpcServer.GracefulStop()
 
 			// Setup client connection
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
 
 			// Create the client connection using our bufconn dialer

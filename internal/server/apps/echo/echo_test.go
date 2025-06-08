@@ -1,7 +1,6 @@
 package echo
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -86,7 +85,7 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			// Call the handler directly
-			err := app.HandleHTTP(context.Background(), rr, req, tt.staticData)
+			err := app.HandleHTTP(t.Context(), rr, req, tt.staticData)
 			require.NoError(t, err, "HandleHTTP should not return an error")
 
 			// Get the result from the recorder
@@ -126,7 +125,7 @@ func TestEchoApp_HandleHTTP_WriteError(t *testing.T) {
 		header: http.Header{},
 	}
 
-	err := app.HandleHTTP(context.Background(), failWriter, r, nil)
+	err := app.HandleHTTP(t.Context(), failWriter, r, nil)
 	require.Error(t, err, "HandleHTTP should return an error when write fails")
 	assert.Contains(
 		t,

@@ -29,7 +29,7 @@ var baseConfigContent string
 var updatedConfigContent string
 
 func TestApplyConfigFromPath_Integration(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 
 	// Get available ports

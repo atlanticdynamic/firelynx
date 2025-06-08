@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"os"
@@ -162,7 +161,7 @@ func TestExtractRequestID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("extracts request-id from metadata", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"request-id", "test-request-123",
 		))
 
@@ -171,7 +170,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("extracts x-request-id from metadata", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"x-request-id", "test-xrequest-456",
 		))
 
@@ -180,7 +179,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("extracts requestid from metadata", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"requestid", "test-requestid-789",
 		))
 
@@ -189,7 +188,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("prefers request-id over other headers", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"request-id", "preferred-id",
 			"x-request-id", "not-this-one",
 			"requestid", "not-this-either",
@@ -200,7 +199,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("prefers x-request-id over requestid when request-id missing", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"x-request-id", "x-preferred",
 			"requestid", "not-this-one",
 		))
@@ -210,7 +209,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("generates UUID when no request ID headers present", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"some-other-header", "value",
 		))
 
@@ -225,7 +224,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("generates UUID when context has no metadata", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		requestID := ExtractRequestID(ctx)
 		assert.NotEmpty(t, requestID)
@@ -238,7 +237,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("ignores empty request ID values and generates UUID", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"request-id", "",
 			"x-request-id", "",
 			"requestid", "",
@@ -257,7 +256,7 @@ func TestExtractRequestID(t *testing.T) {
 	t.Run("handles multiple values for same header by using first", func(t *testing.T) {
 		md := metadata.New(nil)
 		md.Append("request-id", "first-value", "second-value", "third-value")
-		ctx := metadata.NewIncomingContext(context.Background(), md)
+		ctx := metadata.NewIncomingContext(t.Context(), md)
 
 		requestID := ExtractRequestID(ctx)
 		assert.Equal(t, "first-value", requestID)
@@ -265,7 +264,7 @@ func TestExtractRequestID(t *testing.T) {
 
 	t.Run("handles case variations in metadata keys", func(t *testing.T) {
 		// gRPC metadata keys are case-insensitive and normalized to lowercase
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"Request-ID", "uppercase-request-id",
 		))
 
@@ -274,7 +273,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("generates different UUIDs on each call without metadata", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		requestID1 := ExtractRequestID(ctx)
 		requestID2 := ExtractRequestID(ctx)
@@ -286,7 +285,7 @@ func TestExtractRequestID(t *testing.T) {
 
 	t.Run("preserves special characters in request ID", func(t *testing.T) {
 		specialID := "test-123_ABC.def~xyz"
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"request-id", specialID,
 		))
 
@@ -295,7 +294,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("handles whitespace in request ID", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(
 			"request-id", "  has-spaces  ",
 		))
 
@@ -305,7 +304,7 @@ func TestExtractRequestID(t *testing.T) {
 	})
 
 	t.Run("verifies UUID v6 characteristics", func(t *testing.T) {
-		ctx := context.Background()
+		ctx := t.Context()
 
 		// Generate multiple UUIDs to verify they follow v6 pattern
 		for i := 0; i < 10; i++ {

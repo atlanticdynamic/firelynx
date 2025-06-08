@@ -67,7 +67,7 @@ func newTestHarness(t *testing.T, listenAddr string, opts ...Option) *testHarnes
 
 	runner, err := NewRunner(listenAddr, txSiphon, allOpts...)
 	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	return &testHarness{
 		t:         t,
@@ -156,7 +156,7 @@ func TestGetConfig(t *testing.T) {
 	h.txStorage.SetCurrent(tx)
 
 	// Call GetConfig
-	resp, err := r.GetConfig(context.Background(), &pb.GetConfigRequest{})
+	resp, err := r.GetConfig(t.Context(), &pb.GetConfigRequest{})
 
 	// Verify response
 	require.NoError(t, err)
@@ -249,7 +249,7 @@ func TestUpdateConfig(t *testing.T) {
 		}
 
 		// Call UpdateConfig with valid config
-		validResp, err := r.UpdateConfig(context.Background(), validReq)
+		validResp, err := r.UpdateConfig(t.Context(), validReq)
 
 		// Should succeed
 		require.NoError(t, err, "Valid config should not cause error")
@@ -281,7 +281,7 @@ func TestUpdateConfig(t *testing.T) {
 		h.transitionToRunning()
 
 		// Call UpdateConfig with nil request
-		resp, err := r.UpdateConfig(context.Background(), &pb.UpdateConfigRequest{
+		resp, err := r.UpdateConfig(t.Context(), &pb.UpdateConfigRequest{
 			Config: nil,
 		})
 
@@ -346,7 +346,7 @@ func TestUpdateConfig(t *testing.T) {
 		for i, cfg := range configs {
 			t.Logf("Updating config %d", i)
 			req := &pb.UpdateConfigRequest{Config: cfg}
-			resp, err := r.UpdateConfig(context.Background(), req)
+			resp, err := r.UpdateConfig(t.Context(), req)
 
 			require.NoError(t, err, "Update %d should succeed", i)
 			assert.NotNil(t, resp)
@@ -425,7 +425,7 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 
 	// Submit the update
 	req := &pb.UpdateConfigRequest{Config: validConfig}
-	resp, err := r.UpdateConfig(context.Background(), req)
+	resp, err := r.UpdateConfig(t.Context(), req)
 	require.NoError(t, err)
 	assert.True(t, *resp.Success)
 

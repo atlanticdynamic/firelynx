@@ -113,7 +113,7 @@ func TestCanceledContext(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a canceled context
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
 	// Start should return an error due to canceled context
