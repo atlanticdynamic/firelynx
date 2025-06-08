@@ -1,9 +1,11 @@
 package finitestate
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +21,18 @@ func TestNewParticipantFSM(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, machine)
 		assert.Equal(t, ParticipantNotStarted, machine.GetState())
+	})
+
+	t.Run("handles nil handler gracefully", func(t *testing.T) {
+		machine, err := NewParticipantFSM(nil)
+
+		// Should either return an error or handle nil handler gracefully
+		if err != nil {
+			assert.Nil(t, machine)
+		} else {
+			require.NotNil(t, machine)
+			assert.Equal(t, ParticipantNotStarted, machine.GetState())
+		}
 	})
 }
 
@@ -121,6 +135,265 @@ func TestParticipantTransitions(t *testing.T) {
 		for _, state := range terminalStates {
 			transitions := ParticipantTransitions[state]
 			assert.Empty(t, transitions, "Terminal state %s should have no transitions", state)
+		}
+	})
+}
+
+func TestParticipantFSM_GetStateChan(t *testing.T) {
+	t.Parallel()
+
+	t.Run("emits state changes through channel", func(t *testing.T) {
+		ctx := t.Context()
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		machine, err := NewParticipantFSM(handler)
+		require.NoError(t, err)
+
+		stateChan := machine.GetStateChan(ctx)
+
+		// Should receive initial state
+		select {
+		case state := <-stateChan:
+			assert.Equal(t, ParticipantNotStarted, state)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for initial state")
+		}
+
+		// Transition and verify state change
+		require.NoError(t, machine.Transition(ParticipantExecuting))
+
+		select {
+		case state := <-stateChan:
+			assert.Equal(t, ParticipantExecuting, state)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for executing state")
+		}
+	})
+
+	t.Run("closes channel on context cancellation", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		machine, err := NewParticipantFSM(handler)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		stateChan := machine.GetStateChan(ctx)
+
+		// Get initial state
+		select {
+		case <-stateChan:
+			// Expected
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for initial state")
+		}
+
+		// Cancel context
+		cancel()
+
+		// Channel should be closed
+		assert.Eventually(t, func() bool {
+			select {
+			case _, ok := <-stateChan:
+				return !ok
+			default:
+				return false
+			}
+		}, 200*time.Millisecond, 10*time.Millisecond, "channel should be closed after context cancellation")
+	})
+
+	t.Run("multiple listeners receive state changes", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		machine, err := NewParticipantFSM(handler)
+		require.NoError(t, err)
+
+		ctx1 := t.Context()
+		ctx2 := t.Context()
+
+		stateChan1 := machine.GetStateChan(ctx1)
+		stateChan2 := machine.GetStateChan(ctx2)
+
+		// Both should receive initial state
+		assert.Eventually(t, func() bool {
+			select {
+			case state := <-stateChan1:
+				return state == ParticipantNotStarted
+			default:
+				return false
+			}
+		}, 100*time.Millisecond, 10*time.Millisecond)
+
+		assert.Eventually(t, func() bool {
+			select {
+			case state := <-stateChan2:
+				return state == ParticipantNotStarted
+			default:
+				return false
+			}
+		}, 100*time.Millisecond, 10*time.Millisecond)
+
+		// Transition and verify both receive the change
+		require.NoError(t, machine.Transition(ParticipantExecuting))
+
+		assert.Eventually(t, func() bool {
+			select {
+			case state := <-stateChan1:
+				return state == ParticipantExecuting
+			default:
+				return false
+			}
+		}, 100*time.Millisecond, 10*time.Millisecond)
+
+		assert.Eventually(t, func() bool {
+			select {
+			case state := <-stateChan2:
+				return state == ParticipantExecuting
+			default:
+				return false
+			}
+		}, 100*time.Millisecond, 10*time.Millisecond)
+	})
+}
+
+func TestParticipantFSM_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	t.Run("handles error state transitions", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		machine, err := NewParticipantFSM(handler)
+		require.NoError(t, err)
+
+		// Can transition to error from not_started
+		require.NoError(t, machine.Transition(ParticipantError))
+		assert.Equal(t, ParticipantError, machine.GetState())
+	})
+
+	t.Run("error state is terminal", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		machine, err := NewParticipantFSM(handler)
+		require.NoError(t, err)
+
+		// Get to error state
+		require.NoError(t, machine.Transition(ParticipantError))
+
+		// Cannot transition from error state
+		err = machine.Transition(ParticipantExecuting)
+		assert.Error(t, err)
+		assert.Equal(t, ParticipantError, machine.GetState())
+	})
+
+	t.Run("can reach error from any non-terminal state", func(t *testing.T) {
+		nonTerminalStates := []struct {
+			name  string
+			setup func(Machine)
+		}{
+			{
+				name: "from executing",
+				setup: func(m Machine) {
+					require.NoError(t, m.Transition(ParticipantExecuting))
+				},
+			},
+			{
+				name: "from succeeded",
+				setup: func(m Machine) {
+					require.NoError(t, m.Transition(ParticipantExecuting))
+					require.NoError(t, m.Transition(ParticipantSucceeded))
+				},
+			},
+			{
+				name: "from compensating",
+				setup: func(m Machine) {
+					require.NoError(t, m.Transition(ParticipantExecuting))
+					require.NoError(t, m.Transition(ParticipantSucceeded))
+					require.NoError(t, m.Transition(ParticipantCompensating))
+				},
+			},
+		}
+
+		for _, tc := range nonTerminalStates {
+			t.Run(tc.name, func(t *testing.T) {
+				handler := slog.NewTextHandler(os.Stdout, nil)
+				machine, err := NewParticipantFSM(handler)
+				require.NoError(t, err)
+
+				tc.setup(machine)
+
+				// Should be able to transition to error
+				require.NoError(t, machine.Transition(ParticipantError))
+				assert.Equal(t, ParticipantError, machine.GetState())
+			})
+		}
+	})
+}
+
+func TestParticipantFSM_ConcurrentAccess(t *testing.T) {
+	t.Parallel()
+
+	t.Run("handles concurrent transitions safely", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		machine, err := NewParticipantFSM(handler)
+		require.NoError(t, err)
+
+		// Transition to executing
+		require.NoError(t, machine.Transition(ParticipantExecuting))
+
+		// Try concurrent transitions
+		done := make(chan bool, 2)
+		errors := make(chan error, 2)
+
+		go func() {
+			err := machine.Transition(ParticipantSucceeded)
+			errors <- err
+			done <- true
+		}()
+
+		go func() {
+			err := machine.Transition(ParticipantFailed)
+			errors <- err
+			done <- true
+		}()
+
+		// Wait for both
+		<-done
+		<-done
+
+		// One should succeed, one should fail
+		err1 := <-errors
+		err2 := <-errors
+
+		// Exactly one should have succeeded
+		assert.True(t, (err1 == nil) != (err2 == nil), "exactly one transition should succeed")
+
+		// Final state should be either succeeded or failed
+		finalState := machine.GetState()
+		assert.True(t, finalState == ParticipantSucceeded || finalState == ParticipantFailed,
+			"final state should be succeeded or failed, got %s", finalState)
+	})
+
+	t.Run("GetState is safe for concurrent access", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		machine, err := NewParticipantFSM(handler)
+		require.NoError(t, err)
+
+		// Start multiple goroutines reading state
+		done := make(chan bool, 10)
+		for range 10 {
+			go func() {
+				for range 100 {
+					_ = machine.GetState()
+				}
+				done <- true
+			}()
+		}
+
+		// Perform transitions while reads are happening
+		go func() {
+			assert.NoError(t, machine.Transition(ParticipantExecuting))
+			assert.NoError(t, machine.Transition(ParticipantSucceeded))
+			assert.NoError(t, machine.Transition(ParticipantCompensating))
+			assert.NoError(t, machine.Transition(ParticipantCompensated))
+		}()
+
+		// Wait for all readers
+		for range 10 {
+			<-done
 		}
 	})
 }
