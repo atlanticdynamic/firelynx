@@ -1,6 +1,6 @@
 module github.com/atlanticdynamic/firelynx
 
-go 1.24.3
+go 1.24.4
 
 require github.com/urfave/cli/v3 v3.3.3
 
@@ -9,9 +9,9 @@ require (
 	github.com/charmbracelet/log v0.4.2
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/pelletier/go-toml/v2 v2.2.4
-	github.com/robbyt/go-fsm v1.4.0
+	github.com/robbyt/go-fsm v1.4.1
 	github.com/robbyt/go-loglater v0.1.0
-	github.com/robbyt/go-supervisor v0.0.11
+	github.com/robbyt/go-supervisor v0.0.12
 	github.com/robbyt/protobaggins v0.1.0
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.72.2
