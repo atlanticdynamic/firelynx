@@ -72,8 +72,6 @@ type ConfigTransaction struct {
 	appCollection serverApps.AppLookup
 
 	// Validation state
-	// TODO: can we remove the errors[] field?
-	errors  []error // All errors (validation, terminal, accumulated) with wrapping
 	IsValid atomic.Bool
 }
 
@@ -140,7 +138,6 @@ func New(
 		logCollector:  logCollector,
 		domainConfig:  cfg,
 		appCollection: appCollection,
-		errors:        []error{},
 		IsValid:       atomic.Bool{},
 	}
 
@@ -193,8 +190,6 @@ func (tx *ConfigTransaction) MarkValidated() error {
 
 // MarkInvalid marks the transaction as invalid due to validation errors
 func (tx *ConfigTransaction) MarkInvalid(err error) error {
-	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrValidationFailed, err))
-
 	fErr := tx.fsm.Transition(finitestate.StateInvalid)
 	if fErr != nil {
 		tx.logger.Error("Failed to transition to invalid state",
@@ -324,8 +319,6 @@ func (tx *ConfigTransaction) MarkError(err error) error {
 		return transErr
 	}
 
-	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrTerminalError, err))
-
 	tx.logger.Error("Transaction encountered unrecoverable error",
 		"state", finitestate.StateError,
 		"error", err)
@@ -369,7 +362,6 @@ func (tx *ConfigTransaction) MarkFailed(ctx context.Context, err error) error {
 	}
 
 	// Only update state after successful transition
-	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrTerminalError, err))
 	tx.logger.Warn("Transaction failed", "state", finitestate.StateFailed, "error", err)
 	return nil
 }
@@ -382,16 +374,6 @@ func (tx *ConfigTransaction) BeginRollback() error {
 // MarkRolledBack is a legacy method that maps to MarkCompensated
 func (tx *ConfigTransaction) MarkRolledBack() error {
 	return tx.MarkCompensated()
-}
-
-// GetErrors returns all errors for this transaction (validation, terminal, accumulated)
-func (tx *ConfigTransaction) GetErrors() []error {
-	return tx.errors
-}
-
-// AddError accumulates an error without triggering a state transition
-func (tx *ConfigTransaction) AddError(err error) {
-	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrAccumulatedError, err))
 }
 
 // GetConfig returns the configuration associated with this transaction

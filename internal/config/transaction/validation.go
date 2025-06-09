@@ -1,7 +1,6 @@
 package transaction
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
@@ -77,15 +76,6 @@ func (tx *ConfigTransaction) setStateInvalid(errs []error) {
 	}
 
 	tx.IsValid.Store(false)
-
-	// Store wrapped errors in transaction
-	for _, err := range errs {
-		// Only wrap if not already wrapped to avoid double-wrapping
-		if !errors.Is(err, ErrValidationFailed) {
-			err = fmt.Errorf("%w: %w", ErrValidationFailed, err)
-		}
-		tx.errors = append(tx.errors, err)
-	}
 
 	logger.Warn(
 		"Validation failed",
