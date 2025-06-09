@@ -37,7 +37,7 @@ func newRunnerTestHarness(t *testing.T, listenAddr string, opts ...Option) *runn
 	txSiphon := make(chan *transaction.ConfigTransaction, 10)
 	runner, err := NewRunner(listenAddr, txSiphon, opts...)
 	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	return &runnerTestHarness{
 		t:        t,
@@ -264,7 +264,7 @@ func TestGRPCIntegration(t *testing.T) {
 	}()
 
 	// Create a gRPC client
-	ctx := context.Background()
+	ctx := t.Context()
 	conn, err := grpc.NewClient("passthrough:///bufnet",
 		grpc.WithContextDialer(bufDialer(listener)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -319,7 +319,7 @@ func TestRun(t *testing.T) {
 		r := h.runner
 
 		// Create a context that will cancel after a short time
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 
 		// Run the Runner in a goroutine
@@ -340,7 +340,7 @@ func TestRun(t *testing.T) {
 		r := h.runner
 
 		// Run should return the error from NewGRPCManager
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 
 		err := r.Run(ctx)
@@ -358,7 +358,7 @@ func TestRun(t *testing.T) {
 		r := h.runner
 
 		// Create a context that will cancel after a short time
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 
 		// Run the Runner in a goroutine
@@ -381,7 +381,7 @@ func TestRun(t *testing.T) {
 		r.Stop()
 
 		// This should not panic or cause issues
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 
 		// Run should handle being stopped before starting
@@ -397,7 +397,7 @@ func TestRun(t *testing.T) {
 		mockServer := new(MockGRPCServer)
 		r.grpcServer = mockServer
 
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 
 		err := r.Run(ctx)

@@ -203,7 +203,7 @@ func TestRunner_GetStateChan(t *testing.T) {
 		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
 		r := h.runner
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		stateChan := r.GetStateChan(ctx)
 
 		// Read initial state

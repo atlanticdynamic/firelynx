@@ -1,7 +1,6 @@
 package mocks_test
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -25,7 +24,7 @@ func TestMockApp(t *testing.T) {
 	assert.Equal(t, "test-app", mockApp.String())
 
 	// Test HandleHTTP behavior
-	ctx := context.Background()
+	ctx := t.Context()
 	w := httptest.NewRecorder()
 	r, err := http.NewRequest(http.MethodGet, "/test", nil)
 	require.NoError(t, err)

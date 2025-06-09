@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"io"
 	"log/slog"
 	"os"
@@ -75,7 +74,7 @@ func TestApplyConfig(t *testing.T) {
 	})
 
 	// This should fail at connection time due to invalid address
-	err := client.ApplyConfig(context.Background(), mockLoader)
+	err := client.ApplyConfig(t.Context(), mockLoader)
 	assert.Error(t, err)
 
 	// Verify the mock was called
@@ -162,7 +161,7 @@ func TestConnect(t *testing.T) {
 				Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 			})
 
-			conn, err := client.connect(context.Background())
+			conn, err := client.connect(t.Context())
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.expectedErr != nil && err != nil {
@@ -233,7 +232,7 @@ func TestGetConfig(t *testing.T) {
 	})
 
 	// This should fail at connection time
-	config, err := client.GetConfig(context.Background())
+	config, err := client.GetConfig(t.Context())
 	assert.Error(t, err)
 	assert.Nil(t, config)
 }
@@ -275,7 +274,7 @@ func TestApplyConfigWithMockLoader(t *testing.T) {
 				Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 			})
 
-			err := client.ApplyConfig(context.Background(), mockLoader)
+			err := client.ApplyConfig(t.Context(), mockLoader)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrMsg)

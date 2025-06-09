@@ -4,6 +4,7 @@
 package transaction
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -71,7 +72,6 @@ type ConfigTransaction struct {
 	appCollection serverApps.AppLookup
 
 	// Validation state
-	errors  []error // All errors (validation, terminal, accumulated) with wrapping
 	IsValid atomic.Bool
 }
 
@@ -138,7 +138,6 @@ func New(
 		logCollector:  logCollector,
 		domainConfig:  cfg,
 		appCollection: appCollection,
-		errors:        []error{},
 		IsValid:       atomic.Bool{},
 	}
 
@@ -191,8 +190,6 @@ func (tx *ConfigTransaction) MarkValidated() error {
 
 // MarkInvalid marks the transaction as invalid due to validation errors
 func (tx *ConfigTransaction) MarkInvalid(err error) error {
-	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrValidationFailed, err))
-
 	fErr := tx.fsm.Transition(finitestate.StateInvalid)
 	if fErr != nil {
 		tx.logger.Error("Failed to transition to invalid state",
@@ -201,7 +198,7 @@ func (tx *ConfigTransaction) MarkInvalid(err error) error {
 		return fErr
 	}
 
-	tx.logger.Error("Transaction validation failed",
+	tx.logger.Warn("Transaction validation failed",
 		"state", finitestate.StateInvalid,
 		"error", err)
 	return nil
@@ -322,8 +319,6 @@ func (tx *ConfigTransaction) MarkError(err error) error {
 		return transErr
 	}
 
-	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrTerminalError, err))
-
 	tx.logger.Error("Transaction encountered unrecoverable error",
 		"state", finitestate.StateError,
 		"error", err)
@@ -331,9 +326,35 @@ func (tx *ConfigTransaction) MarkError(err error) error {
 }
 
 // MarkFailed marks the transaction as failed
-func (tx *ConfigTransaction) MarkFailed(err error) error {
+func (tx *ConfigTransaction) MarkFailed(ctx context.Context, err error) error {
+	// Check if context is canceled before attempting state transition
+	if ctx.Err() != nil {
+		tx.logger.Debug(
+			"Context canceled, skipping MarkFailed transition",
+			"contextError",
+			ctx.Err(),
+		)
+		return ctx.Err()
+	}
+
 	transErr := tx.fsm.Transition(finitestate.StateFailed)
 	if transErr != nil {
+		// Check if this is an invalid transition error (like from StateError to StateFailed)
+		// Since StateError is already a terminal error state, attempting to transition
+		// to StateFailed during shutdown is not a real problem
+		if errors.Is(transErr, finitestate.ErrInvalidStateTransition) {
+			tx.logger.Warn(
+				"Invalid FSM transition for MarkFailed, transaction likely already in terminal state",
+				"currentState",
+				tx.fsm.GetState(),
+				"transitionError",
+				transErr,
+				"originalError",
+				err,
+			)
+			return nil
+		}
+
 		tx.logger.Error("Failed to transition to failed state",
 			"error", transErr,
 			"originalError", err)
@@ -341,8 +362,7 @@ func (tx *ConfigTransaction) MarkFailed(err error) error {
 	}
 
 	// Only update state after successful transition
-	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrTerminalError, err))
-	tx.logger.Error("Transaction failed", "state", finitestate.StateFailed, "error", err)
+	tx.logger.Warn("Transaction failed", "state", finitestate.StateFailed, "error", err)
 	return nil
 }
 
@@ -354,16 +374,6 @@ func (tx *ConfigTransaction) BeginRollback() error {
 // MarkRolledBack is a legacy method that maps to MarkCompensated
 func (tx *ConfigTransaction) MarkRolledBack() error {
 	return tx.MarkCompensated()
-}
-
-// GetErrors returns all errors for this transaction (validation, terminal, accumulated)
-func (tx *ConfigTransaction) GetErrors() []error {
-	return tx.errors
-}
-
-// AddError accumulates an error without triggering a state transition
-func (tx *ConfigTransaction) AddError(err error) {
-	tx.errors = append(tx.errors, fmt.Errorf("%w: %w", ErrAccumulatedError, err))
 }
 
 // GetConfig returns the configuration associated with this transaction

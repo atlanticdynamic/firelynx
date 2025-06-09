@@ -37,7 +37,7 @@ func newTestHarness(t *testing.T, opts ...Option) *testHarness {
 	sagaOrchestrator := orchestrator.NewSagaOrchestrator(txStorage, slog.Default().Handler())
 	runner, err := NewRunner(sagaOrchestrator, opts...)
 	require.NoError(t, err)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	return &testHarness{
 		t:                t,
@@ -145,7 +145,7 @@ func TestRunnerReceivesConfig(t *testing.T) {
 func TestRunnerRunLifecycle(t *testing.T) {
 	h := newTestHarness(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -208,7 +208,7 @@ func TestRunnerStateChan(t *testing.T) {
 		defer stateCancel()
 		stateCh := runner.GetStateChan(stateCtx)
 
-		runCtx, runCancel := context.WithCancel(context.Background())
+		runCtx, runCancel := context.WithCancel(t.Context())
 		errCh := make(chan error, 1)
 		go func() {
 			errCh <- runner.Run(runCtx)
@@ -284,7 +284,7 @@ func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
 	runner, err := NewRunner(sagaOrchestrator)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- runner.Run(ctx)

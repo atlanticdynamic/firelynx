@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -37,7 +36,7 @@ func TestSagaParticipantInterface_ReloadConflictFromMocks(t *testing.T) {
 
 // TestSagaParticipantInterface_ApplyPendingConfigFromMocks tests the CommitConfig method
 func TestSagaParticipantInterface_ApplyPendingConfigFromMocks(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	handler := slog.NewTextHandler(os.Stdout, nil)
 	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
@@ -126,7 +125,7 @@ func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Trigger reload
-	err = orchestrator.TriggerReload(context.Background())
+	err = orchestrator.TriggerReload(t.Context())
 	assert.NoError(t, err)
 
 	// Verify transaction state
@@ -186,7 +185,7 @@ func TestTriggerReload_FailureFromMocks(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Trigger reload and verify it returns an error
-	err = orchestrator.TriggerReload(context.Background())
+	err = orchestrator.TriggerReload(t.Context())
 	assert.Error(t, err)
 
 	// Verify transaction state is now error

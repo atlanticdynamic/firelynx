@@ -3,6 +3,7 @@ package finitestate
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/robbyt/go-fsm"
 )
@@ -24,8 +25,8 @@ var TypicalTransitions = fsm.TypicalTransitions
 // SubscriberOption is a functional option for configuring state channel behavior
 type SubscriberOption = fsm.SubscriberOption
 
-// WithSyncBroadcast is a channel option that blocks until message delivery instead of dropping on full channels
-var WithSyncBroadcast = fsm.WithSyncBroadcast
+// WithSyncTimeout sets a timeout for synchronous broadcast operations
+var WithSyncTimeout = fsm.WithSyncTimeout
 
 // Machine defines the interface for the finite state machine that tracks
 // the HTTP server's lifecycle states. This abstraction allows for different
@@ -60,9 +61,9 @@ type ServerFSM struct {
 	*fsm.Machine
 }
 
-// GetStateChan returns a sync broadcast channel by default to ensure state updates are never dropped
+// GetStateChan returns a sync broadcast channel with 5-second timeout to ensure state updates are delivered during shutdown
 func (m *ServerFSM) GetStateChan(ctx context.Context) <-chan string {
-	return m.GetStateChanWithOptions(ctx, WithSyncBroadcast())
+	return m.GetStateChanWithOptions(ctx, WithSyncTimeout(5*time.Second))
 }
 
 // New creates a new finite state machine with the specified logger using "standard" state transitions.

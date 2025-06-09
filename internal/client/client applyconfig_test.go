@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	_ "embed"
 	"io"
 	"log/slog"
@@ -20,7 +19,7 @@ var testConfigContent string
 var invalidConfigContent string
 
 func TestApplyConfigFromPath(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a temporary config file
 	tempDir := t.TempDir()
@@ -44,7 +43,7 @@ func TestApplyConfigFromPath(t *testing.T) {
 }
 
 func TestApplyConfigFromPath_BadFile(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a client
 	client := New(Config{
@@ -59,7 +58,7 @@ func TestApplyConfigFromPath_BadFile(t *testing.T) {
 }
 
 func TestApplyConfigFromPath_InvalidConfig(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a temporary config file with invalid content
 	tempDir := t.TempDir()

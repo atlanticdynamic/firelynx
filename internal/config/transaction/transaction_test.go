@@ -1,9 +1,11 @@
 package transaction
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +15,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +48,6 @@ func TestNew(t *testing.T) {
 		assert.NotNil(t, tx.logger)
 		assert.NotNil(t, tx.logCollector)
 		assert.False(t, tx.IsValid.Load())
-		assert.Empty(t, tx.errors)
 	})
 }
 
@@ -140,8 +142,6 @@ func TestConfigTransaction_MarkInvalid(t *testing.T) {
 	err = tx.MarkInvalid(validationErr)
 	assert.NoError(t, err)
 	assert.Equal(t, finitestate.StateInvalid, tx.GetState())
-	assert.Len(t, tx.errors, 1)
-	assert.ErrorIs(t, tx.errors[0], ErrValidationFailed)
 }
 
 func TestConfigTransaction_BeginExecution(t *testing.T) {
@@ -242,6 +242,7 @@ func TestConfigTransaction_BeginReload(t *testing.T) {
 
 func TestConfigTransaction_BeginCompensation(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	tx, _ := setupTest(t)
 
@@ -256,7 +257,7 @@ func TestConfigTransaction_BeginCompensation(t *testing.T) {
 
 	// Mark as failed
 	failErr := errors.New("execution failed")
-	err = tx.MarkFailed(failErr)
+	err = tx.MarkFailed(ctx, failErr)
 	require.NoError(t, err)
 
 	// Now can begin compensation
@@ -267,6 +268,7 @@ func TestConfigTransaction_BeginCompensation(t *testing.T) {
 
 func TestConfigTransaction_MarkCompensated(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	tx, _ := setupTest(t)
 
@@ -278,7 +280,7 @@ func TestConfigTransaction_MarkCompensated(t *testing.T) {
 	require.NoError(t, err)
 	err = tx.BeginExecution()
 	require.NoError(t, err)
-	err = tx.MarkFailed(errors.New("failed"))
+	err = tx.MarkFailed(ctx, errors.New("failed"))
 	require.NoError(t, err)
 	err = tx.BeginCompensation()
 	require.NoError(t, err)
@@ -298,12 +300,11 @@ func TestConfigTransaction_MarkError(t *testing.T) {
 	err := tx.MarkError(errorMsg)
 	assert.NoError(t, err)
 	assert.Equal(t, finitestate.StateError, tx.GetState())
-	assert.Len(t, tx.errors, 1)
-	assert.ErrorIs(t, tx.errors[0], ErrTerminalError)
 }
 
 func TestConfigTransaction_MarkFailed(t *testing.T) {
 	t.Parallel()
+	ctx := t.Context()
 
 	tx, _ := setupTest(t)
 
@@ -318,11 +319,9 @@ func TestConfigTransaction_MarkFailed(t *testing.T) {
 
 	// Mark as failed
 	failErr := errors.New("execution failed")
-	err = tx.MarkFailed(failErr)
+	err = tx.MarkFailed(ctx, failErr)
 	assert.NoError(t, err)
 	assert.Equal(t, finitestate.StateFailed, tx.GetState())
-	assert.Len(t, tx.errors, 1)
-	assert.ErrorIs(t, tx.errors[0], ErrTerminalError)
 }
 
 func TestConfigTransaction_LegacyMethods(t *testing.T) {
@@ -397,6 +396,7 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 	})
 
 	t.Run("BeginRollback", func(t *testing.T) {
+		ctx := t.Context()
 		tx, _ := setupTest(t)
 
 		// Setup to failed state
@@ -407,7 +407,7 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 		require.NoError(t, err)
 		err = tx.BeginExecution()
 		require.NoError(t, err)
-		err = tx.MarkFailed(errors.New("failed"))
+		err = tx.MarkFailed(ctx, errors.New("failed"))
 		require.NoError(t, err)
 
 		// BeginRollback should map to BeginCompensation
@@ -417,6 +417,7 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 	})
 
 	t.Run("MarkRolledBack", func(t *testing.T) {
+		ctx := t.Context()
 		tx, _ := setupTest(t)
 
 		// Setup to compensating state
@@ -427,7 +428,7 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 		require.NoError(t, err)
 		err = tx.BeginExecution()
 		require.NoError(t, err)
-		err = tx.MarkFailed(errors.New("failed"))
+		err = tx.MarkFailed(ctx, errors.New("failed"))
 		require.NoError(t, err)
 		err = tx.BeginCompensation()
 		require.NoError(t, err)
@@ -436,61 +437,6 @@ func TestConfigTransaction_LegacyMethods(t *testing.T) {
 		err = tx.MarkRolledBack()
 		assert.NoError(t, err)
 		assert.Equal(t, finitestate.StateCompensated, tx.GetState())
-	})
-}
-
-func TestConfigTransaction_GetErrors(t *testing.T) {
-	t.Parallel()
-
-	t.Run("returns empty errors initially", func(t *testing.T) {
-		tx, _ := setupTest(t)
-		assert.Empty(t, tx.GetErrors())
-	})
-
-	t.Run("returns validation error after MarkInvalid", func(t *testing.T) {
-		tx, _ := setupTest(t)
-		err1 := errors.New("validation error")
-
-		// Transition to validating state first
-		require.NoError(t, tx.BeginValidation())
-
-		// Mark as invalid with error
-		require.NoError(t, tx.MarkInvalid(err1))
-
-		errs := tx.GetErrors()
-		assert.Len(t, errs, 1)
-		assert.ErrorIs(t, errs[0], ErrValidationFailed)
-		assert.ErrorIs(t, errs[0], err1)
-	})
-
-	t.Run("returns error after MarkError", func(t *testing.T) {
-		tx, _ := setupTest(t)
-		err1 := errors.New("terminal error")
-
-		// Add error (this transitions to error state)
-		require.NoError(t, tx.MarkError(err1))
-
-		errs := tx.GetErrors()
-		assert.Len(t, errs, 1)
-		assert.ErrorIs(t, errs[0], ErrTerminalError)
-		assert.ErrorIs(t, errs[0], err1)
-	})
-
-	t.Run("accumulates errors with AddError", func(t *testing.T) {
-		tx, _ := setupTest(t)
-		err1 := errors.New("accumulated error 1")
-		err2 := errors.New("accumulated error 2")
-
-		// Add errors without state transitions
-		tx.AddError(err1)
-		tx.AddError(err2)
-
-		errs := tx.GetErrors()
-		assert.Len(t, errs, 2)
-		assert.ErrorIs(t, errs[0], ErrAccumulatedError)
-		assert.ErrorIs(t, errs[0], err1)
-		assert.ErrorIs(t, errs[1], ErrAccumulatedError)
-		assert.ErrorIs(t, errs[1], err2)
 	})
 }
 
@@ -543,7 +489,6 @@ func TestConfigTransaction_RunValidation(t *testing.T) {
 		assert.ErrorIs(t, err, ErrValidationFailed)
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
-		assert.NotEmpty(t, tx.errors)
 	})
 }
 
@@ -587,23 +532,20 @@ func TestTransactionLifecycle(t *testing.T) {
 		tx.setStateInvalid(validationErrs)
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
-		assert.Len(t, tx.errors, 2)
-		// Verify errors were wrapped correctly
-		assert.ErrorIs(t, tx.errors[0], ErrValidationFailed)
-		assert.ErrorIs(t, tx.errors[1], ErrValidationFailed)
 
 		err := tx.BeginExecution()
 		assert.ErrorIs(t, err, ErrNotValidated)
 	})
 
 	t.Run("validates compensation path", func(t *testing.T) {
+		ctx := t.Context()
 		tx, _ := setupTest(t)
 
 		require.NoError(t, tx.RunValidation())
 		require.NoError(t, tx.BeginExecution())
 
 		testErr := errors.New("something bad happened")
-		require.NoError(t, tx.MarkFailed(testErr))
+		require.NoError(t, tx.MarkFailed(ctx, testErr))
 		assert.Equal(t, finitestate.StateFailed, tx.GetState())
 
 		require.NoError(t, tx.BeginCompensation())
@@ -614,16 +556,15 @@ func TestTransactionLifecycle(t *testing.T) {
 	})
 
 	t.Run("validates failure path", func(t *testing.T) {
+		ctx := t.Context()
 		tx, _ := setupTest(t)
 
 		require.NoError(t, tx.RunValidation())
 		require.NoError(t, tx.BeginExecution())
 
 		testErr := errors.New("something bad happened")
-		require.NoError(t, tx.MarkFailed(testErr))
+		require.NoError(t, tx.MarkFailed(ctx, testErr))
 		assert.Equal(t, finitestate.StateFailed, tx.GetState())
-		assert.Len(t, tx.errors, 1)
-		assert.ErrorIs(t, tx.errors[0], ErrTerminalError)
 	})
 }
 
@@ -720,6 +661,438 @@ func TestConvertToAppDefinitions(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Mock FSM for testing error conditions
+type MockFSM struct {
+	mock.Mock
+}
+
+func (m *MockFSM) Transition(state string) error {
+	args := m.Called(state)
+	return args.Error(0)
+}
+
+func (m *MockFSM) TransitionBool(state string) bool {
+	args := m.Called(state)
+	return args.Bool(0)
+}
+
+func (m *MockFSM) TransitionIfCurrentState(currentState, newState string) error {
+	args := m.Called(currentState, newState)
+	return args.Error(0)
+}
+
+func (m *MockFSM) SetState(state string) error {
+	args := m.Called(state)
+	return args.Error(0)
+}
+
+func (m *MockFSM) GetState() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+func (m *MockFSM) GetStateChan(ctx context.Context) <-chan string {
+	args := m.Called(ctx)
+	return args.Get(0).(<-chan string)
+}
+
+func TestNew_ErrorConditions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil config returns error", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		tx, err := New(SourceTest, "test", "", nil, handler)
+
+		assert.Error(t, err)
+		assert.Nil(t, tx)
+		assert.Contains(t, err.Error(), "config cannot be nil")
+	})
+
+	t.Run("nil handler creates default handler", func(t *testing.T) {
+		cfg := &config.Config{Version: config.VersionLatest}
+		tx, err := New(SourceTest, "test", "", cfg, nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, tx)
+		assert.NotNil(t, tx.logger)
+	})
+
+	t.Run("handles app factory creation failure", func(t *testing.T) {
+		// Create a config that will cause app factory to fail
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Apps: apps.AppCollection{
+				{
+					ID:     "invalid-app",
+					Config: nil, // This should cause the factory to fail
+				},
+			},
+		}
+
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		tx, err := New(SourceTest, "test", "", cfg, handler)
+
+		assert.Error(t, err)
+		assert.Nil(t, tx)
+		assert.Contains(t, err.Error(), "failed to create app instances")
+	})
+}
+
+func TestMarkFailed_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("handles canceled context before transition", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		// Create a canceled context
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel() // Cancel immediately
+
+		err := tx.MarkFailed(ctx, errors.New("test error"))
+		assert.Error(t, err)
+		assert.Equal(t, context.Canceled, err)
+
+		// State should remain unchanged
+		assert.Equal(t, finitestate.StateCreated, tx.GetState())
+	})
+
+	t.Run("handles context timeout", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		// Create a context that times out immediately
+		ctx, cancel := context.WithTimeout(t.Context(), 1*time.Nanosecond)
+		defer cancel()
+
+		// Wait for timeout
+		time.Sleep(1 * time.Millisecond)
+
+		err := tx.MarkFailed(ctx, errors.New("test error"))
+		assert.Error(t, err)
+		assert.Equal(t, context.DeadlineExceeded, err)
+	})
+
+	t.Run("handles invalid transition from terminal state", func(t *testing.T) {
+		ctx := t.Context()
+		tx, _ := setupTest(t)
+
+		// Move to error state first (terminal state)
+		err := tx.MarkError(errors.New("terminal error"))
+		require.NoError(t, err)
+		assert.Equal(t, finitestate.StateError, tx.GetState())
+
+		// Attempt to mark as failed from error state should be handled gracefully
+		err = tx.MarkFailed(ctx, errors.New("another error"))
+		assert.NoError(t, err) // Should not return error due to graceful handling
+
+		// State should remain error
+		assert.Equal(t, finitestate.StateError, tx.GetState())
+	})
+
+	t.Run("accumulates errors on successful transition", func(t *testing.T) {
+		ctx := t.Context()
+		tx, _ := setupTest(t)
+
+		// Move to executing state first
+		require.NoError(t, tx.BeginValidation())
+		tx.IsValid.Store(true)
+		require.NoError(t, tx.MarkValidated())
+		require.NoError(t, tx.BeginExecution())
+
+		testErr := errors.New("execution failed")
+		err := tx.MarkFailed(ctx, testErr)
+		require.NoError(t, err)
+
+		assert.Equal(t, finitestate.StateFailed, tx.GetState())
+	})
+}
+
+func TestParticipantFunctionality(t *testing.T) {
+	t.Parallel()
+
+	t.Run("RegisterParticipant adds participant successfully", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		err := tx.RegisterParticipant("test-participant")
+		assert.NoError(t, err)
+
+		participants := tx.GetParticipantStates()
+		assert.Contains(t, participants, "test-participant")
+		assert.Equal(t, finitestate.ParticipantNotStarted, participants["test-participant"])
+	})
+
+	t.Run("RegisterParticipant handles duplicate names", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		// Add participant first time
+		err := tx.RegisterParticipant("duplicate")
+		assert.NoError(t, err)
+
+		// Add same participant again
+		err = tx.RegisterParticipant("duplicate")
+		assert.Error(t, err)
+	})
+
+	t.Run("GetParticipants returns collection", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		collection := tx.GetParticipants()
+		assert.NotNil(t, collection)
+
+		// Add a participant and verify
+		require.NoError(t, tx.RegisterParticipant("test"))
+		states := tx.GetParticipantStates()
+		assert.Contains(t, states, "test")
+	})
+
+	t.Run("GetParticipantErrors returns errors from participants", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		// Register participant and cause error
+		require.NoError(t, tx.RegisterParticipant("error-participant"))
+
+		// Simulate participant error by getting the participant and marking it failed
+		participants := tx.GetParticipants()
+		participant, err := participants.GetOrCreate("error-participant")
+		require.NoError(t, err)
+
+		// First transition to executing state (required before failing)
+		require.NoError(t, participant.Execute())
+
+		testErr := errors.New("participant error")
+		require.NoError(t, participant.MarkFailed(testErr))
+
+		participantErrors := tx.GetParticipantErrors()
+		assert.Contains(t, participantErrors, "error-participant")
+		assert.Equal(t, testErr, participantErrors["error-participant"])
+	})
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	t.Parallel()
+
+	t.Run("concurrent IsValid operations are safe", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		var wg sync.WaitGroup
+		numGoroutines := 10
+
+		// Start readers
+		wg.Add(numGoroutines)
+		for range numGoroutines {
+			go func() {
+				defer wg.Done()
+				for range 100 {
+					_ = tx.IsValid.Load()
+				}
+			}()
+		}
+
+		// Start writers
+		wg.Add(numGoroutines)
+		for i := range numGoroutines {
+			go func(id int) {
+				defer wg.Done()
+				for range 100 {
+					tx.IsValid.Store(id%2 == 0)
+				}
+			}(i)
+		}
+
+		wg.Wait()
+
+		// Should not panic or deadlock
+		finalValue := tx.IsValid.Load()
+		assert.IsType(t, true, finalValue) // Just checking type safety
+	})
+
+	t.Run("concurrent state transitions fail gracefully", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		// Set up to validated state first
+		require.NoError(t, tx.BeginValidation())
+		tx.IsValid.Store(true)
+		require.NoError(t, tx.MarkValidated())
+		require.NoError(t, tx.BeginExecution())
+
+		var wg sync.WaitGroup
+		results := make([]error, 10)
+
+		// Try concurrent MarkSucceeded calls
+		wg.Add(10)
+		for i := range 10 {
+			go func(idx int) {
+				defer wg.Done()
+				results[idx] = tx.MarkSucceeded()
+			}(i)
+		}
+
+		wg.Wait()
+
+		// Only one should succeed, others should fail
+		successCount := 0
+		for _, err := range results {
+			if err == nil {
+				successCount++
+			}
+		}
+		assert.Equal(t, 1, successCount, "only one concurrent transition should succeed")
+		assert.Equal(t, finitestate.StateSucceeded, tx.GetState())
+	})
+}
+
+func TestFSMTransitionErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	t.Run("BeginValidation handles FSM transition failure", func(t *testing.T) {
+		cfg := &config.Config{Version: config.VersionLatest}
+		handler := slog.NewTextHandler(os.Stdout, nil)
+
+		// Create transaction with mock FSM
+		mockFSM := &MockFSM{}
+		tx := &ConfigTransaction{
+			domainConfig: cfg,
+			logger:       slog.New(handler),
+			fsm:          mockFSM,
+		}
+
+		// Set up FSM to fail transition
+		expectedErr := errors.New("fsm transition failed")
+		mockFSM.On("Transition", finitestate.StateValidating).Return(expectedErr)
+
+		err := tx.BeginValidation()
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+
+		mockFSM.AssertExpectations(t)
+	})
+
+	t.Run("MarkSucceeded handles FSM transition failure", func(t *testing.T) {
+		cfg := &config.Config{Version: config.VersionLatest}
+		handler := slog.NewTextHandler(os.Stdout, nil)
+
+		mockFSM := &MockFSM{}
+		tx := &ConfigTransaction{
+			domainConfig: cfg,
+			logger:       slog.New(handler),
+			fsm:          mockFSM,
+		}
+
+		expectedErr := errors.New("fsm transition failed")
+		mockFSM.On("Transition", finitestate.StateSucceeded).Return(expectedErr)
+
+		err := tx.MarkSucceeded()
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+
+		mockFSM.AssertExpectations(t)
+	})
+
+	t.Run("MarkError handles FSM transition failure", func(t *testing.T) {
+		cfg := &config.Config{Version: config.VersionLatest}
+		handler := slog.NewTextHandler(os.Stdout, nil)
+
+		mockFSM := &MockFSM{}
+		tx := &ConfigTransaction{
+			domainConfig: cfg,
+			logger:       slog.New(handler),
+			fsm:          mockFSM,
+		}
+
+		expectedErr := errors.New("fsm transition failed")
+		mockFSM.On("Transition", finitestate.StateError).Return(expectedErr)
+
+		originalErr := errors.New("original error")
+		err := tx.MarkError(originalErr)
+		assert.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+
+		mockFSM.AssertExpectations(t)
+	})
+}
+
+func TestGetAppCollection(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns app collection", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		collection := tx.GetAppCollection()
+		assert.NotNil(t, collection)
+	})
+
+	t.Run("app collection integration", func(t *testing.T) {
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Apps: apps.AppCollection{
+				{
+					ID:     "test-echo",
+					Config: &echo.EchoApp{Response: "test response"},
+				},
+			},
+		}
+
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		collection := tx.GetAppCollection()
+		app, exists := collection.GetApp("test-echo")
+		assert.True(t, exists)
+		assert.Equal(t, "test-echo", app.String())
+	})
+}
+
+func TestPlaybackLogs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("playback logs with multiple operations", func(t *testing.T) {
+		tx, handler := setupTest(t)
+
+		// Perform several operations to generate logs
+		require.NoError(t, tx.BeginValidation())
+		tx.IsValid.Store(true)
+		require.NoError(t, tx.MarkValidated())
+		require.NoError(t, tx.BeginExecution())
+		require.NoError(t, tx.MarkSucceeded())
+
+		// Playback should work without error
+		err := tx.PlaybackLogs(handler)
+		assert.NoError(t, err)
+	})
+}
+
+func TestGetTotalDuration(t *testing.T) {
+	t.Parallel()
+
+	t.Run("duration increases over time", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		duration1 := tx.GetTotalDuration()
+		assert.Greater(t, duration1, time.Duration(0))
+
+		time.Sleep(1 * time.Millisecond)
+
+		duration2 := tx.GetTotalDuration()
+		assert.Greater(t, duration2, duration1)
+	})
+
+	t.Run("duration in completed transaction", func(t *testing.T) {
+		tx, _ := setupTest(t)
+
+		// Complete a full transaction
+		require.NoError(t, tx.BeginValidation())
+		tx.IsValid.Store(true)
+		require.NoError(t, tx.MarkValidated())
+		require.NoError(t, tx.BeginExecution())
+		require.NoError(t, tx.MarkSucceeded())
+		require.NoError(t, tx.BeginReload())
+		require.NoError(t, tx.MarkCompleted())
+
+		duration := tx.GetTotalDuration()
+		assert.Greater(t, duration, time.Duration(0))
+	})
 }
 
 func TestAppFactoryIntegration(t *testing.T) {

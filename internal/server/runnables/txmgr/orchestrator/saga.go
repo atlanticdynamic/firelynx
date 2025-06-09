@@ -187,7 +187,7 @@ func (o *SagaOrchestrator) ProcessTransaction(
 					"name", name, "error", markErr, "originalError", err)
 			}
 			// Mark transaction as failed
-			if markErr := tx.MarkFailed(err); markErr != nil {
+			if markErr := tx.MarkFailed(ctx, err); markErr != nil {
 				o.logger.Error("Failed to mark transaction as failed",
 					"error", markErr, "originalError", err)
 			}

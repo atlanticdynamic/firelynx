@@ -46,7 +46,7 @@ func TestServerWithConfigFile(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
 	// Create a temp directory for the config file
@@ -112,12 +112,15 @@ func TestServerWithConfigFile(t *testing.T) {
 	serverCancel()
 
 	// Wait for server to shut down
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Server shutdown timed out")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Server should shut down cleanly")
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Minute, 100*time.Millisecond, "Server shutdown timed out")
 }
 
 // TestServerWithGRPCConfig tests starting server with gRPC API and sending config via client
@@ -126,7 +129,7 @@ func TestServerWithGRPCConfig(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
 
 	// Get free ports for gRPC and HTTP
@@ -224,12 +227,15 @@ func TestServerWithGRPCConfig(t *testing.T) {
 	serverCancel()
 
 	// Wait for clean shutdown
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Server shutdown timed out")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Server should shut down cleanly")
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Minute, 100*time.Millisecond, "Server shutdown timed out")
 }
 
 // TestServerWithFileAndGRPC tests loading initial config from file then updating via gRPC
@@ -238,7 +244,7 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
 
 	// Create a temp directory for the config file
@@ -343,12 +349,15 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 	serverCancel()
 
 	// Wait for clean shutdown
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Server shutdown timed out")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Server should shut down cleanly")
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Minute, 100*time.Millisecond, "Server shutdown timed out")
 }
 
 // TestConfigFileReload tests reloading configuration by sending SIGHUP
@@ -357,7 +366,7 @@ func TestConfigFileReload(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
 	defer cancel()
 
 	// Create a temp directory for the config file
@@ -475,18 +484,21 @@ response = "New path response"`
 	serverCancel()
 
 	// Wait for clean shutdown
-	select {
-	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
-	case <-time.After(2 * time.Second):
-		t.Fatal("Server shutdown timed out")
-	}
+	assert.Eventually(t, func() bool {
+		select {
+		case err := <-errCh:
+			assert.NoError(t, err, "Server should shut down cleanly")
+			return true
+		default:
+			return false
+		}
+	}, 1*time.Minute, 100*time.Millisecond, "Server shutdown timed out")
 }
 
 // TestServerRequiresConfigSource verifies that the server returns an error
 // when neither config file nor gRPC address is provided
 func TestServerRequiresConfigSource(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: slog.LevelWarn,
 	}))

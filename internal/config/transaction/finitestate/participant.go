@@ -5,6 +5,7 @@ package finitestate
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/robbyt/go-fsm"
 )
@@ -36,7 +37,7 @@ type ParticipantFSM struct {
 }
 
 func (p *ParticipantFSM) GetStateChan(ctx context.Context) <-chan string {
-	return p.GetStateChanWithOptions(ctx, fsm.WithSyncBroadcast())
+	return p.GetStateChanWithOptions(ctx, fsm.WithSyncTimeout(5*time.Second))
 }
 
 func NewParticipantFSM(handler slog.Handler) (*ParticipantFSM, error) {

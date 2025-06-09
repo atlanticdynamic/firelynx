@@ -221,16 +221,6 @@ func TestSetStateInvalid_ErrorAlreadyWrapped(t *testing.T) {
 	// Check that IsValid is false
 	assert.False(t, tx.IsValid.Load())
 	assert.Equal(t, finitestate.StateInvalid, tx.GetState())
-
-	// Check errors
-	assert.Len(t, tx.errors, 2)
-
-	// First error should not be double-wrapped
-	assert.Equal(t, alreadyWrapped, tx.errors[0])
-
-	// Second error should be wrapped
-	assert.ErrorIs(t, tx.errors[1], ErrValidationFailed)
-	assert.ErrorContains(t, tx.errors[1], "new error")
 }
 
 func TestRunValidation_FullLifecycle(t *testing.T) {
@@ -261,7 +251,6 @@ func TestRunValidation_FullLifecycle(t *testing.T) {
 		// Final state should be validated
 		assert.Equal(t, finitestate.StateValidated, tx.GetState())
 		assert.True(t, tx.IsValid.Load())
-		assert.Empty(t, tx.errors)
 	})
 
 	t.Run("failed validation with state transitions", func(t *testing.T) {
@@ -291,7 +280,6 @@ func TestRunValidation_FullLifecycle(t *testing.T) {
 		// Final state should be invalid
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
-		assert.NotEmpty(t, tx.errors)
 	})
 }
 
@@ -329,9 +317,6 @@ func TestRunValidation_StateTransitionLogging(t *testing.T) {
 		// Should be in invalid state
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
-
-		// Should have stored the error
-		assert.NotEmpty(t, tx.errors)
 	})
 
 	t.Run("validation state already set", func(t *testing.T) {

@@ -428,7 +428,7 @@ func TestConsoleLogger_Log(t *testing.T) {
 			slog.Int("status", 200),
 		}
 
-		cl.Log(context.Background(), attrs)
+		cl.Log(t.Context(), attrs)
 
 		assert.Equal(t, "my-custom-logger", mockLogger.loggedMessage)
 		assert.Equal(t, slog.LevelInfo, mockLogger.loggedLevel)
@@ -467,7 +467,7 @@ func TestConsoleLogger_Log(t *testing.T) {
 					slog.Int("status", tt.statusCode),
 				}
 
-				cl.Log(context.Background(), attrs)
+				cl.Log(t.Context(), attrs)
 				assert.Equal(t, tt.expectedLevel, mockLogger.loggedLevel)
 			})
 		}
@@ -488,10 +488,10 @@ func TestConsoleLogger_Log(t *testing.T) {
 		// Reset the mock
 		mockLogger.loggedMessage = "initial"
 
-		cl.Log(context.Background(), nil)
+		cl.Log(t.Context(), nil)
 		assert.Equal(t, "initial", mockLogger.loggedMessage) // Should not have changed
 
-		cl.Log(context.Background(), []slog.Attr{})
+		cl.Log(t.Context(), []slog.Attr{})
 		assert.Equal(t, "initial", mockLogger.loggedMessage) // Should not have changed
 	})
 }

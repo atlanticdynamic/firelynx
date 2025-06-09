@@ -123,7 +123,7 @@ func (r *Runner) Run(ctx context.Context) error {
 				logger.Error("Failed to process transaction",
 					"id", tx.ID, "error", err)
 				// Mark transaction as failed but continue running
-				if markErr := tx.MarkFailed(err); markErr != nil {
+				if markErr := tx.MarkFailed(runCtx, err); markErr != nil {
 					logger.Error("Failed to mark transaction as failed",
 						"id", tx.ID, "error", markErr)
 				}

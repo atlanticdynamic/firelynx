@@ -19,7 +19,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		tx := createMockTransaction(t)
-		err = runner.StageConfig(context.Background(), tx)
+		err = runner.StageConfig(t.Context(), tx)
 		assert.NoError(t, err)
 	})
 
@@ -27,7 +27,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		runner, err := NewRunner()
 		require.NoError(t, err)
 
-		err = runner.StageConfig(context.Background(), nil)
+		err = runner.StageConfig(t.Context(), nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "transaction is nil")
 	})
@@ -36,7 +36,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		runner, err := NewRunner()
 		require.NoError(t, err)
 
-		err = runner.CommitConfig(context.Background())
+		err = runner.CommitConfig(t.Context())
 		assert.NoError(t, err)
 	})
 
@@ -45,7 +45,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		tx := createMockTransaction(t)
-		err = runner.StageConfig(context.Background(), tx)
+		err = runner.StageConfig(t.Context(), tx)
 		require.NoError(t, err)
 
 		hasChanges := runner.configMgr.HasPendingChanges()
@@ -63,10 +63,10 @@ func TestRunner_SagaOperations(t *testing.T) {
 
 		tx := createMockTransaction(t)
 
-		err = runner.StageConfig(context.Background(), tx)
+		err = runner.StageConfig(t.Context(), tx)
 		require.NoError(t, err)
 
-		err = runner.CompensateConfig(context.Background(), tx)
+		err = runner.CompensateConfig(t.Context(), tx)
 		assert.NoError(t, err)
 	})
 
@@ -74,7 +74,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		runner, err := NewRunner()
 		require.NoError(t, err)
 
-		err = runner.CompensateConfig(context.Background(), nil)
+		err = runner.CompensateConfig(t.Context(), nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "transaction is nil")
 	})
@@ -86,7 +86,7 @@ func TestRunner_PrepConfigPayload(t *testing.T) {
 		require.NoError(t, err)
 
 		tx := createMockTransaction(t)
-		err = runner.StageConfig(context.Background(), tx)
+		err = runner.StageConfig(t.Context(), tx)
 		require.NoError(t, err)
 
 		runner.configMgr.CommitPending()
@@ -256,7 +256,7 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 		require.NoError(t, err)
 		runner.cluster = cluster
 
-		ctx := context.Background()
+		ctx := t.Context()
 		err = runner.waitForClusterRunning(ctx, 50*time.Millisecond)
 		assert.Error(t, err)
 		assert.Equal(t, context.DeadlineExceeded, err)
@@ -267,7 +267,7 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 		require.NoError(t, err)
 
 		// Use already cancelled context for deterministic behavior
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel() // Cancel immediately
 
 		err = runner.waitForClusterRunning(ctx, 1*time.Second)
@@ -366,7 +366,7 @@ func TestRunner_SendConfigToCluster(t *testing.T) {
 		}
 
 		// Use already cancelled context
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		err = runner.sendConfigToCluster(ctx, adapter)
