@@ -11,7 +11,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.4.0
 	github.com/robbyt/go-loglater v0.1.0
-	github.com/robbyt/go-supervisor v0.0.11
+	github.com/robbyt/go-supervisor v0.0.12
 	github.com/robbyt/protobaggins v0.1.0
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.72.2
