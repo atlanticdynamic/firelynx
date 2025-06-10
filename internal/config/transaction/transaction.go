@@ -416,6 +416,77 @@ func (tx *ConfigTransaction) GetParticipantErrors() map[string]error {
 	return tx.participants.GetParticipantErrors()
 }
 
+// WaitForCompletion waits for the transaction to reach a terminal state.
+// Terminal states are: Completed, Compensated, Error, and Invalid.
+// Returns immediately if already in a terminal state.
+func (tx *ConfigTransaction) WaitForCompletion(ctx context.Context) error {
+	// Check if already in a terminal state
+	currentState := tx.GetState()
+	tx.logger.Debug(
+		"WaitForCompletion called",
+		"currentState",
+		currentState,
+		"isTerminal",
+		tx.isTerminalState(currentState),
+	)
+
+	if tx.isTerminalState(currentState) {
+		tx.logger.Debug("Transaction already in terminal state, returning immediately")
+		return nil
+	}
+
+	tx.logger.Debug("Transaction not in terminal state, waiting for state changes")
+
+	// Get the FSM state channel
+	stateChan := tx.fsm.GetStateChan(ctx)
+
+	// Wait for terminal state
+	for {
+		select {
+		case <-ctx.Done():
+			tx.logger.Debug(
+				"WaitForCompletion context cancelled",
+				"finalState",
+				tx.GetState(),
+				"error",
+				ctx.Err(),
+			)
+			return ctx.Err()
+		case state, ok := <-stateChan:
+			if !ok {
+				// Channel closed, check final state
+				finalState := tx.GetState()
+				tx.logger.Debug("State channel closed", "finalState", finalState)
+				return nil
+			}
+			tx.logger.Debug(
+				"Received state change",
+				"newState",
+				state,
+				"isTerminal",
+				tx.isTerminalState(state),
+			)
+			if tx.isTerminalState(state) {
+				tx.logger.Debug("Transaction reached terminal state, completing wait")
+				return nil
+			}
+		}
+	}
+}
+
+// isTerminalState returns true if the given state is a terminal state.
+func (tx *ConfigTransaction) isTerminalState(state string) bool {
+	switch state {
+	case finitestate.StateCompleted,
+		finitestate.StateCompensated,
+		finitestate.StateError,
+		finitestate.StateInvalid:
+		return true
+	default:
+		return false
+	}
+}
+
 // convertToAppDefinitions converts config.Apps to server app definitions
 // This adapter allows the server/apps package to work with config data
 // without directly importing the config types

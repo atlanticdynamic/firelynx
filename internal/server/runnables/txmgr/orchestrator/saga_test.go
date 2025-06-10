@@ -12,6 +12,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
+	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -356,7 +357,7 @@ func TestGetTransactionStatus_NotFound(t *testing.T) {
 }
 
 func TestConcurrentParticipantRegistration(t *testing.T) {
-	handler := slog.NewTextHandler(os.Stdout, nil)
+	handler := logging.SetupHandler("error")
 	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
@@ -389,4 +390,42 @@ func TestConcurrentParticipantRegistration(t *testing.T) {
 	// Verify all participants were registered without errors
 	assert.Empty(t, registrationErrors, "Unexpected errors during participant registration")
 	assert.Len(t, orchestrator.runnables, numParticipants)
+}
+
+// TestProcessTransactionWithNoParticipants tests that transactions
+// reach completed state even when no participants are registered for reload
+func TestProcessTransactionWithNoParticipants(t *testing.T) {
+	handler := logging.SetupHandler("debug")
+	storage := txstorage.NewMemoryStorage()
+	orchestrator := NewSagaOrchestrator(storage, handler)
+	ctx := t.Context()
+
+	// Create a minimal config for testing
+	cfg := &config.Config{
+		Version: "v1",
+	}
+
+	// Create and validate transaction
+	tx, err := transaction.New(
+		transaction.SourceTest,
+		"TestProcessTransactionWithNoParticipants",
+		"test-request-id",
+		cfg,
+		handler,
+	)
+	require.NoError(t, err)
+
+	// Validate the transaction
+	err = tx.RunValidation()
+	require.NoError(t, err)
+
+	// Process the transaction (with no participants registered)
+	err = orchestrator.ProcessTransaction(ctx, tx)
+	require.NoError(t, err)
+
+	assert.Equal(t, finitestate.StateCompleted, tx.GetState(),
+		"Transaction should reach completed state even with no participants")
+
+	assert.Equal(t, tx, storage.GetCurrent(),
+		"Transaction should be stored as current after processing")
 }

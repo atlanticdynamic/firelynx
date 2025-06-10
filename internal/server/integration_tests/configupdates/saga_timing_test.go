@@ -4,6 +4,7 @@
 package configupdates
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"log/slog"
@@ -32,7 +33,8 @@ import (
 // TestSagaTimingVsHTTPServerReadiness verifies that HTTP servers are immediately
 // ready to accept connections after saga orchestrator completion.
 func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 
 	// Create transaction storage and saga orchestrator
 	txStorage := txstorage.NewMemoryStorage()
@@ -122,7 +124,8 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 // TestHTTPRunnerRequiresInitialConfig verifies that the HTTP runner waits for
 // initial configuration before transitioning to Running state
 func TestHTTPRunnerRequiresInitialConfig(t *testing.T) {
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 	logging.SetupLogger("debug")
 
 	// Create transaction storage and saga orchestrator

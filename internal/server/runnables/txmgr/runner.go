@@ -14,10 +14,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/robbyt/go-supervisor/supervisor"
+)
+
+const (
+	// shutdownTimeout is the maximum time to wait for transactions to complete during shutdown
+	shutdownTimeout = 2 * time.Minute
 )
 
 // Interface guards
@@ -112,11 +118,19 @@ func (r *Runner) Run(ctx context.Context) error {
 		select {
 		case <-runCtx.Done():
 			logger.Debug("Run context cancelled")
-			return r.shutdown()
+
+			// Create fresh context for graceful shutdown since runCtx is canceled
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+			defer cancel()
+			return r.shutdown(shutdownCtx) //nolint:contextcheck
 		case tx, ok := <-r.txSiphon:
 			if !ok {
 				logger.Debug("Transaction siphon closed")
-				return r.shutdown()
+
+				// Create fresh context for graceful shutdown since runCtx is canceled
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+				defer cancel()
+				return r.shutdown(shutdownCtx) //nolint:contextcheck
 			}
 			logger.Debug("Received transaction", "id", tx.ID)
 			if err := r.processTransaction(runCtx, tx); err != nil {
@@ -141,12 +155,23 @@ func (r *Runner) Stop() {
 }
 
 // shutdown performs graceful shutdown of the transaction manager.
-func (r *Runner) shutdown() error {
+func (r *Runner) shutdown(ctx context.Context) error {
 	logger := r.logger.WithGroup("shutdown")
 	logger.Debug("Transaction manager shutting down")
 
 	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
 		logger.Error("Failed to transition to stopping", "error", err)
+	}
+
+	// Wait for current transaction to complete before shutting down
+	if r.ctx != nil {
+		logger.Debug("Starting graceful shutdown wait for transaction completion")
+
+		if err := r.sagaOrchestrator.WaitForCompletion(ctx); err != nil {
+			logger.Error("Failed to wait for transaction completion during shutdown", "error", err)
+			return err
+		}
+		logger.Debug("Transaction completion wait finished successfully")
 	}
 
 	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
