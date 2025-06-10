@@ -381,9 +381,13 @@ func (o *SagaOrchestrator) WaitForCompletion(ctx context.Context) error {
 	o.mutex.RUnlock()
 
 	if currentTx == nil {
+		o.logger.Debug("No current transaction to wait for")
 		return nil
 	}
 
+	o.logger.Debug("Current transaction found, waiting for completion",
+		"txID", currentTx.ID,
+		"currentState", currentTx.GetState())
 	return currentTx.WaitForCompletion(ctx)
 }
 

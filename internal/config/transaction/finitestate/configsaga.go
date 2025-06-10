@@ -40,6 +40,14 @@ const (
 	StateError = "error" // Unrecoverable error occurred (terminal state)
 )
 
+// SagaTerminalStates defines the terminal states for the saga.
+var SagaTerminalStates = []string{
+	StateInvalid,
+	StateCompleted,
+	StateCompensated,
+	StateError,
+}
+
 // SagaTransitions defines the valid state transitions for a configuration saga.
 var SagaTransitions = map[string][]string{
 	// Initial validation flow

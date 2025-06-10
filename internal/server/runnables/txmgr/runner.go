@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	// shutdownTimeout is the maximum time to wait for transactions to complete during shutdown
-	shutdownTimeout = 2 * time.Minute
+	// defaultSagaOrchestratorShutdownTimeout is the maximum time to wait for transactions to complete during shutdown
+	defaultSagaOrchestratorShutdownTimeout = 2 * time.Minute
 )
 
 // Interface guards
@@ -39,7 +39,8 @@ type Runner struct {
 	txSiphon chan *transaction.ConfigTransaction
 
 	// Saga orchestrator for processing
-	sagaOrchestrator SagaProcessor
+	sagaOrchestrator                SagaProcessor
+	sagaOrchestratorShutdownTimeout time.Duration
 
 	// State management
 	fsm finitestate.Machine
@@ -62,8 +63,9 @@ func NewRunner(
 	}
 
 	r := &Runner{
-		sagaOrchestrator: sagaOrchestrator,
-		logger:           slog.Default().WithGroup("txmgr.Runner"),
+		sagaOrchestrator:                sagaOrchestrator,
+		sagaOrchestratorShutdownTimeout: defaultSagaOrchestratorShutdownTimeout,
+		logger:                          slog.Default().WithGroup("txmgr.Runner"),
 		// this should almost always be unbuffered
 		txSiphon: make(chan *transaction.ConfigTransaction),
 	}
@@ -118,19 +120,11 @@ func (r *Runner) Run(ctx context.Context) error {
 		select {
 		case <-runCtx.Done():
 			logger.Debug("Run context cancelled")
-
-			// Create fresh context for graceful shutdown since runCtx is canceled
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-			defer cancel()
-			return r.shutdown(shutdownCtx) //nolint:contextcheck
+			return r.shutdown() //nolint:contextcheck
 		case tx, ok := <-r.txSiphon:
 			if !ok {
 				logger.Debug("Transaction siphon closed")
-
-				// Create fresh context for graceful shutdown since runCtx is canceled
-				shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
-				defer cancel()
-				return r.shutdown(shutdownCtx) //nolint:contextcheck
+				return r.shutdown() //nolint:contextcheck
 			}
 			logger.Debug("Received transaction", "id", tx.ID)
 			if err := r.processTransaction(runCtx, tx); err != nil {
@@ -155,9 +149,13 @@ func (r *Runner) Stop() {
 }
 
 // shutdown performs graceful shutdown of the transaction manager.
-func (r *Runner) shutdown(ctx context.Context) error {
+func (r *Runner) shutdown() error {
 	logger := r.logger.WithGroup("shutdown")
 	logger.Debug("Transaction manager shutting down")
+
+	// Create fresh context for graceful shutdown since runCtx is canceled
+	ctx, cancel := context.WithTimeout(context.Background(), r.sagaOrchestratorShutdownTimeout)
+	defer cancel()
 
 	if err := r.fsm.Transition(finitestate.StatusStopping); err != nil {
 		logger.Error("Failed to transition to stopping", "error", err)
@@ -166,11 +164,15 @@ func (r *Runner) shutdown(ctx context.Context) error {
 	// Wait for current transaction to complete before shutting down
 	logger.Debug("Starting graceful shutdown wait for transaction completion")
 
+	waitStart := time.Now()
 	if err := r.sagaOrchestrator.WaitForCompletion(ctx); err != nil {
-		logger.Error("Failed to wait for transaction completion during shutdown", "error", err)
+		logger.Error("Failed to wait for transaction completion during shutdown",
+			"error", err,
+			"waitDuration", time.Since(waitStart))
 		return err
 	}
-	logger.Debug("Transaction completion wait finished successfully")
+	logger.Debug("Transaction completion wait finished successfully",
+		"waitDuration", time.Since(waitStart))
 
 	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
 		logger.Error("Failed to transition to stopped", "error", err)

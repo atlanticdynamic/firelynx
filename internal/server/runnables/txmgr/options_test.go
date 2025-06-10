@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -54,4 +55,31 @@ func TestWithLogger(t *testing.T) {
 
 	// Logger should remain unchanged
 	assert.Equal(t, originalLogger, r.logger)
+}
+
+func TestWithSagaOrchestratorShutdownTimeout(t *testing.T) {
+	t.Run("positive timeout sets value", func(t *testing.T) {
+		r := &Runner{}
+		timeout := 5 * time.Second
+		opt := WithSagaOrchestratorShutdownTimeout(timeout)
+		err := opt(r)
+		assert.NoError(t, err)
+		assert.Equal(t, timeout, r.sagaOrchestratorShutdownTimeout)
+	})
+
+	t.Run("zero timeout is no-op", func(t *testing.T) {
+		r := &Runner{sagaOrchestratorShutdownTimeout: defaultSagaOrchestratorShutdownTimeout}
+		opt := WithSagaOrchestratorShutdownTimeout(0)
+		err := opt(r)
+		assert.NoError(t, err)
+		assert.Equal(t, defaultSagaOrchestratorShutdownTimeout, r.sagaOrchestratorShutdownTimeout)
+	})
+
+	t.Run("negative timeout is no-op", func(t *testing.T) {
+		r := &Runner{sagaOrchestratorShutdownTimeout: defaultSagaOrchestratorShutdownTimeout}
+		opt := WithSagaOrchestratorShutdownTimeout(-1 * time.Second)
+		err := opt(r)
+		assert.NoError(t, err)
+		assert.Equal(t, defaultSagaOrchestratorShutdownTimeout, r.sagaOrchestratorShutdownTimeout)
+	})
 }

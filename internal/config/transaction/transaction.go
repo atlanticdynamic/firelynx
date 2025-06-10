@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -264,10 +265,8 @@ func (tx *ConfigTransaction) MarkCompleted() error {
 
 	tx.logger.Debug(
 		"Transaction completed successfully",
-		"state",
-		finitestate.StateCompleted,
-		"duration",
-		time.Since(tx.CreatedAt),
+		"state", finitestate.StateCompleted,
+		"duration", time.Since(tx.CreatedAt),
 	)
 	return nil
 }
@@ -423,8 +422,13 @@ func (tx *ConfigTransaction) WaitForCompletion(ctx context.Context) error {
 	// Check if already in a terminal state
 	currentState := tx.GetState()
 	if tx.isTerminalState(currentState) {
+		tx.logger.Debug("Transaction already in terminal state",
+			"currentState", currentState)
 		return nil
 	}
+
+	tx.logger.Debug("Transaction not in terminal state, waiting",
+		"currentState", currentState)
 
 	// Get the FSM state channel
 	stateChan := tx.fsm.GetStateChan(ctx)
@@ -454,20 +458,13 @@ func (tx *ConfigTransaction) WaitForCompletion(ctx context.Context) error {
 
 // isTerminalState returns true if the given state is a terminal state.
 func (tx *ConfigTransaction) isTerminalState(state string) bool {
-	switch state {
-	case finitestate.StateCompleted,
-		finitestate.StateCompensated,
-		finitestate.StateError,
-		finitestate.StateInvalid:
-		return true
-	default:
-		return false
-	}
+	return slices.Contains(finitestate.SagaTerminalStates, state)
 }
 
 // convertToAppDefinitions converts config.Apps to server app definitions
 // This adapter allows the server/apps package to work with config data
 // without directly importing the config types
+// TODO: this should be removed, and the apps should be instantiated from the domain config apps layer
 func convertToAppDefinitions(configApps apps.AppCollection) []serverApps.AppDefinition {
 	definitions := make([]serverApps.AppDefinition, 0, len(configApps))
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
+	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
@@ -126,7 +127,8 @@ func TestRunnerOptionsFull(t *testing.T) {
 }
 
 func TestRunnerReceivesConfig(t *testing.T) {
-	h := newTestHarness(t)
+	handler := logging.SetupHandler("debug")
+	h := newTestHarness(t, WithLogHandler(handler))
 	h.start()
 
 	// Send config transaction

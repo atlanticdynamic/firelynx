@@ -2,6 +2,7 @@ package txmgr
 
 import (
 	"log/slog"
+	"time"
 )
 
 // Option represents a functional option for configuring Runner.
@@ -26,6 +27,17 @@ func WithLogger(logger *slog.Logger) Option {
 		if logger != nil {
 			r.logger = logger
 		}
+		return nil
+	}
+}
+
+// WithSagaOrchestratorShutdownTimeout sets the timeout for shutting down the saga orchestrator.
+func WithSagaOrchestratorShutdownTimeout(timeout time.Duration) Option {
+	return func(r *Runner) error {
+		if timeout <= 0 {
+			return nil // No-op if timeout is not positive
+		}
+		r.sagaOrchestratorShutdownTimeout = timeout
 		return nil
 	}
 }
