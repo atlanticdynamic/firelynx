@@ -10,7 +10,6 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
-	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
@@ -127,9 +126,6 @@ func TestRunnerOptionsFull(t *testing.T) {
 }
 
 func TestRunnerReceivesConfig(t *testing.T) {
-	// Enable debug logging to see what's happening
-	logging.SetupLogger("debug")
-
 	h := newTestHarness(t)
 	h.start()
 

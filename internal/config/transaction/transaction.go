@@ -422,20 +422,9 @@ func (tx *ConfigTransaction) GetParticipantErrors() map[string]error {
 func (tx *ConfigTransaction) WaitForCompletion(ctx context.Context) error {
 	// Check if already in a terminal state
 	currentState := tx.GetState()
-	tx.logger.Debug(
-		"WaitForCompletion called",
-		"currentState",
-		currentState,
-		"isTerminal",
-		tx.isTerminalState(currentState),
-	)
-
 	if tx.isTerminalState(currentState) {
-		tx.logger.Debug("Transaction already in terminal state, returning immediately")
 		return nil
 	}
-
-	tx.logger.Debug("Transaction not in terminal state, waiting for state changes")
 
 	// Get the FSM state channel
 	stateChan := tx.fsm.GetStateChan(ctx)
@@ -454,20 +443,9 @@ func (tx *ConfigTransaction) WaitForCompletion(ctx context.Context) error {
 			return ctx.Err()
 		case state, ok := <-stateChan:
 			if !ok {
-				// Channel closed, check final state
-				finalState := tx.GetState()
-				tx.logger.Debug("State channel closed", "finalState", finalState)
 				return nil
 			}
-			tx.logger.Debug(
-				"Received state change",
-				"newState",
-				state,
-				"isTerminal",
-				tx.isTerminalState(state),
-			)
 			if tx.isTerminalState(state) {
-				tx.logger.Debug("Transaction reached terminal state, completing wait")
 				return nil
 			}
 		}
