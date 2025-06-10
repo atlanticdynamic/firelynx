@@ -164,15 +164,13 @@ func (r *Runner) shutdown(ctx context.Context) error {
 	}
 
 	// Wait for current transaction to complete before shutting down
-	if r.ctx != nil {
-		logger.Debug("Starting graceful shutdown wait for transaction completion")
+	logger.Debug("Starting graceful shutdown wait for transaction completion")
 
-		if err := r.sagaOrchestrator.WaitForCompletion(ctx); err != nil {
-			logger.Error("Failed to wait for transaction completion during shutdown", "error", err)
-			return err
-		}
-		logger.Debug("Transaction completion wait finished successfully")
+	if err := r.sagaOrchestrator.WaitForCompletion(ctx); err != nil {
+		logger.Error("Failed to wait for transaction completion during shutdown", "error", err)
+		return err
 	}
+	logger.Debug("Transaction completion wait finished successfully")
 
 	if err := r.fsm.Transition(finitestate.StatusStopped); err != nil {
 		logger.Error("Failed to transition to stopped", "error", err)
