@@ -386,7 +386,7 @@ func TestUpdateConfig(t *testing.T) {
 		require.NotNil(t, resp.Success)
 		assert.False(t, *resp.Success)
 		require.NotNil(t, resp.Error)
-		assert.Contains(t, *resp.Error, "transaction validation failed")
+		assert.Contains(t, *resp.Error, "validation failed")
 	})
 
 	t.Run("transaction_id_in_success_response", func(t *testing.T) {
@@ -646,7 +646,7 @@ func TestValidateConfig(t *testing.T) {
 		require.NotNil(t, resp.Valid)
 		assert.False(t, *resp.Valid)
 		require.NotNil(t, resp.Error)
-		assert.Contains(t, *resp.Error, "transaction validation failed")
+		assert.Contains(t, *resp.Error, "validation failed")
 		assert.Contains(t, *resp.Error, "unsupported config version")
 	})
 
@@ -669,7 +669,7 @@ func TestValidateConfig(t *testing.T) {
 		require.NotNil(t, resp.Valid)
 		assert.False(t, *resp.Valid)
 		require.NotNil(t, resp.Error)
-		assert.Contains(t, *resp.Error, "transaction validation failed")
+		assert.Contains(t, *resp.Error, "validation failed")
 	})
 
 	t.Run("config_with_duplicate_listener_ids", func(t *testing.T) {
@@ -710,7 +710,7 @@ func TestValidateConfig(t *testing.T) {
 		require.NotNil(t, resp.Valid)
 		assert.False(t, *resp.Valid)
 		require.NotNil(t, resp.Error)
-		assert.Contains(t, *resp.Error, "transaction validation failed")
+		assert.Contains(t, *resp.Error, "validation failed")
 	})
 
 	t.Run("multiple_validations", func(t *testing.T) {

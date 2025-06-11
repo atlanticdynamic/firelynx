@@ -255,22 +255,13 @@ func (r *Runner) ValidateConfig(
 		}, nil
 	}
 
-	// Create a transaction for validation
-	tx, err := r.createAPITransaction(ctx, domainConfig)
-	if err != nil {
-		logger.Warn("Failed to create config transaction", "error", err)
+	// Validate the configuration directly without creating a transaction
+	// This avoids creating transactions that get stuck in non-terminal states during shutdown
+	if err := domainConfig.Validate(); err != nil {
+		logger.Debug("Configuration validation failed", "error", err)
 		return &pb.ValidateConfigResponse{
 			Valid: proto.Bool(false),
-			Error: proto.String(fmt.Sprintf("transaction creation failed: %v", err)),
-		}, nil
-	}
-
-	// Validate the transaction
-	if err := tx.RunValidation(); err != nil {
-		logger.Warn("Failed to validate config transaction", "error", err)
-		return &pb.ValidateConfigResponse{
-			Valid: proto.Bool(false),
-			Error: proto.String(fmt.Sprintf("transaction validation failed: %v", err)),
+			Error: proto.String(fmt.Sprintf("validation failed: %v", err)),
 		}, nil
 	}
 

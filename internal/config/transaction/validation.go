@@ -77,7 +77,7 @@ func (tx *ConfigTransaction) setStateInvalid(errs []error) {
 
 	tx.IsValid.Store(false)
 
-	logger.Warn(
+	logger.Debug(
 		"Validation failed",
 		"errors", errs,
 		"errorCount", len(errs),
