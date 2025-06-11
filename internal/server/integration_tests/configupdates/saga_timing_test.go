@@ -111,6 +111,10 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 	err = c.ApplyConfig(ctx, tomlLoader)
 	require.NoError(t, err)
 
+	// Wait for the saga to actually complete the transaction processing
+	err = saga.WaitForCompletion(ctx)
+	require.NoError(t, err, "Saga should complete transaction processing successfully")
+
 	// Test that the endpoint is immediately accessible
 	testURL := fmt.Sprintf("http://127.0.0.1:%d/echo", httpPort)
 	resp, err := http.Get(testURL)
