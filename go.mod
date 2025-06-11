@@ -10,7 +10,7 @@ require (
 	github.com/gofrs/uuid/v5 v5.3.2
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.4.1
-	github.com/robbyt/go-loglater v0.1.0
+	github.com/robbyt/go-loglater v0.1.4
 	github.com/robbyt/go-supervisor v0.0.12
 	github.com/robbyt/protobaggins v0.1.0
 	github.com/stretchr/testify v1.10.0
