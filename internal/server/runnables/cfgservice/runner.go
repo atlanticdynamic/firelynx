@@ -230,6 +230,56 @@ func (r *Runner) createAPITransaction(
 	return transaction.FromAPI(requestID, cfg, r.logger.Handler())
 }
 
+// ValidateConfig handles requests to validate a configuration via gRPC.
+func (r *Runner) ValidateConfig(
+	ctx context.Context,
+	req *pb.ValidateConfigRequest,
+) (*pb.ValidateConfigResponse, error) {
+	logger := r.logger.With("request_id", server.ExtractRequestID(ctx), "service", "ValidateConfig")
+	logger.Info("Received ValidateConfig request")
+
+	if req.Config == nil {
+		return &pb.ValidateConfigResponse{
+			Valid: proto.Bool(false),
+			Error: proto.String("No configuration provided"),
+		}, nil
+	}
+
+	// Convert protobuf to domain config
+	domainConfig, err := config.NewFromProto(req.Config)
+	if err != nil {
+		logger.Warn("Failed to convert protobuf to domain config", "error", err)
+		return &pb.ValidateConfigResponse{
+			Valid: proto.Bool(false),
+			Error: proto.String(fmt.Sprintf("conversion error: %v", err)),
+		}, nil
+	}
+
+	// Create a transaction for validation
+	tx, err := r.createAPITransaction(ctx, domainConfig)
+	if err != nil {
+		logger.Warn("Failed to create config transaction", "error", err)
+		return &pb.ValidateConfigResponse{
+			Valid: proto.Bool(false),
+			Error: proto.String(fmt.Sprintf("transaction creation failed: %v", err)),
+		}, nil
+	}
+
+	// Validate the transaction
+	if err := tx.RunValidation(); err != nil {
+		logger.Warn("Failed to validate config transaction", "error", err)
+		return &pb.ValidateConfigResponse{
+			Valid: proto.Bool(false),
+			Error: proto.String(fmt.Sprintf("transaction validation failed: %v", err)),
+		}, nil
+	}
+
+	logger.Debug("Config validated successfully", "request_id", server.ExtractRequestID(ctx))
+	return &pb.ValidateConfigResponse{
+		Valid: proto.Bool(true),
+	}, nil
+}
+
 // UpdateConfig handles requests to update the configuration via gRPC.
 func (r *Runner) UpdateConfig(
 	ctx context.Context,

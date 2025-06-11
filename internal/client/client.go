@@ -87,11 +87,8 @@ func (c *Client) ApplyConfig(ctx context.Context, configLoader loader.Loader) er
 		return fmt.Errorf("%w: %w", ErrConnectionFailed, err)
 	}
 
-	if resp.Success == nil || !*resp.Success {
-		errorMsg := "unknown error"
-		if resp.Error != nil {
-			errorMsg = *resp.Error
-		}
+	if !resp.GetSuccess() {
+		errorMsg := resp.GetError()
 		return fmt.Errorf("%w: %s", ErrConfigRejected, errorMsg)
 	}
 
@@ -124,6 +121,40 @@ func (c *Client) GetConfig(ctx context.Context) (*pb.ServerConfig, error) {
 	}
 
 	return resp.Config, nil
+}
+
+// ValidateConfig validates a configuration against the server without applying it
+func (c *Client) ValidateConfig(ctx context.Context, config *pb.ServerConfig) (bool, error) {
+	c.logger.Debug("Validating configuration with server", "server", c.serverAddr)
+
+	// Connect to server
+	conn, err := c.connect(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.logger.Error("Failed to close connection", "error", err)
+		}
+	}()
+
+	// Create client
+	client := pb.NewConfigServiceClient(conn)
+
+	// Send validate request
+	resp, err := client.ValidateConfig(ctx, &pb.ValidateConfigRequest{
+		Config: config,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to validate configuration: %w", err)
+	}
+
+	if !resp.GetValid() {
+		errorMsg := resp.GetError()
+		return false, fmt.Errorf("%w: %s", ErrConfigRejected, errorMsg)
+	}
+
+	return true, nil
 }
 
 // SaveConfig saves a configuration to a file

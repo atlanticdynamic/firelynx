@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConfigService_UpdateConfig_FullMethodName = "/settings.v1alpha1.ConfigService/UpdateConfig"
-	ConfigService_GetConfig_FullMethodName    = "/settings.v1alpha1.ConfigService/GetConfig"
+	ConfigService_ValidateConfig_FullMethodName = "/settings.v1alpha1.ConfigService/ValidateConfig"
+	ConfigService_UpdateConfig_FullMethodName   = "/settings.v1alpha1.ConfigService/UpdateConfig"
+	ConfigService_GetConfig_FullMethodName      = "/settings.v1alpha1.ConfigService/GetConfig"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
@@ -29,9 +30,11 @@ const (
 //
 // ConfigService provides the ability to update server configuration
 type ConfigServiceClient interface {
-	// UpdateConfig sends a new configuration to the server
+	// ValidateConfig checks if the provided configuration is valid, but does not activate it.
+	ValidateConfig(ctx context.Context, in *ValidateConfigRequest, opts ...grpc.CallOption) (*ValidateConfigResponse, error)
+	// UpdateConfig checks if the provided configuration is valid and, if so, loads it as the active configuration.
 	UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*UpdateConfigResponse, error)
-	// GetConfig retrieves the current server configuration
+	// GetConfig retrieves the current server configuration.
 	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (*GetConfigResponse, error)
 }
 
@@ -41,6 +44,16 @@ type configServiceClient struct {
 
 func NewConfigServiceClient(cc grpc.ClientConnInterface) ConfigServiceClient {
 	return &configServiceClient{cc}
+}
+
+func (c *configServiceClient) ValidateConfig(ctx context.Context, in *ValidateConfigRequest, opts ...grpc.CallOption) (*ValidateConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValidateConfigResponse)
+	err := c.cc.Invoke(ctx, ConfigService_ValidateConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *configServiceClient) UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*UpdateConfigResponse, error) {
@@ -69,9 +82,11 @@ func (c *configServiceClient) GetConfig(ctx context.Context, in *GetConfigReques
 //
 // ConfigService provides the ability to update server configuration
 type ConfigServiceServer interface {
-	// UpdateConfig sends a new configuration to the server
+	// ValidateConfig checks if the provided configuration is valid, but does not activate it.
+	ValidateConfig(context.Context, *ValidateConfigRequest) (*ValidateConfigResponse, error)
+	// UpdateConfig checks if the provided configuration is valid and, if so, loads it as the active configuration.
 	UpdateConfig(context.Context, *UpdateConfigRequest) (*UpdateConfigResponse, error)
-	// GetConfig retrieves the current server configuration
+	// GetConfig retrieves the current server configuration.
 	GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error)
 	mustEmbedUnimplementedConfigServiceServer()
 }
@@ -83,6 +98,9 @@ type ConfigServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedConfigServiceServer struct{}
 
+func (UnimplementedConfigServiceServer) ValidateConfig(context.Context, *ValidateConfigRequest) (*ValidateConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ValidateConfig not implemented")
+}
 func (UnimplementedConfigServiceServer) UpdateConfig(context.Context, *UpdateConfigRequest) (*UpdateConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateConfig not implemented")
 }
@@ -108,6 +126,24 @@ func RegisterConfigServiceServer(s grpc.ServiceRegistrar, srv ConfigServiceServe
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&ConfigService_ServiceDesc, srv)
+}
+
+func _ConfigService_ValidateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ValidateConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).ValidateConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_ValidateConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).ValidateConfig(ctx, req.(*ValidateConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ConfigService_UpdateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -153,6 +189,10 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "settings.v1alpha1.ConfigService",
 	HandlerType: (*ConfigServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ValidateConfig",
+			Handler:    _ConfigService_ValidateConfig_Handler,
+		},
 		{
 			MethodName: "UpdateConfig",
 			Handler:    _ConfigService_UpdateConfig_Handler,
