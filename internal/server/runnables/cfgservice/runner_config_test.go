@@ -388,6 +388,136 @@ func TestUpdateConfig(t *testing.T) {
 		require.NotNil(t, resp.Error)
 		assert.Contains(t, *resp.Error, "transaction validation failed")
 	})
+
+	t.Run("transaction_id_in_success_response", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		defer h.cancel()
+
+		// Initialize FSM state to Running
+		h.transitionToRunning()
+
+		// Create valid update request
+		version := version.Version
+		listenerId := "http_listener"
+		listenerAddr := ":8080"
+		validConfig := &pb.ServerConfig{
+			Version: &version,
+			Listeners: []*pb.Listener{
+				{
+					Id:      &listenerId,
+					Address: &listenerAddr,
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
+					ProtocolOptions: &pb.Listener_Http{
+						Http: &pb.HttpListenerOptions{},
+					},
+				},
+			},
+		}
+		req := &pb.UpdateConfigRequest{Config: validConfig}
+
+		// Call UpdateConfig
+		resp, err := r.UpdateConfig(t.Context(), req)
+
+		// Should succeed with transaction ID
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.True(t, *resp.Success)
+		require.NotNil(t, resp.TransactionId)
+		assert.NotEmpty(t, *resp.TransactionId)
+
+		// Verify the transaction ID matches the actual transaction
+		tx := h.receiveTransaction()
+		require.NotNil(t, tx)
+		assert.Equal(t, tx.ID.String(), *resp.TransactionId)
+	})
+
+	t.Run("transaction_id_in_validation_error_response", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		// Initialize FSM state to Running
+		h.transitionToRunning()
+
+		// Create invalid config
+		invalidVersion := "v999"
+		invalidConfig := &pb.ServerConfig{
+			Version: &invalidVersion,
+		}
+		req := &pb.UpdateConfigRequest{Config: invalidConfig}
+
+		// Call UpdateConfig
+		resp, err := r.UpdateConfig(t.Context(), req)
+
+		// Should return failure with transaction ID
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.False(t, *resp.Success)
+		require.NotNil(t, resp.TransactionId)
+		assert.NotEmpty(t, *resp.TransactionId)
+	})
+
+	t.Run("transaction_id_in_context_cancelled_response", func(t *testing.T) {
+		// Create a test harness with unbuffered siphon to force blocking
+		txSiphon := make(chan *transaction.ConfigTransaction) // unbuffered
+		txStorage := newMockTxStorage()
+		runner, err := NewRunner(
+			testutil.GetRandomListeningPort(t),
+			txSiphon,
+			WithConfigTransactionStorage(txStorage),
+		)
+		require.NoError(t, err)
+
+		// Initialize FSM state to Running
+		if runner.fsm.GetState() == finitestate.StatusNew {
+			err = runner.fsm.Transition(finitestate.StatusBooting)
+			require.NoError(t, err)
+		}
+		err = runner.fsm.Transition(finitestate.StatusRunning)
+		require.NoError(t, err)
+
+		// Create valid config
+		version := version.Version
+		validConfig := &pb.ServerConfig{
+			Version: &version,
+		}
+		req := &pb.UpdateConfigRequest{Config: validConfig}
+
+		// Create a context that will be cancelled
+		ctx, cancel := context.WithCancel(t.Context())
+
+		// Call UpdateConfig in a goroutine since it will block on siphon send
+		respCh := make(chan *pb.UpdateConfigResponse, 1)
+		errCh := make(chan error, 1)
+		go func() {
+			resp, err := runner.UpdateConfig(ctx, req)
+			respCh <- resp
+			errCh <- err
+		}()
+
+		// Cancel the context after a small delay to ensure we reach the select statement
+		time.Sleep(10 * time.Millisecond)
+		cancel()
+
+		// Get the response
+		var resp *pb.UpdateConfigResponse
+		var updateErr error
+		select {
+		case resp = <-respCh:
+			updateErr = <-errCh
+		case <-time.After(1 * time.Second):
+			t.Fatal("UpdateConfig did not complete in time")
+		}
+
+		// Should return context cancelled error with transaction ID
+		require.NoError(t, updateErr)
+		require.NotNil(t, resp)
+		assert.False(t, *resp.Success)
+		require.NotNil(t, resp.Error)
+		assert.Contains(t, *resp.Error, "service shutting down")
+		require.NotNil(t, resp.TransactionId)
+		assert.NotEmpty(t, *resp.TransactionId)
+	})
 }
 
 // TestUpdateConfigWithLogger tests that logger is correctly used during configuration updates
