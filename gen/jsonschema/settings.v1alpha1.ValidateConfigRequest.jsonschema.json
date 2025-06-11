@@ -1,0 +1,13 @@
+{
+  "$id": "settings.v1alpha1.ValidateConfigRequest.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "ValidateConfigRequest is used to validate a server configuration",
+  "properties": {
+    "config": {
+      "$ref": "settings.v1alpha1.ServerConfig.jsonschema.json"
+    }
+  },
+  "title": "Validate Config Request",
+  "type": "object"
+}

@@ -21,6 +21,104 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ValidateConfigRequest is used to validate a server configuration
+type ValidateConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ServerConfig          `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"` // The configuration to validate
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateConfigRequest) Reset() {
+	*x = ValidateConfigRequest{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateConfigRequest) ProtoMessage() {}
+
+func (x *ValidateConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateConfigRequest.ProtoReflect.Descriptor instead.
+func (*ValidateConfigRequest) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ValidateConfigRequest) GetConfig() *ServerConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+// ValidateConfigResponse indicates whether the configuration is valid
+type ValidateConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Valid         *bool                  `protobuf:"varint,1,opt,name=valid" json:"valid,omitempty"` // True if the configuration is valid
+	Error         *string                `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`  // Error message if the configuration is invalid
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ValidateConfigResponse) Reset() {
+	*x = ValidateConfigResponse{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateConfigResponse) ProtoMessage() {}
+
+func (x *ValidateConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateConfigResponse.ProtoReflect.Descriptor instead.
+func (*ValidateConfigResponse) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ValidateConfigResponse) GetValid() bool {
+	if x != nil && x.Valid != nil {
+		return *x.Valid
+	}
+	return false
+}
+
+func (x *ValidateConfigResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
 // Request to update the server configuration
 type UpdateConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -31,7 +129,7 @@ type UpdateConfigRequest struct {
 
 func (x *UpdateConfigRequest) Reset() {
 	*x = UpdateConfigRequest{}
-	mi := &file_settings_v1alpha1_services_proto_msgTypes[0]
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +141,7 @@ func (x *UpdateConfigRequest) String() string {
 func (*UpdateConfigRequest) ProtoMessage() {}
 
 func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_services_proto_msgTypes[0]
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +154,7 @@ func (x *UpdateConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConfigRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConfigRequest) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{0}
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *UpdateConfigRequest) GetConfig() *ServerConfig {
@@ -79,7 +177,7 @@ type UpdateConfigResponse struct {
 
 func (x *UpdateConfigResponse) Reset() {
 	*x = UpdateConfigResponse{}
-	mi := &file_settings_v1alpha1_services_proto_msgTypes[1]
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -91,7 +189,7 @@ func (x *UpdateConfigResponse) String() string {
 func (*UpdateConfigResponse) ProtoMessage() {}
 
 func (x *UpdateConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_services_proto_msgTypes[1]
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -104,7 +202,7 @@ func (x *UpdateConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConfigResponse.ProtoReflect.Descriptor instead.
 func (*UpdateConfigResponse) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{1}
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *UpdateConfigResponse) GetSuccess() bool {
@@ -144,7 +242,7 @@ type GetConfigRequest struct {
 
 func (x *GetConfigRequest) Reset() {
 	*x = GetConfigRequest{}
-	mi := &file_settings_v1alpha1_services_proto_msgTypes[2]
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -156,7 +254,7 @@ func (x *GetConfigRequest) String() string {
 func (*GetConfigRequest) ProtoMessage() {}
 
 func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_services_proto_msgTypes[2]
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -169,7 +267,7 @@ func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigRequest) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{2}
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{4}
 }
 
 // Response to a get configuration request
@@ -182,7 +280,7 @@ type GetConfigResponse struct {
 
 func (x *GetConfigResponse) Reset() {
 	*x = GetConfigResponse{}
-	mi := &file_settings_v1alpha1_services_proto_msgTypes[3]
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -194,7 +292,7 @@ func (x *GetConfigResponse) String() string {
 func (*GetConfigResponse) ProtoMessage() {}
 
 func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_services_proto_msgTypes[3]
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -207,7 +305,7 @@ func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetConfigResponse) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{3}
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetConfigResponse) GetConfig() *ServerConfig {
@@ -221,7 +319,12 @@ var File_settings_v1alpha1_services_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_services_proto_rawDesc = "" +
 	"\n" +
-	" settings/v1alpha1/services.proto\x12\x11settings.v1alpha1\x1a settings/v1alpha1/settings.proto\"N\n" +
+	" settings/v1alpha1/services.proto\x12\x11settings.v1alpha1\x1a settings/v1alpha1/settings.proto\"P\n" +
+	"\x15ValidateConfigRequest\x127\n" +
+	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"D\n" +
+	"\x16ValidateConfigResponse\x12\x14\n" +
+	"\x05valid\x18\x01 \x01(\bR\x05valid\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"N\n" +
 	"\x13UpdateConfigRequest\x127\n" +
 	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\xa6\x01\n" +
 	"\x14UpdateConfigResponse\x12\x18\n" +
@@ -231,8 +334,9 @@ const file_settings_v1alpha1_services_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\x04 \x01(\tR\rtransactionId\"\x12\n" +
 	"\x10GetConfigRequest\"L\n" +
 	"\x11GetConfigResponse\x127\n" +
-	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config2\xc8\x01\n" +
-	"\rConfigService\x12_\n" +
+	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config2\xaf\x02\n" +
+	"\rConfigService\x12e\n" +
+	"\x0eValidateConfig\x12(.settings.v1alpha1.ValidateConfigRequest\x1a).settings.v1alpha1.ValidateConfigResponse\x12_\n" +
 	"\fUpdateConfig\x12&.settings.v1alpha1.UpdateConfigRequest\x1a'.settings.v1alpha1.UpdateConfigResponse\x12V\n" +
 	"\tGetConfig\x12#.settings.v1alpha1.GetConfigRequest\x1a$.settings.v1alpha1.GetConfigResponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
@@ -248,27 +352,32 @@ func file_settings_v1alpha1_services_proto_rawDescGZIP() []byte {
 	return file_settings_v1alpha1_services_proto_rawDescData
 }
 
-var file_settings_v1alpha1_services_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_settings_v1alpha1_services_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_settings_v1alpha1_services_proto_goTypes = []any{
-	(*UpdateConfigRequest)(nil),  // 0: settings.v1alpha1.UpdateConfigRequest
-	(*UpdateConfigResponse)(nil), // 1: settings.v1alpha1.UpdateConfigResponse
-	(*GetConfigRequest)(nil),     // 2: settings.v1alpha1.GetConfigRequest
-	(*GetConfigResponse)(nil),    // 3: settings.v1alpha1.GetConfigResponse
-	(*ServerConfig)(nil),         // 4: settings.v1alpha1.ServerConfig
+	(*ValidateConfigRequest)(nil),  // 0: settings.v1alpha1.ValidateConfigRequest
+	(*ValidateConfigResponse)(nil), // 1: settings.v1alpha1.ValidateConfigResponse
+	(*UpdateConfigRequest)(nil),    // 2: settings.v1alpha1.UpdateConfigRequest
+	(*UpdateConfigResponse)(nil),   // 3: settings.v1alpha1.UpdateConfigResponse
+	(*GetConfigRequest)(nil),       // 4: settings.v1alpha1.GetConfigRequest
+	(*GetConfigResponse)(nil),      // 5: settings.v1alpha1.GetConfigResponse
+	(*ServerConfig)(nil),           // 6: settings.v1alpha1.ServerConfig
 }
 var file_settings_v1alpha1_services_proto_depIdxs = []int32{
-	4, // 0: settings.v1alpha1.UpdateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
-	4, // 1: settings.v1alpha1.UpdateConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
-	4, // 2: settings.v1alpha1.GetConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
-	0, // 3: settings.v1alpha1.ConfigService.UpdateConfig:input_type -> settings.v1alpha1.UpdateConfigRequest
-	2, // 4: settings.v1alpha1.ConfigService.GetConfig:input_type -> settings.v1alpha1.GetConfigRequest
-	1, // 5: settings.v1alpha1.ConfigService.UpdateConfig:output_type -> settings.v1alpha1.UpdateConfigResponse
-	3, // 6: settings.v1alpha1.ConfigService.GetConfig:output_type -> settings.v1alpha1.GetConfigResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	6, // 0: settings.v1alpha1.ValidateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
+	6, // 1: settings.v1alpha1.UpdateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
+	6, // 2: settings.v1alpha1.UpdateConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
+	6, // 3: settings.v1alpha1.GetConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
+	0, // 4: settings.v1alpha1.ConfigService.ValidateConfig:input_type -> settings.v1alpha1.ValidateConfigRequest
+	2, // 5: settings.v1alpha1.ConfigService.UpdateConfig:input_type -> settings.v1alpha1.UpdateConfigRequest
+	4, // 6: settings.v1alpha1.ConfigService.GetConfig:input_type -> settings.v1alpha1.GetConfigRequest
+	1, // 7: settings.v1alpha1.ConfigService.ValidateConfig:output_type -> settings.v1alpha1.ValidateConfigResponse
+	3, // 8: settings.v1alpha1.ConfigService.UpdateConfig:output_type -> settings.v1alpha1.UpdateConfigResponse
+	5, // 9: settings.v1alpha1.ConfigService.GetConfig:output_type -> settings.v1alpha1.GetConfigResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_services_proto_init() }
@@ -283,7 +392,7 @@ func file_settings_v1alpha1_services_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_services_proto_rawDesc), len(file_settings_v1alpha1_services_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

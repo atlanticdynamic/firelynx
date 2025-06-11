@@ -33,6 +33,9 @@ var echoAppTOML string
 //go:embed testdata/route_v1_v2.toml
 var multiRouteTOML string
 
+//go:embed testdata/duplicate_endpoints.toml
+var duplicateEndpointsTOML string
+
 // createTempConfigFile creates a temporary config file from embedded TOML content
 func createTempConfigFile(t *testing.T, baseContent string, httpPort int) string {
 	t.Helper()
@@ -332,4 +335,93 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		return !httpRunner.IsRunning()
 	}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
+}
+
+// TestValidateConfigIntegration tests the ValidateConfig RPC endpoint
+func TestValidateConfigIntegration(t *testing.T) {
+	ctx := t.Context()
+
+	// Create transaction siphon
+	txSiphon := make(chan *transaction.ConfigTransaction)
+
+	// Create gRPC config service runner
+	grpcPort := testutil.GetRandomPort(t)
+	grpcAddr := fmt.Sprintf("localhost:%d", grpcPort)
+	cfgServiceRunner, err := cfgservice.NewRunner(grpcAddr, txSiphon)
+	require.NoError(t, err)
+
+	// Start config service
+	cfgServiceErrCh := make(chan error, 1)
+	go func() {
+		cfgServiceErrCh <- cfgServiceRunner.Run(ctx)
+	}()
+
+	// Wait for config service to start
+	require.Eventually(t, func() bool {
+		return cfgServiceRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond, "gRPC config service should start")
+
+	// Create client
+	testClient := client.New(client.Config{
+		ServerAddr: grpcAddr,
+	})
+
+	// Wait for gRPC server to be ready
+	assert.Eventually(t, func() bool {
+		_, err := testClient.GetConfig(ctx)
+		return err == nil || strings.Contains(err.Error(), "no configuration") ||
+			strings.Contains(err.Error(), "not found")
+	}, 5*time.Second, 200*time.Millisecond, "gRPC server should be ready")
+
+	t.Run("valid_config_passes_validation", func(t *testing.T) {
+		httpPort := testutil.GetRandomPort(t)
+
+		configPath := createTempConfigFile(t, echoAppTOML, httpPort)
+
+		configLoader, err := loader.NewLoaderFromFilePath(configPath)
+		require.NoError(t, err)
+
+		cfg, err := configLoader.LoadProto()
+		require.NoError(t, err)
+
+		isValid, validationErr := testClient.ValidateConfig(ctx, cfg)
+		require.True(t, isValid)
+		require.NoError(t, validationErr)
+
+		select {
+		case tx := <-txSiphon:
+			t.Fatalf("ValidateConfig should not send transaction to siphon, but got: %v", tx)
+		case <-time.After(100 * time.Millisecond):
+		}
+	})
+
+	t.Run("invalid_config_fails_validation", func(t *testing.T) {
+		httpPort := testutil.GetRandomPort(t)
+
+		configPath := createTempConfigFile(t, duplicateEndpointsTOML, httpPort)
+
+		configLoader, err := loader.NewLoaderFromFilePath(configPath)
+		require.NoError(t, err)
+
+		cfg, err := configLoader.LoadProto()
+		require.NoError(t, err)
+
+		isValid, validationErr := testClient.ValidateConfig(ctx, cfg)
+		require.False(t, isValid)
+		require.Error(t, validationErr)
+		assert.ErrorIs(t, validationErr, client.ErrConfigRejected)
+
+		select {
+		case tx := <-txSiphon:
+			t.Fatalf("ValidateConfig should not send transaction to siphon, but got: %v", tx)
+		case <-time.After(100 * time.Millisecond):
+		}
+	})
+
+	// Cleanup
+	cfgServiceRunner.Stop()
+
+	assert.Eventually(t, func() bool {
+		return !cfgServiceRunner.IsRunning()
+	}, time.Second, 10*time.Millisecond, "gRPC config service should stop")
 }

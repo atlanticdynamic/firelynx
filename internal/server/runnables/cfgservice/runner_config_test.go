@@ -386,7 +386,7 @@ func TestUpdateConfig(t *testing.T) {
 		require.NotNil(t, resp.Success)
 		assert.False(t, *resp.Success)
 		require.NotNil(t, resp.Error)
-		assert.Contains(t, *resp.Error, "transaction validation failed")
+		assert.Contains(t, *resp.Error, "validation failed")
 	})
 
 	t.Run("transaction_id_in_success_response", func(t *testing.T) {
@@ -567,6 +567,297 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 	require.NotNil(t, tx, "Should have received transaction via siphon")
 }
 
+// TestValidateConfig tests the ValidateConfig gRPC method
+func TestValidateConfig(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid_config", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		defer h.cancel()
+
+		h.transitionToRunning()
+
+		version := version.Version
+		listenerId := "http_listener"
+		listenerAddr := ":8080"
+		validConfig := &pb.ServerConfig{
+			Version: &version,
+			Listeners: []*pb.Listener{
+				{
+					Id:      &listenerId,
+					Address: &listenerAddr,
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
+					ProtocolOptions: &pb.Listener_Http{
+						Http: &pb.HttpListenerOptions{},
+					},
+				},
+			},
+		}
+		req := &pb.ValidateConfigRequest{Config: validConfig}
+
+		resp, err := r.ValidateConfig(t.Context(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Valid)
+		assert.True(t, *resp.Valid)
+		assert.Nil(t, resp.Error)
+
+		assert.Never(t, func() bool {
+			<-h.txSiphon
+			return true
+		}, 10*time.Millisecond, time.Millisecond)
+	})
+
+	t.Run("nil_config", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		h.transitionToRunning()
+
+		req := &pb.ValidateConfigRequest{Config: nil}
+		resp, err := r.ValidateConfig(t.Context(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Valid)
+		assert.False(t, *resp.Valid)
+		require.NotNil(t, resp.Error)
+		assert.Equal(t, "No configuration provided", *resp.Error)
+	})
+
+	t.Run("invalid_version", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		h.transitionToRunning()
+
+		invalidVersion := "v999"
+		invalidConfig := &pb.ServerConfig{
+			Version: &invalidVersion,
+		}
+		req := &pb.ValidateConfigRequest{Config: invalidConfig}
+
+		resp, err := r.ValidateConfig(t.Context(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Valid)
+		assert.False(t, *resp.Valid)
+		require.NotNil(t, resp.Error)
+		assert.Contains(t, *resp.Error, "validation failed")
+		assert.Contains(t, *resp.Error, "unsupported config version")
+	})
+
+	t.Run("invalid_format_version", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		h.transitionToRunning()
+
+		invalidVersion := "invalid-version-format"
+		invalidConfig := &pb.ServerConfig{
+			Version: &invalidVersion,
+		}
+		req := &pb.ValidateConfigRequest{Config: invalidConfig}
+
+		resp, err := r.ValidateConfig(t.Context(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Valid)
+		assert.False(t, *resp.Valid)
+		require.NotNil(t, resp.Error)
+		assert.Contains(t, *resp.Error, "validation failed")
+	})
+
+	t.Run("config_with_duplicate_listener_ids", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		h.transitionToRunning()
+
+		version := version.Version
+		duplicateId := "same_id"
+		invalidConfig := &pb.ServerConfig{
+			Version: &version,
+			Listeners: []*pb.Listener{
+				{
+					Id:      &duplicateId,
+					Address: proto.String(":8080"),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
+					ProtocolOptions: &pb.Listener_Http{
+						Http: &pb.HttpListenerOptions{},
+					},
+				},
+				{
+					Id:      &duplicateId,
+					Address: proto.String(":8081"),
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
+					ProtocolOptions: &pb.Listener_Http{
+						Http: &pb.HttpListenerOptions{},
+					},
+				},
+			},
+		}
+		req := &pb.ValidateConfigRequest{Config: invalidConfig}
+
+		resp, err := r.ValidateConfig(t.Context(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Valid)
+		assert.False(t, *resp.Valid)
+		require.NotNil(t, resp.Error)
+		assert.Contains(t, *resp.Error, "validation failed")
+	})
+
+	t.Run("multiple_validations", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		h.transitionToRunning()
+
+		version := version.Version
+		configs := []struct {
+			name        string
+			config      *pb.ServerConfig
+			expectValid bool
+		}{
+			{
+				name: "valid_config_1",
+				config: &pb.ServerConfig{
+					Version: &version,
+					Listeners: []*pb.Listener{
+						{
+							Id:      proto.String("listener_A"),
+							Address: proto.String(":8080"),
+							Type:    pb.Listener_TYPE_HTTP.Enum(),
+							ProtocolOptions: &pb.Listener_Http{
+								Http: &pb.HttpListenerOptions{},
+							},
+						},
+					},
+				},
+				expectValid: true,
+			},
+			{
+				name: "invalid_config",
+				config: &pb.ServerConfig{
+					Version: proto.String("v2"),
+				},
+				expectValid: false,
+			},
+			{
+				name: "valid_config_2",
+				config: &pb.ServerConfig{
+					Version: &version,
+					Listeners: []*pb.Listener{
+						{
+							Id:      proto.String("listener_B"),
+							Address: proto.String(":8081"),
+							Type:    pb.Listener_TYPE_HTTP.Enum(),
+							ProtocolOptions: &pb.Listener_Http{
+								Http: &pb.HttpListenerOptions{},
+							},
+						},
+					},
+				},
+				expectValid: true,
+			},
+		}
+
+		for _, tc := range configs {
+			t.Run(tc.name, func(t *testing.T) {
+				req := &pb.ValidateConfigRequest{Config: tc.config}
+				resp, err := r.ValidateConfig(t.Context(), req)
+
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				require.NotNil(t, resp.Valid)
+				assert.Equal(t, tc.expectValid, *resp.Valid)
+
+				if !tc.expectValid {
+					assert.NotNil(t, resp.Error)
+				} else {
+					assert.Nil(t, resp.Error)
+				}
+			})
+		}
+
+		assert.Never(t, func() bool {
+			<-h.txSiphon
+			return true
+		}, 10*time.Millisecond, time.Millisecond)
+	})
+}
+
+// TestValidateConfigDoesNotModifyState tests that ValidateConfig does not modify server state
+func TestValidateConfigDoesNotModifyState(t *testing.T) {
+	t.Parallel()
+
+	h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+	r := h.runner
+	defer h.cancel()
+
+	h.transitionToRunning()
+
+	version := version.Version
+	initialConfig := &pb.ServerConfig{
+		Version: &version,
+		Listeners: []*pb.Listener{
+			{
+				Id:      proto.String("initial_listener"),
+				Address: proto.String(":9000"),
+				Type:    pb.Listener_TYPE_HTTP.Enum(),
+				ProtocolOptions: &pb.Listener_Http{
+					Http: &pb.HttpListenerOptions{},
+				},
+			},
+		},
+	}
+
+	domainConfig, err := config.NewFromProto(initialConfig)
+	require.NoError(t, err)
+	tx, err := transaction.FromAPI("initial-setup", domainConfig, slog.Default().Handler())
+	require.NoError(t, err)
+	h.txStorage.SetCurrent(tx)
+
+	initialState := r.GetDomainConfig()
+
+	newConfig := &pb.ServerConfig{
+		Version: &version,
+		Listeners: []*pb.Listener{
+			{
+				Id:      proto.String("new_listener"),
+				Address: proto.String(":8080"),
+				Type:    pb.Listener_TYPE_HTTP.Enum(),
+				ProtocolOptions: &pb.Listener_Http{
+					Http: &pb.HttpListenerOptions{},
+				},
+			},
+		},
+	}
+	req := &pb.ValidateConfigRequest{Config: newConfig}
+
+	resp, err := r.ValidateConfig(t.Context(), req)
+	require.NoError(t, err)
+	assert.True(t, *resp.Valid)
+
+	afterState := r.GetDomainConfig()
+	assert.Equal(t, initialState.Version, afterState.Version)
+	assert.Equal(t, len(initialState.Listeners), len(afterState.Listeners))
+	if len(initialState.Listeners) > 0 && len(afterState.Listeners) > 0 {
+		assert.Equal(t, initialState.Listeners[0].ID, afterState.Listeners[0].ID)
+	}
+
+	assert.Never(t, func() bool {
+		<-h.txSiphon
+		return true
+	}, 10*time.Millisecond, time.Millisecond)
+}
+
 // TestHandlingInvalidVersionConfig tests configs with invalid versions
 func TestHandlingInvalidVersionConfig(t *testing.T) {
 	t.Parallel()
@@ -584,8 +875,7 @@ func TestHandlingInvalidVersionConfig(t *testing.T) {
 	err = domainConfig.Validate()
 	require.Error(t, err, "Validation should fail for invalid version")
 	require.Contains(
-		t,
-		err.Error(),
+		t, err.Error(),
 		"unsupported config version",
 		"Error should mention unsupported version",
 	)

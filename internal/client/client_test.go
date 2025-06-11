@@ -237,6 +237,23 @@ func TestGetConfig(t *testing.T) {
 	assert.Nil(t, config)
 }
 
+func TestValidateConfig(t *testing.T) {
+	// Create a client with an invalid address to force connection error
+	client := New(Config{
+		ServerAddr: "invalid-host:-1",
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	v := version.Version
+	testConfig := &pb.ServerConfig{Version: &v}
+
+	// This should fail at connection time
+	isValid, err := client.ValidateConfig(t.Context(), testConfig)
+	assert.Error(t, err)
+	assert.False(t, isValid)
+	assert.Contains(t, err.Error(), "failed to validate configuration")
+}
+
 func TestApplyConfigWithMockLoader(t *testing.T) {
 	v := version.Version
 	tests := []struct {

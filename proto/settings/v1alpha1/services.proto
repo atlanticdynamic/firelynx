@@ -8,11 +8,25 @@ option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
 // ConfigService provides the ability to update server configuration
 service ConfigService {
-  // UpdateConfig sends a new configuration to the server
+  // ValidateConfig checks if the provided configuration is valid, but does not activate it.
+  rpc ValidateConfig(ValidateConfigRequest) returns (ValidateConfigResponse);
+
+  // UpdateConfig checks if the provided configuration is valid and, if so, loads it as the active configuration.
   rpc UpdateConfig(UpdateConfigRequest) returns (UpdateConfigResponse);
 
-  // GetConfig retrieves the current server configuration
+  // GetConfig retrieves the current server configuration.
   rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+}
+
+// ValidateConfigRequest is used to validate a server configuration
+message ValidateConfigRequest {
+  ServerConfig config = 1; // The configuration to validate
+}
+
+// ValidateConfigResponse indicates whether the configuration is valid
+message ValidateConfigResponse {
+  bool valid = 1; // True if the configuration is valid
+  string error = 2; // Error message if the configuration is invalid
 }
 
 // Request to update the server configuration

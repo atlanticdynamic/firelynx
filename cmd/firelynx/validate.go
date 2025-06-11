@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"strings"
 
+	"github.com/atlanticdynamic/firelynx/internal/client"
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 	"github.com/urfave/cli/v3"
 )
 
@@ -18,6 +22,11 @@ var validateCmd = &cli.Command{
 			Aliases: []string{"t"},
 			Usage:   "Show detailed tree view of the validated configuration",
 		},
+		&cli.StringFlag{
+			Name:    "server",
+			Aliases: []string{"s"},
+			Usage:   "Server address for remote validation (tcp://host:port or unix:///path/to/socket). If not provided, validates locally.",
+		},
 	},
 	Suggest:           true,
 	ReadArgsFromStdin: true,
@@ -30,6 +39,80 @@ func validateAction(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	configPath := cmd.Args().Get(0)
+	serverAddr := cmd.String("server")
+
+	// If server address is provided, use remote validation
+	if serverAddr != "" {
+		return validateRemote(ctx, configPath, serverAddr, cmd.Bool("tree"))
+	}
+
+	// Otherwise, validate locally
+	return validateLocal(ctx, configPath, cmd.Bool("tree"))
+}
+
+// renderConfigSummary creates a formatted summary string for the configuration
+func renderConfigSummary(cfg *config.Config) string {
+	var summary strings.Builder
+
+	summary.WriteString("\nConfig Summary:\n")
+	summary.WriteString(fmt.Sprintf("- Version: %s\n", cfg.Version))
+	summary.WriteString(fmt.Sprintf("- Listeners: %d\n", len(cfg.Listeners)))
+	summary.WriteString(fmt.Sprintf("- Endpoints: %d\n", len(cfg.Endpoints)))
+	summary.WriteString(fmt.Sprintf("- Apps: %d\n", len(cfg.Apps)))
+	summary.WriteString("\nUse --tree for a more detailed view of the config.")
+
+	return summary.String()
+}
+
+func validateRemote(ctx context.Context, configPath, serverAddr string, treeView bool) error {
+	logger := slog.Default()
+
+	// Create a loader for the configuration
+	configLoader, err := loader.NewLoaderFromFilePath(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Load the protobuf config for remote validation
+	pbConfig, err := configLoader.LoadProto()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Create a client for remote validation
+	firelynxClient := client.New(client.Config{
+		Logger:     logger,
+		ServerAddr: serverAddr,
+	})
+
+	// Validate remotely using the gRPC service
+	isValid, err := firelynxClient.ValidateConfig(ctx, pbConfig)
+	if err != nil {
+		return fmt.Errorf("remote validation failed: %w", err)
+	}
+
+	if !isValid {
+		return fmt.Errorf("configuration validation failed on server")
+	}
+
+	fmt.Printf("Configuration file %s is valid (validated remotely)\n", configPath)
+
+	// Load the domain config locally for display (needed for both tree view and summary)
+	cfg, err := config.NewConfig(configPath)
+	if err != nil {
+		return fmt.Errorf("failed to load config for display: %w", err)
+	}
+
+	if treeView {
+		fmt.Println(cfg)
+		return nil
+	}
+
+	fmt.Println(renderConfigSummary(cfg))
+	return nil
+}
+
+func validateLocal(_ context.Context, configPath string, treeView bool) error {
 	cfg, err := config.NewConfig(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -40,20 +123,12 @@ func validateAction(ctx context.Context, cmd *cli.Command) error {
 	}
 	fmt.Printf("Configuration file %s is valid\n", configPath)
 
-	treeView := cmd.Bool("tree")
 	if treeView {
 		// Use the Stringer interface to print the config in a fancy tree format
 		fmt.Println(cfg)
 		return nil
 	}
 
-	// Print a compact representation, by default
-	fmt.Printf("\nConfig Summary:\n")
-	fmt.Printf("- Version: %s\n", cfg.Version)
-	fmt.Printf("- Listeners: %d\n", len(cfg.Listeners))
-	fmt.Printf("- Endpoints: %d\n", len(cfg.Endpoints))
-	fmt.Printf("- Apps: %d\n", len(cfg.Apps))
-	fmt.Println("\nUse --tree for a more detailed view of the config.")
-
+	fmt.Println(renderConfigSummary(cfg))
 	return nil
 }

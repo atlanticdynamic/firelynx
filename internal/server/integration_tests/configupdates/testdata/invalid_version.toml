@@ -1,0 +1,20 @@
+version = "v999"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{PORT}}"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "echo"
+[endpoints.routes.http]
+path_prefix = "/echo"
+
+[[apps]]
+id = "echo"
+[apps.echo]
+response = "This config has an invalid version"

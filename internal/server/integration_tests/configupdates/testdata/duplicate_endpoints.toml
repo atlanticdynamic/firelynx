@@ -1,0 +1,33 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{PORT}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "duplicate-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "echo"
+[endpoints.routes.http]
+path_prefix = "/echo"
+
+[[endpoints]]
+id = "duplicate-endpoint"  # Duplicate endpoint ID - should fail validation
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "echo"
+[endpoints.routes.http]
+path_prefix = "/echo2"
+
+[[apps]]
+id = "echo"
+[apps.echo]
+response = "Echo says: Hello!"
