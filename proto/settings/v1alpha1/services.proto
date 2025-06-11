@@ -25,6 +25,7 @@ message UpdateConfigResponse {
   bool success = 1;
   string error = 2;
   ServerConfig config = 3; // Returns the active configuration after update
+  string transaction_id = 4; // ID of the transaction
 }
 
 // Request to get the current server configuration

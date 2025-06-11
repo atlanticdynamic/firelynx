@@ -71,7 +71,8 @@ type UpdateConfigResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       *bool                  `protobuf:"varint,1,opt,name=success" json:"success,omitempty"`
 	Error         *string                `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
-	Config        *ServerConfig          `protobuf:"bytes,3,opt,name=config" json:"config,omitempty"` // Returns the active configuration after update
+	Config        *ServerConfig          `protobuf:"bytes,3,opt,name=config" json:"config,omitempty"`                                    // Returns the active configuration after update
+	TransactionId *string                `protobuf:"bytes,4,opt,name=transaction_id,json=transactionId" json:"transaction_id,omitempty"` // ID of the transaction
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -125,6 +126,13 @@ func (x *UpdateConfigResponse) GetConfig() *ServerConfig {
 		return x.Config
 	}
 	return nil
+}
+
+func (x *UpdateConfigResponse) GetTransactionId() string {
+	if x != nil && x.TransactionId != nil {
+		return *x.TransactionId
+	}
+	return ""
 }
 
 // Request to get the current server configuration
@@ -215,11 +223,12 @@ const file_settings_v1alpha1_services_proto_rawDesc = "" +
 	"\n" +
 	" settings/v1alpha1/services.proto\x12\x11settings.v1alpha1\x1a settings/v1alpha1/settings.proto\"N\n" +
 	"\x13UpdateConfigRequest\x127\n" +
-	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\x7f\n" +
+	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\xa6\x01\n" +
 	"\x14UpdateConfigResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\x127\n" +
-	"\x06config\x18\x03 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"\x12\n" +
+	"\x06config\x18\x03 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\x12%\n" +
+	"\x0etransaction_id\x18\x04 \x01(\tR\rtransactionId\"\x12\n" +
 	"\x10GetConfigRequest\"L\n" +
 	"\x11GetConfigResponse\x127\n" +
 	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config2\xc8\x01\n" +

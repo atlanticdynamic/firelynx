@@ -272,9 +272,10 @@ func (r *Runner) UpdateConfig(
 		logger.Warn("Failed to validate config transaction", "error", err)
 		success := false
 		return &pb.UpdateConfigResponse{
-			Success: &success,
-			Error:   proto.String(fmt.Sprintf("transaction validation failed: %v", err)),
-			Config:  req.Config, // Return the invalid submitted config
+			Success:       &success,
+			Error:         proto.String(fmt.Sprintf("transaction validation failed: %v", err)),
+			Config:        req.Config, // Return the invalid submitted config
+			TransactionId: proto.String(tx.ID.String()),
 		}, nil
 	}
 
@@ -286,17 +287,19 @@ func (r *Runner) UpdateConfig(
 		logger.Warn("Context cancelled while sending transaction", "id", tx.ID)
 		success := false
 		return &pb.UpdateConfigResponse{
-			Success: &success,
-			Error:   proto.String("service shutting down"),
-			Config:  req.Config,
+			Success:       &success,
+			Error:         proto.String("service shutting down"),
+			Config:        req.Config,
+			TransactionId: proto.String(tx.ID.String()),
 		}, nil
 	}
 
 	logger.Debug("Config updated successfully", "request_id", server.ExtractRequestID(ctx))
 	success := true
 	return &pb.UpdateConfigResponse{
-		Success: &success,
-		Config:  tx.GetConfig().ToProto(), // convert back to pb to get defaults
+		Success:       &success,
+		Config:        tx.GetConfig().ToProto(), // convert back to pb to get defaults
+		TransactionId: proto.String(tx.ID.String()),
 	}, nil
 }
 

@@ -3,6 +3,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Response to an update configuration request",
+  "patternProperties": {
+    "^(transaction_id)$": {
+      "type": "string"
+    }
+  },
   "properties": {
     "config": {
       "$ref": "settings.v1alpha1.ServerConfig.jsonschema.json"
@@ -12,6 +17,9 @@
     },
     "success": {
       "type": "boolean"
+    },
+    "transactionId": {
+      "type": "string"
     }
   },
   "title": "Update Config Response",
