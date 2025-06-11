@@ -159,3 +159,7 @@ func (e *errorReturningOrchestrator) ProcessTransaction(
 ) error {
 	return errors.New("saga processing failed: context canceled")
 }
+
+func (e *errorReturningOrchestrator) WaitForCompletion(ctx context.Context) error {
+	return nil
+}

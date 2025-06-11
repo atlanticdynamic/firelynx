@@ -373,6 +373,24 @@ func (o *SagaOrchestrator) AddToStorage(tx *transaction.ConfigTransaction) error
 	return o.txStorage.Add(tx)
 }
 
+// WaitForCompletion waits for the current transaction to reach a terminal state.
+// Returns immediately if no transaction is in progress.
+func (o *SagaOrchestrator) WaitForCompletion(ctx context.Context) error {
+	o.mutex.RLock()
+	currentTx := o.txStorage.GetCurrent()
+	o.mutex.RUnlock()
+
+	if currentTx == nil {
+		o.logger.Debug("No current transaction to wait for")
+		return nil
+	}
+
+	o.logger.Debug("Current transaction found, waiting for completion",
+		"txID", currentTx.ID,
+		"currentState", currentTx.GetState())
+	return currentTx.WaitForCompletion(ctx)
+}
+
 // TriggerReload initiates a synchronous reload of all participants in the saga.
 // This is called after a transaction has successfully completed execution
 // (reaches the succeeded state).
@@ -398,16 +416,22 @@ func (o *SagaOrchestrator) TriggerReload(ctx context.Context) error {
 		return nil
 	}
 
-	// Only reload if we have participants registered
-	if len(participants) == 0 {
-		logger.Debug("No participants registered for reload")
-		return nil
-	}
-
 	// Mark transaction as reloading
 	if err := currentTx.BeginReload(); err != nil {
 		logger.Error("Failed to mark transaction as reloading", "error", err)
 		return err
+	}
+
+	// If no participants are registered, we can complete immediately
+	if len(participants) == 0 {
+		logger.Debug("No participants registered for reload")
+		// Mark as completed since there's nothing to reload
+		if err := currentTx.MarkCompleted(); err != nil {
+			logger.Error("Failed to mark transaction as completed (no participants)", "error", err)
+			return err
+		}
+		logger.Debug("Transaction completed successfully (no participants)")
+		return nil
 	}
 
 	// Get sorted participant names for deterministic ordering

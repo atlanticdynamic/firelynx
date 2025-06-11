@@ -4,6 +4,7 @@
 package configupdates
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"log/slog"
@@ -16,7 +17,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
-	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgservice"
 	httplistener "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr"
@@ -32,7 +32,8 @@ import (
 // TestSagaTimingVsHTTPServerReadiness verifies that HTTP servers are immediately
 // ready to accept connections after saga orchestrator completion.
 func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 
 	// Create transaction storage and saga orchestrator
 	txStorage := txstorage.NewMemoryStorage()
@@ -122,8 +123,8 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 // TestHTTPRunnerRequiresInitialConfig verifies that the HTTP runner waits for
 // initial configuration before transitioning to Running state
 func TestHTTPRunnerRequiresInitialConfig(t *testing.T) {
-	ctx := t.Context()
-	logging.SetupLogger("debug")
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
 
 	// Create transaction storage and saga orchestrator
 	txStorage := txstorage.NewMemoryStorage()
