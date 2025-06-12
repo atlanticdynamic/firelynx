@@ -1,0 +1,22 @@
+{
+  "$id": "settings.v1alpha1.ClearConfigTransactionsRequest.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "ClearConfigTransactionsRequest is used to clear the history of configuration transactions which are in terminal state",
+  "patternProperties": {
+    "^(keep_last)$": {
+      "maximum": 2147483647,
+      "minimum": -2147483648,
+      "type": "integer"
+    }
+  },
+  "properties": {
+    "keepLast": {
+      "maximum": 2147483647,
+      "minimum": -2147483648,
+      "type": "integer"
+    }
+  },
+  "title": "Clear Config Transactions Request",
+  "type": "object"
+}

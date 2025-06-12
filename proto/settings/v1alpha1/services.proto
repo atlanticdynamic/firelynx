@@ -3,6 +3,7 @@ edition = "2023";
 package settings.v1alpha1;
 
 import "settings/v1alpha1/settings.proto";
+import "settings/v1alpha1/transaction.proto";
 
 option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
@@ -16,6 +17,18 @@ service ConfigService {
 
   // GetConfig retrieves the current server configuration.
   rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+
+  // GetCurrentConfigTransaction retrieves the current configuration transaction.
+  rpc GetCurrentConfigTransaction(GetCurrentConfigTransactionRequest) returns (GetCurrentConfigTransactionResponse);
+
+  // ListConfigTransactions retrieves the history of configuration transactions.
+  rpc ListConfigTransactions(ListConfigTransactionsRequest) returns (ListConfigTransactionsResponse);
+
+  // GetConfigTransaction retrieves a specific configuration transaction by ID.
+  rpc GetConfigTransaction(GetConfigTransactionRequest) returns (GetConfigTransactionResponse);
+
+  // ClearConfigTransactions clears the history of configuration transactions.
+  rpc ClearConfigTransactions(ClearConfigTransactionsRequest) returns (ClearConfigTransactionsResponse);
 }
 
 // ValidateConfigRequest is used to validate a server configuration
@@ -48,4 +61,48 @@ message GetConfigRequest {}
 // Response to a get configuration request
 message GetConfigResponse {
   ServerConfig config = 1;
+}
+
+// Request to get the current configuration transaction
+message GetCurrentConfigTransactionRequest {}
+
+// Response containing the current configuration transaction
+message GetCurrentConfigTransactionResponse {
+  ConfigTransaction transaction = 1; // The current configuration transaction, null if none exists
+}
+
+// ListConfigTransactionsRequest is used to retrieve the history of configuration transactions
+message ListConfigTransactionsRequest {
+  string page_token = 1; // Token to retrieve a specific page of results
+  int32 page_size = 2 [default = 10]; // Number of transactions per page
+  string state = 3; // Optional filter to retrieve transactions in a specific state
+  string source = 4; // Optional filter to retrieve transactions from a specific source
+}
+
+// ListConfigTransactionsResponse contains the history of configuration transactions
+message ListConfigTransactionsResponse {
+  repeated ConfigTransaction transactions = 1; // List of configuration transactions
+  string next_page_token = 2; // Token for retrieving the next page of results (empty if last page)
+}
+
+// GetConfigTransactionRequest is used to retrieve a specific configuration transaction by ID
+message GetConfigTransactionRequest {
+  string transaction_id = 1; // ID of the transaction to retrieve
+}
+
+// GetConfigTransactionResponse contains the details of a specific configuration transaction
+message GetConfigTransactionResponse {
+  ConfigTransaction transaction = 1; // The requested configuration transaction
+}
+
+// ClearConfigTransactionsRequest is used to clear the history of configuration transactions which are in terminal state
+message ClearConfigTransactionsRequest {
+  int32 keep_last = 1 [default = 0]; // Number of transactions to keep, 0 means clear all except current
+}
+
+// ClearConfigTransactionsResponse indicates the result of clearing configuration transactions
+message ClearConfigTransactionsResponse {
+  bool success = 1; // True if the history was cleared successfully
+  string error = 2; // Error message if the operation failed
+  int32 cleared_count = 3; // Number of transactions cleared
 }

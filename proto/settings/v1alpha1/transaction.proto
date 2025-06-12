@@ -1,0 +1,27 @@
+edition = "2023";
+
+package settings.v1alpha1;
+
+import "google/protobuf/timestamp.proto";
+import "settings/v1alpha1/log.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
+
+// ConfigTransaction represents an attempt to load a config, stored as a full transaction with details.
+message ConfigTransaction {
+  enum Source {
+    SOURCE_UNSPECIFIED = 0; // Default value, should not be used
+    SOURCE_FILE = 1; // Config loaded from a file
+    SOURCE_API = 2; // Config loaded from an API endpoint
+    SOURCE_TEST = 99; // Config manually created or modified
+  }
+
+  string id = 1; // Unique identifier for this transaction (UUID)
+  Source source = 2 [default = SOURCE_UNSPECIFIED]; // Source of the config transaction
+  string source_detail = 3; // Additional details about the source (e.g., file path, API endpoint)
+  string request_id = 4; // Correlation ID for API requests, empty for file sources
+  google.protobuf.Timestamp created_at = 5; // Timestamp when the transaction was created
+  string state = 6; // Current state of the transaction
+  bool is_valid = 7; // Validation state of the transaction
+  repeated LogRecord logs = 8; // Transaction log history
+}

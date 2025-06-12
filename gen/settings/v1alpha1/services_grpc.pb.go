@@ -19,9 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ConfigService_ValidateConfig_FullMethodName = "/settings.v1alpha1.ConfigService/ValidateConfig"
-	ConfigService_UpdateConfig_FullMethodName   = "/settings.v1alpha1.ConfigService/UpdateConfig"
-	ConfigService_GetConfig_FullMethodName      = "/settings.v1alpha1.ConfigService/GetConfig"
+	ConfigService_ValidateConfig_FullMethodName              = "/settings.v1alpha1.ConfigService/ValidateConfig"
+	ConfigService_UpdateConfig_FullMethodName                = "/settings.v1alpha1.ConfigService/UpdateConfig"
+	ConfigService_GetConfig_FullMethodName                   = "/settings.v1alpha1.ConfigService/GetConfig"
+	ConfigService_GetCurrentConfigTransaction_FullMethodName = "/settings.v1alpha1.ConfigService/GetCurrentConfigTransaction"
+	ConfigService_ListConfigTransactions_FullMethodName      = "/settings.v1alpha1.ConfigService/ListConfigTransactions"
+	ConfigService_GetConfigTransaction_FullMethodName        = "/settings.v1alpha1.ConfigService/GetConfigTransaction"
+	ConfigService_ClearConfigTransactions_FullMethodName     = "/settings.v1alpha1.ConfigService/ClearConfigTransactions"
 )
 
 // ConfigServiceClient is the client API for ConfigService service.
@@ -36,6 +40,14 @@ type ConfigServiceClient interface {
 	UpdateConfig(ctx context.Context, in *UpdateConfigRequest, opts ...grpc.CallOption) (*UpdateConfigResponse, error)
 	// GetConfig retrieves the current server configuration.
 	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (*GetConfigResponse, error)
+	// GetCurrentConfigTransaction retrieves the current configuration transaction.
+	GetCurrentConfigTransaction(ctx context.Context, in *GetCurrentConfigTransactionRequest, opts ...grpc.CallOption) (*GetCurrentConfigTransactionResponse, error)
+	// ListConfigTransactions retrieves the history of configuration transactions.
+	ListConfigTransactions(ctx context.Context, in *ListConfigTransactionsRequest, opts ...grpc.CallOption) (*ListConfigTransactionsResponse, error)
+	// GetConfigTransaction retrieves a specific configuration transaction by ID.
+	GetConfigTransaction(ctx context.Context, in *GetConfigTransactionRequest, opts ...grpc.CallOption) (*GetConfigTransactionResponse, error)
+	// ClearConfigTransactions clears the history of configuration transactions.
+	ClearConfigTransactions(ctx context.Context, in *ClearConfigTransactionsRequest, opts ...grpc.CallOption) (*ClearConfigTransactionsResponse, error)
 }
 
 type configServiceClient struct {
@@ -76,6 +88,46 @@ func (c *configServiceClient) GetConfig(ctx context.Context, in *GetConfigReques
 	return out, nil
 }
 
+func (c *configServiceClient) GetCurrentConfigTransaction(ctx context.Context, in *GetCurrentConfigTransactionRequest, opts ...grpc.CallOption) (*GetCurrentConfigTransactionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetCurrentConfigTransactionResponse)
+	err := c.cc.Invoke(ctx, ConfigService_GetCurrentConfigTransaction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configServiceClient) ListConfigTransactions(ctx context.Context, in *ListConfigTransactionsRequest, opts ...grpc.CallOption) (*ListConfigTransactionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListConfigTransactionsResponse)
+	err := c.cc.Invoke(ctx, ConfigService_ListConfigTransactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configServiceClient) GetConfigTransaction(ctx context.Context, in *GetConfigTransactionRequest, opts ...grpc.CallOption) (*GetConfigTransactionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetConfigTransactionResponse)
+	err := c.cc.Invoke(ctx, ConfigService_GetConfigTransaction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *configServiceClient) ClearConfigTransactions(ctx context.Context, in *ClearConfigTransactionsRequest, opts ...grpc.CallOption) (*ClearConfigTransactionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearConfigTransactionsResponse)
+	err := c.cc.Invoke(ctx, ConfigService_ClearConfigTransactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ConfigServiceServer is the server API for ConfigService service.
 // All implementations must embed UnimplementedConfigServiceServer
 // for forward compatibility.
@@ -88,6 +140,14 @@ type ConfigServiceServer interface {
 	UpdateConfig(context.Context, *UpdateConfigRequest) (*UpdateConfigResponse, error)
 	// GetConfig retrieves the current server configuration.
 	GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error)
+	// GetCurrentConfigTransaction retrieves the current configuration transaction.
+	GetCurrentConfigTransaction(context.Context, *GetCurrentConfigTransactionRequest) (*GetCurrentConfigTransactionResponse, error)
+	// ListConfigTransactions retrieves the history of configuration transactions.
+	ListConfigTransactions(context.Context, *ListConfigTransactionsRequest) (*ListConfigTransactionsResponse, error)
+	// GetConfigTransaction retrieves a specific configuration transaction by ID.
+	GetConfigTransaction(context.Context, *GetConfigTransactionRequest) (*GetConfigTransactionResponse, error)
+	// ClearConfigTransactions clears the history of configuration transactions.
+	ClearConfigTransactions(context.Context, *ClearConfigTransactionsRequest) (*ClearConfigTransactionsResponse, error)
 	mustEmbedUnimplementedConfigServiceServer()
 }
 
@@ -106,6 +166,18 @@ func (UnimplementedConfigServiceServer) UpdateConfig(context.Context, *UpdateCon
 }
 func (UnimplementedConfigServiceServer) GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetConfig not implemented")
+}
+func (UnimplementedConfigServiceServer) GetCurrentConfigTransaction(context.Context, *GetCurrentConfigTransactionRequest) (*GetCurrentConfigTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCurrentConfigTransaction not implemented")
+}
+func (UnimplementedConfigServiceServer) ListConfigTransactions(context.Context, *ListConfigTransactionsRequest) (*ListConfigTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListConfigTransactions not implemented")
+}
+func (UnimplementedConfigServiceServer) GetConfigTransaction(context.Context, *GetConfigTransactionRequest) (*GetConfigTransactionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetConfigTransaction not implemented")
+}
+func (UnimplementedConfigServiceServer) ClearConfigTransactions(context.Context, *ClearConfigTransactionsRequest) (*ClearConfigTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearConfigTransactions not implemented")
 }
 func (UnimplementedConfigServiceServer) mustEmbedUnimplementedConfigServiceServer() {}
 func (UnimplementedConfigServiceServer) testEmbeddedByValue()                       {}
@@ -182,6 +254,78 @@ func _ConfigService_GetConfig_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ConfigService_GetCurrentConfigTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCurrentConfigTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).GetCurrentConfigTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_GetCurrentConfigTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).GetCurrentConfigTransaction(ctx, req.(*GetCurrentConfigTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConfigService_ListConfigTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListConfigTransactionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).ListConfigTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_ListConfigTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).ListConfigTransactions(ctx, req.(*ListConfigTransactionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConfigService_GetConfigTransaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConfigTransactionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).GetConfigTransaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_GetConfigTransaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).GetConfigTransaction(ctx, req.(*GetConfigTransactionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ConfigService_ClearConfigTransactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearConfigTransactionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).ClearConfigTransactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ConfigService_ClearConfigTransactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).ClearConfigTransactions(ctx, req.(*ClearConfigTransactionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ConfigService_ServiceDesc is the grpc.ServiceDesc for ConfigService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -200,6 +344,22 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetConfig",
 			Handler:    _ConfigService_GetConfig_Handler,
+		},
+		{
+			MethodName: "GetCurrentConfigTransaction",
+			Handler:    _ConfigService_GetCurrentConfigTransaction_Handler,
+		},
+		{
+			MethodName: "ListConfigTransactions",
+			Handler:    _ConfigService_ListConfigTransactions_Handler,
+		},
+		{
+			MethodName: "GetConfigTransaction",
+			Handler:    _ConfigService_GetConfigTransaction_Handler,
+		},
+		{
+			MethodName: "ClearConfigTransactions",
+			Handler:    _ConfigService_ClearConfigTransactions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

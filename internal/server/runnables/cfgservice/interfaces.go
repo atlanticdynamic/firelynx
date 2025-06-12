@@ -20,8 +20,18 @@ type GRPCServer interface {
 	GetListenAddress() string
 }
 
-// TransactionStorage defines the interface for retrieving configuration transactions
+// configTransactionStorage defines the interface for managing configuration transactions
 type configTransactionStorage interface {
 	// GetCurrent returns the current active transaction
 	GetCurrent() *transaction.ConfigTransaction
+
+	// GetAll returns all transactions in storage
+	GetAll() []*transaction.ConfigTransaction
+
+	// GetByID returns a transaction by ID or nil if not found
+	GetByID(id string) *transaction.ConfigTransaction
+
+	// Clear removes transactions from storage, keeping the last N transactions
+	// and always preserving the current transaction. Returns the number of transactions cleared.
+	Clear(keepLast int) (int, error)
 }

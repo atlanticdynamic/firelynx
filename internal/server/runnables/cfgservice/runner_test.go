@@ -225,6 +225,18 @@ func (m *mockTxStorageNil) GetCurrent() *transaction.ConfigTransaction {
 	return nil
 }
 
+func (m *mockTxStorageNil) GetAll() []*transaction.ConfigTransaction {
+	return []*transaction.ConfigTransaction{}
+}
+
+func (m *mockTxStorageNil) GetByID(id string) *transaction.ConfigTransaction {
+	return nil
+}
+
+func (m *mockTxStorageNil) Clear(keepLast int) (int, error) {
+	return 0, nil
+}
+
 // Helper function for gRPC testing
 func bufDialer(listener *bufconn.Listener) func(context.Context, string) (net.Conn, error) {
 	return func(ctx context.Context, s string) (net.Conn, error) {

@@ -1,0 +1,13 @@
+{
+  "$id": "settings.v1alpha1.GetConfigTransactionResponse.jsonschema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "GetConfigTransactionResponse contains the details of a specific configuration transaction",
+  "properties": {
+    "transaction": {
+      "$ref": "settings.v1alpha1.ConfigTransaction.jsonschema.json"
+    }
+  },
+  "title": "Get Config Transaction Response",
+  "type": "object"
+}

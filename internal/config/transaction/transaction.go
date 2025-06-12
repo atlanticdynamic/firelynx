@@ -19,6 +19,7 @@ import (
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/gofrs/uuid/v5"
 	"github.com/robbyt/go-loglater"
+	"github.com/robbyt/go-loglater/storage"
 )
 
 // Source describes the origin of a configuration
@@ -388,6 +389,11 @@ func (tx *ConfigTransaction) GetAppCollection() serverApps.AppLookup {
 // PlaybackLogs plays back the transaction logs to the given handler
 func (tx *ConfigTransaction) PlaybackLogs(handler slog.Handler) error {
 	return tx.logCollector.PlayLogs(handler)
+}
+
+// GetLogs returns the raw log records from the transaction's log collector
+func (tx *ConfigTransaction) GetLogs() []storage.Record {
+	return tx.logCollector.GetLogs()
 }
 
 // GetTotalDuration returns the total duration of the transaction so far

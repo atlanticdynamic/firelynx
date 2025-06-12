@@ -1,0 +1,67 @@
+{
+  "$id": "settings.v1alpha1.ConfigTransaction.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "ConfigTransaction represents an attempt to load a config, stored as a full transaction with details.",
+  "patternProperties": {
+    "^(createdAt)$": {
+      "$ref": "google.protobuf.Timestamp.schema.json"
+    },
+    "^(isValid)$": {
+      "type": "boolean"
+    },
+    "^(requestId)$": {
+      "type": "string"
+    },
+    "^(sourceDetail)$": {
+      "type": "string"
+    }
+  },
+  "properties": {
+    "created_at": {
+      "$ref": "google.protobuf.Timestamp.schema.json"
+    },
+    "id": {
+      "type": "string"
+    },
+    "is_valid": {
+      "type": "boolean"
+    },
+    "logs": {
+      "items": {
+        "$ref": "settings.v1alpha1.LogRecord.schema.json"
+      },
+      "type": "array"
+    },
+    "request_id": {
+      "type": "string"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "enum": [
+            "SOURCE_UNSPECIFIED",
+            "SOURCE_FILE",
+            "SOURCE_API",
+            "SOURCE_TEST"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        {
+          "maximum": 2147483647,
+          "minimum": -2147483648,
+          "type": "integer"
+        }
+      ]
+    },
+    "source_detail": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    }
+  },
+  "title": "Config Transaction",
+  "type": "object"
+}
