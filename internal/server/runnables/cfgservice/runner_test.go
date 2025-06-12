@@ -5,6 +5,8 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -17,7 +19,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
 
@@ -415,5 +419,241 @@ func TestRun(t *testing.T) {
 		err := r.Run(ctx)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "gRPC server is already running")
+	})
+}
+
+// TestRunErrorHandling tests error handling scenarios in the Run method
+func TestRunErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	t.Run("grpc_manager_creation_failure", func(t *testing.T) {
+		// Test failure during NewGRPCManager creation by using an address that's already in use
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer func() { assert.NoError(t, listener.Close()) }()
+
+		// Use the address that's already being listened on
+		busyAddr := listener.Addr().String()
+
+		h := newRunnerTestHarness(t, busyAddr)
+		r := h.runner
+
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+
+		err = r.Run(ctx)
+		assert.Error(t, err)
+
+		// The FSM should be in error state after NewGRPCManager failure
+		assert.Equal(t, finitestate.StatusError, r.fsm.GetState())
+	})
+
+	t.Run("concurrent_run_calls", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+		defer cancel()
+
+		// Start two Run calls concurrently
+		errCh1 := make(chan error, 1)
+		errCh2 := make(chan error, 1)
+
+		go func() {
+			errCh1 <- r.Run(ctx)
+		}()
+
+		// Give first Run a chance to start
+		time.Sleep(10 * time.Millisecond)
+
+		go func() {
+			errCh2 <- r.Run(ctx)
+		}()
+
+		// Wait for both to complete
+		err1 := <-errCh1
+		err2 := <-errCh2
+
+		// One should succeed (or timeout), one should fail with "already running"
+		if err1 != nil && err2 != nil {
+			// Both failed - one should be "already running"
+			hasAlreadyRunningError := strings.Contains(
+				err1.Error(),
+				"gRPC server is already running",
+			) ||
+				strings.Contains(err2.Error(), "gRPC server is already running")
+			assert.True(
+				t,
+				hasAlreadyRunningError,
+				"One error should be about server already running",
+			)
+		}
+	})
+}
+
+// TestUpdateConfigErrorHandling tests error scenarios in UpdateConfig
+func TestUpdateConfigErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil_config_request", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Call UpdateConfig with nil config
+		resp, err := r.UpdateConfig(t.Context(), &pb.UpdateConfigRequest{
+			Config: nil,
+		})
+
+		// Should return gRPC error
+		assert.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Should be InvalidArgument error
+		grpcStatus, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.InvalidArgument, grpcStatus.Code())
+		assert.Contains(t, grpcStatus.Message(), "No configuration provided")
+	})
+
+	t.Run("transaction_creation_failure", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Create a config that should convert successfully but fail transaction creation
+		// We'll use an invalid version that passes proto conversion but fails validation
+		version := "v999" // Invalid version
+		config := &pb.ServerConfig{
+			Version: &version,
+		}
+
+		resp, err := r.UpdateConfig(t.Context(), &pb.UpdateConfigRequest{
+			Config: config,
+		})
+
+		// Should return success=false response (not gRPC error)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.False(t, resp.GetSuccess())
+		assert.Contains(t, resp.GetError(), "validation failed")
+		assert.Equal(t, config, resp.Config) // Should return submitted config
+	})
+
+	t.Run("siphon_channel_blocked", func(t *testing.T) {
+		// Create a runner with unbuffered siphon to simulate blocking
+		txSiphon := make(chan *transaction.ConfigTransaction) // unbuffered
+		runner, err := NewRunner(
+			testutil.GetRandomListeningPort(t),
+			txSiphon,
+		)
+		require.NoError(t, err)
+
+		// Transition to running state manually
+		require.NoError(t, runner.fsm.Transition(finitestate.StatusBooting))
+		require.NoError(t, runner.fsm.Transition(finitestate.StatusRunning))
+
+		// Create a context that will cancel quickly
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
+		defer cancel()
+
+		// Create a valid config
+		version := "v1"
+		config := &pb.ServerConfig{
+			Version: &version,
+		}
+
+		// Since the siphon channel is unbuffered and no one is reading from it,
+		// the send should block and the context should cancel
+		resp, err := runner.UpdateConfig(ctx, &pb.UpdateConfigRequest{
+			Config: config,
+		})
+
+		// Should return success=false due to context cancellation
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.False(t, resp.GetSuccess())
+		assert.Contains(t, resp.GetError(), "service shutting down")
+	})
+}
+
+// TestConcurrentAccess tests concurrent access scenarios
+func TestConcurrentAccess(t *testing.T) {
+	t.Parallel()
+
+	t.Run("concurrent_grpc_calls", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		const numGoroutines = 10
+		var wg sync.WaitGroup
+		results := make(chan error, numGoroutines)
+
+		// Launch multiple GetConfig calls concurrently
+		for range numGoroutines {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := r.GetConfig(t.Context(), &pb.GetConfigRequest{})
+				results <- err
+			}()
+		}
+
+		wg.Wait()
+		close(results)
+
+		// All calls should succeed
+		errorCount := 0
+		for err := range results {
+			if err != nil {
+				t.Errorf("GetConfig call failed: %v", err)
+				errorCount++
+			}
+		}
+		assert.Equal(t, 0, errorCount, "All concurrent calls should succeed")
+	})
+
+	t.Run("concurrent_transaction_operations", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		const numGoroutines = 5
+		var wg sync.WaitGroup
+		results := make(chan error, numGoroutines*2)
+
+		// Launch concurrent GetCurrentConfigTransaction and ListConfigTransactions calls
+		for range numGoroutines {
+			wg.Add(2)
+
+			go func() {
+				defer wg.Done()
+				_, err := r.GetCurrentConfigTransaction(
+					t.Context(),
+					&pb.GetCurrentConfigTransactionRequest{},
+				)
+				results <- err
+			}()
+
+			go func() {
+				defer wg.Done()
+				_, err := r.ListConfigTransactions(t.Context(), &pb.ListConfigTransactionsRequest{})
+				results <- err
+			}()
+		}
+
+		wg.Wait()
+		close(results)
+
+		// All calls should succeed
+		errorCount := 0
+		for err := range results {
+			if err != nil {
+				t.Errorf("Transaction operation failed: %v", err)
+				errorCount++
+			}
+		}
+		assert.Equal(t, 0, errorCount, "All concurrent transaction operations should succeed")
 	})
 }
