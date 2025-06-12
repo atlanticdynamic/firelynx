@@ -15,6 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "latest"
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
