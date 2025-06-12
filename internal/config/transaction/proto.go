@@ -1,18 +1,18 @@
-package cfgservice
+// Package transaction provides domain model for configuration transactions
+package transaction
 
 import (
 	"log/slog"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
-	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/robbyt/go-loglater/storage"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// convertTransactionToProto converts an internal ConfigTransaction to protobuf format
-func convertTransactionToProto(tx *transaction.ConfigTransaction) *pb.ConfigTransaction {
+// ToProto converts an internal ConfigTransaction to protobuf format
+func (tx *ConfigTransaction) ToProto() *pb.ConfigTransaction {
 	if tx == nil {
 		return nil
 	}
@@ -20,11 +20,11 @@ func convertTransactionToProto(tx *transaction.ConfigTransaction) *pb.ConfigTran
 	// Convert source type
 	var source pb.ConfigTransaction_Source
 	switch tx.Source {
-	case transaction.SourceFile:
+	case SourceFile:
 		source = pb.ConfigTransaction_SOURCE_FILE
-	case transaction.SourceAPI:
+	case SourceAPI:
 		source = pb.ConfigTransaction_SOURCE_API
-	case transaction.SourceTest:
+	case SourceTest:
 		source = pb.ConfigTransaction_SOURCE_TEST
 	default:
 		source = pb.ConfigTransaction_SOURCE_UNSPECIFIED

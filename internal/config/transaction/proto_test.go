@@ -1,4 +1,4 @@
-package cfgservice
+package transaction
 
 import (
 	"log/slog"
@@ -8,12 +8,82 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
+	"github.com/atlanticdynamic/firelynx/internal/config/version"
+	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/robbyt/go-loglater/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+func TestConfigTransaction_ToProto(t *testing.T) {
+	handler := logging.SetupHandler("debug")
+
+	t.Run("converts transaction to protobuf", func(t *testing.T) {
+		cfg := &config.Config{Version: version.Version}
+		tx, err := FromAPI("test-request", cfg, handler)
+		require.NoError(t, err)
+
+		pbTx := tx.ToProto()
+		require.NotNil(t, pbTx)
+
+		assert.Equal(t, tx.ID.String(), pbTx.GetId())
+		assert.Equal(t, "test-request", pbTx.GetRequestId())
+		assert.Equal(t, pb.ConfigTransaction_SOURCE_API, pbTx.GetSource())
+		assert.Equal(t, tx.GetState(), pbTx.GetState())
+		assert.Equal(t, tx.IsValid.Load(), pbTx.GetIsValid())
+		assert.NotNil(t, pbTx.GetCreatedAt())
+	})
+
+	t.Run("returns nil for nil transaction", func(t *testing.T) {
+		var tx *ConfigTransaction
+		pbTx := tx.ToProto()
+		assert.Nil(t, pbTx)
+	})
+
+	t.Run("includes log records", func(t *testing.T) {
+		cfg := &config.Config{Version: version.Version}
+		tx, err := FromTest("test-request", cfg, handler)
+		require.NoError(t, err)
+
+		// Generate some log activity
+		err = tx.RunValidation()
+		require.NoError(t, err)
+
+		pbTx := tx.ToProto()
+		require.NotNil(t, pbTx)
+
+		// Should have log records from validation
+		assert.NotEmpty(t, pbTx.GetLogs())
+		// Verify source type is correct
+		assert.Equal(t, pb.ConfigTransaction_SOURCE_TEST, pbTx.GetSource())
+	})
+
+	t.Run("converts different source types", func(t *testing.T) {
+		cfg := &config.Config{Version: version.Version}
+
+		tests := []struct {
+			name           string
+			source         Source
+			expectedSource pb.ConfigTransaction_Source
+		}{
+			{"file source", SourceFile, pb.ConfigTransaction_SOURCE_FILE},
+			{"api source", SourceAPI, pb.ConfigTransaction_SOURCE_API},
+			{"test source", SourceTest, pb.ConfigTransaction_SOURCE_TEST},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				tx, err := New(tt.source, "detail", "request", cfg, handler)
+				require.NoError(t, err)
+
+				pbTx := tx.ToProto()
+				require.NotNil(t, pbTx)
+				assert.Equal(t, tt.expectedSource, pbTx.GetSource())
+			})
+		}
+	})
+}
 
 func TestConvertStorageRecordToProto(t *testing.T) {
 	testTime := time.Now()
@@ -132,13 +202,8 @@ func TestGetLogsVsPlaybackLogs(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
-	tx, err := transaction.New(
-		transaction.SourceTest,
-		"TestGetLogsVsPlaybackLogs",
-		"test-request",
-		cfg,
-		handler,
-	)
+	// Use FromTest instead of FromFile to avoid file system dependencies
+	tx, err := FromTest("log-comparison-test", cfg, handler)
 	require.NoError(t, err)
 
 	// Generate some log messages through the transaction lifecycle
@@ -157,6 +222,12 @@ func TestGetLogsVsPlaybackLogs(t *testing.T) {
 
 	// Verify we captured log records
 	assert.Greater(t, len(logRecords), 0, "GetLogs should capture log records")
+
+	// Verify the transaction converted to protobuf correctly
+	pbTx := tx.ToProto()
+	require.NotNil(t, pbTx)
+	assert.Equal(t, pb.ConfigTransaction_SOURCE_TEST, pbTx.GetSource())
+	assert.Equal(t, "log-comparison-test", pbTx.GetSourceDetail())
 
 	// The conversion should produce valid protobuf records
 	for i, record := range logRecords {

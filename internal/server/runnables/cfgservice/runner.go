@@ -419,7 +419,7 @@ func (r *Runner) GetCurrentConfigTransaction(
 
 	currentTx := r.txStorage.GetCurrent()
 	return &pb.GetCurrentConfigTransactionResponse{
-		Transaction: convertTransactionToProto(currentTx),
+		Transaction: currentTx.ToProto(),
 	}, nil
 }
 
@@ -532,7 +532,7 @@ func (r *Runner) ListConfigTransactions(
 	// Convert to protobuf
 	pbTxs := make([]*pb.ConfigTransaction, len(paginatedTxs))
 	for i, tx := range paginatedTxs {
-		pbTxs[i] = convertTransactionToProto(tx)
+		pbTxs[i] = tx.ToProto()
 	}
 
 	// Generate next page token if there are more results
@@ -583,7 +583,7 @@ func (r *Runner) GetConfigTransaction(
 	}
 
 	return &pb.GetConfigTransactionResponse{
-		Transaction: convertTransactionToProto(tx),
+		Transaction: tx.ToProto(),
 	}, nil
 }
 
