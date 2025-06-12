@@ -65,7 +65,7 @@ func TestApplyConfigFromPath_Integration(t *testing.T) {
 	}()
 
 	// Wait for server to be ready
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/test", httpPort))
 		if err != nil {
 			return false
@@ -84,7 +84,7 @@ func TestApplyConfigFromPath_Integration(t *testing.T) {
 	assert.NoError(t, err, "Should apply config successfully")
 
 	// Test that the new endpoint becomes available
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/updated", httpPort))
 		if err != nil {
 			return false
@@ -142,7 +142,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	}()
 
 	// Wait for server to be ready
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/test", httpPort))
 		if err != nil {
 			return false
@@ -177,7 +177,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	require.NoError(t, err, "Should apply config successfully")
 
 	// Wait for the update to complete
-	assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/updated", httpPort))
 		if err != nil {
 			return false
@@ -190,10 +190,15 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	t.Run("GetCurrentConfigTransaction_AfterUpdate", func(t *testing.T) {
 		transaction, err := client.GetCurrentConfigTransaction(ctx)
 		assert.NoError(t, err)
-		if transaction != nil {
-			assert.NotEmpty(t, transaction.GetId(), "Transaction should have an ID")
-			assert.NotNil(t, transaction.GetCreatedAt(), "Transaction should have creation time")
-		}
+		require.NotNil(t, transaction, "Transaction should not be nil")
+		assert.NotEmpty(t, transaction.GetId(), "Transaction should have an ID")
+		assert.NotNil(t, transaction.GetCreatedAt(), "Transaction should have creation time")
+		require.NotNil(t, transaction.GetConfig(), "Transaction should have config")
+		assert.NotEmpty(
+			t,
+			transaction.GetConfig().GetVersion(),
+			"Transaction config should have version",
+		)
 	})
 
 	// Test ListConfigTransactions (should have transactions after update)
@@ -201,25 +206,29 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	t.Run("ListConfigTransactions_AfterUpdate", func(t *testing.T) {
 		transactions, nextPageToken, err := client.ListConfigTransactions(ctx, "", 10, "", "")
 		assert.NoError(t, err)
-		assert.NotEmpty(t, transactions, "Should have transactions after update")
+		require.NotEmpty(t, transactions, "Should have transactions after update")
 		assert.Empty(t, nextPageToken, "Should have no next page token with small dataset")
 
-		if len(transactions) > 0 {
-			transactionID = transactions[0].GetId()
-			assert.NotEmpty(t, transactionID, "Transaction should have an ID")
-		}
+		// We know there's at least one transaction after the update
+		transactionID = transactions[0].GetId()
+		assert.NotEmpty(t, transactionID, "Transaction should have an ID")
 	})
 
 	// Test GetConfigTransaction with specific ID
 	t.Run("GetConfigTransaction_SpecificID", func(t *testing.T) {
-		if transactionID == "" {
-			t.Skip("No transaction ID available for test")
-		}
+		// transactionID is guaranteed to be set from previous test
+		require.NotEmpty(t, transactionID, "Transaction ID should be available from previous test")
 
 		transaction, err := client.GetConfigTransaction(ctx, transactionID)
 		assert.NoError(t, err)
 		assert.NotNil(t, transaction, "Should retrieve specific transaction")
 		assert.Equal(t, transactionID, transaction.GetId(), "Should return correct transaction")
+		require.NotNil(t, transaction.GetConfig(), "Transaction should have config")
+		assert.NotEmpty(
+			t,
+			transaction.GetConfig().GetVersion(),
+			"Transaction config should have version",
+		)
 	})
 
 	// Test ListConfigTransactions with filters
@@ -242,27 +251,35 @@ func TestConfigTransactions_Integration(t *testing.T) {
 		require.NoError(t, err)
 		initialCount := len(transactions)
 
-		if initialCount > 1 {
-			// Clear all but the last one
-			clearedCount, err := client.ClearConfigTransactions(ctx, 1)
-			assert.NoError(t, err)
-			assert.Greater(t, clearedCount, int32(0), "Should have cleared some transactions")
+		// We know we have at least one transaction from the config update
+		require.GreaterOrEqual(
+			t,
+			initialCount,
+			1,
+			"Should have at least one transaction from config update",
+		)
 
-			// Verify fewer transactions remain
-			transactions, _, err = client.ListConfigTransactions(ctx, "", 100, "", "")
-			assert.NoError(t, err)
-			assert.Less(
+		// Clear all but the last one
+		clearedCount, err := client.ClearConfigTransactions(ctx, 1)
+		assert.NoError(t, err)
+
+		// Verify the clear operation
+		if initialCount > 1 {
+			assert.Equal(
 				t,
-				len(transactions),
-				initialCount,
-				"Should have fewer transactions after clearing",
+				int32(initialCount-1),
+				clearedCount,
+				"Should have cleared exactly initialCount-1 transactions",
 			)
 		} else {
-			// If we only have 1 or 0 transactions, test that clearing works without error
-			clearedCount, err := client.ClearConfigTransactions(ctx, 0)
-			assert.NoError(t, err)
-			assert.GreaterOrEqual(t, clearedCount, int32(0), "Should return non-negative cleared count")
+			// If we only had 1 transaction, nothing should be cleared (keeping last 1)
+			assert.Equal(t, int32(0), clearedCount, "Should not clear anything when keeping last 1 with only 1 transaction")
 		}
+
+		// Verify remaining transactions
+		transactions, _, err = client.ListConfigTransactions(ctx, "", 100, "", "")
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(transactions), "Should have exactly 1 transaction remaining")
 	})
 
 	// Shutdown server

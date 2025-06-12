@@ -37,6 +37,12 @@ func (tx *ConfigTransaction) ToProto() *pb.ConfigTransaction {
 		logs = append(logs, convertStorageRecordToProto(record))
 	}
 
+	// Convert domain config to protobuf
+	var config *pb.ServerConfig
+	if tx.domainConfig != nil {
+		config = tx.domainConfig.ToProto()
+	}
+
 	return &pb.ConfigTransaction{
 		Id:           proto.String(tx.ID.String()),
 		Source:       &source,
@@ -46,6 +52,7 @@ func (tx *ConfigTransaction) ToProto() *pb.ConfigTransaction {
 		State:        proto.String(tx.GetState()),
 		IsValid:      proto.Bool(tx.IsValid.Load()),
 		Logs:         logs,
+		Config:       config,
 	}
 }
 

@@ -4,6 +4,7 @@ package settings.v1alpha1;
 
 import "google/protobuf/timestamp.proto";
 import "settings/v1alpha1/log.proto";
+import "settings/v1alpha1/settings.proto";
 
 option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
@@ -24,4 +25,5 @@ message ConfigTransaction {
   string state = 6; // Current state of the transaction
   bool is_valid = 7; // Validation state of the transaction
   repeated LogRecord logs = 8; // Transaction log history
+  ServerConfig config = 99; // The configuration associated with this transaction
 }

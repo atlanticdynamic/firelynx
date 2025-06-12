@@ -85,6 +85,7 @@ type ConfigTransaction struct {
 	State         *string                   `protobuf:"bytes,6,opt,name=state" json:"state,omitempty"`                                                          // Current state of the transaction
 	IsValid       *bool                     `protobuf:"varint,7,opt,name=is_valid,json=isValid" json:"is_valid,omitempty"`                                      // Validation state of the transaction
 	Logs          []*LogRecord              `protobuf:"bytes,8,rep,name=logs" json:"logs,omitempty"`                                                            // Transaction log history
+	Config        *ServerConfig             `protobuf:"bytes,99,opt,name=config" json:"config,omitempty"`                                                       // The configuration associated with this transaction
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -180,11 +181,18 @@ func (x *ConfigTransaction) GetLogs() []*LogRecord {
 	return nil
 }
 
+func (x *ConfigTransaction) GetConfig() *ServerConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
 var File_settings_v1alpha1_transaction_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_transaction_proto_rawDesc = "" +
 	"\n" +
-	"#settings/v1alpha1/transaction.proto\x12\x11settings.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bsettings/v1alpha1/log.proto\"\xb2\x03\n" +
+	"#settings/v1alpha1/transaction.proto\x12\x11settings.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bsettings/v1alpha1/log.proto\x1a settings/v1alpha1/settings.proto\"\xeb\x03\n" +
 	"\x11ConfigTransaction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12W\n" +
 	"\x06source\x18\x02 \x01(\x0e2+.settings.v1alpha1.ConfigTransaction.Source:\x12SOURCE_UNSPECIFIEDR\x06source\x12#\n" +
@@ -195,7 +203,8 @@ const file_settings_v1alpha1_transaction_proto_rawDesc = "" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x14\n" +
 	"\x05state\x18\x06 \x01(\tR\x05state\x12\x19\n" +
 	"\bis_valid\x18\a \x01(\bR\aisValid\x120\n" +
-	"\x04logs\x18\b \x03(\v2\x1c.settings.v1alpha1.LogRecordR\x04logs\"R\n" +
+	"\x04logs\x18\b \x03(\v2\x1c.settings.v1alpha1.LogRecordR\x04logs\x127\n" +
+	"\x06config\x18c \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"R\n" +
 	"\x06Source\x12\x16\n" +
 	"\x12SOURCE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vSOURCE_FILE\x10\x01\x12\x0e\n" +
@@ -222,16 +231,18 @@ var file_settings_v1alpha1_transaction_proto_goTypes = []any{
 	(*ConfigTransaction)(nil),     // 1: settings.v1alpha1.ConfigTransaction
 	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
 	(*LogRecord)(nil),             // 3: settings.v1alpha1.LogRecord
+	(*ServerConfig)(nil),          // 4: settings.v1alpha1.ServerConfig
 }
 var file_settings_v1alpha1_transaction_proto_depIdxs = []int32{
 	0, // 0: settings.v1alpha1.ConfigTransaction.source:type_name -> settings.v1alpha1.ConfigTransaction.Source
 	2, // 1: settings.v1alpha1.ConfigTransaction.created_at:type_name -> google.protobuf.Timestamp
 	3, // 2: settings.v1alpha1.ConfigTransaction.logs:type_name -> settings.v1alpha1.LogRecord
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 3: settings.v1alpha1.ConfigTransaction.config:type_name -> settings.v1alpha1.ServerConfig
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_transaction_proto_init() }
@@ -240,6 +251,7 @@ func file_settings_v1alpha1_transaction_proto_init() {
 		return
 	}
 	file_settings_v1alpha1_log_proto_init()
+	file_settings_v1alpha1_settings_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
