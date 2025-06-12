@@ -28,6 +28,17 @@ jobs:
       - name: go mod tidy (fails if changes are needed)
         run: go mod tidy --diff
 
+      - name: go vet
+        run: go vet ./...
+
+      - name: Run protogen and check for uncommitted changes in gen
+        run: |
+          make protogen
+          if ! git diff --exit-code -- gen; then
+            echo "::error file=gen::Protobuf files are out of date. Please run 'make protogen' and commit the changes."
+            exit 1
+          fi
+
       - name: Go test (short)
         run: make test-short
 
