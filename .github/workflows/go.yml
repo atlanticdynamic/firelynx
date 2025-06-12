@@ -18,7 +18,7 @@ jobs:
       - name: Install protoc
         uses: arduino/setup-protoc@v3
         with:
-          version: "latest"
+          version: "v31.x"
 
       - name: Set up Go
         uses: actions/setup-go@v5
