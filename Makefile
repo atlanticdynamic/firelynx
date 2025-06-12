@@ -27,8 +27,19 @@ install: protogen
 ## protogen: Generate code from protobuf definitions
 .PHONY: protogen
 protogen: clean
-	buf lint
-	buf generate
+	@echo "Validating protobuf files..."
+	@protoc --proto_path=proto --descriptor_set_out=/dev/null $$(find proto -name "*.proto")
+	@echo "Generating protobuf code..."
+	@mkdir -p gen
+	protoc \
+		--proto_path=proto \
+		--plugin=protoc-gen-go=$$(go tool -n google.golang.org/protobuf/cmd/protoc-gen-go) \
+		--plugin=protoc-gen-go-grpc=$$(go tool -n google.golang.org/grpc/cmd/protoc-gen-go-grpc) \
+		--go_out=gen \
+		--go_opt=paths=source_relative \
+		--go-grpc_out=gen \
+		--go-grpc_opt=paths=source_relative \
+		$$(find proto -name "*.proto")
 
 ## test: Run tests with race detection and coverage
 .PHONY: test
