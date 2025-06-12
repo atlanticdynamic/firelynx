@@ -185,6 +185,149 @@ func (c *Client) FormatConfig(config *pb.ServerConfig) (string, error) {
 	return string(tomlBytes), nil
 }
 
+// GetCurrentConfigTransaction retrieves the current configuration transaction from the server
+func (c *Client) GetCurrentConfigTransaction(ctx context.Context) (*pb.ConfigTransaction, error) {
+	c.logger.Debug("Getting current configuration transaction from server", "server", c.serverAddr)
+
+	conn, err := c.connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.logger.Error("Failed to close connection", "error", err)
+		}
+	}()
+
+	client := pb.NewConfigServiceClient(conn)
+
+	resp, err := client.GetCurrentConfigTransaction(ctx, &pb.GetCurrentConfigTransactionRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current configuration transaction: %w", err)
+	}
+
+	return resp.Transaction, nil
+}
+
+// ListConfigTransactions retrieves the history of configuration transactions from the server
+func (c *Client) ListConfigTransactions(
+	ctx context.Context,
+	pageToken string,
+	pageSize int32,
+	state string,
+	source string,
+) ([]*pb.ConfigTransaction, string, error) {
+	c.logger.Debug("Listing configuration transactions from server", "server", c.serverAddr)
+
+	conn, err := c.connect(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.logger.Error("Failed to close connection", "error", err)
+		}
+	}()
+
+	client := pb.NewConfigServiceClient(conn)
+
+	req := &pb.ListConfigTransactionsRequest{}
+	if pageToken != "" {
+		req.PageToken = &pageToken
+	}
+	if pageSize > 0 {
+		req.PageSize = &pageSize
+	}
+	if state != "" {
+		req.State = &state
+	}
+	if source != "" {
+		req.Source = &source
+	}
+
+	resp, err := client.ListConfigTransactions(ctx, req)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list configuration transactions: %w", err)
+	}
+
+	return resp.Transactions, resp.GetNextPageToken(), nil
+}
+
+// GetConfigTransaction retrieves a specific configuration transaction by ID from the server
+func (c *Client) GetConfigTransaction(
+	ctx context.Context,
+	transactionID string,
+) (*pb.ConfigTransaction, error) {
+	c.logger.Debug(
+		"Getting configuration transaction from server",
+		"server",
+		c.serverAddr,
+		"transaction_id",
+		transactionID,
+	)
+
+	conn, err := c.connect(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.logger.Error("Failed to close connection", "error", err)
+		}
+	}()
+
+	client := pb.NewConfigServiceClient(conn)
+
+	resp, err := client.GetConfigTransaction(ctx, &pb.GetConfigTransactionRequest{
+		TransactionId: &transactionID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get configuration transaction: %w", err)
+	}
+
+	return resp.Transaction, nil
+}
+
+// ClearConfigTransactions clears the history of configuration transactions on the server
+func (c *Client) ClearConfigTransactions(ctx context.Context, keepLast int32) (int32, error) {
+	c.logger.Debug(
+		"Clearing configuration transactions on server",
+		"server",
+		c.serverAddr,
+		"keep_last",
+		keepLast,
+	)
+
+	conn, err := c.connect(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.logger.Error("Failed to close connection", "error", err)
+		}
+	}()
+
+	client := pb.NewConfigServiceClient(conn)
+
+	req := &pb.ClearConfigTransactionsRequest{}
+	if keepLast > 0 {
+		req.KeepLast = &keepLast
+	}
+
+	resp, err := client.ClearConfigTransactions(ctx, req)
+	if err != nil {
+		return 0, fmt.Errorf("failed to clear configuration transactions: %w", err)
+	}
+
+	if !resp.GetSuccess() {
+		errorMsg := resp.GetError()
+		return 0, fmt.Errorf("failed to clear configuration transactions: %s", errorMsg)
+	}
+
+	return resp.GetClearedCount(), nil
+}
+
 // connect establishes a connection to the server
 func (c *Client) connect(_ context.Context) (*grpc.ClientConn, error) {
 	// For now, we'll use insecure connections for simplicity

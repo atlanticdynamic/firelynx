@@ -303,3 +303,47 @@ func TestApplyConfigWithMockLoader(t *testing.T) {
 		})
 	}
 }
+
+func TestGetCurrentConfigTransaction(t *testing.T) {
+	client := New(Config{
+		ServerAddr: "invalid-host:-1",
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	_, err := client.GetCurrentConfigTransaction(t.Context())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get current configuration transaction")
+}
+
+func TestListConfigTransactions(t *testing.T) {
+	client := New(Config{
+		ServerAddr: "invalid-host:-1",
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	_, _, err := client.ListConfigTransactions(t.Context(), "", 10, "", "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to list configuration transactions")
+}
+
+func TestGetConfigTransaction(t *testing.T) {
+	client := New(Config{
+		ServerAddr: "invalid-host:-1",
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	_, err := client.GetConfigTransaction(t.Context(), "test-transaction-id")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to get configuration transaction")
+}
+
+func TestClearConfigTransactions(t *testing.T) {
+	client := New(Config{
+		ServerAddr: "invalid-host:-1",
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	_, err := client.ClearConfigTransactions(t.Context(), 5)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to clear configuration transactions")
+}
