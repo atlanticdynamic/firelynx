@@ -1,0 +1,23 @@
+edition = "2023";
+package settings.v1alpha1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
+
+message LogRecord {
+  enum Level {
+    LEVEL_UNSPECIFIED = 0; // Default value, should not be used
+    LEVEL_DEBUG = 1; // Debug level log
+    LEVEL_INFO = 2; // Informational log
+    LEVEL_WARN = 3; // Warning log
+    LEVEL_ERROR = 4; // Error log
+    LEVEL_FATAL = 5; // Fatal error log
+  }
+
+  google.protobuf.Timestamp time = 1; // Timestamp of when the log was created
+  Level level = 2 [default = LEVEL_UNSPECIFIED]; // Log level
+  string message = 3; // Log message content
+  map<string, google.protobuf.Value> attrs = 4; // Structured attributes from slog
+}

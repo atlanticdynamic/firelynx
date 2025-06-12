@@ -315,11 +315,421 @@ func (x *GetConfigResponse) GetConfig() *ServerConfig {
 	return nil
 }
 
+// Request to get the current configuration transaction
+type GetCurrentConfigTransactionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrentConfigTransactionRequest) Reset() {
+	*x = GetCurrentConfigTransactionRequest{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrentConfigTransactionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrentConfigTransactionRequest) ProtoMessage() {}
+
+func (x *GetCurrentConfigTransactionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrentConfigTransactionRequest.ProtoReflect.Descriptor instead.
+func (*GetCurrentConfigTransactionRequest) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{6}
+}
+
+// Response containing the current configuration transaction
+type GetCurrentConfigTransactionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transaction   *ConfigTransaction     `protobuf:"bytes,1,opt,name=transaction" json:"transaction,omitempty"` // The current configuration transaction, null if none exists
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrentConfigTransactionResponse) Reset() {
+	*x = GetCurrentConfigTransactionResponse{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrentConfigTransactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrentConfigTransactionResponse) ProtoMessage() {}
+
+func (x *GetCurrentConfigTransactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrentConfigTransactionResponse.ProtoReflect.Descriptor instead.
+func (*GetCurrentConfigTransactionResponse) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetCurrentConfigTransactionResponse) GetTransaction() *ConfigTransaction {
+	if x != nil {
+		return x.Transaction
+	}
+	return nil
+}
+
+// ListConfigTransactionsRequest is used to retrieve the history of configuration transactions
+type ListConfigTransactionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageToken     *string                `protobuf:"bytes,1,opt,name=page_token,json=pageToken" json:"page_token,omitempty"`      // Token to retrieve a specific page of results
+	PageSize      *int32                 `protobuf:"varint,2,opt,name=page_size,json=pageSize,def=10" json:"page_size,omitempty"` // Number of transactions per page
+	State         *string                `protobuf:"bytes,3,opt,name=state" json:"state,omitempty"`                               // Optional filter to retrieve transactions in a specific state
+	Source        *string                `protobuf:"bytes,4,opt,name=source" json:"source,omitempty"`                             // Optional filter to retrieve transactions from a specific source
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+// Default values for ListConfigTransactionsRequest fields.
+const (
+	Default_ListConfigTransactionsRequest_PageSize = int32(10)
+)
+
+func (x *ListConfigTransactionsRequest) Reset() {
+	*x = ListConfigTransactionsRequest{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListConfigTransactionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListConfigTransactionsRequest) ProtoMessage() {}
+
+func (x *ListConfigTransactionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListConfigTransactionsRequest.ProtoReflect.Descriptor instead.
+func (*ListConfigTransactionsRequest) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListConfigTransactionsRequest) GetPageToken() string {
+	if x != nil && x.PageToken != nil {
+		return *x.PageToken
+	}
+	return ""
+}
+
+func (x *ListConfigTransactionsRequest) GetPageSize() int32 {
+	if x != nil && x.PageSize != nil {
+		return *x.PageSize
+	}
+	return Default_ListConfigTransactionsRequest_PageSize
+}
+
+func (x *ListConfigTransactionsRequest) GetState() string {
+	if x != nil && x.State != nil {
+		return *x.State
+	}
+	return ""
+}
+
+func (x *ListConfigTransactionsRequest) GetSource() string {
+	if x != nil && x.Source != nil {
+		return *x.Source
+	}
+	return ""
+}
+
+// ListConfigTransactionsResponse contains the history of configuration transactions
+type ListConfigTransactionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transactions  []*ConfigTransaction   `protobuf:"bytes,1,rep,name=transactions" json:"transactions,omitempty"`                          // List of configuration transactions
+	NextPageToken *string                `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken" json:"next_page_token,omitempty"` // Token for retrieving the next page of results (empty if last page)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListConfigTransactionsResponse) Reset() {
+	*x = ListConfigTransactionsResponse{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListConfigTransactionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListConfigTransactionsResponse) ProtoMessage() {}
+
+func (x *ListConfigTransactionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListConfigTransactionsResponse.ProtoReflect.Descriptor instead.
+func (*ListConfigTransactionsResponse) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ListConfigTransactionsResponse) GetTransactions() []*ConfigTransaction {
+	if x != nil {
+		return x.Transactions
+	}
+	return nil
+}
+
+func (x *ListConfigTransactionsResponse) GetNextPageToken() string {
+	if x != nil && x.NextPageToken != nil {
+		return *x.NextPageToken
+	}
+	return ""
+}
+
+// GetConfigTransactionRequest is used to retrieve a specific configuration transaction by ID
+type GetConfigTransactionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TransactionId *string                `protobuf:"bytes,1,opt,name=transaction_id,json=transactionId" json:"transaction_id,omitempty"` // ID of the transaction to retrieve
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetConfigTransactionRequest) Reset() {
+	*x = GetConfigTransactionRequest{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetConfigTransactionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetConfigTransactionRequest) ProtoMessage() {}
+
+func (x *GetConfigTransactionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetConfigTransactionRequest.ProtoReflect.Descriptor instead.
+func (*GetConfigTransactionRequest) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetConfigTransactionRequest) GetTransactionId() string {
+	if x != nil && x.TransactionId != nil {
+		return *x.TransactionId
+	}
+	return ""
+}
+
+// GetConfigTransactionResponse contains the details of a specific configuration transaction
+type GetConfigTransactionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transaction   *ConfigTransaction     `protobuf:"bytes,1,opt,name=transaction" json:"transaction,omitempty"` // The requested configuration transaction
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetConfigTransactionResponse) Reset() {
+	*x = GetConfigTransactionResponse{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetConfigTransactionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetConfigTransactionResponse) ProtoMessage() {}
+
+func (x *GetConfigTransactionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetConfigTransactionResponse.ProtoReflect.Descriptor instead.
+func (*GetConfigTransactionResponse) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetConfigTransactionResponse) GetTransaction() *ConfigTransaction {
+	if x != nil {
+		return x.Transaction
+	}
+	return nil
+}
+
+// ClearConfigTransactionsRequest is used to clear the history of configuration transactions which are in terminal state
+type ClearConfigTransactionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	KeepLast      *int32                 `protobuf:"varint,1,opt,name=keep_last,json=keepLast,def=0" json:"keep_last,omitempty"` // Number of transactions to keep, 0 means clear all except current
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+// Default values for ClearConfigTransactionsRequest fields.
+const (
+	Default_ClearConfigTransactionsRequest_KeepLast = int32(0)
+)
+
+func (x *ClearConfigTransactionsRequest) Reset() {
+	*x = ClearConfigTransactionsRequest{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClearConfigTransactionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClearConfigTransactionsRequest) ProtoMessage() {}
+
+func (x *ClearConfigTransactionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClearConfigTransactionsRequest.ProtoReflect.Descriptor instead.
+func (*ClearConfigTransactionsRequest) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ClearConfigTransactionsRequest) GetKeepLast() int32 {
+	if x != nil && x.KeepLast != nil {
+		return *x.KeepLast
+	}
+	return Default_ClearConfigTransactionsRequest_KeepLast
+}
+
+// ClearConfigTransactionsResponse indicates the result of clearing configuration transactions
+type ClearConfigTransactionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       *bool                  `protobuf:"varint,1,opt,name=success" json:"success,omitempty"`                               // True if the history was cleared successfully
+	Error         *string                `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`                                    // Error message if the operation failed
+	ClearedCount  *int32                 `protobuf:"varint,3,opt,name=cleared_count,json=clearedCount" json:"cleared_count,omitempty"` // Number of transactions cleared
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClearConfigTransactionsResponse) Reset() {
+	*x = ClearConfigTransactionsResponse{}
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClearConfigTransactionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClearConfigTransactionsResponse) ProtoMessage() {}
+
+func (x *ClearConfigTransactionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_services_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClearConfigTransactionsResponse.ProtoReflect.Descriptor instead.
+func (*ClearConfigTransactionsResponse) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_services_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ClearConfigTransactionsResponse) GetSuccess() bool {
+	if x != nil && x.Success != nil {
+		return *x.Success
+	}
+	return false
+}
+
+func (x *ClearConfigTransactionsResponse) GetError() string {
+	if x != nil && x.Error != nil {
+		return *x.Error
+	}
+	return ""
+}
+
+func (x *ClearConfigTransactionsResponse) GetClearedCount() int32 {
+	if x != nil && x.ClearedCount != nil {
+		return *x.ClearedCount
+	}
+	return 0
+}
+
 var File_settings_v1alpha1_services_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_services_proto_rawDesc = "" +
 	"\n" +
-	" settings/v1alpha1/services.proto\x12\x11settings.v1alpha1\x1a settings/v1alpha1/settings.proto\"P\n" +
+	" settings/v1alpha1/services.proto\x12\x11settings.v1alpha1\x1a settings/v1alpha1/settings.proto\x1a#settings/v1alpha1/transaction.proto\"P\n" +
 	"\x15ValidateConfigRequest\x127\n" +
 	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"D\n" +
 	"\x16ValidateConfigResponse\x12\x14\n" +
@@ -334,11 +744,37 @@ const file_settings_v1alpha1_services_proto_rawDesc = "" +
 	"\x0etransaction_id\x18\x04 \x01(\tR\rtransactionId\"\x12\n" +
 	"\x10GetConfigRequest\"L\n" +
 	"\x11GetConfigResponse\x127\n" +
-	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config2\xaf\x02\n" +
+	"\x06config\x18\x01 \x01(\v2\x1f.settings.v1alpha1.ServerConfigR\x06config\"$\n" +
+	"\"GetCurrentConfigTransactionRequest\"m\n" +
+	"#GetCurrentConfigTransactionResponse\x12F\n" +
+	"\vtransaction\x18\x01 \x01(\v2$.settings.v1alpha1.ConfigTransactionR\vtransaction\"\x8d\x01\n" +
+	"\x1dListConfigTransactionsRequest\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x01 \x01(\tR\tpageToken\x12\x1f\n" +
+	"\tpage_size\x18\x02 \x01(\x05:\x0210R\bpageSize\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\"\x92\x01\n" +
+	"\x1eListConfigTransactionsResponse\x12H\n" +
+	"\ftransactions\x18\x01 \x03(\v2$.settings.v1alpha1.ConfigTransactionR\ftransactions\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"D\n" +
+	"\x1bGetConfigTransactionRequest\x12%\n" +
+	"\x0etransaction_id\x18\x01 \x01(\tR\rtransactionId\"f\n" +
+	"\x1cGetConfigTransactionResponse\x12F\n" +
+	"\vtransaction\x18\x01 \x01(\v2$.settings.v1alpha1.ConfigTransactionR\vtransaction\"@\n" +
+	"\x1eClearConfigTransactionsRequest\x12\x1e\n" +
+	"\tkeep_last\x18\x01 \x01(\x05:\x010R\bkeepLast\"v\n" +
+	"\x1fClearConfigTransactionsResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\x12#\n" +
+	"\rcleared_count\x18\x03 \x01(\x05R\fclearedCount2\xb9\x06\n" +
 	"\rConfigService\x12e\n" +
 	"\x0eValidateConfig\x12(.settings.v1alpha1.ValidateConfigRequest\x1a).settings.v1alpha1.ValidateConfigResponse\x12_\n" +
 	"\fUpdateConfig\x12&.settings.v1alpha1.UpdateConfigRequest\x1a'.settings.v1alpha1.UpdateConfigResponse\x12V\n" +
-	"\tGetConfig\x12#.settings.v1alpha1.GetConfigRequest\x1a$.settings.v1alpha1.GetConfigResponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
+	"\tGetConfig\x12#.settings.v1alpha1.GetConfigRequest\x1a$.settings.v1alpha1.GetConfigResponse\x12\x8c\x01\n" +
+	"\x1bGetCurrentConfigTransaction\x125.settings.v1alpha1.GetCurrentConfigTransactionRequest\x1a6.settings.v1alpha1.GetCurrentConfigTransactionResponse\x12}\n" +
+	"\x16ListConfigTransactions\x120.settings.v1alpha1.ListConfigTransactionsRequest\x1a1.settings.v1alpha1.ListConfigTransactionsResponse\x12w\n" +
+	"\x14GetConfigTransaction\x12..settings.v1alpha1.GetConfigTransactionRequest\x1a/.settings.v1alpha1.GetConfigTransactionResponse\x12\x80\x01\n" +
+	"\x17ClearConfigTransactions\x121.settings.v1alpha1.ClearConfigTransactionsRequest\x1a2.settings.v1alpha1.ClearConfigTransactionsResponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_services_proto_rawDescOnce sync.Once
@@ -352,32 +788,52 @@ func file_settings_v1alpha1_services_proto_rawDescGZIP() []byte {
 	return file_settings_v1alpha1_services_proto_rawDescData
 }
 
-var file_settings_v1alpha1_services_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_settings_v1alpha1_services_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_settings_v1alpha1_services_proto_goTypes = []any{
-	(*ValidateConfigRequest)(nil),  // 0: settings.v1alpha1.ValidateConfigRequest
-	(*ValidateConfigResponse)(nil), // 1: settings.v1alpha1.ValidateConfigResponse
-	(*UpdateConfigRequest)(nil),    // 2: settings.v1alpha1.UpdateConfigRequest
-	(*UpdateConfigResponse)(nil),   // 3: settings.v1alpha1.UpdateConfigResponse
-	(*GetConfigRequest)(nil),       // 4: settings.v1alpha1.GetConfigRequest
-	(*GetConfigResponse)(nil),      // 5: settings.v1alpha1.GetConfigResponse
-	(*ServerConfig)(nil),           // 6: settings.v1alpha1.ServerConfig
+	(*ValidateConfigRequest)(nil),               // 0: settings.v1alpha1.ValidateConfigRequest
+	(*ValidateConfigResponse)(nil),              // 1: settings.v1alpha1.ValidateConfigResponse
+	(*UpdateConfigRequest)(nil),                 // 2: settings.v1alpha1.UpdateConfigRequest
+	(*UpdateConfigResponse)(nil),                // 3: settings.v1alpha1.UpdateConfigResponse
+	(*GetConfigRequest)(nil),                    // 4: settings.v1alpha1.GetConfigRequest
+	(*GetConfigResponse)(nil),                   // 5: settings.v1alpha1.GetConfigResponse
+	(*GetCurrentConfigTransactionRequest)(nil),  // 6: settings.v1alpha1.GetCurrentConfigTransactionRequest
+	(*GetCurrentConfigTransactionResponse)(nil), // 7: settings.v1alpha1.GetCurrentConfigTransactionResponse
+	(*ListConfigTransactionsRequest)(nil),       // 8: settings.v1alpha1.ListConfigTransactionsRequest
+	(*ListConfigTransactionsResponse)(nil),      // 9: settings.v1alpha1.ListConfigTransactionsResponse
+	(*GetConfigTransactionRequest)(nil),         // 10: settings.v1alpha1.GetConfigTransactionRequest
+	(*GetConfigTransactionResponse)(nil),        // 11: settings.v1alpha1.GetConfigTransactionResponse
+	(*ClearConfigTransactionsRequest)(nil),      // 12: settings.v1alpha1.ClearConfigTransactionsRequest
+	(*ClearConfigTransactionsResponse)(nil),     // 13: settings.v1alpha1.ClearConfigTransactionsResponse
+	(*ServerConfig)(nil),                        // 14: settings.v1alpha1.ServerConfig
+	(*ConfigTransaction)(nil),                   // 15: settings.v1alpha1.ConfigTransaction
 }
 var file_settings_v1alpha1_services_proto_depIdxs = []int32{
-	6, // 0: settings.v1alpha1.ValidateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
-	6, // 1: settings.v1alpha1.UpdateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
-	6, // 2: settings.v1alpha1.UpdateConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
-	6, // 3: settings.v1alpha1.GetConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
-	0, // 4: settings.v1alpha1.ConfigService.ValidateConfig:input_type -> settings.v1alpha1.ValidateConfigRequest
-	2, // 5: settings.v1alpha1.ConfigService.UpdateConfig:input_type -> settings.v1alpha1.UpdateConfigRequest
-	4, // 6: settings.v1alpha1.ConfigService.GetConfig:input_type -> settings.v1alpha1.GetConfigRequest
-	1, // 7: settings.v1alpha1.ConfigService.ValidateConfig:output_type -> settings.v1alpha1.ValidateConfigResponse
-	3, // 8: settings.v1alpha1.ConfigService.UpdateConfig:output_type -> settings.v1alpha1.UpdateConfigResponse
-	5, // 9: settings.v1alpha1.ConfigService.GetConfig:output_type -> settings.v1alpha1.GetConfigResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	14, // 0: settings.v1alpha1.ValidateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
+	14, // 1: settings.v1alpha1.UpdateConfigRequest.config:type_name -> settings.v1alpha1.ServerConfig
+	14, // 2: settings.v1alpha1.UpdateConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
+	14, // 3: settings.v1alpha1.GetConfigResponse.config:type_name -> settings.v1alpha1.ServerConfig
+	15, // 4: settings.v1alpha1.GetCurrentConfigTransactionResponse.transaction:type_name -> settings.v1alpha1.ConfigTransaction
+	15, // 5: settings.v1alpha1.ListConfigTransactionsResponse.transactions:type_name -> settings.v1alpha1.ConfigTransaction
+	15, // 6: settings.v1alpha1.GetConfigTransactionResponse.transaction:type_name -> settings.v1alpha1.ConfigTransaction
+	0,  // 7: settings.v1alpha1.ConfigService.ValidateConfig:input_type -> settings.v1alpha1.ValidateConfigRequest
+	2,  // 8: settings.v1alpha1.ConfigService.UpdateConfig:input_type -> settings.v1alpha1.UpdateConfigRequest
+	4,  // 9: settings.v1alpha1.ConfigService.GetConfig:input_type -> settings.v1alpha1.GetConfigRequest
+	6,  // 10: settings.v1alpha1.ConfigService.GetCurrentConfigTransaction:input_type -> settings.v1alpha1.GetCurrentConfigTransactionRequest
+	8,  // 11: settings.v1alpha1.ConfigService.ListConfigTransactions:input_type -> settings.v1alpha1.ListConfigTransactionsRequest
+	10, // 12: settings.v1alpha1.ConfigService.GetConfigTransaction:input_type -> settings.v1alpha1.GetConfigTransactionRequest
+	12, // 13: settings.v1alpha1.ConfigService.ClearConfigTransactions:input_type -> settings.v1alpha1.ClearConfigTransactionsRequest
+	1,  // 14: settings.v1alpha1.ConfigService.ValidateConfig:output_type -> settings.v1alpha1.ValidateConfigResponse
+	3,  // 15: settings.v1alpha1.ConfigService.UpdateConfig:output_type -> settings.v1alpha1.UpdateConfigResponse
+	5,  // 16: settings.v1alpha1.ConfigService.GetConfig:output_type -> settings.v1alpha1.GetConfigResponse
+	7,  // 17: settings.v1alpha1.ConfigService.GetCurrentConfigTransaction:output_type -> settings.v1alpha1.GetCurrentConfigTransactionResponse
+	9,  // 18: settings.v1alpha1.ConfigService.ListConfigTransactions:output_type -> settings.v1alpha1.ListConfigTransactionsResponse
+	11, // 19: settings.v1alpha1.ConfigService.GetConfigTransaction:output_type -> settings.v1alpha1.GetConfigTransactionResponse
+	13, // 20: settings.v1alpha1.ConfigService.ClearConfigTransactions:output_type -> settings.v1alpha1.ClearConfigTransactionsResponse
+	14, // [14:21] is the sub-list for method output_type
+	7,  // [7:14] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_services_proto_init() }
@@ -386,13 +842,14 @@ func file_settings_v1alpha1_services_proto_init() {
 		return
 	}
 	file_settings_v1alpha1_settings_proto_init()
+	file_settings_v1alpha1_transaction_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_services_proto_rawDesc), len(file_settings_v1alpha1_services_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

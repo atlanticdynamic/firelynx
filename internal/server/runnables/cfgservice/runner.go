@@ -6,6 +6,8 @@ package cfgservice
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -221,6 +223,50 @@ func (r *Runner) GetDomainConfig() config.Config {
 	return *cfg
 }
 
+// pageToken represents the internal structure of a pagination token
+type pageToken struct {
+	Offset   int    `json:"offset"`
+	PageSize int    `json:"page_size"`
+	State    string `json:"state,omitempty"`
+	Source   string `json:"source,omitempty"`
+}
+
+// encodePageToken creates an opaque page token from pagination parameters
+func encodePageToken(offset, pageSize int, state, source string) (string, error) {
+	token := pageToken{
+		Offset:   offset,
+		PageSize: pageSize,
+		State:    state,
+		Source:   source,
+	}
+
+	data, err := json.Marshal(token)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal page token: %w", err)
+	}
+
+	return base64.URLEncoding.EncodeToString(data), nil
+}
+
+// decodePageToken extracts pagination parameters from an opaque token
+func decodePageToken(tokenStr string) (pageToken, error) {
+	if tokenStr == "" {
+		return pageToken{}, nil
+	}
+
+	data, err := base64.URLEncoding.DecodeString(tokenStr)
+	if err != nil {
+		return pageToken{}, fmt.Errorf("invalid page token format: %w", err)
+	}
+
+	var token pageToken
+	if err := json.Unmarshal(data, &token); err != nil {
+		return pageToken{}, fmt.Errorf("failed to unmarshal page token: %w", err)
+	}
+
+	return token, nil
+}
+
 // createAPITransaction creates a new transaction from an API request.
 func (r *Runner) createAPITransaction(
 	ctx context.Context,
@@ -357,5 +403,222 @@ func (r *Runner) GetConfig(
 	)
 	return &pb.GetConfigResponse{
 		Config: r.GetPbConfigClone(),
+	}, nil
+}
+
+// GetCurrentConfigTransaction returns the current active transaction
+func (r *Runner) GetCurrentConfigTransaction(
+	ctx context.Context,
+	req *pb.GetCurrentConfigTransactionRequest,
+) (*pb.GetCurrentConfigTransactionResponse, error) {
+	r.logger.Debug(
+		"Received request",
+		"request_id", server.ExtractRequestID(ctx),
+		"service", "GetCurrentConfigTransaction",
+	)
+
+	currentTx := r.txStorage.GetCurrent()
+	return &pb.GetCurrentConfigTransactionResponse{
+		Transaction: currentTx.ToProto(),
+	}, nil
+}
+
+// ListConfigTransactions returns a paginated list of configuration transactions
+func (r *Runner) ListConfigTransactions(
+	ctx context.Context,
+	req *pb.ListConfigTransactionsRequest,
+) (*pb.ListConfigTransactionsResponse, error) {
+	logger := r.logger.With(
+		"request_id",
+		server.ExtractRequestID(ctx),
+		"service",
+		"ListConfigTransactions",
+	)
+	logger.Debug("Received request")
+
+	// Decode page token to get pagination parameters and filters
+	token, err := decodePageToken(req.GetPageToken())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid page token: %v", err)
+	}
+
+	// Use filters from token if available, otherwise from request
+	state := req.GetState()
+	source := req.GetSource()
+	if token.State != "" {
+		state = token.State
+	}
+	if token.Source != "" {
+		source = token.Source
+	}
+
+	// Validate that filters match between token and request (if both provided)
+	if req.GetPageToken() != "" {
+		if req.State != nil && *req.State != "" && *req.State != token.State {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"state filter must match previous request",
+			)
+		}
+		if req.Source != nil && *req.Source != "" && *req.Source != token.Source {
+			return nil, status.Error(
+				codes.InvalidArgument,
+				"source filter must match previous request",
+			)
+		}
+	}
+
+	// Set page size with defaults and limits
+	pageSize := int(10)
+	if req.PageSize != nil {
+		pageSize = int(*req.PageSize)
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	// Get all transactions and apply filters
+	allTxs := r.txStorage.GetAll()
+	var filteredTxs []*transaction.ConfigTransaction
+	for _, tx := range allTxs {
+		// Filter by state if specified
+		if state != "" && tx.GetState() != state {
+			continue
+		}
+
+		// Filter by source if specified
+		if source != "" {
+			var sourceStr string
+			switch tx.Source {
+			case transaction.SourceFile:
+				sourceStr = "file"
+			case transaction.SourceAPI:
+				sourceStr = "api"
+			case transaction.SourceTest:
+				sourceStr = "test"
+			default:
+				sourceStr = "unspecified"
+			}
+			if sourceStr != source {
+				continue
+			}
+		}
+
+		filteredTxs = append(filteredTxs, tx)
+	}
+
+	// Apply pagination
+	offset := token.Offset
+	totalCount := len(filteredTxs)
+
+	if offset >= totalCount {
+		// Beyond available data
+		return &pb.ListConfigTransactionsResponse{
+			Transactions:  []*pb.ConfigTransaction{},
+			NextPageToken: proto.String(""),
+		}, nil
+	}
+
+	end := offset + pageSize
+	if end > totalCount {
+		end = totalCount
+	}
+
+	paginatedTxs := filteredTxs[offset:end]
+
+	// Convert to protobuf
+	pbTxs := make([]*pb.ConfigTransaction, len(paginatedTxs))
+	for i, tx := range paginatedTxs {
+		pbTxs[i] = tx.ToProto()
+	}
+
+	// Generate next page token if there are more results
+	var nextPageToken string
+	if end < totalCount {
+		nextPageToken, err = encodePageToken(end, pageSize, state, source)
+		if err != nil {
+			logger.Error("Failed to encode next page token", "error", err)
+			return nil, status.Error(codes.Internal, "failed to generate next page token")
+		}
+	}
+
+	logger.Debug(
+		"Returning transactions",
+		"total", totalCount,
+		"offset", offset,
+		"pageSize", pageSize,
+		"returned", len(pbTxs),
+		"hasNextPage", nextPageToken != "",
+	)
+
+	return &pb.ListConfigTransactionsResponse{
+		Transactions:  pbTxs,
+		NextPageToken: proto.String(nextPageToken),
+	}, nil
+}
+
+// GetConfigTransaction returns a specific transaction by ID
+func (r *Runner) GetConfigTransaction(
+	ctx context.Context,
+	req *pb.GetConfigTransactionRequest,
+) (*pb.GetConfigTransactionResponse, error) {
+	logger := r.logger.With(
+		"request_id",
+		server.ExtractRequestID(ctx),
+		"service",
+		"GetConfigTransaction",
+	)
+	logger.Debug("Received request", "transaction_id", req.TransactionId)
+
+	if req.TransactionId == nil || *req.TransactionId == "" {
+		return nil, status.Error(codes.InvalidArgument, "transaction_id is required")
+	}
+
+	tx := r.txStorage.GetByID(*req.TransactionId)
+	if tx == nil {
+		return nil, status.Error(codes.NotFound, "transaction not found")
+	}
+
+	return &pb.GetConfigTransactionResponse{
+		Transaction: tx.ToProto(),
+	}, nil
+}
+
+// ClearConfigTransactions clears transaction history
+func (r *Runner) ClearConfigTransactions(
+	ctx context.Context,
+	req *pb.ClearConfigTransactionsRequest,
+) (*pb.ClearConfigTransactionsResponse, error) {
+	logger := r.logger.With(
+		"request_id",
+		server.ExtractRequestID(ctx),
+		"service",
+		"ClearConfigTransactions",
+	)
+	logger.Info("Received clear request", "keep_last", req.KeepLast)
+
+	keepLast := int(0)
+	if req.KeepLast != nil {
+		keepLast = int(*req.KeepLast)
+	}
+
+	cleared, err := r.txStorage.Clear(keepLast)
+	if err != nil {
+		logger.Error("Failed to clear transactions", "error", err)
+		return &pb.ClearConfigTransactionsResponse{
+			Success:      proto.Bool(false),
+			Error:        proto.String(fmt.Sprintf("failed to clear transactions: %v", err)),
+			ClearedCount: proto.Int32(0),
+		}, nil
+	}
+
+	logger.Info("Cleared transactions", "cleared", cleared)
+
+	return &pb.ClearConfigTransactionsResponse{
+		Success:      proto.Bool(true),
+		ClearedCount: proto.Int32(int32(cleared)),
 	}, nil
 }

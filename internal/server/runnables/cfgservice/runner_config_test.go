@@ -11,6 +11,7 @@ import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
+	txstate "github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
@@ -23,12 +24,15 @@ import (
 
 // mockTxStorage is a simple in-memory implementation of configTransactionStorage for testing
 type mockTxStorage struct {
-	mu      sync.RWMutex
-	current *transaction.ConfigTransaction
+	mu           sync.RWMutex
+	current      *transaction.ConfigTransaction
+	transactions []*transaction.ConfigTransaction
 }
 
 func newMockTxStorage() *mockTxStorage {
-	return &mockTxStorage{}
+	return &mockTxStorage{
+		transactions: make([]*transaction.ConfigTransaction, 0),
+	}
 }
 
 func (m *mockTxStorage) SetCurrent(tx *transaction.ConfigTransaction) {
@@ -41,6 +45,50 @@ func (m *mockTxStorage) GetCurrent() *transaction.ConfigTransaction {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.current
+}
+
+func (m *mockTxStorage) GetAll() []*transaction.ConfigTransaction {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if len(m.transactions) > 0 {
+		return m.transactions
+	}
+	if m.current == nil {
+		return []*transaction.ConfigTransaction{}
+	}
+	return []*transaction.ConfigTransaction{m.current}
+}
+
+func (m *mockTxStorage) GetByID(id string) *transaction.ConfigTransaction {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, tx := range m.transactions {
+		if tx.ID.String() == id {
+			return tx
+		}
+	}
+	if m.current != nil && m.current.ID.String() == id {
+		return m.current
+	}
+	return nil
+}
+
+func (m *mockTxStorage) Clear(keepLast int) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if keepLast >= len(m.transactions) {
+		return 0, nil
+	}
+	cleared := len(m.transactions) - keepLast
+	m.transactions = m.transactions[len(m.transactions)-keepLast:]
+	return cleared, nil
+}
+
+// AddTransaction adds a transaction to the mock storage (test helper)
+func (m *mockTxStorage) AddTransaction(tx *transaction.ConfigTransaction) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.transactions = append(m.transactions, tx)
 }
 
 // testHarness provides a clean test setup for cfgservice
@@ -879,4 +927,925 @@ func TestHandlingInvalidVersionConfig(t *testing.T) {
 		"unsupported config version",
 		"Error should mention unsupported version",
 	)
+}
+
+// TestPageTokenRoundTrip tests the encoding and decoding of page tokens
+func TestPageTokenRoundTrip(t *testing.T) {
+	tests := []struct {
+		name     string
+		offset   int
+		pageSize int
+		state    string
+		source   string
+	}{
+		{
+			name:     "empty filters",
+			offset:   0,
+			pageSize: 10,
+			state:    "",
+			source:   "",
+		},
+		{
+			name:     "with state filter",
+			offset:   20,
+			pageSize: 25,
+			state:    "completed",
+			source:   "",
+		},
+		{
+			name:     "with source filter",
+			offset:   50,
+			pageSize: 100,
+			state:    "",
+			source:   "api",
+		},
+		{
+			name:     "with both filters",
+			offset:   75,
+			pageSize: 15,
+			state:    "failed",
+			source:   "file",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Encode the token
+			encoded, err := encodePageToken(tt.offset, tt.pageSize, tt.state, tt.source)
+			require.NoError(t, err)
+			assert.NotEmpty(t, encoded)
+
+			// Decode the token
+			decoded, err := decodePageToken(encoded)
+			require.NoError(t, err)
+
+			// Verify all fields match
+			assert.Equal(t, tt.offset, decoded.Offset)
+			assert.Equal(t, tt.pageSize, decoded.PageSize)
+			assert.Equal(t, tt.state, decoded.State)
+			assert.Equal(t, tt.source, decoded.Source)
+		})
+	}
+}
+
+// TestPageTokenDecoding tests edge cases in page token decoding
+func TestPageTokenDecoding(t *testing.T) {
+	tests := []struct {
+		name      string
+		token     string
+		expectErr bool
+	}{
+		{
+			name:      "empty token",
+			token:     "",
+			expectErr: false,
+		},
+		{
+			name:      "invalid base64",
+			token:     "invalid-base64!",
+			expectErr: true,
+		},
+		{
+			name:      "invalid json",
+			token:     "aW52YWxpZCBqc29u", // "invalid json" in base64
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decoded, err := decodePageToken(tt.token)
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				if tt.token == "" {
+					// Empty token should return zero values
+					assert.Equal(t, pageToken{}, decoded)
+				}
+			}
+		})
+	}
+}
+
+// createTestTransaction creates a test transaction with specified source and state
+func createTestTransaction(
+	t *testing.T,
+	source transaction.Source,
+	state string,
+) *transaction.ConfigTransaction {
+	t.Helper()
+	cfg := &config.Config{Version: version.Version}
+
+	var tx *transaction.ConfigTransaction
+	var err error
+
+	switch source {
+	case transaction.SourceAPI:
+		tx, err = transaction.FromAPI("test-request", cfg, slog.Default().Handler())
+	case transaction.SourceFile:
+		tx, err = transaction.New(
+			source,
+			"/test/path",
+			"test-request",
+			cfg,
+			slog.Default().Handler(),
+		)
+	case transaction.SourceTest:
+		tx, err = transaction.New(
+			source,
+			"test-detail",
+			"test-request",
+			cfg,
+			slog.Default().Handler(),
+		)
+	default:
+		tx, err = transaction.New(
+			source,
+			"test-detail",
+			"test-request",
+			cfg,
+			slog.Default().Handler(),
+		)
+	}
+
+	require.NoError(t, err)
+
+	// Simulate state transition if needed
+	switch state {
+	case txstate.StateCreated:
+		// No action needed - already in created state
+	case txstate.StateValidated:
+		require.NoError(t, tx.RunValidation())
+	case txstate.StateExecuting:
+		require.NoError(t, tx.RunValidation())
+		require.NoError(t, tx.BeginExecution())
+	case txstate.StateSucceeded:
+		require.NoError(t, tx.RunValidation())
+		require.NoError(t, tx.BeginExecution())
+		require.NoError(t, tx.MarkSucceeded())
+	case txstate.StateFailed:
+		require.NoError(t, tx.RunValidation())
+		require.NoError(t, tx.BeginExecution())
+		require.NoError(t, tx.MarkFailed(t.Context(), assert.AnError))
+	}
+
+	return tx
+}
+
+// TestListConfigTransactions_Pagination tests the pagination behavior
+func TestListConfigTransactions_Pagination(t *testing.T) {
+	t.Run("first page without token", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add multiple transactions
+		for range 15 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Request first page
+		req := &pb.ListConfigTransactionsRequest{
+			PageSize: proto.Int32(10),
+		}
+
+		resp, err := r.ListConfigTransactions(t.Context(), req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		// Should return 10 transactions
+		assert.Len(t, resp.Transactions, 10)
+		// Should have next page token
+		assert.NotEmpty(t, resp.GetNextPageToken())
+	})
+
+	t.Run("second page with token", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add multiple transactions
+		for range 25 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Get first page
+		firstReq := &pb.ListConfigTransactionsRequest{
+			PageSize: proto.Int32(10),
+		}
+		firstResp, err := r.ListConfigTransactions(t.Context(), firstReq)
+		require.NoError(t, err)
+		require.NotEmpty(t, firstResp.GetNextPageToken())
+
+		// Request second page using token
+		secondReq := &pb.ListConfigTransactionsRequest{
+			PageToken: proto.String(firstResp.GetNextPageToken()),
+			PageSize:  proto.Int32(10),
+		}
+
+		secondResp, err := r.ListConfigTransactions(t.Context(), secondReq)
+		require.NoError(t, err)
+		require.NotNil(t, secondResp)
+
+		// Should return another 10 transactions
+		assert.Len(t, secondResp.Transactions, 10)
+		// Should have next page token (15 remaining)
+		assert.NotEmpty(t, secondResp.GetNextPageToken())
+	})
+
+	t.Run("last page", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add exactly 15 transactions
+		for range 15 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Navigate to last page
+		token, err := encodePageToken(10, 10, "", "")
+		require.NoError(t, err)
+
+		req := &pb.ListConfigTransactionsRequest{
+			PageToken: proto.String(token),
+			PageSize:  proto.Int32(10),
+		}
+
+		resp, err := r.ListConfigTransactions(t.Context(), req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		// Should return remaining 5 transactions
+		assert.Len(t, resp.Transactions, 5)
+		// Should have empty next page token (end of results)
+		assert.Empty(t, resp.GetNextPageToken())
+	})
+
+	t.Run("page beyond data", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add only 5 transactions
+		for range 5 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Request page beyond available data
+		token, err := encodePageToken(10, 10, "", "")
+		require.NoError(t, err)
+
+		req := &pb.ListConfigTransactionsRequest{
+			PageToken: proto.String(token),
+			PageSize:  proto.Int32(10),
+		}
+
+		resp, err := r.ListConfigTransactions(t.Context(), req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		// Should return empty results
+		assert.Empty(t, resp.Transactions)
+		// Should have empty next page token
+		assert.Empty(t, resp.GetNextPageToken())
+	})
+
+	t.Run("page size limits", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add transactions
+		for range 50 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		tests := []struct {
+			name         string
+			requestSize  int32
+			expectedSize int
+		}{
+			{"default size", 0, 10},
+			{"negative size", -5, 10},
+			{"min size", 1, 1},
+			{"normal size", 25, 25},
+			{"max size", 100, 50}, // Limited by available data
+			{"over max", 150, 50}, // Capped at 100, but limited by data
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				req := &pb.ListConfigTransactionsRequest{}
+				if tt.requestSize != 0 {
+					req.PageSize = proto.Int32(tt.requestSize)
+				}
+
+				resp, err := r.ListConfigTransactions(t.Context(), req)
+				require.NoError(t, err)
+				assert.Len(t, resp.Transactions, tt.expectedSize)
+			})
+		}
+	})
+}
+
+// TestListConfigTransactions_FilterConsistency tests filter validation between requests
+func TestListConfigTransactions_FilterConsistency(t *testing.T) {
+	t.Run("state filter consistency", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add multiple transactions with different states
+		for range 5 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+		for range 5 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateFailed)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Create token with state filter
+		token, err := encodePageToken(0, 5, txstate.StateSucceeded, "")
+		require.NoError(t, err)
+
+		// Request with matching state filter should succeed
+		req := &pb.ListConfigTransactionsRequest{
+			PageToken: proto.String(token),
+			State:     proto.String(txstate.StateSucceeded),
+			PageSize:  proto.Int32(5),
+		}
+		resp, err := r.ListConfigTransactions(t.Context(), req)
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+
+		// Request with mismatched state filter should fail
+		mismatchedReq := &pb.ListConfigTransactionsRequest{
+			PageToken: proto.String(token),
+			State:     proto.String(txstate.StateFailed),
+			PageSize:  proto.Int32(5),
+		}
+		_, err = r.ListConfigTransactions(t.Context(), mismatchedReq)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "state filter must match previous request")
+	})
+
+	t.Run("source filter consistency", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add transactions with different sources
+		for range 5 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+		for range 5 {
+			tx := createTestTransaction(t, transaction.SourceFile, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Create token with source filter
+		token, err := encodePageToken(0, 5, "", "api")
+		require.NoError(t, err)
+
+		// Request with matching source filter should succeed
+		req := &pb.ListConfigTransactionsRequest{
+			PageToken: proto.String(token),
+			Source:    proto.String("api"),
+			PageSize:  proto.Int32(5),
+		}
+		resp, err := r.ListConfigTransactions(t.Context(), req)
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+
+		// Request with mismatched source filter should fail
+		mismatchedReq := &pb.ListConfigTransactionsRequest{
+			PageToken: proto.String(token),
+			Source:    proto.String("file"),
+			PageSize:  proto.Int32(5),
+		}
+		_, err = r.ListConfigTransactions(t.Context(), mismatchedReq)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "source filter must match previous request")
+	})
+}
+
+// TestListConfigTransactions_EdgeCases tests edge cases and error handling
+func TestListConfigTransactions_EdgeCases(t *testing.T) {
+	t.Run("invalid page token", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		req := &pb.ListConfigTransactionsRequest{
+			PageToken: proto.String("invalid-token"),
+			PageSize:  proto.Int32(10),
+		}
+
+		_, err := r.ListConfigTransactions(t.Context(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid page token")
+	})
+
+	t.Run("empty storage", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		req := &pb.ListConfigTransactionsRequest{
+			PageSize: proto.Int32(10),
+		}
+
+		resp, err := r.ListConfigTransactions(t.Context(), req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		assert.Empty(t, resp.Transactions)
+		assert.Empty(t, resp.GetNextPageToken())
+	})
+
+	t.Run("filtering with no matches", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add transactions with different states
+		for range 5 {
+			tx := createTestTransaction(t, transaction.SourceAPI, txstate.StateSucceeded)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Request transactions with a state that doesn't exist
+		req := &pb.ListConfigTransactionsRequest{
+			State:    proto.String("nonexistent"),
+			PageSize: proto.Int32(10),
+		}
+
+		resp, err := r.ListConfigTransactions(t.Context(), req)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		assert.Empty(t, resp.Transactions)
+		assert.Empty(t, resp.GetNextPageToken())
+	})
+}
+
+// TestGetCurrentConfigTransaction tests the GetCurrentConfigTransaction method
+func TestGetCurrentConfigTransaction(t *testing.T) {
+	t.Parallel()
+	handler := slog.Default().Handler()
+
+	t.Run("returns current transaction when exists", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Create and set a current transaction
+		cfg := &config.Config{Version: version.Version}
+		tx, err := transaction.FromAPI("test-request", cfg, handler)
+		require.NoError(t, err)
+		require.NoError(t, tx.RunValidation())
+		require.NoError(t, tx.BeginExecution())
+		require.NoError(t, tx.MarkSucceeded())
+
+		h.txStorage.SetCurrent(tx)
+
+		// Call GetCurrentConfigTransaction
+		resp, err := r.GetCurrentConfigTransaction(
+			t.Context(),
+			&pb.GetCurrentConfigTransactionRequest{},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Transaction)
+
+		// Verify response matches the transaction
+		assert.Equal(t, tx.ID.String(), resp.Transaction.GetId())
+		assert.Equal(t, "test-request", resp.Transaction.GetRequestId())
+		assert.Equal(t, pb.ConfigTransaction_SOURCE_API, resp.Transaction.GetSource())
+		assert.Equal(t, txstate.StateSucceeded, resp.Transaction.GetState())
+	})
+
+	t.Run("returns nil transaction when none exists", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Ensure no current transaction
+		h.txStorage.SetCurrent(nil)
+
+		// Call GetCurrentConfigTransaction
+		resp, err := r.GetCurrentConfigTransaction(
+			t.Context(),
+			&pb.GetCurrentConfigTransactionRequest{},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Nil(t, resp.Transaction)
+	})
+
+	t.Run("handles different transaction states", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		states := []struct {
+			name          string
+			setupTx       func(*transaction.ConfigTransaction) error
+			expectedState string
+		}{
+			{
+				name:          "created state",
+				setupTx:       func(tx *transaction.ConfigTransaction) error { return nil },
+				expectedState: txstate.StateCreated,
+			},
+			{
+				name: "validated state",
+				setupTx: func(tx *transaction.ConfigTransaction) error {
+					return tx.RunValidation()
+				},
+				expectedState: txstate.StateValidated,
+			},
+			{
+				name: "executing state",
+				setupTx: func(tx *transaction.ConfigTransaction) error {
+					if err := tx.RunValidation(); err != nil {
+						return err
+					}
+					return tx.BeginExecution()
+				},
+				expectedState: txstate.StateExecuting,
+			},
+		}
+
+		for _, tt := range states {
+			t.Run(tt.name, func(t *testing.T) {
+				cfg := &config.Config{Version: version.Version}
+				tx, err := transaction.FromTest("test-tx", cfg, handler)
+				require.NoError(t, err)
+
+				// Setup transaction state
+				require.NoError(t, tt.setupTx(tx))
+				h.txStorage.SetCurrent(tx)
+
+				// Call GetCurrentConfigTransaction
+				resp, err := r.GetCurrentConfigTransaction(
+					t.Context(),
+					&pb.GetCurrentConfigTransactionRequest{},
+				)
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				require.NotNil(t, resp.Transaction)
+
+				assert.Equal(t, tt.expectedState, resp.Transaction.GetState())
+			})
+		}
+	})
+}
+
+// TestGetConfigTransaction tests the GetConfigTransaction method
+func TestGetConfigTransaction(t *testing.T) {
+	t.Parallel()
+	handler := slog.Default().Handler()
+
+	t.Run("returns transaction when found", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Create a transaction and add it to storage
+		cfg := &config.Config{Version: version.Version}
+		tx, err := transaction.FromAPI("test-request", cfg, handler)
+		require.NoError(t, err)
+		require.NoError(t, tx.RunValidation())
+
+		h.txStorage.AddTransaction(tx)
+
+		// Call GetConfigTransaction
+		transactionId := tx.ID.String()
+		resp, err := r.GetConfigTransaction(t.Context(), &pb.GetConfigTransactionRequest{
+			TransactionId: &transactionId,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Transaction)
+
+		// Verify response matches the transaction
+		assert.Equal(t, tx.ID.String(), resp.Transaction.GetId())
+		assert.Equal(t, "test-request", resp.Transaction.GetRequestId())
+		assert.Equal(t, pb.ConfigTransaction_SOURCE_API, resp.Transaction.GetSource())
+	})
+
+	t.Run("returns not found error when transaction doesn't exist", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Call GetConfigTransaction with non-existent ID
+		nonExistentId := "00000000-0000-0000-0000-000000000000"
+		resp, err := r.GetConfigTransaction(t.Context(), &pb.GetConfigTransactionRequest{
+			TransactionId: &nonExistentId,
+		})
+		require.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's a NotFound gRPC error
+		grpcStatus, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.NotFound, grpcStatus.Code())
+		assert.Contains(t, grpcStatus.Message(), "transaction not found")
+	})
+
+	t.Run("returns invalid argument error when transaction ID is empty", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Call GetConfigTransaction with empty ID
+		emptyId := ""
+		resp, err := r.GetConfigTransaction(t.Context(), &pb.GetConfigTransactionRequest{
+			TransactionId: &emptyId,
+		})
+		require.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's an InvalidArgument gRPC error
+		grpcStatus, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.InvalidArgument, grpcStatus.Code())
+		assert.Contains(t, grpcStatus.Message(), "transaction_id is required")
+	})
+
+	t.Run("returns invalid argument error when transaction ID is nil", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Call GetConfigTransaction with nil ID
+		resp, err := r.GetConfigTransaction(t.Context(), &pb.GetConfigTransactionRequest{
+			TransactionId: nil,
+		})
+		require.Error(t, err)
+		assert.Nil(t, resp)
+
+		// Verify it's an InvalidArgument gRPC error
+		grpcStatus, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.InvalidArgument, grpcStatus.Code())
+		assert.Contains(t, grpcStatus.Message(), "transaction_id is required")
+	})
+
+	t.Run("handles different transaction sources", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		sources := []struct {
+			name           string
+			createTx       func() (*transaction.ConfigTransaction, error)
+			expectedSource pb.ConfigTransaction_Source
+		}{
+			{
+				name: "API source",
+				createTx: func() (*transaction.ConfigTransaction, error) {
+					cfg := &config.Config{Version: version.Version}
+					return transaction.FromAPI("api-request", cfg, handler)
+				},
+				expectedSource: pb.ConfigTransaction_SOURCE_API,
+			},
+			{
+				name: "Test source",
+				createTx: func() (*transaction.ConfigTransaction, error) {
+					cfg := &config.Config{Version: version.Version}
+					return transaction.FromTest("test-tx", cfg, handler)
+				},
+				expectedSource: pb.ConfigTransaction_SOURCE_TEST,
+			},
+		}
+
+		for _, tt := range sources {
+			t.Run(tt.name, func(t *testing.T) {
+				tx, err := tt.createTx()
+				require.NoError(t, err)
+				h.txStorage.AddTransaction(tx)
+
+				// Call GetConfigTransaction
+				transactionId := tx.ID.String()
+				resp, err := r.GetConfigTransaction(t.Context(), &pb.GetConfigTransactionRequest{
+					TransactionId: &transactionId,
+				})
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				require.NotNil(t, resp.Transaction)
+
+				assert.Equal(t, tt.expectedSource, resp.Transaction.GetSource())
+			})
+		}
+	})
+}
+
+// TestClearConfigTransactions tests the ClearConfigTransactions method
+func TestClearConfigTransactions(t *testing.T) {
+	t.Parallel()
+	handler := slog.Default().Handler()
+
+	t.Run("clears all transactions when keep_last is 0", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add multiple transactions to storage
+		cfg := &config.Config{Version: version.Version}
+		for range 5 {
+			tx, err := transaction.FromTest("test-tx", cfg, handler)
+			require.NoError(t, err)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Verify we have 5 transactions
+		assert.Len(t, h.txStorage.GetAll(), 5)
+
+		// Call ClearConfigTransactions with keep_last = 0
+		keepLast := int32(0)
+		resp, err := r.ClearConfigTransactions(t.Context(), &pb.ClearConfigTransactionsRequest{
+			KeepLast: &keepLast,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		// Verify response indicates success
+		assert.True(t, resp.GetSuccess())
+		assert.Equal(t, int32(5), resp.GetClearedCount())
+		assert.Empty(t, resp.GetError())
+	})
+
+	t.Run("keeps specified number of transactions", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add multiple transactions
+		cfg := &config.Config{Version: version.Version}
+		for range 10 {
+			tx, err := transaction.FromTest("test-tx", cfg, handler)
+			require.NoError(t, err)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Call ClearConfigTransactions with keep_last = 3
+		keepLast := int32(3)
+		resp, err := r.ClearConfigTransactions(t.Context(), &pb.ClearConfigTransactionsRequest{
+			KeepLast: &keepLast,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		// Verify response indicates success and correct count
+		assert.True(t, resp.GetSuccess())
+		assert.Equal(t, int32(7), resp.GetClearedCount()) // 10 - 3 = 7 cleared
+		assert.Empty(t, resp.GetError())
+	})
+
+	t.Run("uses default keep_last when nil", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Add transactions
+		cfg := &config.Config{Version: version.Version}
+		for range 3 {
+			tx, err := transaction.FromTest("test-tx", cfg, handler)
+			require.NoError(t, err)
+			h.txStorage.AddTransaction(tx)
+		}
+
+		// Call ClearConfigTransactions with nil keep_last (should use default 0)
+		resp, err := r.ClearConfigTransactions(t.Context(), &pb.ClearConfigTransactionsRequest{
+			KeepLast: nil,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		// Verify default behavior (clear all)
+		assert.True(t, resp.GetSuccess())
+		assert.Equal(t, int32(3), resp.GetClearedCount())
+	})
+
+	t.Run("handles storage error", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		// Use mock storage that returns an error
+		errorStorage := &mockTxStorageWithError{clearError: assert.AnError}
+		r.txStorage = errorStorage
+
+		// Call ClearConfigTransactions
+		keepLast := int32(0)
+		resp, err := r.ClearConfigTransactions(t.Context(), &pb.ClearConfigTransactionsRequest{
+			KeepLast: &keepLast,
+		})
+		require.NoError(t, err) // gRPC call succeeds but response indicates failure
+		require.NotNil(t, resp)
+
+		// Verify response indicates failure
+		assert.False(t, resp.GetSuccess())
+		assert.Equal(t, int32(0), resp.GetClearedCount())
+		assert.Contains(t, resp.GetError(), "failed to clear transactions")
+		assert.Contains(t, resp.GetError(), assert.AnError.Error())
+	})
+
+	t.Run("handles edge cases", func(t *testing.T) {
+		h := newTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+		h.transitionToRunning()
+
+		testCases := []struct {
+			name             string
+			keepLast         int32
+			transactionCount int
+			expectedCleared  int32
+		}{
+			{
+				name:             "keep_last larger than transaction count",
+				keepLast:         10,
+				transactionCount: 3,
+				expectedCleared:  0, // Can't clear negative transactions
+			},
+			{
+				name:             "keep_last equals transaction count",
+				keepLast:         5,
+				transactionCount: 5,
+				expectedCleared:  0,
+			},
+			{
+				name:             "empty transaction storage",
+				keepLast:         0,
+				transactionCount: 0,
+				expectedCleared:  0,
+			},
+		}
+
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				// Reset storage
+				h.txStorage.transactions = nil
+
+				// Add specified number of transactions
+				cfg := &config.Config{Version: version.Version}
+				for range tt.transactionCount {
+					tx, err := transaction.FromTest("test-tx", cfg, handler)
+					require.NoError(t, err)
+					h.txStorage.AddTransaction(tx)
+				}
+
+				// Call ClearConfigTransactions
+				resp, err := r.ClearConfigTransactions(
+					t.Context(),
+					&pb.ClearConfigTransactionsRequest{
+						KeepLast: &tt.keepLast,
+					},
+				)
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+
+				assert.True(t, resp.GetSuccess())
+				assert.Equal(t, tt.expectedCleared, resp.GetClearedCount())
+			})
+		}
+	})
+}
+
+// mockTxStorageWithError is a mock storage that can simulate errors
+type mockTxStorageWithError struct {
+	clearError error
+}
+
+func (m *mockTxStorageWithError) SetCurrent(tx *transaction.ConfigTransaction) {}
+
+func (m *mockTxStorageWithError) GetCurrent() *transaction.ConfigTransaction {
+	return nil
+}
+
+func (m *mockTxStorageWithError) GetAll() []*transaction.ConfigTransaction {
+	return []*transaction.ConfigTransaction{}
+}
+
+func (m *mockTxStorageWithError) GetByID(id string) *transaction.ConfigTransaction {
+	return nil
+}
+
+func (m *mockTxStorageWithError) Clear(keepLast int) (int, error) {
+	if m.clearError != nil {
+		return 0, m.clearError
+	}
+	return 0, nil
 }

@@ -3,12 +3,15 @@
 package txstorage
 
 import (
+	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
+	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 )
 
 // DefaultMaxTransactions is the default number of transactions to keep in history
@@ -204,4 +207,44 @@ func (s *MemoryStorage) cleanupWorker() {
 			return
 		}
 	}
+}
+
+// Clear removes transactions from storage that are in terminal states,
+// keeping at least the last N transactions total.
+// Returns the number of transactions cleared.
+func (s *MemoryStorage) Clear(keepLast int) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if keepLast < 0 {
+		return 0, fmt.Errorf("keepLast must be non-negative, got %d", keepLast)
+	}
+
+	total := len(s.transactions)
+	if total <= keepLast {
+		s.logger.Debug("No transactions to clear", "total", total, "keepLast", keepLast)
+		return 0, nil
+	}
+
+	// Number of transactions we need to delete
+	toDelete := total - keepLast
+	deleted := 0
+
+	// Build new list, deleting old terminal transactions
+	newTransactions := make([]*transaction.ConfigTransaction, 0, keepLast)
+
+	for _, tx := range s.transactions {
+		// Delete if we still need to delete more and it's terminal
+		if deleted < toDelete && slices.Contains(finitestate.SagaTerminalStates, tx.GetState()) {
+			deleted++
+			continue
+		}
+		// Keep everything else
+		newTransactions = append(newTransactions, tx)
+	}
+
+	s.transactions = newTransactions
+
+	s.logger.Info("Cleared transactions", "cleared", deleted, "remaining", len(s.transactions))
+	return deleted, nil
 }
