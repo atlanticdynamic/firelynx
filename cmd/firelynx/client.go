@@ -136,13 +136,15 @@ var clientCmd = &cli.Command{
   Examples:
     firelynx client config storage list --server localhost:9999
     firelynx client config storage list --server localhost:9999 --page-size 5
-    firelynx client config storage list --server localhost:9999 --state completed`,
+    firelynx client config storage list --server localhost:9999 --state completed
+    firelynx client config storage list --server localhost:9999 --format json`,
 							Flags: []cli.Flag{
 								serverFlag,
 								pageSizeFlag,
 								pageTokenFlag,
 								stateFlag,
 								sourceFlag,
+								formatStorageFlag,
 							},
 							Action: storageListAction,
 						},
@@ -212,8 +214,9 @@ func storageListAction(ctx context.Context, cmd *cli.Command) error {
 	pageToken := cmd.String("page-token")
 	state := cmd.String("state")
 	source := cmd.String("source")
+	format := cmd.String("format")
 
-	if err := client.ListTransactions(ctx, serverAddr, pageSize, pageToken, state, source); err != nil {
+	if err := client.ListTransactions(ctx, serverAddr, pageSize, pageToken, state, source, format); err != nil {
 		return cli.Exit(err.Error(), 1)
 	}
 

@@ -233,15 +233,15 @@ func TestTransactionOperations(t *testing.T) {
 
 	// Test ListTransactions (should work without error)
 	t.Run("ListTransactions", func(t *testing.T) {
-		err := ListTransactions(ctx, grpcAddr, 10, "", "", "")
+		err := ListTransactions(ctx, grpcAddr, 10, "", "", "", "text")
 		assert.NoError(t, err, "Should list transactions")
 
 		// Test with pagination
-		err = ListTransactions(ctx, grpcAddr, 1, "", "", "")
+		err = ListTransactions(ctx, grpcAddr, 1, "", "", "", "text")
 		assert.NoError(t, err, "Should list transactions with page size limit")
 
 		// Test with filters
-		err = ListTransactions(ctx, grpcAddr, 10, "", "COMMITTED", "")
+		err = ListTransactions(ctx, grpcAddr, 10, "", "COMMITTED", "", "text")
 		assert.NoError(t, err, "Should list transactions with state filter")
 	})
 
@@ -267,7 +267,7 @@ func TestTransactionOperations(t *testing.T) {
 
 	// Test ListTransactions (should have transactions after update)
 	t.Run("ListTransactions_AfterUpdate", func(t *testing.T) {
-		err := ListTransactions(ctx, grpcAddr, 10, "", "", "")
+		err := ListTransactions(ctx, grpcAddr, 10, "", "", "", "text")
 		assert.NoError(t, err, "Should list transactions after update")
 	})
 
@@ -313,7 +313,7 @@ func TestTransactionInvalidServer(t *testing.T) {
 	assert.Error(t, err, "Should fail with invalid server")
 
 	// Test ListTransactions with invalid server
-	err = ListTransactions(ctx, "invalid:1234", 10, "", "", "")
+	err = ListTransactions(ctx, "invalid:1234", 10, "", "", "", "text")
 	assert.Error(t, err, "Should fail with invalid server")
 
 	// Test GetTransaction with invalid server

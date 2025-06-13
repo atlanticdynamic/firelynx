@@ -132,7 +132,7 @@ func ListTransactions(
 	ctx context.Context,
 	serverAddr string,
 	pageSize int32,
-	pageToken, state, source string,
+	pageToken, state, source, format string,
 ) error {
 	logger := slog.Default()
 
@@ -157,28 +157,57 @@ func ListTransactions(
 		return nil
 	}
 
-	// Print header
-	fmt.Printf("%-36s %-10s %-12s %-20s %-10s\n", "ID", "SOURCE", "STATE", "CREATED", "VALID")
-	fmt.Println(strings.Repeat("-", 88))
+	switch format {
+	case "json":
+		response := struct {
+			Transactions  any    `json:"transactions"`
+			NextPageToken string `json:"next_page_token,omitempty"`
+		}{
+			Transactions:  transactions,
+			NextPageToken: nextPageToken,
+		}
+		jsonBytes, err := json.MarshalIndent(response, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal transactions to JSON: %w", err)
+		}
+		fmt.Println(string(jsonBytes))
+	case "toml":
+		response := struct {
+			Transactions  any    `toml:"transactions"`
+			NextPageToken string `toml:"next_page_token,omitempty"`
+		}{
+			Transactions:  transactions,
+			NextPageToken: nextPageToken,
+		}
+		tomlBytes, err := toml.Marshal(response)
+		if err != nil {
+			return fmt.Errorf("failed to marshal transactions to TOML: %w", err)
+		}
+		fmt.Print(string(tomlBytes))
+	default: // text format
+		// Print header
+		fmt.Printf("%-36s %-10s %-12s %-20s %-10s\n", "ID", "SOURCE", "STATE", "CREATED", "VALID")
+		fmt.Println(strings.Repeat("-", 88))
 
-	// Print transactions
-	for _, tx := range transactions {
-		createdTime := "N/A"
-		if tx.GetCreatedAt() != nil {
-			createdTime = tx.GetCreatedAt().AsTime().Format("2006-01-02 15:04:05")
+		// Print transactions
+		for _, tx := range transactions {
+			createdTime := "N/A"
+			if tx.GetCreatedAt() != nil {
+				createdTime = tx.GetCreatedAt().AsTime().Format("2006-01-02 15:04:05")
+			}
+
+			fmt.Printf("%-36s %-10s %-12s %-20s %-10t\n",
+				tx.GetId(),
+				tx.GetSource(),
+				tx.GetState(),
+				createdTime,
+				tx.GetIsValid(),
+			)
 		}
 
-		fmt.Printf("%-36s %-10s %-12s %-20s %-10t\n",
-			tx.GetId(),
-			tx.GetSource(),
-			tx.GetState(),
-			createdTime,
-			tx.GetIsValid(),
-		)
-	}
-
-	if nextPageToken != "" {
-		fmt.Printf("\nNext page token: %s\n", nextPageToken)
+		if nextPageToken != "" {
+			fmt.Printf("\nNext page token: %s\n", nextPageToken)
+		}
 	}
 
 	return nil
