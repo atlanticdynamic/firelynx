@@ -4,6 +4,7 @@
 package configupdates
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
@@ -11,8 +12,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/logging"
@@ -27,8 +28,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed testdata/echo_app.toml
+//go:embed testdata/echo_app.toml.tmpl
 var echoAppConfigTemplate []byte
+
+// renderEchoAppConfigTemplateTOML renders the echo app config template with the given port
+func renderEchoAppConfigTemplateTOML(t *testing.T, port int) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(string(echoAppConfigTemplate))
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port int }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
 
 // TestSupervisorStartupWithHTTPRunner tests the full startup sequence with supervisor
 // to replicate the e2e test scenario where HTTP runner waits for initial config
@@ -41,12 +56,8 @@ func TestSupervisorStartupWithHTTPRunner(t *testing.T) {
 	// Get a random port for HTTP listener
 	httpPort := testutil.GetRandomPort(t)
 
-	// Replace the port placeholder in config
-	echoAppConfig := strings.ReplaceAll(
-		string(echoAppConfigTemplate),
-		"{{PORT}}",
-		fmt.Sprintf("%d", httpPort),
-	)
+	// Render the echo app config template
+	echoAppConfig := renderEchoAppConfigTemplateTOML(t, httpPort)
 
 	// Set up temporary directory for config file
 	tmpDir := t.TempDir()
@@ -198,12 +209,8 @@ func TestHTTPRunnerStartupTiming(t *testing.T) {
 	// Get a random port for HTTP listener
 	httpPort := testutil.GetRandomPort(t)
 
-	// Replace the port placeholder in config
-	echoAppConfig := strings.ReplaceAll(
-		string(echoAppConfigTemplate),
-		"{{PORT}}",
-		fmt.Sprintf("%d", httpPort),
-	)
+	// Render the echo app config template
+	echoAppConfig := renderEchoAppConfigTemplateTOML(t, httpPort)
 
 	// Create config file loader with the config
 	tmpDir := t.TempDir()

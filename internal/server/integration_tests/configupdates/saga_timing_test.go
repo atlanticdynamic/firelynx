@@ -4,13 +4,14 @@
 package configupdates
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	client "github.com/atlanticdynamic/firelynx/internal/client"
@@ -28,6 +29,20 @@ import (
 )
 
 // Use the echoAppTOML from grpc_config_test.go
+
+// renderEchoAppTOMLForSaga renders the echo app template with the given port for saga tests
+func renderEchoAppTOMLForSaga(t *testing.T, port int) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(echoAppTOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port int }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
 
 // TestSagaTimingVsHTTPServerReadiness verifies that HTTP servers are immediately
 // ready to accept connections after saga orchestrator completion.
@@ -101,8 +116,8 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 	// Get a random port for the HTTP listener
 	httpPort := testutil.GetRandomPort(t)
 
-	// Replace the {{PORT}} placeholder in the config
-	configContent := strings.ReplaceAll(echoAppTOML, "{{PORT}}", fmt.Sprintf("%d", httpPort))
+	// Render the echo app template
+	configContent := renderEchoAppTOMLForSaga(t, httpPort)
 
 	// Load test configuration with echo app
 	tomlLoader := toml.NewTomlLoader([]byte(configContent))
@@ -179,8 +194,8 @@ func TestHTTPRunnerRequiresInitialConfig(t *testing.T) {
 	// Get a random port for the HTTP listener
 	httpPort := testutil.GetRandomPort(t)
 
-	// Replace the {{PORT}} placeholder in the config
-	configContent := strings.ReplaceAll(echoAppTOML, "{{PORT}}", fmt.Sprintf("%d", httpPort))
+	// Render the echo app template
+	configContent := renderEchoAppTOMLForSaga(t, httpPort)
 
 	tomlLoader := toml.NewTomlLoader([]byte(configContent))
 	pbConfig, err := tomlLoader.LoadProto()
