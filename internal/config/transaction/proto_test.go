@@ -237,3 +237,41 @@ func TestGetLogsVsPlaybackLogs(t *testing.T) {
 		assert.NotNil(t, record.Attrs, "record %d should have attrs", i)
 	}
 }
+
+func TestConfigTransaction_ToProto_IncludesConfig(t *testing.T) {
+	handler := logging.SetupHandler("debug")
+
+	t.Run("includes config when domainConfig is set", func(t *testing.T) {
+		cfg := &config.Config{Version: version.Version}
+		tx, err := FromAPI("test-request", cfg, handler)
+		require.NoError(t, err)
+
+		pbTx := tx.ToProto()
+		require.NotNil(t, pbTx)
+
+		// Verify config field is populated
+		assert.NotNil(t, pbTx.GetConfig(), "Config field should be populated")
+		assert.Equal(
+			t,
+			version.Version,
+			pbTx.GetConfig().GetVersion(),
+			"Config version should match",
+		)
+	})
+
+	t.Run("config is nil when domainConfig is nil", func(t *testing.T) {
+		// Create a transaction without a valid config (this is a test scenario)
+		cfg := &config.Config{Version: version.Version}
+		tx, err := FromAPI("test-request", cfg, handler)
+		require.NoError(t, err)
+
+		// Artificially set domainConfig to nil for testing
+		tx.domainConfig = nil
+
+		pbTx := tx.ToProto()
+		require.NotNil(t, pbTx)
+
+		// Verify config field is nil
+		assert.Nil(t, pbTx.GetConfig(), "Config field should be nil when domainConfig is nil")
+	})
+}
