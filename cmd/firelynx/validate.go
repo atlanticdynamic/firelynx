@@ -4,13 +4,26 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
+	"os"
+	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/client"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
+	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/urfave/cli/v3"
 )
+
+// ValidationResult represents the outcome of validating a single configuration file
+type ValidationResult struct {
+	Path   string
+	Valid  bool
+	Error  error
+	Config *config.Config // Only populated if validation succeeded
+	Remote bool           // Whether validation was done remotely
+}
+
+// Use existing styles from fancy package for validation output
 
 var validateCmd = &cli.Command{
 	Name:    "validate",
@@ -32,117 +45,293 @@ var validateCmd = &cli.Command{
 			Aliases: []string{"c"},
 			Usage:   "Path to the configuration file",
 		},
+		&cli.BoolFlag{
+			Name:    "quiet",
+			Aliases: []string{"q"},
+			Usage:   "Suppress per-file success messages, only show errors and summary",
+		},
+		&cli.BoolFlag{
+			Name:  "summary",
+			Usage: "Show only summary statistics, suppress all per-file output",
+		},
+		&cli.BoolFlag{
+			Name:  "no-color",
+			Usage: "Disable colored output",
+		},
 	},
 	Suggest:           true,
 	ReadArgsFromStdin: true,
 	Action:            validateAction,
 }
 
-func validateAction(ctx context.Context, cmd *cli.Command) error {
-	// Check for config flag first
-	configPath := cmd.String("config")
+// colorEnabled checks if color output should be enabled
+func colorEnabled(noColorFlag bool) bool {
+	// Check --no-color flag first
+	if noColorFlag {
+		return false
+	}
+	// Check NO_COLOR environment variable (standard convention)
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	return true
+}
 
-	// If no config flag, check for positional argument
-	if configPath == "" {
+// formatValidResult formats a valid validation result
+func formatValidResult(result ValidationResult, treeView, noColor bool) string {
+	if treeView {
+		if noColor {
+			return fmt.Sprintf("%s: valid", result.Path)
+		}
+		path := fancy.PathText(result.Path)
+		validText := fancy.ValidText("valid")
+		return fmt.Sprintf("%s: %s", path, validText)
+	}
+
+	details := fmt.Sprintf("(%s, %d listeners, %d endpoints, %d apps)",
+		result.Config.Version, len(result.Config.Listeners),
+		len(result.Config.Endpoints), len(result.Config.Apps))
+
+	if noColor {
+		return fmt.Sprintf("%s: valid %s", result.Path, details)
+	}
+
+	path := fancy.PathText(result.Path)
+	validText := fancy.ValidText("valid")
+	detailsText := fancy.SummaryText(details)
+	return fmt.Sprintf("%s: %s %s", path, validText, detailsText)
+}
+
+// formatInvalidResult formats an invalid validation result
+func formatInvalidResult(result ValidationResult, noColor bool) string {
+	if noColor {
+		return fmt.Sprintf("%s: %v", result.Path, result.Error)
+	}
+
+	path := fancy.PathText(result.Path)
+	errorMsg := fancy.ErrorText(result.Error.Error())
+	return fmt.Sprintf("%s: %s", path, errorMsg)
+}
+
+// formatSummary formats the summary line
+func formatSummary(
+	totalFiles, passedCount, failedCount int,
+	duration time.Duration,
+	noColor bool,
+) string {
+	if noColor {
+		if failedCount > 0 {
+			return fmt.Sprintf("%d files validated: %d passed, %d failed (%v)",
+				totalFiles, passedCount, failedCount, duration)
+		} else {
+			return fmt.Sprintf("%d files validated: all passed (%v)",
+				totalFiles, duration)
+		}
+	}
+
+	baseText := fancy.SummaryText("files validated:")
+	timing := fancy.SummaryText(fmt.Sprintf("(%v)", duration))
+
+	if failedCount > 0 {
+		total := fancy.CountText(fmt.Sprintf("%d", totalFiles))
+		passed := fancy.ValidText(fmt.Sprintf("%d passed", passedCount))
+		failed := fancy.ErrorText(fmt.Sprintf("%d failed", failedCount))
+		return fmt.Sprintf("%s %s %s, %s %s", total, baseText, passed, failed, timing)
+	} else {
+		total := fancy.CountText(fmt.Sprintf("%d", totalFiles))
+		allPassed := fancy.ValidText("all passed")
+		return fmt.Sprintf("%s %s %s %s", total, baseText, allPassed, timing)
+	}
+}
+
+func validateAction(ctx context.Context, cmd *cli.Command) error {
+	startTime := time.Now()
+
+	// Extract CLI flags
+	configPath := cmd.String("config")
+	serverAddr := cmd.String("server")
+	treeView := cmd.Bool("tree")
+	quiet := cmd.Bool("quiet")
+	summaryOnly := cmd.Bool("summary")
+	noColor := !colorEnabled(cmd.Bool("no-color"))
+
+	var configPaths []string
+
+	if configPath != "" {
+		// Single file via --config flag
+		configPaths = []string{configPath}
+	} else {
+		// Multiple files via positional arguments
 		if cmd.Args().Len() < 1 {
 			return fmt.Errorf(
-				"config file path required (use the --config flag, or provide the config file as positional argument)",
+				"config file path required (use the --config flag, or provide config files as positional arguments)",
 			)
 		}
-		configPath = cmd.Args().Get(0)
+		configPaths = cmd.Args().Slice()
 	}
 
-	serverAddr := cmd.String("server")
-
-	// If server address is provided, use remote validation
+	// Validate all files and collect results
+	var results []ValidationResult
 	if serverAddr != "" {
-		return validateRemote(ctx, configPath, serverAddr, cmd.Bool("tree"))
+		results = validateRemote(ctx, configPaths, serverAddr)
+	} else {
+		results = validateLocal(ctx, configPaths)
 	}
 
-	// Otherwise, validate locally
-	return validateLocal(ctx, configPath, cmd.Bool("tree"))
+	// Count results
+	var passedCount, failedCount int
+	for _, result := range results {
+		if result.Valid {
+			passedCount++
+		} else {
+			failedCount++
+		}
+	}
+
+	// Output results based on flags
+	if !summaryOnly {
+		// Print per-file results
+		for _, result := range results {
+			if !result.Valid {
+				// Always show errors with consistent format
+				fmt.Println(formatInvalidResult(result, noColor))
+			} else if !quiet {
+				// Show success with config summary on single line
+				if treeView {
+					fmt.Println(formatValidResult(result, true, noColor))
+					fmt.Println(result.Config)
+				} else {
+					fmt.Println(formatValidResult(result, false, noColor))
+				}
+			}
+		}
+	}
+
+	// Show summary
+	duration := time.Since(startTime)
+	totalFiles := len(results)
+
+	if summaryOnly || totalFiles > 1 || failedCount > 0 {
+		fmt.Println(formatSummary(totalFiles, passedCount, failedCount, duration, noColor))
+	}
+
+	// Return appropriate exit code
+	if failedCount > 0 {
+		return fmt.Errorf("validation failed")
+	}
+
+	return nil
 }
 
-// renderConfigSummary creates a formatted summary string for the configuration
-func renderConfigSummary(path string, cfg *config.Config) string {
-	var summary strings.Builder
-
-	summary.WriteString("\nConfig Summary:\n")
-	summary.WriteString(fmt.Sprintf("- Path: %s\n", path))
-	summary.WriteString(fmt.Sprintf("- Version: %s\n", cfg.Version))
-	summary.WriteString(fmt.Sprintf("- Listeners: %d\n", len(cfg.Listeners)))
-	summary.WriteString(fmt.Sprintf("- Endpoints: %d\n", len(cfg.Endpoints)))
-	summary.WriteString(fmt.Sprintf("- Apps: %d\n", len(cfg.Apps)))
-	summary.WriteString("\nUse --tree for a more detailed view of the config.")
-
-	return summary.String()
-}
-
-func validateRemote(ctx context.Context, configPath, serverAddr string, treeView bool) error {
+func validateRemote(
+	ctx context.Context,
+	configPaths []string,
+	serverAddr string,
+) []ValidationResult {
 	logger := slog.Default()
 
-	// Create a loader for the configuration
-	configLoader, err := loader.NewLoaderFromFilePath(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	// Load the protobuf config for remote validation
-	pbConfig, err := configLoader.LoadProto()
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-
-	// Create a client for remote validation
+	// Create a single client for remote validation (reuse connection)
 	firelynxClient := client.New(client.Config{
 		Logger:     logger,
 		ServerAddr: serverAddr,
 	})
 
-	// Validate remotely using the gRPC service
-	isValid, err := firelynxClient.ValidateConfig(ctx, pbConfig)
-	if err != nil {
-		return fmt.Errorf("remote validation failed: %w", err)
+	var results []ValidationResult
+
+	// Validate each file using the same gRPC connection
+	for _, configPath := range configPaths {
+		result := ValidationResult{
+			Path:   configPath,
+			Remote: true,
+		}
+
+		// Check if context has been canceled
+		if ctx.Err() != nil {
+			result.Error = fmt.Errorf("validation canceled: %w", ctx.Err())
+			results = append(results, result)
+			break
+		}
+
+		// Create a loader for the configuration
+		configLoader, err := loader.NewLoaderFromFilePath(configPath)
+		if err != nil {
+			result.Error = err
+			results = append(results, result)
+			continue
+		}
+
+		// Load the protobuf config for remote validation
+		pbConfig, err := configLoader.LoadProto()
+		if err != nil {
+			result.Error = err
+			results = append(results, result)
+			continue
+		}
+
+		// Validate remotely using the gRPC service
+		isValid, err := firelynxClient.ValidateConfig(ctx, pbConfig)
+		if err != nil {
+			result.Error = fmt.Errorf("remote validation failed: %w", err)
+			results = append(results, result)
+			continue
+		}
+
+		if !isValid {
+			result.Error = fmt.Errorf("configuration validation failed on server")
+			results = append(results, result)
+			continue
+		}
+
+		// Validation succeeded - load config for display purposes
+		cfg, err := config.NewConfig(configPath)
+		if err != nil {
+			// This shouldn't happen since we already validated successfully
+			result.Error = fmt.Errorf("failed to load config for display: %w", err)
+			results = append(results, result)
+			continue
+		}
+
+		result.Valid = true
+		result.Config = cfg
+		results = append(results, result)
 	}
 
-	if !isValid {
-		return fmt.Errorf("configuration validation failed on server")
-	}
-
-	fmt.Printf("Configuration file %s is valid (validated remotely)\n", configPath)
-
-	// Load the domain config locally for display (needed for both tree view and summary)
-	cfg, err := config.NewConfig(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to load config for display: %w", err)
-	}
-
-	if treeView {
-		fmt.Println(cfg)
-		return nil
-	}
-
-	fmt.Println(renderConfigSummary(configPath, cfg))
-	return nil
+	return results
 }
 
-func validateLocal(_ context.Context, configPath string, treeView bool) error {
-	cfg, err := config.NewConfig(configPath)
-	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
+func validateLocal(ctx context.Context, configPaths []string) []ValidationResult {
+	var results []ValidationResult
+
+	for _, configPath := range configPaths {
+		result := ValidationResult{
+			Path:   configPath,
+			Remote: false,
+		}
+
+		// Check if context has been canceled
+		if ctx.Err() != nil {
+			result.Error = fmt.Errorf("validation canceled: %w", ctx.Err())
+			results = append(results, result)
+			break
+		}
+
+		cfg, err := config.NewConfig(configPath)
+		if err != nil {
+			result.Error = err
+			results = append(results, result)
+			continue
+		}
+
+		if err := cfg.Validate(); err != nil {
+			result.Error = err
+			results = append(results, result)
+			continue
+		}
+
+		result.Valid = true
+		result.Config = cfg
+		results = append(results, result)
 	}
 
-	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
-	}
-	fmt.Printf("Configuration file %s is valid\n", configPath)
-
-	if treeView {
-		// Use the Stringer interface to print the config in a fancy tree format
-		fmt.Println(cfg)
-		return nil
-	}
-
-	fmt.Println(renderConfigSummary(configPath, cfg))
-	return nil
+	return results
 }
