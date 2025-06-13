@@ -348,42 +348,40 @@ func TestClearConfigTransactions(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to clear configuration transactions")
 }
 
-func TestProtoLoader(t *testing.T) {
-	v := version.Version
-	testConfig := &pb.ServerConfig{Version: &v}
-
-	loader := &protoLoader{config: testConfig}
-
-	// Test LoadProto
-	config, err := loader.LoadProto()
-	assert.NoError(t, err)
-	assert.Equal(t, testConfig, config)
-
-	// Test GetProtoConfig
-	config = loader.GetProtoConfig()
-	assert.Equal(t, testConfig, config)
-
-	// Test with nil config
-	nilLoader := &protoLoader{config: nil}
-	config, err = nilLoader.LoadProto()
-	assert.NoError(t, err)
-	assert.Nil(t, config)
-
-	config = nilLoader.GetProtoConfig()
-	assert.Nil(t, config)
-}
-
-func TestApplyConfigFromTransaction(t *testing.T) {
+func TestApplyConfigFromTransactionErrors(t *testing.T) {
 	tests := []struct {
 		name           string
 		transactionID  string
-		wantErr        bool
 		expectedErrMsg string
 	}{
 		{
 			name:           "connection fails",
 			transactionID:  "test-transaction-id",
-			wantErr:        true,
+			expectedErrMsg: "failed to get transaction",
+		},
+		{
+			name:           "empty transaction ID",
+			transactionID:  "",
+			expectedErrMsg: "failed to get transaction",
+		},
+		{
+			name:           "non-existent transaction ID",
+			transactionID:  "non-existent-transaction-id",
+			expectedErrMsg: "failed to get transaction",
+		},
+		{
+			name:           "invalid transaction ID format",
+			transactionID:  "invalid-id-format-123",
+			expectedErrMsg: "failed to get transaction",
+		},
+		{
+			name:           "very long transaction ID",
+			transactionID:  "very-long-transaction-id-" + string(make([]byte, 1000)),
+			expectedErrMsg: "failed to get transaction",
+		},
+		{
+			name:           "transaction ID with special characters",
+			transactionID:  "transaction-id-with-special-chars-!@#$%^&*()",
 			expectedErrMsg: "failed to get transaction",
 		},
 	}
@@ -396,12 +394,8 @@ func TestApplyConfigFromTransaction(t *testing.T) {
 			})
 
 			err := client.ApplyConfigFromTransaction(t.Context(), tt.transactionID)
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedErrMsg)
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.expectedErrMsg)
 		})
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
 	"github.com/pelletier/go-toml/v2"
 	"google.golang.org/grpc"
@@ -55,19 +56,6 @@ func (c *Client) ApplyConfigFromPath(ctx context.Context, configPath string) err
 	return c.ApplyConfig(ctx, configLoader)
 }
 
-// protoLoader implements the loader.Loader interface for protobuf configs
-type protoLoader struct {
-	config *pb.ServerConfig
-}
-
-func (pl *protoLoader) LoadProto() (*pb.ServerConfig, error) {
-	return pl.config, nil
-}
-
-func (pl *protoLoader) GetProtoConfig() *pb.ServerConfig {
-	return pl.config
-}
-
 // ApplyConfigFromTransaction loads a configuration from a previous transaction and reapplies it
 func (c *Client) ApplyConfigFromTransaction(ctx context.Context, transactionID string) error {
 	c.logger.Info("Rolling back to transaction", "transaction_id", transactionID)
@@ -83,21 +71,51 @@ func (c *Client) ApplyConfigFromTransaction(ctx context.Context, transactionID s
 	}
 
 	// Extract the config from the transaction
-	config := transaction.GetConfig()
-	if config == nil {
+	pbConfig := transaction.GetConfig()
+	if pbConfig == nil {
 		return fmt.Errorf("transaction %s has no config to rollback to", transactionID)
 	}
 
 	c.logger.Info("Applying config from transaction",
 		"transaction_id", transactionID,
-		"config_version", config.GetVersion())
+		"config_version", pbConfig.GetVersion())
 
-	// Create a protobuf loader
-	configLoader := &protoLoader{config: config}
+	// Convert protobuf to domain config for validation
+	domainConfig, err := config.NewFromProto(pbConfig)
+	if err != nil {
+		return fmt.Errorf("failed to convert protobuf to domain config: %w", err)
+	}
 
-	// Apply the config using the existing method
-	if err := c.ApplyConfig(ctx, configLoader); err != nil {
-		return fmt.Errorf("failed to apply config from transaction %s: %w", transactionID, err)
+	// Convert back to protobuf to get a validated config
+	validatedPbConfig := domainConfig.ToProto()
+
+	c.logger.Info("Sending configuration to server", "server", c.serverAddr)
+
+	// Connect to server
+	conn, err := c.connect(ctx)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrConnectionFailed, err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.logger.Error("Failed to close connection", "error", err)
+		}
+	}()
+
+	// Create client
+	client := pb.NewConfigServiceClient(conn)
+
+	// Send update request
+	resp, err := client.UpdateConfig(ctx, &pb.UpdateConfigRequest{
+		Config: validatedPbConfig,
+	})
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrConnectionFailed, err)
+	}
+
+	if !resp.GetSuccess() {
+		errorMsg := resp.GetError()
+		return fmt.Errorf("%w: %s", ErrConfigRejected, errorMsg)
 	}
 
 	c.logger.Info("Successfully rolled back to transaction", "transaction_id", transactionID)
