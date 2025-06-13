@@ -277,6 +277,18 @@ func GetTransaction(ctx context.Context, serverAddr, transactionID, format strin
 	return nil
 }
 
+// RollbackToTransaction rolls back to a previous configuration transaction
+func RollbackToTransaction(ctx context.Context, serverAddr, transactionID string) error {
+	logger := slog.Default()
+
+	firelynxClient := client.New(client.Config{
+		Logger:     logger,
+		ServerAddr: serverAddr,
+	})
+
+	return firelynxClient.ApplyConfigFromTransaction(ctx, transactionID)
+}
+
 // ClearTransactions clears configuration transaction history
 func ClearTransactions(ctx context.Context, serverAddr string, keepLast int32) error {
 	logger := slog.Default()

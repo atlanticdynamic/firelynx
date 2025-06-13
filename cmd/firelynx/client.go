@@ -75,6 +75,7 @@ var clientCmd = &cli.Command{
     firelynx client apply --config myconfig.toml --server localhost:9999
     firelynx client config current --server localhost:9999 --output config.toml
     firelynx client config current --server localhost:9999 --format json
+    firelynx client config rollback --server localhost:9999 --id <TRANSACTION_ID>
     firelynx client config storage list --server localhost:9999 --page-size 5
     firelynx client config storage clear --server localhost:9999 --keep-last 3`,
 	Commands: []*cli.Command{
@@ -122,6 +123,19 @@ var clientCmd = &cli.Command{
 						},
 					},
 					Action: configCurrentAction,
+				},
+				{
+					Name:  "rollback",
+					Usage: "Roll back to a previous configuration transaction",
+					Description: `Apply the configuration from a previous transaction.
+
+  Examples:
+    firelynx client config rollback --server localhost:9999 --id <TRANSACTION_ID>`,
+					Flags: []cli.Flag{
+						serverFlag,
+						transactionIDFlag,
+					},
+					Action: storageRollbackAction,
 				},
 				{
 					Name:        "storage",
@@ -240,6 +254,17 @@ func storageClearAction(ctx context.Context, cmd *cli.Command) error {
 	keepLast := int32(cmd.Int("keep-last"))
 
 	if err := client.ClearTransactions(ctx, serverAddr, keepLast); err != nil {
+		return cli.Exit(err.Error(), 1)
+	}
+
+	return nil
+}
+
+func storageRollbackAction(ctx context.Context, cmd *cli.Command) error {
+	serverAddr := cmd.String("server")
+	transactionID := cmd.String("id")
+
+	if err := client.RollbackToTransaction(ctx, serverAddr, transactionID); err != nil {
 		return cli.Exit(err.Error(), 1)
 	}
 

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/cmd/firelynx/server"
+	"github.com/atlanticdynamic/firelynx/internal/client"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,6 +119,10 @@ func TestTransactionInvalidServer(t *testing.T) {
 
 	// Test ClearTransactions with invalid server
 	err = ClearTransactions(ctx, "invalid:1234", 1)
+	assert.Error(t, err, "Should fail with invalid server")
+
+	// Test RollbackToTransaction with invalid server
+	err = RollbackToTransaction(ctx, "invalid:1234", "test-id")
 	assert.Error(t, err, "Should fail with invalid server")
 }
 
@@ -222,6 +227,60 @@ func TestTransactionOperationsE2E(t *testing.T) {
 	t.Run("ListTransactions_AfterUpdate", func(t *testing.T) {
 		err := ListTransactions(ctx, grpcAddr, 10, "", "", "", "text")
 		assert.NoError(t, err, "Should list transactions after update")
+	})
+
+	// Test RollbackToTransaction
+	t.Run("RollbackToTransaction", func(t *testing.T) {
+		err := RollbackToTransaction(ctx, grpcAddr, "non-existent-id")
+		assert.Error(t, err, "Should fail with non-existent transaction ID")
+
+		firelynxClient := client.New(client.Config{
+			ServerAddr: grpcAddr,
+			Logger: slog.New(
+				slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}),
+			),
+		})
+
+		transactions, _, err := firelynxClient.ListConfigTransactions(ctx, "", 10, "", "")
+		require.NoError(t, err, "Should be able to list transactions")
+		require.Len(t, transactions, 2, "Should have exactly 2 transactions at this point")
+
+		// First transaction should be the initial config (oldest first in list)
+		firstTransaction := transactions[0]
+		require.NotNil(t, firstTransaction.GetConfig())
+
+		// Verify it's the config without /updated endpoint
+		hasUpdatedEndpoint := false
+		for _, endpoint := range firstTransaction.GetConfig().GetEndpoints() {
+			for _, route := range endpoint.GetRoutes() {
+				if httpRule := route.GetHttp(); httpRule != nil &&
+					httpRule.GetPathPrefix() == "/updated" {
+					hasUpdatedEndpoint = true
+					break
+				}
+			}
+		}
+		require.False(t, hasUpdatedEndpoint, "First transaction should not have /updated endpoint")
+
+		// Verify /updated endpoint exists before rollback
+		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/updated", httpPort))
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		resp.Body.Close()
+
+		// Perform rollback
+		err = RollbackToTransaction(ctx, grpcAddr, firstTransaction.GetId())
+		require.NoError(t, err, "Should successfully rollback to first transaction")
+
+		// Verify /updated endpoint is gone after rollback
+		require.Eventually(t, func() bool {
+			resp, err := http.Get(fmt.Sprintf("http://localhost:%d/updated", httpPort))
+			if err != nil {
+				return true
+			}
+			defer resp.Body.Close()
+			return resp.StatusCode == http.StatusNotFound
+		}, 10*time.Second, 200*time.Millisecond)
 	})
 
 	// Test ClearTransactions
