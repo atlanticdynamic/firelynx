@@ -4,6 +4,7 @@
 package http_test
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
@@ -55,13 +57,88 @@ var (
 	listenerWithRouteTOML string
 )
 
-// replacePorts replaces port placeholders in TOML content
-func replacePorts(toml string, replacements map[string]string) string {
-	result := toml
-	for placeholder, port := range replacements {
-		result = strings.ReplaceAll(result, placeholder, port)
-	}
-	return result
+// renderListenerWithRouteTOML renders the listener with route template with the given port
+func renderListenerWithRouteTOML(t *testing.T, port string) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(listenerWithRouteTOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port string }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
+
+// renderEchoAppTOMLForHTTP renders the echo app template with the given port for HTTP tests
+func renderEchoAppTOMLForHTTP(t *testing.T, port string) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(echoAppTOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port string }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
+
+// renderRouteV1TOML renders the route v1 template with the given port
+func renderRouteV1TOML(t *testing.T, port string) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(routeV1TOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port string }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
+
+// renderRouteV1V2TOML renders the route v1 v2 template with the given port
+func renderRouteV1V2TOML(t *testing.T, port string) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(routeV1V2TOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port string }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
+
+// renderOneListenerTOML renders the one listener template with the given port1
+func renderOneListenerTOML(t *testing.T, port1 string) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(oneListenerTOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port1 string }{Port1: port1})
+	require.NoError(t, err)
+
+	return buf.String()
+}
+
+// renderDuplicatePortsTOML renders the duplicate ports template with the given port
+func renderDuplicatePortsTOML(t *testing.T, port string) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(duplicatePortsTOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port string }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
 }
 
 // waitForHTTPServer waits for an HTTP server to be accessible
@@ -132,9 +209,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	// Test 2: Add a listener with a route (so it actually starts)
 	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
 
-	config2Data := replacePorts(listenerWithRouteTOML, map[string]string{
-		"{{PORT}}": port,
-	})
+	config2Data := renderListenerWithRouteTOML(t, port)
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)
 	require.NoError(t, config2.Validate(), "Should validate config")
@@ -224,9 +299,7 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 	// Create configuration with listener, endpoint, route and app
 	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
 
-	configData := replacePorts(echoAppTOML, map[string]string{
-		"{{PORT}}": port,
-	})
+	configData := renderEchoAppTOMLForHTTP(t, port)
 	testConfig, err := config.NewConfigFromBytes([]byte(configData))
 	require.NoError(t, err)
 	require.NoError(t, testConfig.Validate(), "Should validate config")
@@ -306,9 +379,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
 
 	// Step 1: Create listener with one route
-	config1Data := replacePorts(routeV1TOML, map[string]string{
-		"{{PORT}}": port,
-	})
+	config1Data := renderRouteV1TOML(t, port)
 	config1, err := config.NewConfigFromBytes([]byte(config1Data))
 	require.NoError(t, err)
 	require.NoError(t, config1.Validate(), "Should validate config")
@@ -342,9 +413,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	}, 2*time.Second, 50*time.Millisecond, "V1 route should work")
 
 	// Step 2: Add a second route
-	config2Data := replacePorts(routeV1V2TOML, map[string]string{
-		"{{PORT}}": port,
-	})
+	config2Data := renderRouteV1V2TOML(t, port)
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)
 	require.NoError(t, config2.Validate(), "Should validate config")
@@ -465,9 +534,7 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 	})
 
 	t.Run("port-in-use", func(t *testing.T) {
-		config2Data := replacePorts(oneListenerTOML, map[string]string{
-			"{{PORT1}}": port,
-		})
+		config2Data := renderOneListenerTOML(t, port)
 		config2, err := config.NewConfigFromBytes([]byte(config2Data))
 		require.NoError(t, err)
 		require.NoError(t, config2.Validate(), "Should validate config")
@@ -485,9 +552,7 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 	})
 
 	t.Run("duplicate-ports", func(t *testing.T) {
-		config3Data := replacePorts(duplicatePortsTOML, map[string]string{
-			"{{PORT}}": port,
-		})
+		config3Data := renderDuplicatePortsTOML(t, port)
 		config3, err := config.NewConfigFromBytes([]byte(config3Data))
 		require.NoError(t, err, "Config creation should succeed")
 		require.NotNil(t, config3)
@@ -543,9 +608,7 @@ func TestHTTPClusterSagaCompensation(t *testing.T) {
 
 	// Create configuration
 	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
-	configData := replacePorts(oneListenerTOML, map[string]string{
-		"{{PORT1}}": port,
-	})
+	configData := renderOneListenerTOML(t, port)
 	testConfig, err := config.NewConfigFromBytes([]byte(configData))
 	require.NoError(t, err)
 	require.NoError(t, testConfig.Validate(), "Should validate config")

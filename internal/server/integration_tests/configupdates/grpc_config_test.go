@@ -4,6 +4,7 @@
 package configupdates
 
 import (
+	"bytes"
 	_ "embed"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/client"
@@ -36,12 +38,85 @@ var multiRouteTOML string
 //go:embed testdata/duplicate_endpoints.toml.tmpl
 var duplicateEndpointsTOML string
 
-// createTempConfigFile creates a temporary config file from embedded TOML content
-func createTempConfigFile(t *testing.T, baseContent string, httpPort int) string {
+// renderEchoAppTOML renders the echo app template with the given port
+func renderEchoAppTOML(t *testing.T, port int) string {
 	t.Helper()
 
-	// Replace the template port placeholder with the actual port
-	content := strings.ReplaceAll(baseContent, "{{PORT}}", fmt.Sprintf("%d", httpPort))
+	tmpl, err := template.New("config").Parse(echoAppTOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port int }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
+
+// renderMultiRouteTOML renders the multi-route template with the given port
+func renderMultiRouteTOML(t *testing.T, port int) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(multiRouteTOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port int }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
+
+// renderDuplicateEndpointsTOML renders the duplicate endpoints template with the given port
+func renderDuplicateEndpointsTOML(t *testing.T, port int) string {
+	t.Helper()
+
+	tmpl, err := template.New("config").Parse(duplicateEndpointsTOML)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, struct{ Port int }{Port: port})
+	require.NoError(t, err)
+
+	return buf.String()
+}
+
+// createTempEchoAppConfigFile creates a temporary config file from echo app template
+func createTempEchoAppConfigFile(t *testing.T, httpPort int) string {
+	t.Helper()
+
+	content := renderEchoAppTOML(t, httpPort)
+
+	// Create a temporary file
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test_config.toml")
+
+	err := os.WriteFile(configPath, []byte(content), 0o644)
+	require.NoError(t, err)
+
+	return configPath
+}
+
+// createTempMultiRouteConfigFile creates a temporary config file from multi-route template
+func createTempMultiRouteConfigFile(t *testing.T, httpPort int) string {
+	t.Helper()
+
+	content := renderMultiRouteTOML(t, httpPort)
+
+	// Create a temporary file
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test_config.toml")
+
+	err := os.WriteFile(configPath, []byte(content), 0o644)
+	require.NoError(t, err)
+
+	return configPath
+}
+
+// createTempDuplicateEndpointsConfigFile creates a temporary config file from duplicate endpoints template
+func createTempDuplicateEndpointsConfigFile(t *testing.T, httpPort int) string {
+	t.Helper()
+
+	content := renderDuplicateEndpointsTOML(t, httpPort)
 
 	// Create a temporary file
 	tmpDir := t.TempDir()
@@ -130,7 +205,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 		httpPort := testutil.GetRandomPort(t)
 
 		// Create temporary config file from embedded TOML
-		configPath := createTempConfigFile(t, echoAppTOML, httpPort)
+		configPath := createTempEchoAppConfigFile(t, httpPort)
 
 		// Use client to apply config from file path
 		err := testClient.ApplyConfigFromPath(ctx, configPath)
@@ -171,7 +246,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 		httpPort := testutil.GetRandomPort(t)
 
 		// Create temporary config file from embedded multi-route TOML
-		configPath := createTempConfigFile(t, multiRouteTOML, httpPort)
+		configPath := createTempMultiRouteConfigFile(t, httpPort)
 
 		// Create loader and use client.ApplyConfig
 		configLoader, err := loader.NewLoaderFromFilePath(configPath)
@@ -231,7 +306,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 		httpPort := testutil.GetRandomPort(t)
 
 		// Step 1: Apply single route config
-		configPath1 := createTempConfigFile(t, echoAppTOML, httpPort)
+		configPath1 := createTempEchoAppConfigFile(t, httpPort)
 		configLoader1, err := loader.NewLoaderFromFilePath(configPath1)
 		require.NoError(t, err)
 
@@ -263,7 +338,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 		}, 5*time.Second, 250*time.Millisecond, "Single route should work first")
 
 		// Step 2: Apply multi-route config to SAME listener (same port)
-		configPath2 := createTempConfigFile(t, multiRouteTOML, httpPort)
+		configPath2 := createTempMultiRouteConfigFile(t, httpPort)
 		configLoader2, err := loader.NewLoaderFromFilePath(configPath2)
 		require.NoError(t, err)
 
@@ -376,7 +451,7 @@ func TestValidateConfigIntegration(t *testing.T) {
 	t.Run("valid_config_passes_validation", func(t *testing.T) {
 		httpPort := testutil.GetRandomPort(t)
 
-		configPath := createTempConfigFile(t, echoAppTOML, httpPort)
+		configPath := createTempEchoAppConfigFile(t, httpPort)
 
 		configLoader, err := loader.NewLoaderFromFilePath(configPath)
 		require.NoError(t, err)
@@ -398,7 +473,7 @@ func TestValidateConfigIntegration(t *testing.T) {
 	t.Run("invalid_config_fails_validation", func(t *testing.T) {
 		httpPort := testutil.GetRandomPort(t)
 
-		configPath := createTempConfigFile(t, duplicateEndpointsTOML, httpPort)
+		configPath := createTempDuplicateEndpointsConfigFile(t, httpPort)
 
 		configLoader, err := loader.NewLoaderFromFilePath(configPath)
 		require.NoError(t, err)

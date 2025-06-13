@@ -62,7 +62,7 @@ func TestValidateConfigShutdownTimeout(t *testing.T) {
 	// With the fix: This should NOT create any transactions that remain in memory
 	// Before the fix: This would create transactions stuck in StateValidated (non-terminal)
 	httpPort := testutil.GetRandomPort(t)
-	configPath := createTempConfigFile(t, echoAppTOML, httpPort)
+	configPath := createTempEchoAppConfigFile(t, httpPort)
 
 	configLoader, err := loader.NewLoaderFromFilePath(configPath)
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestValidateConfigMultipleCallsShutdown(t *testing.T) {
 
 	// Load test config
 	httpPort := testutil.GetRandomPort(t)
-	configPath := createTempConfigFile(t, echoAppTOML, httpPort)
+	configPath := createTempEchoAppConfigFile(t, httpPort)
 
 	configLoader, err := loader.NewLoaderFromFilePath(configPath)
 	require.NoError(t, err)
