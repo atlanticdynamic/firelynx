@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed testdata/echo_app.toml
+//go:embed testdata/echo_app.toml.tmpl
 var echoAppConfigTemplate []byte
 
 // TestSupervisorStartupWithHTTPRunner tests the full startup sequence with supervisor

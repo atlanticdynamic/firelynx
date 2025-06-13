@@ -1,6 +1,7 @@
 package config
 
 import (
+	"embed"
 	"strings"
 	"testing"
 	"time"
@@ -879,4 +880,46 @@ func TestCollectRouteReferences(t *testing.T) {
 	assert.True(t, appIDs["app1"])
 	assert.True(t, appIDs["app2"])
 	assert.True(t, appIDs["app3"])
+}
+
+//go:embed testdata/invalid/*.toml
+var invalidConfigFiles embed.FS
+
+func TestInvalidConfigValidation(t *testing.T) {
+	entries, err := invalidConfigFiles.ReadDir("testdata/invalid")
+	require.NoError(t, err, "Failed to read embedded invalid config files")
+	t.Logf("Found %d invalid config files", len(entries))
+
+	require.NotEmpty(t, entries, "No invalid TOML config files found")
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".toml") {
+			continue
+		}
+
+		t.Run(entry.Name(), func(t *testing.T) {
+			data, err := invalidConfigFiles.ReadFile("testdata/invalid/" + entry.Name())
+			require.NoError(t, err, "Failed to read embedded invalid file: %s", entry.Name())
+
+			// Attempt to load the config
+			cfg, err := NewConfigFromBytes(data)
+			// If parsing fails, that's one way to fail
+			if err != nil {
+				t.Logf("Config %s failed during parsing: %v", entry.Name(), err)
+				return
+			}
+
+			// If parsing succeeded, validation must fail
+			require.NotNil(t, cfg, "Config should not be nil for %s", entry.Name())
+			err = cfg.Validate()
+			require.Error(t, err, "Config %s should fail validation", entry.Name())
+			t.Logf("Validation error for %s: %v", entry.Name(), err)
+
+			// Check for specific error messages
+			if entry.Name() == "invalid_listener_id.toml" {
+				require.Contains(t, err.Error(), "references non-existent listener ID",
+					"Error should mention non-existent listener IDs")
+			}
+		})
+	}
 }

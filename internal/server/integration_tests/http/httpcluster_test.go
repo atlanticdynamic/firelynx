@@ -30,28 +30,28 @@ var (
 	//go:embed testdata/empty_config.toml
 	emptyConfigTOML string
 
-	//go:embed testdata/two_listeners.toml
+	//go:embed testdata/two_listeners.toml.tmpl
 	twoListenersTOML string
 
-	//go:embed testdata/one_listener.toml
+	//go:embed testdata/one_listener.toml.tmpl
 	oneListenerTOML string
 
-	//go:embed testdata/echo_app.toml
+	//go:embed testdata/echo_app.toml.tmpl
 	echoAppTOML string
 
-	//go:embed testdata/route_v1.toml
+	//go:embed testdata/route_v1.toml.tmpl
 	routeV1TOML string
 
-	//go:embed testdata/route_v1_v2.toml
+	//go:embed testdata/route_v1_v2.toml.tmpl
 	routeV1V2TOML string
 
 	//go:embed testdata/invalid_address.toml
 	invalidAddressTOML string
 
-	//go:embed testdata/duplicate_ports.toml
+	//go:embed testdata/duplicate_ports.toml.tmpl
 	duplicatePortsTOML string
 
-	//go:embed testdata/listener_with_route.toml
+	//go:embed testdata/listener_with_route.toml.tmpl
 	listenerWithRouteTOML string
 )
 

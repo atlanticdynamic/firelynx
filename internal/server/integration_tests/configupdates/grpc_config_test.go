@@ -27,13 +27,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed testdata/echo_app.toml
+//go:embed testdata/echo_app.toml.tmpl
 var echoAppTOML string
 
-//go:embed testdata/route_v1_v2.toml
+//go:embed testdata/route_v1_v2.toml.tmpl
 var multiRouteTOML string
 
-//go:embed testdata/duplicate_endpoints.toml
+//go:embed testdata/duplicate_endpoints.toml.tmpl
 var duplicateEndpointsTOML string
 
 // createTempConfigFile creates a temporary config file from embedded TOML content

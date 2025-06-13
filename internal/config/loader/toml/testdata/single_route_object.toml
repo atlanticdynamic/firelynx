@@ -4,9 +4,9 @@ version = "v1"
 id = "endpoint1"
 listener_id = "listener1"
 
-[endpoints.route]
+[[endpoints.routes]]
 app_id = "app1"
-[endpoints.route.http]
+[endpoints.routes.http]
 path_prefix = "/test"
 
 [[listeners]]
@@ -14,5 +14,11 @@ id = "listener1"
 address = ":8080"
 type = "http"
 
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
 [[apps]]
 id = "app1"
+[apps.echo]
+response = "Hello from app1"

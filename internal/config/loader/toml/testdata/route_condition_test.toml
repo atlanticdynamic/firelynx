@@ -3,17 +3,21 @@ version = "v1"
 [[listeners]]
 id = "http_listener"
 address = ":8080"
+type = "http"
 
 [listeners.http]
 read_timeout = "1s"
 
 [[endpoints]]
 id = "test_endpoint"
-listener_ids = ["http_listener"]
+listener_id = "http_listener"
 
 [[endpoints.routes]]
 app_id = "test_app"
-http_path = "/test" 
+[endpoints.routes.http]
+path_prefix = "/test" 
 
 [[apps]]
 id = "test_app"
+[apps.echo]
+response = "Hello from test"
