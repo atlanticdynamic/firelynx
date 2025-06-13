@@ -27,6 +27,11 @@ var validateCmd = &cli.Command{
 			Aliases: []string{"s"},
 			Usage:   "Server address for remote validation (tcp://host:port or unix:///path/to/socket). If not provided, validates locally.",
 		},
+		&cli.StringFlag{
+			Name:    "config",
+			Aliases: []string{"c"},
+			Usage:   "Path to the configuration file",
+		},
 	},
 	Suggest:           true,
 	ReadArgsFromStdin: true,
@@ -34,11 +39,19 @@ var validateCmd = &cli.Command{
 }
 
 func validateAction(ctx context.Context, cmd *cli.Command) error {
-	if cmd.Args().Len() < 1 {
-		return fmt.Errorf("config file path required")
+	// Check for config flag first
+	configPath := cmd.String("config")
+
+	// If no config flag, check for positional argument
+	if configPath == "" {
+		if cmd.Args().Len() < 1 {
+			return fmt.Errorf(
+				"config file path required (use the --config flag, or provide the config file as positional argument)",
+			)
+		}
+		configPath = cmd.Args().Get(0)
 	}
 
-	configPath := cmd.Args().Get(0)
 	serverAddr := cmd.String("server")
 
 	// If server address is provided, use remote validation
@@ -51,10 +64,11 @@ func validateAction(ctx context.Context, cmd *cli.Command) error {
 }
 
 // renderConfigSummary creates a formatted summary string for the configuration
-func renderConfigSummary(cfg *config.Config) string {
+func renderConfigSummary(path string, cfg *config.Config) string {
 	var summary strings.Builder
 
 	summary.WriteString("\nConfig Summary:\n")
+	summary.WriteString(fmt.Sprintf("- Path: %s\n", path))
 	summary.WriteString(fmt.Sprintf("- Version: %s\n", cfg.Version))
 	summary.WriteString(fmt.Sprintf("- Listeners: %d\n", len(cfg.Listeners)))
 	summary.WriteString(fmt.Sprintf("- Endpoints: %d\n", len(cfg.Endpoints)))
@@ -108,7 +122,7 @@ func validateRemote(ctx context.Context, configPath, serverAddr string, treeView
 		return nil
 	}
 
-	fmt.Println(renderConfigSummary(cfg))
+	fmt.Println(renderConfigSummary(configPath, cfg))
 	return nil
 }
 
@@ -129,6 +143,6 @@ func validateLocal(_ context.Context, configPath string, treeView bool) error {
 		return nil
 	}
 
-	fmt.Println(renderConfigSummary(cfg))
+	fmt.Println(renderConfigSummary(configPath, cfg))
 	return nil
 }
