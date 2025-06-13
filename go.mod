@@ -2,7 +2,7 @@ module github.com/atlanticdynamic/firelynx
 
 go 1.24.4
 
-require github.com/urfave/cli/v3 v3.3.3
+require github.com/urfave/cli/v3 v3.3.8
 
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
