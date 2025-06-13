@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"os"
@@ -12,10 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
-	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
-	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/cfgservice"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
@@ -49,99 +46,64 @@ func createTempConfigFile(t *testing.T, content string) string {
 	return configPath
 }
 
-func TestRenderConfigSummary(t *testing.T) {
-	// Create a test config by loading the valid config content
-	configPath := createTempConfigFile(t, validConfigContent)
-	cfg, err := config.NewConfig(configPath)
-	require.NoError(t, err)
-
-	// Test the renderConfigSummary function
-	summary := renderConfigSummary(configPath, cfg)
-
-	// Verify the summary contains expected content
-	assert.Contains(t, summary, "Config Summary:")
-	assert.Contains(t, summary, "- Path: "+configPath)
-	assert.Contains(t, summary, "- Version: v1")
-	assert.Contains(t, summary, "- Listeners: 1")
-	assert.Contains(t, summary, "- Endpoints: 1")
-	assert.Contains(t, summary, "- Apps: 1")
-	assert.Contains(t, summary, "Use --tree for a more detailed view of the config.")
-
-	// Verify the format is correct (starts with newline, ends without newline)
-	assert.True(t, strings.HasPrefix(summary, "\nConfig Summary:"))
-	assert.True(t, strings.HasSuffix(summary, "Use --tree for a more detailed view of the config."))
-
-	// Test with a config that has different counts
-	t.Run("with_different_counts", func(t *testing.T) {
-		// Create a config with specific known values using the collection types
-		testCfg := &config.Config{
-			Version: "v2",
-			Listeners: listeners.ListenerCollection{
-				{ID: "l1"}, {ID: "l2"}, {ID: "l3"}, // 3 listeners
-			},
-			Endpoints: endpoints.EndpointCollection{
-				{ID: "e1"}, {ID: "e2"}, {ID: "e3"}, {ID: "e4"}, {ID: "e5"}, // 5 endpoints
-			},
-			Apps: apps.AppCollection{
-				{ID: "a1"}, {ID: "a2"}, // 2 apps
-			},
-		}
-
-		summary := renderConfigSummary("test-config.toml", testCfg)
-
-		assert.Contains(t, summary, "- Path: test-config.toml")
-		assert.Contains(t, summary, "- Version: v2")
-		assert.Contains(t, summary, "- Listeners: 3")
-		assert.Contains(t, summary, "- Endpoints: 5")
-		assert.Contains(t, summary, "- Apps: 2")
-	})
-
-	t.Run("with_empty_config", func(t *testing.T) {
-		// Test with empty collections
-		emptyCfg := &config.Config{
-			Version:   "v1",
-			Listeners: listeners.ListenerCollection{},
-			Endpoints: endpoints.EndpointCollection{},
-			Apps:      apps.AppCollection{},
-		}
-
-		summary := renderConfigSummary("empty-config.toml", emptyCfg)
-
-		assert.Contains(t, summary, "- Path: empty-config.toml")
-		assert.Contains(t, summary, "- Version: v1")
-		assert.Contains(t, summary, "- Listeners: 0")
-		assert.Contains(t, summary, "- Endpoints: 0")
-		assert.Contains(t, summary, "- Apps: 0")
-	})
-}
-
 func TestValidateLocal(t *testing.T) {
 	t.Run("valid_config", func(t *testing.T) {
 		configPath := createTempConfigFile(t, validConfigContent)
 
-		err := validateLocal(t.Context(), configPath, false)
-		assert.NoError(t, err)
+		results := validateLocal(t.Context(), []string{configPath})
+		assert.Len(t, results, 1)
+		assert.True(t, results[0].Valid)
+		assert.NoError(t, results[0].Error)
+		assert.NotNil(t, results[0].Config)
+		assert.Equal(t, configPath, results[0].Path)
+		assert.False(t, results[0].Remote)
 	})
 
 	t.Run("invalid_config", func(t *testing.T) {
 		configPath := createTempConfigFile(t, invalidConfigContent)
 
-		err := validateLocal(t.Context(), configPath, false)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "duplicate ID")
+		results := validateLocal(t.Context(), []string{configPath})
+		assert.Len(t, results, 1)
+		assert.False(t, results[0].Valid)
+		assert.Error(t, results[0].Error)
+		assert.Contains(t, results[0].Error.Error(), "duplicate ID")
+		assert.Equal(t, configPath, results[0].Path)
+		assert.False(t, results[0].Remote)
 	})
 
-	t.Run("with_tree_view", func(t *testing.T) {
-		configPath := createTempConfigFile(t, validConfigContent)
+	t.Run("multiple_configs", func(t *testing.T) {
+		configPath1 := createTempConfigFile(t, validConfigContent)
+		configPath2 := createTempConfigFile(t, validConfigContent)
 
-		err := validateLocal(t.Context(), configPath, true)
-		assert.NoError(t, err)
+		results := validateLocal(t.Context(), []string{configPath1, configPath2})
+		assert.Len(t, results, 2)
+		assert.True(t, results[0].Valid)
+		assert.True(t, results[1].Valid)
+		assert.NoError(t, results[0].Error)
+		assert.NoError(t, results[1].Error)
 	})
 
 	t.Run("nonexistent_file", func(t *testing.T) {
-		err := validateLocal(t.Context(), "/path/that/does/not/exist.toml", false)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to load config")
+		results := validateLocal(t.Context(), []string{"/path/that/does/not/exist.toml"})
+		assert.Len(t, results, 1)
+		assert.False(t, results[0].Valid)
+		assert.Error(t, results[0].Error)
+		assert.Contains(t, results[0].Error.Error(), "no such file or directory")
+	})
+
+	t.Run("canceled_context", func(t *testing.T) {
+		configPath := createTempConfigFile(t, validConfigContent)
+
+		// Create a canceled context
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel() // Cancel immediately
+
+		results := validateLocal(ctx, []string{configPath})
+		assert.Len(t, results, 1)
+		assert.False(t, results[0].Valid)
+		assert.Error(t, results[0].Error)
+		assert.Contains(t, results[0].Error.Error(), "validation canceled")
+		assert.Contains(t, results[0].Error.Error(), "context canceled")
 	})
 }
 
@@ -176,8 +138,13 @@ func TestValidateRemote(t *testing.T) {
 	t.Run("valid_config", func(t *testing.T) {
 		configPath := createTempConfigFile(t, validConfigContent)
 
-		err := validateRemote(t.Context(), configPath, grpcAddr, false)
-		assert.NoError(t, err)
+		results := validateRemote(t.Context(), []string{configPath}, grpcAddr)
+		assert.Len(t, results, 1)
+		assert.True(t, results[0].Valid)
+		assert.NoError(t, results[0].Error)
+		assert.NotNil(t, results[0].Config)
+		assert.Equal(t, configPath, results[0].Path)
+		assert.True(t, results[0].Remote)
 
 		// Make sure no transaction was sent to the siphon for validation
 		select {
@@ -191,10 +158,14 @@ func TestValidateRemote(t *testing.T) {
 	t.Run("invalid_config", func(t *testing.T) {
 		configPath := createTempConfigFile(t, invalidConfigContent)
 
-		err := validateRemote(t.Context(), configPath, grpcAddr, false)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "remote validation failed")
-		assert.Contains(t, err.Error(), "duplicate ID")
+		results := validateRemote(t.Context(), []string{configPath}, grpcAddr)
+		assert.Len(t, results, 1)
+		assert.False(t, results[0].Valid)
+		assert.Error(t, results[0].Error)
+		assert.Contains(t, results[0].Error.Error(), "remote validation failed")
+		assert.Contains(t, results[0].Error.Error(), "duplicate ID")
+		assert.Equal(t, configPath, results[0].Path)
+		assert.True(t, results[0].Remote)
 
 		// Make sure no transaction was sent to the siphon for validation
 		select {
@@ -205,26 +176,50 @@ func TestValidateRemote(t *testing.T) {
 		}
 	})
 
-	t.Run("with_tree_view", func(t *testing.T) {
-		configPath := createTempConfigFile(t, validConfigContent)
+	t.Run("multiple_configs", func(t *testing.T) {
+		configPath1 := createTempConfigFile(t, validConfigContent)
+		configPath2 := createTempConfigFile(t, validConfigContent)
 
-		err := validateRemote(t.Context(), configPath, grpcAddr, true)
-		assert.NoError(t, err)
+		results := validateRemote(t.Context(), []string{configPath1, configPath2}, grpcAddr)
+		assert.Len(t, results, 2)
+		assert.True(t, results[0].Valid)
+		assert.True(t, results[1].Valid)
+		assert.NoError(t, results[0].Error)
+		assert.NoError(t, results[1].Error)
 	})
 
 	t.Run("nonexistent_file", func(t *testing.T) {
-		err := validateRemote(t.Context(), "/path/that/does/not/exist.toml", grpcAddr, false)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to load config")
+		results := validateRemote(t.Context(), []string{"/path/that/does/not/exist.toml"}, grpcAddr)
+		assert.Len(t, results, 1)
+		assert.False(t, results[0].Valid)
+		assert.Error(t, results[0].Error)
+		assert.Contains(t, results[0].Error.Error(), "no such file or directory")
 	})
 
 	t.Run("connection_error", func(t *testing.T) {
 		configPath := createTempConfigFile(t, validConfigContent)
 
 		// Use an invalid server address
-		err := validateRemote(t.Context(), configPath, "localhost:99999", false)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "remote validation failed")
+		results := validateRemote(t.Context(), []string{configPath}, "localhost:99999")
+		assert.Len(t, results, 1)
+		assert.False(t, results[0].Valid)
+		assert.Error(t, results[0].Error)
+		assert.Contains(t, results[0].Error.Error(), "remote validation failed")
+	})
+
+	t.Run("canceled_context", func(t *testing.T) {
+		configPath := createTempConfigFile(t, validConfigContent)
+
+		// Create a canceled context
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel() // Cancel immediately
+
+		results := validateRemote(ctx, []string{configPath}, grpcAddr)
+		assert.Len(t, results, 1)
+		assert.False(t, results[0].Valid)
+		assert.Error(t, results[0].Error)
+		assert.Contains(t, results[0].Error.Error(), "validation canceled")
+		assert.Contains(t, results[0].Error.Error(), "context canceled")
 	})
 }
 
@@ -283,13 +278,35 @@ func TestValidateAction(t *testing.T) {
 			name:      "invalid_config",
 			args:      []string{"test", "--config", invalidConfigPath},
 			wantError: true,
-			errorMsg:  "duplicate ID",
+			errorMsg:  "validation failed",
 		},
 		{
 			name:      "invalid_config_positional",
 			args:      []string{"test", invalidConfigPath},
 			wantError: true,
-			errorMsg:  "duplicate ID",
+			errorMsg:  "validation failed",
+		},
+		{
+			name:      "multiple_configs_mixed",
+			args:      []string{"test", validConfigPath, invalidConfigPath},
+			wantError: true,
+			errorMsg:  "validation failed",
+		},
+		{
+			name:      "multiple_configs_all_valid",
+			args:      []string{"test", validConfigPath, anotherConfigPath},
+			wantError: false,
+		},
+		{
+			name:      "with_quiet_flag",
+			args:      []string{"test", "--quiet", validConfigPath},
+			wantError: false,
+		},
+		{
+			name:      "with_summary_flag",
+			args:      []string{"test", "--summary", validConfigPath, invalidConfigPath},
+			wantError: true,
+			errorMsg:  "validation failed",
 		},
 	}
 
@@ -349,9 +366,11 @@ func TestValidateRemoteShutdownTiming(t *testing.T) {
 			configPath := createTempConfigFile(t, validConfigContent)
 
 			// Perform validations using modern range syntax
-			for i := range tc.validationCount {
-				err := validateRemote(t.Context(), configPath, grpcAddr, false)
-				assert.NoError(err, "Validation %d should succeed", i+1)
+			for range tc.validationCount {
+				results := validateRemote(t.Context(), []string{configPath}, grpcAddr)
+				assert.Len(results, 1)
+				assert.True(results[0].Valid)
+				assert.NoError(results[0].Error)
 			}
 
 			// Verify no transactions were sent to siphon using assert.Never
