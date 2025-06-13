@@ -110,7 +110,7 @@ func (r *Runner) sendConfigToCluster(ctx context.Context, cfg *cfg.Adapter) erro
 
 	// Log each HTTP server that's now ready at INFO level (matching gRPC format)
 	for listenerID, cfg := range configs {
-		r.logger.Info("HTTP server is ready", "listener_id", listenerID, "addr", cfg.ListenAddr)
+		r.logger.Info("HTTP listener is ready", "id", listenerID, "addr", cfg.ListenAddr)
 	}
 
 	return nil
