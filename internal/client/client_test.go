@@ -347,3 +347,61 @@ func TestClearConfigTransactions(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to clear configuration transactions")
 }
+
+func TestProtoLoader(t *testing.T) {
+	v := version.Version
+	testConfig := &pb.ServerConfig{Version: &v}
+
+	loader := &protoLoader{config: testConfig}
+
+	// Test LoadProto
+	config, err := loader.LoadProto()
+	assert.NoError(t, err)
+	assert.Equal(t, testConfig, config)
+
+	// Test GetProtoConfig
+	config = loader.GetProtoConfig()
+	assert.Equal(t, testConfig, config)
+
+	// Test with nil config
+	nilLoader := &protoLoader{config: nil}
+	config, err = nilLoader.LoadProto()
+	assert.NoError(t, err)
+	assert.Nil(t, config)
+
+	config = nilLoader.GetProtoConfig()
+	assert.Nil(t, config)
+}
+
+func TestApplyConfigFromTransaction(t *testing.T) {
+	tests := []struct {
+		name           string
+		transactionID  string
+		wantErr        bool
+		expectedErrMsg string
+	}{
+		{
+			name:           "connection fails",
+			transactionID:  "test-transaction-id",
+			wantErr:        true,
+			expectedErrMsg: "failed to get transaction",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := New(Config{
+				ServerAddr: "invalid-host:-1",
+				Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+			})
+
+			err := client.ApplyConfigFromTransaction(t.Context(), tt.transactionID)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

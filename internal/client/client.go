@@ -55,6 +55,55 @@ func (c *Client) ApplyConfigFromPath(ctx context.Context, configPath string) err
 	return c.ApplyConfig(ctx, configLoader)
 }
 
+// protoLoader implements the loader.Loader interface for protobuf configs
+type protoLoader struct {
+	config *pb.ServerConfig
+}
+
+func (pl *protoLoader) LoadProto() (*pb.ServerConfig, error) {
+	return pl.config, nil
+}
+
+func (pl *protoLoader) GetProtoConfig() *pb.ServerConfig {
+	return pl.config
+}
+
+// ApplyConfigFromTransaction loads a configuration from a previous transaction and reapplies it
+func (c *Client) ApplyConfigFromTransaction(ctx context.Context, transactionID string) error {
+	c.logger.Info("Rolling back to transaction", "transaction_id", transactionID)
+
+	// Get the transaction
+	transaction, err := c.GetConfigTransaction(ctx, transactionID)
+	if err != nil {
+		return fmt.Errorf("failed to get transaction: %w", err)
+	}
+
+	if transaction == nil {
+		return fmt.Errorf("transaction not found: %s", transactionID)
+	}
+
+	// Extract the config from the transaction
+	config := transaction.GetConfig()
+	if config == nil {
+		return fmt.Errorf("transaction %s has no config to rollback to", transactionID)
+	}
+
+	c.logger.Info("Applying config from transaction",
+		"transaction_id", transactionID,
+		"config_version", config.GetVersion())
+
+	// Create a protobuf loader
+	configLoader := &protoLoader{config: config}
+
+	// Apply the config using the existing method
+	if err := c.ApplyConfig(ctx, configLoader); err != nil {
+		return fmt.Errorf("failed to apply config from transaction %s: %w", transactionID, err)
+	}
+
+	c.logger.Info("Successfully rolled back to transaction", "transaction_id", transactionID)
+	return nil
+}
+
 // ApplyConfig sends a configuration to the server using the provided loader
 func (c *Client) ApplyConfig(ctx context.Context, configLoader loader.Loader) error {
 	// Parse the configuration
