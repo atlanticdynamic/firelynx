@@ -11,6 +11,9 @@ import (
 const flagLogLevel = "log-level"
 
 func main() {
+	// Initialize logger with default level to ensure it's always configured
+	SetupLogger("info")
+
 	app := &cli.Command{
 		Name:    "firelynx",
 		Version: Version,
@@ -21,11 +24,13 @@ func main() {
 				Usage:   "Set logging level (debug, info, warn, error)",
 				Value:   "info",
 				Aliases: []string{"log"},
-				Action: func(ctx context.Context, cmd *cli.Command, v string) error {
-					SetupLogger(v)
-					return nil
-				},
 			},
+		},
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			// Reconfigure logger if log level was provided
+			logLevel := cmd.String(flagLogLevel)
+			SetupLogger(logLevel)
+			return ctx, nil
 		},
 		Commands: []*cli.Command{
 			versionCmd,
