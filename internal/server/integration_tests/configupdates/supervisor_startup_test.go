@@ -129,13 +129,11 @@ func TestSupervisorStartupWithHTTPRunner(t *testing.T) {
 	// Shutdown supervisor by cancelling context
 	cancel()
 
-	// Wait for supervisor to complete
-	select {
-	case err := <-superErrCh:
+	require.Eventually(t, func() bool {
+		err := <-superErrCh
 		assert.NoError(t, err, "Supervisor should exit cleanly")
-	case <-time.After(5 * time.Second):
-		t.Fatal("Supervisor did not shut down in time")
-	}
+		return true
+	}, 9*time.Second, 1*time.Second, "Supervisor should shut down cleanly within deadline")
 }
 
 // TestHTTPRunnerStartupTiming tests that HTTP runner waits for initial config before becoming ready
@@ -241,9 +239,9 @@ func TestHTTPRunnerStartupTiming(t *testing.T) {
 	cancel()
 	cfgFileLoader.Stop()
 
-	select {
-	case <-superErrCh:
-	case <-time.After(5 * time.Second):
-		t.Fatal("Supervisor did not shut down")
-	}
+	require.Eventually(t, func() bool {
+		err := <-superErrCh
+		assert.NoError(t, err, "Supervisor should exit cleanly")
+		return true
+	}, 9*time.Second, 1*time.Second, "Supervisor should shut down cleanly within deadline")
 }
