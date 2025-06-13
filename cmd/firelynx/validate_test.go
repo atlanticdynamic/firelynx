@@ -21,6 +21,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v3"
 )
 
 //go:embed server/testdata/basic_config.toml
@@ -55,10 +56,11 @@ func TestRenderConfigSummary(t *testing.T) {
 	require.NoError(t, err)
 
 	// Test the renderConfigSummary function
-	summary := renderConfigSummary(cfg)
+	summary := renderConfigSummary(configPath, cfg)
 
 	// Verify the summary contains expected content
 	assert.Contains(t, summary, "Config Summary:")
+	assert.Contains(t, summary, "- Path: "+configPath)
 	assert.Contains(t, summary, "- Version: v1")
 	assert.Contains(t, summary, "- Listeners: 1")
 	assert.Contains(t, summary, "- Endpoints: 1")
@@ -85,8 +87,9 @@ func TestRenderConfigSummary(t *testing.T) {
 			},
 		}
 
-		summary := renderConfigSummary(testCfg)
+		summary := renderConfigSummary("test-config.toml", testCfg)
 
+		assert.Contains(t, summary, "- Path: test-config.toml")
 		assert.Contains(t, summary, "- Version: v2")
 		assert.Contains(t, summary, "- Listeners: 3")
 		assert.Contains(t, summary, "- Endpoints: 5")
@@ -102,8 +105,9 @@ func TestRenderConfigSummary(t *testing.T) {
 			Apps:      apps.AppCollection{},
 		}
 
-		summary := renderConfigSummary(emptyCfg)
+		summary := renderConfigSummary("empty-config.toml", emptyCfg)
 
+		assert.Contains(t, summary, "- Path: empty-config.toml")
 		assert.Contains(t, summary, "- Version: v1")
 		assert.Contains(t, summary, "- Listeners: 0")
 		assert.Contains(t, summary, "- Endpoints: 0")
@@ -227,6 +231,90 @@ func TestValidateRemote(t *testing.T) {
 // TestValidateRemoteShutdownTiming verifies that the gRPC server can shutdown quickly
 // after validation operations, confirming that ValidateConfig doesn't create transactions
 // that get stuck in non-terminal states during shutdown
+func TestValidateAction(t *testing.T) {
+	// Create test config files
+	validConfigPath := createTempConfigFile(t, validConfigContent)
+	invalidConfigPath := createTempConfigFile(t, invalidConfigContent)
+	anotherConfigPath := createTempConfigFile(t, validConfigContent)
+
+	tests := []struct {
+		name      string
+		args      []string
+		wantError bool
+		errorMsg  string
+	}{
+		{
+			name:      "with_positional_argument",
+			args:      []string{"test", validConfigPath},
+			wantError: false,
+		},
+		{
+			name:      "with_config_flag",
+			args:      []string{"test", "--config", validConfigPath},
+			wantError: false,
+		},
+		{
+			name:      "with_config_flag_short",
+			args:      []string{"test", "-c", validConfigPath},
+			wantError: false,
+		},
+		{
+			name:      "config_flag_takes_precedence",
+			args:      []string{"test", "--config", validConfigPath, anotherConfigPath},
+			wantError: false,
+		},
+		{
+			name:      "no_config_provided",
+			args:      []string{"test"},
+			wantError: true,
+			errorMsg:  "config file path required",
+		},
+		{
+			name:      "with_tree_flag",
+			args:      []string{"test", "--config", validConfigPath, "--tree"},
+			wantError: false,
+		},
+		{
+			name:      "with_tree_flag_positional",
+			args:      []string{"test", validConfigPath, "--tree"},
+			wantError: false,
+		},
+		{
+			name:      "invalid_config",
+			args:      []string{"test", "--config", invalidConfigPath},
+			wantError: true,
+			errorMsg:  "duplicate ID",
+		},
+		{
+			name:      "invalid_config_positional",
+			args:      []string{"test", invalidConfigPath},
+			wantError: true,
+			errorMsg:  "duplicate ID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cli.Command{
+				Name:   "test",
+				Action: validateCmd.Action,
+				Flags:  validateCmd.Flags,
+			}
+
+			err := cmd.Run(t.Context(), tt.args)
+
+			if tt.wantError {
+				assert.Error(t, err)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidateRemoteShutdownTiming(t *testing.T) {
 	assert := assert.New(t)
 
