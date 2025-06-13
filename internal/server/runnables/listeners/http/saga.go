@@ -84,6 +84,11 @@ func (r *Runner) sendConfigToCluster(ctx context.Context, cfg *cfg.Adapter) erro
 	for k := range configs {
 		keys = append(keys, k)
 	}
+
+	if len(configs) == 0 {
+		r.logger.Warn("No HTTP listeners configured")
+	}
+
 	r.logger.Debug("Sending configuration to cluster", "config", keys)
 
 	// Send configuration through siphon with configurable timeout
@@ -98,7 +103,17 @@ func (r *Runner) sendConfigToCluster(ctx context.Context, cfg *cfg.Adapter) erro
 	}
 
 	// Wait for cluster to finish processing and return to running state
-	return r.waitForClusterRunning(ctx, r.clusterReadyTimeout)
+	err := r.waitForClusterRunning(ctx, r.clusterReadyTimeout)
+	if err != nil {
+		return err
+	}
+
+	// Log each HTTP server that's now ready at INFO level (matching gRPC format)
+	for listenerID, cfg := range configs {
+		r.logger.Info("HTTP server is ready", "listener_id", listenerID, "addr", cfg.ListenAddr)
+	}
+
+	return nil
 }
 
 // prepConfigPayload converts the adapters into httpserver.Config objects
