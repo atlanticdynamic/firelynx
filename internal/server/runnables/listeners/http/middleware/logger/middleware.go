@@ -3,13 +3,16 @@ package logger
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 	centralLogger "github.com/atlanticdynamic/firelynx/internal/logging"
+	"github.com/atlanticdynamic/firelynx/internal/logging/writers"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
 
@@ -46,23 +49,40 @@ type ConsoleLogger struct {
 	logger lgr
 }
 
-func NewConsoleLogger(id string, cfg *logger.ConsoleLogger) *ConsoleLogger {
-	filter := newLogFilter(cfg)
-
-	var handler slog.Handler
-	switch cfg.Options.Format {
-	case logger.FormatJSON:
-		handler = centralLogger.SetupHandlerJSON(string(cfg.Options.Level))
-	default:
-		handler = centralLogger.SetupHandlerText(string(cfg.Options.Level))
+func NewConsoleLogger(id string, cfg *logger.ConsoleLogger) (*ConsoleLogger, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("console logger config cannot be nil")
 	}
 
-	logger := slog.New(handler).WithGroup("http")
+	// Apply preset configuration first
+	configCopy := *cfg
+	configCopy.ApplyPreset()
+
+	filter := newLogFilter(&configCopy)
+
+	// Expand environment variables in output
+	expandedOutput := interpolation.ExpandEnvVars(configCopy.Output)
+
+	// Create writer based on output configuration
+	writer, err := writers.CreateWriter(expandedOutput)
+	if err != nil {
+		return nil, err
+	}
+
+	var handler slog.Handler
+	switch configCopy.Options.Format {
+	case logger.FormatJSON:
+		handler = centralLogger.SetupHandlerJSON(string(configCopy.Options.Level), writer)
+	default:
+		handler = centralLogger.SetupHandlerText(string(configCopy.Options.Level), writer)
+	}
+
+	lgr := slog.New(handler).WithGroup("http")
 	return &ConsoleLogger{
 		id:     id,
 		filter: filter,
-		logger: logger,
-	}
+		logger: lgr,
+	}, nil
 }
 
 // Middleware returns the middleware function

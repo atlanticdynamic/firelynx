@@ -1,0 +1,45 @@
+# FireLynx Configuration Example: Minimal Logging Setup
+#
+# This configuration demonstrates the simplest possible logging setup
+# using the new preset system to reduce configuration verbosity.
+#
+# Compare this with the original logging.toml which required 50+ lines
+# of configuration - this achieves similar functionality in just a few lines.
+
+version = "v1"
+
+# HTTP Listener Configuration
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+# Endpoint Configuration with Minimal Logger
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+# Minimal Logger Setup - just method, path, and status code
+[[endpoints.middlewares]]
+id = "logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "minimal"   # Only logs method, path, status_code
+output = "stdout"    # Default output
+
+# Route Configuration
+[[endpoints.routes]]
+app_id = "hello"
+[endpoints.routes.http]
+path_prefix = "/"
+
+# Application Definition
+[[apps]]
+id = "hello"
+[apps.echo]
+response = "Hello, World!"

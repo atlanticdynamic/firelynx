@@ -21,6 +21,62 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Preset configurations for common logging scenarios
+type LogPreset int32
+
+const (
+	LogPreset_PRESET_UNSPECIFIED LogPreset = 0
+	LogPreset_PRESET_MINIMAL     LogPreset = 1 // Only method, path, status code
+	LogPreset_PRESET_STANDARD    LogPreset = 2 // Minimal + client IP, duration
+	LogPreset_PRESET_DETAILED    LogPreset = 3 // Standard + headers, query params
+	LogPreset_PRESET_DEBUG       LogPreset = 4 // Everything including request/response bodies
+)
+
+// Enum value maps for LogPreset.
+var (
+	LogPreset_name = map[int32]string{
+		0: "PRESET_UNSPECIFIED",
+		1: "PRESET_MINIMAL",
+		2: "PRESET_STANDARD",
+		3: "PRESET_DETAILED",
+		4: "PRESET_DEBUG",
+	}
+	LogPreset_value = map[string]int32{
+		"PRESET_UNSPECIFIED": 0,
+		"PRESET_MINIMAL":     1,
+		"PRESET_STANDARD":    2,
+		"PRESET_DETAILED":    3,
+		"PRESET_DEBUG":       4,
+	}
+)
+
+func (x LogPreset) Enum() *LogPreset {
+	p := new(LogPreset)
+	*p = x
+	return p
+}
+
+func (x LogPreset) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LogPreset) Descriptor() protoreflect.EnumDescriptor {
+	return file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[0].Descriptor()
+}
+
+func (LogPreset) Type() protoreflect.EnumType {
+	return &file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[0]
+}
+
+func (x LogPreset) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LogPreset.Descriptor instead.
+func (LogPreset) EnumDescriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_middleware_v1_logger_proto_rawDescGZIP(), []int{0}
+}
+
 type LogOptionsGeneral_Format int32
 
 const (
@@ -54,11 +110,11 @@ func (x LogOptionsGeneral_Format) String() string {
 }
 
 func (LogOptionsGeneral_Format) Descriptor() protoreflect.EnumDescriptor {
-	return file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[0].Descriptor()
+	return file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[1].Descriptor()
 }
 
 func (LogOptionsGeneral_Format) Type() protoreflect.EnumType {
-	return &file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[0]
+	return &file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[1]
 }
 
 func (x LogOptionsGeneral_Format) Number() protoreflect.EnumNumber {
@@ -112,11 +168,11 @@ func (x LogOptionsGeneral_Level) String() string {
 }
 
 func (LogOptionsGeneral_Level) Descriptor() protoreflect.EnumDescriptor {
-	return file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[1].Descriptor()
+	return file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[2].Descriptor()
 }
 
 func (LogOptionsGeneral_Level) Type() protoreflect.EnumType {
-	return &file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[1]
+	return &file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes[2]
 }
 
 func (x LogOptionsGeneral_Level) Number() protoreflect.EnumNumber {
@@ -325,15 +381,26 @@ type ConsoleLoggerConfig struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Options *LogOptionsGeneral     `protobuf:"bytes,1,opt,name=options" json:"options,omitempty"` // general logging options (format, level)
 	Fields  *LogOptionsHTTP        `protobuf:"bytes,2,opt,name=fields" json:"fields,omitempty"`   // HTTP-specific field selection and formatting
+	// Output destination (supports environment variable interpolation with ${VAR_NAME})
+	// Examples: "stdout", "stderr", "/var/log/app.log", "file:///var/log/app-${HOSTNAME}.log"
+	Output *string `protobuf:"bytes,3,opt,name=output,def=stdout" json:"output,omitempty"`
+	// Preset configuration (applied before custom field overrides)
+	Preset *LogPreset `protobuf:"varint,4,opt,name=preset,enum=settings.v1alpha1.middleware.v1.LogPreset,def=0" json:"preset,omitempty"`
 	// Path filtering - paths are matched as prefixes
-	IncludeOnlyPaths []string `protobuf:"bytes,3,rep,name=include_only_paths,json=includeOnlyPaths" json:"include_only_paths,omitempty"` // if set, only log requests matching these path prefixes
-	ExcludePaths     []string `protobuf:"bytes,4,rep,name=exclude_paths,json=excludePaths" json:"exclude_paths,omitempty"`               // exclude requests matching these path prefixes (e.g., "/health", "/metrics")
+	IncludeOnlyPaths []string `protobuf:"bytes,5,rep,name=include_only_paths,json=includeOnlyPaths" json:"include_only_paths,omitempty"` // if set, only log requests matching these path prefixes
+	ExcludePaths     []string `protobuf:"bytes,6,rep,name=exclude_paths,json=excludePaths" json:"exclude_paths,omitempty"`               // exclude requests matching these path prefixes (e.g., "/health", "/metrics")
 	// Method filtering
-	IncludeOnlyMethods []string `protobuf:"bytes,5,rep,name=include_only_methods,json=includeOnlyMethods" json:"include_only_methods,omitempty"` // if set, only log these HTTP methods (e.g., ["GET", "POST"])
-	ExcludeMethods     []string `protobuf:"bytes,6,rep,name=exclude_methods,json=excludeMethods" json:"exclude_methods,omitempty"`               // exclude these HTTP methods from logging (e.g., ["OPTIONS"])
+	IncludeOnlyMethods []string `protobuf:"bytes,7,rep,name=include_only_methods,json=includeOnlyMethods" json:"include_only_methods,omitempty"` // if set, only log these HTTP methods (e.g., ["GET", "POST"])
+	ExcludeMethods     []string `protobuf:"bytes,8,rep,name=exclude_methods,json=excludeMethods" json:"exclude_methods,omitempty"`               // exclude these HTTP methods from logging (e.g., ["OPTIONS"])
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
+
+// Default values for ConsoleLoggerConfig fields.
+const (
+	Default_ConsoleLoggerConfig_Output = string("stdout")
+	Default_ConsoleLoggerConfig_Preset = LogPreset_PRESET_UNSPECIFIED
+)
 
 func (x *ConsoleLoggerConfig) Reset() {
 	*x = ConsoleLoggerConfig{}
@@ -377,6 +444,20 @@ func (x *ConsoleLoggerConfig) GetFields() *LogOptionsHTTP {
 		return x.Fields
 	}
 	return nil
+}
+
+func (x *ConsoleLoggerConfig) GetOutput() string {
+	if x != nil && x.Output != nil {
+		return *x.Output
+	}
+	return Default_ConsoleLoggerConfig_Output
+}
+
+func (x *ConsoleLoggerConfig) GetPreset() LogPreset {
+	if x != nil && x.Preset != nil {
+		return *x.Preset
+	}
+	return Default_ConsoleLoggerConfig_Preset
 }
 
 func (x *ConsoleLoggerConfig) GetIncludeOnlyPaths() []string {
@@ -548,14 +629,22 @@ const file_settings_v1alpha1_middleware_v1_logger_proto_rawDesc = "" +
 	"\tbody_size\x18\x04 \x01(\bR\bbodySize\x12\x18\n" +
 	"\aheaders\x18\x05 \x01(\bR\aheaders\x12'\n" +
 	"\x0finclude_headers\x18\x06 \x03(\tR\x0eincludeHeaders\x12'\n" +
-	"\x0fexclude_headers\x18\a \x03(\tR\x0eexcludeHeaders\"\xda\x02\n" +
+	"\x0fexclude_headers\x18\a \x03(\tR\x0eexcludeHeaders\"\xd2\x03\n" +
 	"\x13ConsoleLoggerConfig\x12L\n" +
 	"\aoptions\x18\x01 \x01(\v22.settings.v1alpha1.middleware.v1.LogOptionsGeneralR\aoptions\x12G\n" +
-	"\x06fields\x18\x02 \x01(\v2/.settings.v1alpha1.middleware.v1.LogOptionsHTTPR\x06fields\x12,\n" +
-	"\x12include_only_paths\x18\x03 \x03(\tR\x10includeOnlyPaths\x12#\n" +
-	"\rexclude_paths\x18\x04 \x03(\tR\fexcludePaths\x120\n" +
-	"\x14include_only_methods\x18\x05 \x03(\tR\x12includeOnlyMethods\x12'\n" +
-	"\x0fexclude_methods\x18\x06 \x03(\tR\x0eexcludeMethodsBIZGgithub.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1b\beditionsp\xe8\a"
+	"\x06fields\x18\x02 \x01(\v2/.settings.v1alpha1.middleware.v1.LogOptionsHTTPR\x06fields\x12\x1e\n" +
+	"\x06output\x18\x03 \x01(\t:\x06stdoutR\x06output\x12V\n" +
+	"\x06preset\x18\x04 \x01(\x0e2*.settings.v1alpha1.middleware.v1.LogPreset:\x12PRESET_UNSPECIFIEDR\x06preset\x12,\n" +
+	"\x12include_only_paths\x18\x05 \x03(\tR\x10includeOnlyPaths\x12#\n" +
+	"\rexclude_paths\x18\x06 \x03(\tR\fexcludePaths\x120\n" +
+	"\x14include_only_methods\x18\a \x03(\tR\x12includeOnlyMethods\x12'\n" +
+	"\x0fexclude_methods\x18\b \x03(\tR\x0eexcludeMethods*s\n" +
+	"\tLogPreset\x12\x16\n" +
+	"\x12PRESET_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0ePRESET_MINIMAL\x10\x01\x12\x13\n" +
+	"\x0fPRESET_STANDARD\x10\x02\x12\x13\n" +
+	"\x0fPRESET_DETAILED\x10\x03\x12\x10\n" +
+	"\fPRESET_DEBUG\x10\x04BIZGgithub.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_middleware_v1_logger_proto_rawDescOnce sync.Once
@@ -569,28 +658,30 @@ func file_settings_v1alpha1_middleware_v1_logger_proto_rawDescGZIP() []byte {
 	return file_settings_v1alpha1_middleware_v1_logger_proto_rawDescData
 }
 
-var file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_settings_v1alpha1_middleware_v1_logger_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_settings_v1alpha1_middleware_v1_logger_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_settings_v1alpha1_middleware_v1_logger_proto_goTypes = []any{
-	(LogOptionsGeneral_Format)(0),          // 0: settings.v1alpha1.middleware.v1.LogOptionsGeneral.Format
-	(LogOptionsGeneral_Level)(0),           // 1: settings.v1alpha1.middleware.v1.LogOptionsGeneral.Level
-	(*LogOptionsGeneral)(nil),              // 2: settings.v1alpha1.middleware.v1.LogOptionsGeneral
-	(*LogOptionsHTTP)(nil),                 // 3: settings.v1alpha1.middleware.v1.LogOptionsHTTP
-	(*ConsoleLoggerConfig)(nil),            // 4: settings.v1alpha1.middleware.v1.ConsoleLoggerConfig
-	(*LogOptionsHTTP_DirectionConfig)(nil), // 5: settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfig
+	(LogPreset)(0),                         // 0: settings.v1alpha1.middleware.v1.LogPreset
+	(LogOptionsGeneral_Format)(0),          // 1: settings.v1alpha1.middleware.v1.LogOptionsGeneral.Format
+	(LogOptionsGeneral_Level)(0),           // 2: settings.v1alpha1.middleware.v1.LogOptionsGeneral.Level
+	(*LogOptionsGeneral)(nil),              // 3: settings.v1alpha1.middleware.v1.LogOptionsGeneral
+	(*LogOptionsHTTP)(nil),                 // 4: settings.v1alpha1.middleware.v1.LogOptionsHTTP
+	(*ConsoleLoggerConfig)(nil),            // 5: settings.v1alpha1.middleware.v1.ConsoleLoggerConfig
+	(*LogOptionsHTTP_DirectionConfig)(nil), // 6: settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfig
 }
 var file_settings_v1alpha1_middleware_v1_logger_proto_depIdxs = []int32{
-	0, // 0: settings.v1alpha1.middleware.v1.LogOptionsGeneral.format:type_name -> settings.v1alpha1.middleware.v1.LogOptionsGeneral.Format
-	1, // 1: settings.v1alpha1.middleware.v1.LogOptionsGeneral.level:type_name -> settings.v1alpha1.middleware.v1.LogOptionsGeneral.Level
-	5, // 2: settings.v1alpha1.middleware.v1.LogOptionsHTTP.request:type_name -> settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfig
-	5, // 3: settings.v1alpha1.middleware.v1.LogOptionsHTTP.response:type_name -> settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfig
-	2, // 4: settings.v1alpha1.middleware.v1.ConsoleLoggerConfig.options:type_name -> settings.v1alpha1.middleware.v1.LogOptionsGeneral
-	3, // 5: settings.v1alpha1.middleware.v1.ConsoleLoggerConfig.fields:type_name -> settings.v1alpha1.middleware.v1.LogOptionsHTTP
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	1, // 0: settings.v1alpha1.middleware.v1.LogOptionsGeneral.format:type_name -> settings.v1alpha1.middleware.v1.LogOptionsGeneral.Format
+	2, // 1: settings.v1alpha1.middleware.v1.LogOptionsGeneral.level:type_name -> settings.v1alpha1.middleware.v1.LogOptionsGeneral.Level
+	6, // 2: settings.v1alpha1.middleware.v1.LogOptionsHTTP.request:type_name -> settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfig
+	6, // 3: settings.v1alpha1.middleware.v1.LogOptionsHTTP.response:type_name -> settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfig
+	3, // 4: settings.v1alpha1.middleware.v1.ConsoleLoggerConfig.options:type_name -> settings.v1alpha1.middleware.v1.LogOptionsGeneral
+	4, // 5: settings.v1alpha1.middleware.v1.ConsoleLoggerConfig.fields:type_name -> settings.v1alpha1.middleware.v1.LogOptionsHTTP
+	0, // 6: settings.v1alpha1.middleware.v1.ConsoleLoggerConfig.preset:type_name -> settings.v1alpha1.middleware.v1.LogPreset
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_middleware_v1_logger_proto_init() }
@@ -603,7 +694,7 @@ func file_settings_v1alpha1_middleware_v1_logger_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_middleware_v1_logger_proto_rawDesc), len(file_settings_v1alpha1_middleware_v1_logger_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,

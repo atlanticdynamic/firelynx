@@ -19,7 +19,7 @@ import (
 
 func TestConfigTransaction_ToProto(t *testing.T) {
 	t.Parallel()
-	handler := logging.SetupHandlerText("debug")
+	handler := logging.SetupHandlerText("debug", nil)
 
 	t.Run("converts transaction to protobuf", func(t *testing.T) {
 		cfg := &config.Config{Version: version.Version}
@@ -238,7 +238,7 @@ func TestGetLogsVsPlaybackLogs(t *testing.T) {
 }
 
 func TestConfigTransaction_ToProto_IncludesConfig(t *testing.T) {
-	handler := logging.SetupHandlerText("debug")
+	handler := logging.SetupHandlerText("debug", nil)
 
 	t.Run("includes config when domainConfig is set", func(t *testing.T) {
 		cfg := &config.Config{Version: version.Version}

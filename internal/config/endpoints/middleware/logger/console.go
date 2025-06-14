@@ -13,6 +13,12 @@ type ConsoleLogger struct {
 	Options LogOptionsGeneral `json:"options" toml:"options"`
 	Fields  LogOptionsHTTP    `json:"fields"  toml:"fields"`
 
+	// Output destination (supports environment variable interpolation)
+	Output string `json:"output" toml:"output"`
+
+	// Preset configuration (applied before custom field overrides)
+	Preset Preset `json:"preset" toml:"preset"`
+
 	// Path filtering - paths are matched as prefixes
 	IncludeOnlyPaths []string `json:"includeOnlyPaths" toml:"include_only_paths"`
 	ExcludePaths     []string `json:"excludePaths"     toml:"exclude_paths"`
@@ -80,6 +86,17 @@ const (
 	LevelFatal       Level = "fatal"
 )
 
+// Preset represents logging preset configurations
+type Preset string
+
+const (
+	PresetUnspecified Preset = "unspecified"
+	PresetMinimal     Preset = "minimal"
+	PresetStandard    Preset = "standard"
+	PresetDetailed    Preset = "detailed"
+	PresetDebug       Preset = "debug"
+)
+
 // NewConsoleLogger creates a new console logger with default settings
 func NewConsoleLogger() *ConsoleLogger {
 	return &ConsoleLogger{
@@ -98,7 +115,67 @@ func NewConsoleLogger() *ConsoleLogger {
 				Enabled: true,
 			},
 		},
+		Output: "stdout",
+		Preset: PresetUnspecified,
 	}
+}
+
+// ApplyPreset applies a preset configuration to the logger
+func (c *ConsoleLogger) ApplyPreset() {
+	switch c.Preset {
+	case PresetMinimal:
+		c.applyMinimalPreset()
+	case PresetStandard:
+		c.applyStandardPreset()
+	case PresetDetailed:
+		c.applyDetailedPreset()
+	case PresetDebug:
+		c.applyDebugPreset()
+	}
+}
+
+// applyMinimalPreset configures minimal logging (method, path, status code only)
+func (c *ConsoleLogger) applyMinimalPreset() {
+	c.Fields = LogOptionsHTTP{
+		Method:     true,
+		Path:       true,
+		StatusCode: true,
+		Request: DirectionConfig{
+			Enabled: true,
+		},
+		Response: DirectionConfig{
+			Enabled: true,
+		},
+	}
+}
+
+// applyStandardPreset configures standard logging (minimal + client IP, duration)
+func (c *ConsoleLogger) applyStandardPreset() {
+	c.applyMinimalPreset()
+	c.Fields.ClientIP = true
+	c.Fields.Duration = true
+}
+
+// applyDetailedPreset configures detailed logging (standard + headers, query params)
+func (c *ConsoleLogger) applyDetailedPreset() {
+	c.applyStandardPreset()
+	c.Fields.QueryParams = true
+	c.Fields.Protocol = true
+	c.Fields.Host = true
+	c.Fields.Scheme = true
+	c.Fields.Request.Headers = true
+	c.Fields.Response.Headers = true
+}
+
+// applyDebugPreset configures debug logging (everything including bodies)
+func (c *ConsoleLogger) applyDebugPreset() {
+	c.applyDetailedPreset()
+	c.Fields.Request.Body = true
+	c.Fields.Request.BodySize = true
+	c.Fields.Request.MaxBodySize = 1024 // Limit to 1KB for debug
+	c.Fields.Response.Body = true
+	c.Fields.Response.BodySize = true
+	c.Fields.Response.MaxBodySize = 1024 // Limit to 1KB for debug
 }
 
 // Type returns the middleware type
@@ -130,6 +207,21 @@ func (c *ConsoleLogger) Validate() error {
 		}
 	}
 
+	// Validate preset
+	if c.Preset != "" {
+		switch c.Preset {
+		case PresetUnspecified, PresetMinimal, PresetStandard, PresetDetailed, PresetDebug:
+			// Valid presets
+		default:
+			errs = append(errs, fmt.Errorf("invalid preset: %s", c.Preset))
+		}
+	}
+
+	// Validate output (basic check for empty string)
+	if c.Output == "" {
+		c.Output = "stdout" // Set default
+	}
+
 	// Validate max body size (if specified, should be non-negative)
 	if c.Fields.Request.MaxBodySize < 0 {
 		errs = append(errs, errors.New("request max body size cannot be negative"))
@@ -146,6 +238,11 @@ func (c *ConsoleLogger) String() string {
 	var parts []string
 	parts = append(parts, fmt.Sprintf("Format: %s", c.Options.Format))
 	parts = append(parts, fmt.Sprintf("Level: %s", c.Options.Level))
+	parts = append(parts, fmt.Sprintf("Output: %s", c.Output))
+
+	if c.Preset != PresetUnspecified {
+		parts = append(parts, fmt.Sprintf("Preset: %s", c.Preset))
+	}
 
 	if len(c.IncludeOnlyPaths) > 0 {
 		parts = append(parts, fmt.Sprintf("Include paths: %v", c.IncludeOnlyPaths))
@@ -164,6 +261,11 @@ func (c *ConsoleLogger) ToTree() *fancy.ComponentTree {
 	// General options
 	tree.AddChild(fmt.Sprintf("Format: %s", c.Options.Format))
 	tree.AddChild(fmt.Sprintf("Level: %s", c.Options.Level))
+	tree.AddChild(fmt.Sprintf("Output: %s", c.Output))
+
+	if c.Preset != PresetUnspecified {
+		tree.AddChild(fmt.Sprintf("Preset: %s", c.Preset))
+	}
 
 	// HTTP fields
 	httpFields := []string{}

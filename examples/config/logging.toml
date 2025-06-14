@@ -1,101 +1,50 @@
-# FireLynx Configuration Example: Console Logging
+# FireLynx Configuration Example: Preset-Based Logging
 #
-# This configuration demonstrates how to set up console logging middleware
-# to capture and log HTTP request/response details in JSON format.
+# This configuration demonstrates the preset-based logging system
+# for common logging scenarios with minimal configuration.
 #
-# Features demonstrated:
-# - HTTP listener with timeouts
-# - Console logger middleware with selective field logging
-# - Path and method filtering to exclude unwanted requests
-# - Echo app for testing the logging functionality
+# Compare this setup with logging-full.toml which shows manual field configuration.
+# This example uses presets to achieve similar functionality with fewer lines.
 
 version = "v1"
 
 # HTTP Listener Configuration
-# Listens on port 8080 with 30-second read/write timeouts
 [[listeners]]
 id = "http"
-address = ":8080"         # Listen on all interfaces, port 8080
-type = "http"             # HTTP protocol listener
+address = ":8080"
+type = "http"
 
 [listeners.http]
-read_timeout = "30s"      # Maximum time to read the entire request
-write_timeout = "30s"     # Maximum time to write the response
+read_timeout = "30s"
+write_timeout = "30s"
 
 # Endpoint Configuration
-# Connects the HTTP listener to routes and middleware
 [[endpoints]]
 id = "main"
-listener_id = "http"      # References the listener defined above
+listener_id = "http"
 
-# Console Logger Middleware Configuration
-# Logs HTTP requests and responses to console in JSON format
+# Standard Logger Setup - includes method, path, status, client IP, and duration
 [[endpoints.middlewares]]
-id = "request-logger"
-type = "console_logger"   # Built-in console logging middleware
+id = "logger"
+type = "console_logger"
 
 [endpoints.middlewares.console_logger]
+preset = "standard"                           # Includes method, path, status, client IP, duration
+output = "stdout"                             # Can be "stderr" or file path like "/tmp/app.log"
+exclude_paths = ["/health", "/metrics"]      # Skip health checks
 
-# Logging Output Options
 [endpoints.middlewares.console_logger.options]
-format = "json"           # Output format: "json" or "text"
-level = "info"            # Log level: "debug", "info", "warn", "error"
-
-# HTTP Field Selection
-# Control which HTTP fields are included in log entries
-[endpoints.middlewares.console_logger.fields]
-method = true             # Include HTTP method (GET, POST, etc.)
-path = true               # Include request path
-client_ip = true          # Include client IP address
-query_params = false      # Exclude query parameters for privacy
-protocol = false          # Exclude HTTP protocol version
-host = false              # Exclude Host header
-scheme = false            # Exclude URL scheme (http/https)
-status_code = true        # Include HTTP response status code
-duration = true           # Include request processing duration
-
-# Request Body Logging
-# Configure logging of request bodies and headers
-[endpoints.middlewares.console_logger.fields.request]
-enabled = true            # Enable request logging
-body = false              # Don't log request body for privacy/size
-max_body_size = 0         # Maximum body size to log (0 = disabled)
-body_size = false         # Don't log size of request body
-headers = false           # Don't log request headers for privacy
-include_headers = []      # Specific headers to include (if headers = true)
-exclude_headers = []      # Specific headers to exclude
-
-# Response Body Logging  
-# Configure logging of response bodies and headers
-[endpoints.middlewares.console_logger.fields.response]
-enabled = true            # Enable response logging
-body = false              # Don't log response body for size/privacy
-max_body_size = 0         # Maximum body size to log (0 = disabled)
-body_size = false         # Don't log size of response body
-headers = false           # Don't log response headers
-include_headers = []      # Specific headers to include (if headers = true)
-exclude_headers = []      # Specific headers to exclude
-
-# Path-Based Filtering
-# Control which request paths should be logged
-include_only_paths = []           # If non-empty, only log these paths
-exclude_paths = ["/health", "/metrics"]  # Skip logging for these paths
-
-# HTTP Method Filtering
-# Control which HTTP methods should be logged
-include_only_methods = []         # If non-empty, only log these methods
-exclude_methods = ["OPTIONS"]    # Skip logging for these methods
+format = "json"
+level = "info"
 
 # Route Configuration
-# Defines how requests are routed to backend applications
 [[endpoints.routes]]
-app_id = "greetz"           # Route all requests to the "greetz" app
+app_id = "hello"
 [endpoints.routes.http]
-path_prefix = "/"         # Match all paths starting with "/"
+path_prefix = "/"
 
 # Application Definition
-# Simple echo app that returns a greeting message
 [[apps]]
-id = "greetz"
+id = "hello"
 [apps.echo]
-response = "Hello, World!"  # Static response for all requests
+response = "Hello from FireLynx!"
