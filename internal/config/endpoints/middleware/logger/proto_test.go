@@ -446,8 +446,6 @@ func TestDirectionConfigConversion(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Complete direction config", func(t *testing.T) {
-		t.Parallel()
-
 		domain := DirectionConfig{
 			Enabled:        true,
 			Body:           false,
@@ -474,8 +472,6 @@ func TestDirectionConfigConversion(t *testing.T) {
 	})
 
 	t.Run("Empty direction config", func(t *testing.T) {
-		t.Parallel()
-
 		domain := DirectionConfig{}
 
 		// Convert to proto
@@ -491,5 +487,41 @@ func TestDirectionConfigConversion(t *testing.T) {
 		// Convert back to domain
 		restored := directionConfigFromProto(proto)
 		assert.Equal(t, domain, restored)
+	})
+}
+
+func TestPresetConversion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		domain Preset
+		proto  pb.LogPreset
+	}{
+		{PresetMinimal, pb.LogPreset_PRESET_MINIMAL},
+		{PresetStandard, pb.LogPreset_PRESET_STANDARD},
+		{PresetDetailed, pb.LogPreset_PRESET_DETAILED},
+		{PresetDebug, pb.LogPreset_PRESET_DEBUG},
+		{PresetUnspecified, pb.LogPreset_PRESET_UNSPECIFIED},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.domain), func(t *testing.T) {
+			// Test domain to proto
+			protoPreset := presetToProto(tt.domain)
+			assert.Equal(t, tt.proto, protoPreset)
+
+			// Test proto to domain
+			domainPreset := presetFromProto(tt.proto)
+			assert.Equal(t, tt.domain, domainPreset)
+		})
+	}
+
+	t.Run("Invalid preset defaults to unspecified", func(t *testing.T) {
+		invalidPreset := Preset("invalid")
+		protoPreset := presetToProto(invalidPreset)
+		assert.Equal(t, pb.LogPreset_PRESET_UNSPECIFIED, protoPreset)
+
+		domainPreset := presetFromProto(pb.LogPreset(999))
+		assert.Equal(t, PresetUnspecified, domainPreset)
 	})
 }
