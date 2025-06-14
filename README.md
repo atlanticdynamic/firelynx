@@ -101,4 +101,4 @@ Documentation is located near the code in README files throughout the codebase:
 
 ## License
 
-Apache License 2.0 - See [LICENSE](LICENSE) for details.
+GPL v3 - See [LICENSE](LICENSE) for details.
