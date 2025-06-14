@@ -1,0 +1,75 @@
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+# Middleware configuration - console logger for HTTP requests
+[[endpoints.middlewares]]
+id = "request-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+# General logging options
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+# HTTP-specific field configuration
+[endpoints.middlewares.console_logger.fields]
+method = true
+path = true
+client_ip = true
+query_params = false
+protocol = false
+host = false
+scheme = false
+status_code = true
+duration = true
+
+# Request logging configuration
+[endpoints.middlewares.console_logger.fields.request]
+enabled = true
+body = false
+max_body_size = 0
+body_size = false
+headers = false
+include_headers = []
+exclude_headers = []
+
+# Response logging configuration
+[endpoints.middlewares.console_logger.fields.response]
+enabled = true
+body = false
+max_body_size = 0
+body_size = false
+headers = false
+include_headers = []
+exclude_headers = []
+
+# Path filtering - exclude health and metrics endpoints
+include_only_paths = []
+exclude_paths = ["/health", "/metrics"]
+
+# Method filtering
+include_only_methods = []
+exclude_methods = ["OPTIONS"]
+
+[[endpoints.routes]]
+app_id = "echo"
+[endpoints.routes.http]
+path_prefix = "/"
+
+[[apps]]
+id = "echo"
+[apps.echo]
+response = "Hello, World!"
