@@ -1,0 +1,53 @@
+# FireLynx Configuration Example: Logger Presets and Output Destinations
+#
+# This configuration demonstrates the new preset-based logging system and
+# configurable output destinations with environment variable interpolation.
+#
+# Features demonstrated:
+# - Using preset configurations for common logging scenarios
+# - File output with environment variable interpolation
+# - Multiple logger instances with different destinations
+# - Simplified configuration using presets
+
+version = "v1"
+
+# HTTP Listener Configuration
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+# Endpoint Configuration with Multiple Loggers
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+# File Logger with Detailed Preset and Environment Variable Interpolation
+[[endpoints.middlewares]]
+id = "file-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "detailed"                              # Includes headers, query params, etc.
+output = "/tmp/firelynx-${HOSTNAME}.log"         # Environment variable interpolation
+exclude_paths = ["/health", "/metrics"]         # Skip health checks
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "debug"
+
+# Route Configuration
+[[endpoints.routes]]
+app_id = "hello"
+[endpoints.routes.http]
+path_prefix = "/"
+
+# Application Definition
+[[apps]]
+id = "hello"
+[apps.echo]
+response = "Hello from FireLynx with Enhanced Logging!"

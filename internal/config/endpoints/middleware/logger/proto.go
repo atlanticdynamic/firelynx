@@ -4,12 +4,14 @@ import (
 	"fmt"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 )
 
 // ToProto converts ConsoleLogger to protobuf format
 func (c *ConsoleLogger) ToProto() any {
 	format := formatToProto(c.Options.Format)
 	level := levelToProto(c.Options.Level)
+	preset := presetToProto(c.Preset)
 
 	config := &pb.ConsoleLoggerConfig{
 		Options: &pb.LogOptionsGeneral{
@@ -29,6 +31,8 @@ func (c *ConsoleLogger) ToProto() any {
 			Request:     directionConfigToProto(c.Fields.Request),
 			Response:    directionConfigToProto(c.Fields.Response),
 		},
+		Output: &c.Output,
+		Preset: &preset,
 	}
 
 	// Add path filtering
@@ -65,6 +69,13 @@ func FromProto(pbConfig *pb.ConsoleLoggerConfig) (*ConsoleLogger, error) {
 			Level:  levelFromProto(pbConfig.Options.GetLevel()),
 		}
 	}
+
+	// Convert output with environment variable interpolation
+	// Empty string defaults to stdout in CreateWriter
+	config.Output = interpolation.ExpandEnvVars(pbConfig.GetOutput())
+
+	// Convert preset
+	config.Preset = presetFromProto(pbConfig.GetPreset())
 
 	// Convert HTTP fields
 	if pbConfig.Fields != nil {
@@ -193,4 +204,35 @@ func directionConfigFromProto(pbConfig *pb.LogOptionsHTTP_DirectionConfig) Direc
 	}
 
 	return config
+}
+
+// Helper functions for preset conversion
+func presetToProto(preset Preset) pb.LogPreset {
+	switch preset {
+	case PresetMinimal:
+		return pb.LogPreset_PRESET_MINIMAL
+	case PresetStandard:
+		return pb.LogPreset_PRESET_STANDARD
+	case PresetDetailed:
+		return pb.LogPreset_PRESET_DETAILED
+	case PresetDebug:
+		return pb.LogPreset_PRESET_DEBUG
+	default:
+		return pb.LogPreset_PRESET_UNSPECIFIED
+	}
+}
+
+func presetFromProto(pbPreset pb.LogPreset) Preset {
+	switch pbPreset {
+	case pb.LogPreset_PRESET_MINIMAL:
+		return PresetMinimal
+	case pb.LogPreset_PRESET_STANDARD:
+		return PresetStandard
+	case pb.LogPreset_PRESET_DETAILED:
+		return PresetDetailed
+	case pb.LogPreset_PRESET_DEBUG:
+		return PresetDebug
+	default:
+		return PresetUnspecified
+	}
 }

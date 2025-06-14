@@ -62,7 +62,8 @@ func TestLoggingConfigurationPipeline(t *testing.T) {
 		)
 
 		// Create the middleware with the loaded config
-		consoleLogger := logger.NewConsoleLogger("test-logger", consoleLoggerConfig)
+		consoleLogger, err := logger.NewConsoleLogger("test-logger", consoleLoggerConfig)
+		require.NoError(t, err, "should create console logger without error")
 		require.NotNil(t, consoleLogger, "console logger should be created")
 
 		// Test that the middleware actually logs in JSON format using loglater
@@ -70,7 +71,7 @@ func TestLoggingConfigurationPipeline(t *testing.T) {
 		logCollector := loglater.NewLogCollector(nil)
 
 		// Create a new console logger with our collector as the handler
-		jsonHandler := centralLogger.SetupHandlerJSON("info")
+		jsonHandler := centralLogger.SetupHandlerJSON("info", nil)
 		testLogger := slog.New(logCollector).WithGroup("http")
 
 		// Create a context and test log entry
@@ -136,11 +137,11 @@ func TestLoggingConfigurationPipeline(t *testing.T) {
 
 	t.Run("verifies handler selection logic", func(t *testing.T) {
 		// Test JSON handler creation directly
-		jsonHandler := centralLogger.SetupHandlerJSON("info")
+		jsonHandler := centralLogger.SetupHandlerJSON("info", nil)
 		require.NotNil(t, jsonHandler, "JSON handler should be created")
 
 		// Test text handler creation directly
-		textHandler := centralLogger.SetupHandlerText("info")
+		textHandler := centralLogger.SetupHandlerText("info", nil)
 		require.NotNil(t, textHandler, "text handler should be created")
 
 		// They should be different types

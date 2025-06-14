@@ -50,3 +50,17 @@ listener := cfg.Listeners.FindByID("public-http")
 ```
 
 The rest of the server interacts with configuration exclusively through this API, allowing the TOML and protobuf schemas to evolve without touching runtime code.
+
+## Environment Variable Interpolation
+
+Config fields can support environment variable interpolation using `${VAR_NAME}` syntax. To add this to new fields:
+
+1. **Protobuf**: Add field comment documenting interpolation support
+2. **Domain conversion**: Use `interpolation.ExpandEnvVars()` when converting from protobuf
+3. **Validation**: Validate the expanded value, not the raw template
+
+Example protobuf field:
+```protobuf
+// Output destination (supports environment variable interpolation with ${VAR_NAME})
+string output = 3 [default = "stdout"];
+```

@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -8,8 +9,12 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-// SetupHandlerText configures the default logger to use the provided handler
-func SetupHandlerText(logLevel string) slog.Handler {
+// SetupHandlerText configures a text slog handler with the provided writer and log level
+func SetupHandlerText(logLevel string, writer io.Writer) slog.Handler {
+	if writer == nil {
+		writer = os.Stderr
+	}
+
 	reportCaller := false
 	reportTimestamp := false
 	lvl := log.InfoLevel
@@ -29,15 +34,19 @@ func SetupHandlerText(logLevel string) slog.Handler {
 		lvl = log.ErrorLevel
 	}
 
-	return log.NewWithOptions(os.Stderr, log.Options{
+	return log.NewWithOptions(writer, log.Options{
 		ReportTimestamp: reportTimestamp,
 		ReportCaller:    reportCaller,
 		Level:           lvl,
 	})
 }
 
-// SetupHandlerJSON configures a JSON slog handler with the provided log level
-func SetupHandlerJSON(logLevel string) slog.Handler {
+// SetupHandlerJSON configures a JSON slog handler with the provided writer and log level
+func SetupHandlerJSON(logLevel string, writer io.Writer) slog.Handler {
+	if writer == nil {
+		writer = os.Stdout
+	}
+
 	reportCaller := false
 	var level slog.Level
 
@@ -63,11 +72,11 @@ func SetupHandlerJSON(logLevel string) slog.Handler {
 		AddSource: reportCaller,
 	}
 
-	return slog.NewJSONHandler(os.Stdout, opts)
+	return slog.NewJSONHandler(writer, opts)
 }
 
 // SetupLogger configures the default logger based on provided log level
 func SetupLogger(logLevel string) {
-	handler := SetupHandlerText(logLevel)
+	handler := SetupHandlerText(logLevel, nil)
 	slog.SetDefault(slog.New(handler))
 }
