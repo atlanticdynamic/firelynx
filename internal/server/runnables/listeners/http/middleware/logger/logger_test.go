@@ -74,13 +74,29 @@ func TestResponseBuffer(t *testing.T) {
 func TestNewConsoleLogger(t *testing.T) {
 	t.Parallel()
 
-	cfg := logger.NewConsoleLogger()
-	cfg.Options.Level = logger.LevelDebug
+	t.Run("Text format (default)", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Options.Level = logger.LevelDebug
+		cfg.Options.Format = logger.FormatTxt
 
-	consoleLogger := NewConsoleLogger("test-logger", cfg)
-	assert.Equal(t, "test-logger", consoleLogger.id)
-	assert.NotNil(t, consoleLogger)
-	assert.NotNil(t, consoleLogger.filter)
+		consoleLogger := NewConsoleLogger("test-logger", cfg)
+		assert.Equal(t, "test-logger", consoleLogger.id)
+		assert.NotNil(t, consoleLogger)
+		assert.NotNil(t, consoleLogger.filter)
+		assert.NotNil(t, consoleLogger.logger)
+	})
+
+	t.Run("JSON format", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Options.Level = logger.LevelInfo
+		cfg.Options.Format = logger.FormatJSON
+
+		consoleLogger := NewConsoleLogger("test-logger-json", cfg)
+		assert.Equal(t, "test-logger-json", consoleLogger.id)
+		assert.NotNil(t, consoleLogger)
+		assert.NotNil(t, consoleLogger.filter)
+		assert.NotNil(t, consoleLogger.logger)
+	})
 }
 
 func TestConsoleLogger_Middleware(t *testing.T) {
@@ -103,6 +119,290 @@ func TestConsoleLogger_Middleware(t *testing.T) {
 
 		assert.NotNil(t, middleware)
 		assert.NotNil(t, consoleLogger.filter)
+	})
+
+	t.Run("Middleware execution with basic logging", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Fields.Method = true
+		cfg.Fields.Path = true
+		cfg.Fields.StatusCode = true
+		cfg.Fields.Duration = true
+
+		mockLogger := &MockLogger{}
+		cl := &ConsoleLogger{
+			id:     "test-middleware",
+			filter: newLogFilter(cfg),
+			logger: mockLogger,
+		}
+
+		req := httptest.NewRequest("GET", "/api/test", nil)
+		rec := httptest.NewRecorder()
+
+		// Create a test handler that writes response
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			n, err := w.Write([]byte("success"))
+			assert.NoError(t, err)
+			assert.Equal(t, 7, n)
+		}
+
+		// Execute using go-supervisor pattern
+		route, err := httpserver.NewRouteFromHandlerFunc(
+			"test",
+			"/api/test",
+			handler,
+			cl.Middleware(),
+		)
+		require.NoError(t, err)
+		route.ServeHTTP(rec, req)
+
+		// Verify response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "success", rec.Body.String())
+
+		// Verify logger was called
+		assert.Equal(t, "test-middleware", mockLogger.loggedMessage)
+		assert.Equal(t, slog.LevelInfo, mockLogger.loggedLevel)
+		assert.NotEmpty(t, mockLogger.loggedAttrs)
+	})
+
+	t.Run("Middleware skips filtered requests", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.ExcludeMethods = []string{"OPTIONS"}
+
+		mockLogger := &MockLogger{}
+		cl := &ConsoleLogger{
+			id:     "test-middleware",
+			filter: newLogFilter(cfg),
+			logger: mockLogger,
+		}
+
+		req := httptest.NewRequest("OPTIONS", "/api/test", nil)
+		rec := httptest.NewRecorder()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}
+
+		route, err := httpserver.NewRouteFromHandlerFunc(
+			"test",
+			"/api/test",
+			handler,
+			cl.Middleware(),
+		)
+		require.NoError(t, err)
+		route.ServeHTTP(rec, req)
+
+		// Verify response still works
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		// Verify logger was NOT called (message should be empty)
+		assert.Empty(t, mockLogger.loggedMessage)
+	})
+
+	t.Run("Middleware captures request body when enabled", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Fields.Request.Enabled = true
+		cfg.Fields.Request.Body = true
+		cfg.Fields.Request.MaxBodySize = 1024
+
+		mockLogger := &MockLogger{}
+		cl := &ConsoleLogger{
+			id:     "test-middleware",
+			filter: newLogFilter(cfg),
+			logger: mockLogger,
+		}
+
+		requestBody := `{"name": "test"}`
+		req := httptest.NewRequest("POST", "/api/test", strings.NewReader(requestBody))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			// Verify handler can still read the body
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+			assert.Equal(t, requestBody, string(body))
+			w.WriteHeader(http.StatusCreated)
+		}
+
+		route, err := httpserver.NewRouteFromHandlerFunc(
+			"test",
+			"/api/test",
+			handler,
+			cl.Middleware(),
+		)
+		require.NoError(t, err)
+		route.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusCreated, rec.Code)
+		assert.Equal(t, "test-middleware", mockLogger.loggedMessage)
+	})
+
+	t.Run("Middleware captures response body when enabled", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Fields.Response.Enabled = true
+		cfg.Fields.Response.Body = true
+		cfg.Fields.Response.MaxBodySize = 1024
+
+		mockLogger := &MockLogger{}
+		cl := &ConsoleLogger{
+			id:     "test-middleware",
+			filter: newLogFilter(cfg),
+			logger: mockLogger,
+		}
+
+		req := httptest.NewRequest("GET", "/api/test", nil)
+		rec := httptest.NewRecorder()
+
+		responseBody := `{"result": "success"}`
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			n, err := w.Write([]byte(responseBody))
+			assert.NoError(t, err)
+			assert.Equal(t, len(responseBody), n)
+		}
+
+		route, err := httpserver.NewRouteFromHandlerFunc(
+			"test",
+			"/api/test",
+			handler,
+			cl.Middleware(),
+		)
+		require.NoError(t, err)
+		route.ServeHTTP(rec, req)
+
+		// Verify response reaches client
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, responseBody, rec.Body.String())
+		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+
+		// Verify logger was called
+		assert.Equal(t, "test-middleware", mockLogger.loggedMessage)
+	})
+
+	t.Run("Middleware handles error status codes with correct log level", func(t *testing.T) {
+		tests := []struct {
+			statusCode    int
+			expectedLevel slog.Level
+		}{
+			{200, slog.LevelInfo},
+			{404, slog.LevelWarn},
+			{500, slog.LevelError},
+		}
+
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("status_%d", tt.statusCode), func(t *testing.T) {
+				cfg := logger.NewConsoleLogger()
+				cfg.Fields.StatusCode = true
+
+				mockLogger := &MockLogger{}
+				cl := &ConsoleLogger{
+					id:     "test-middleware",
+					filter: newLogFilter(cfg),
+					logger: mockLogger,
+				}
+
+				req := httptest.NewRequest("GET", "/api/test", nil)
+				rec := httptest.NewRecorder()
+
+				handler := func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(tt.statusCode)
+				}
+
+				route, err := httpserver.NewRouteFromHandlerFunc(
+					"test",
+					"/api/test",
+					handler,
+					cl.Middleware(),
+				)
+				require.NoError(t, err)
+				route.ServeHTTP(rec, req)
+
+				assert.Equal(t, tt.statusCode, rec.Code)
+				assert.Equal(t, tt.expectedLevel, mockLogger.loggedLevel)
+			})
+		}
+	})
+
+	t.Run("Middleware handles large request body truncation", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Fields.Request.Enabled = true
+		cfg.Fields.Request.Body = true
+		cfg.Fields.Request.MaxBodySize = 10
+
+		mockLogger := &MockLogger{}
+		cl := &ConsoleLogger{
+			id:     "test-middleware",
+			filter: newLogFilter(cfg),
+			logger: mockLogger,
+		}
+
+		longBody := "this is a very long request body that should be truncated"
+		req := httptest.NewRequest("POST", "/api/test", strings.NewReader(longBody))
+		rec := httptest.NewRecorder()
+
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			// Handler should still receive full body
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+			assert.Equal(t, longBody, string(body))
+			w.WriteHeader(http.StatusOK)
+		}
+
+		route, err := httpserver.NewRouteFromHandlerFunc(
+			"test",
+			"/api/test",
+			handler,
+			cl.Middleware(),
+		)
+		require.NoError(t, err)
+		route.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "test-middleware", mockLogger.loggedMessage)
+	})
+
+	t.Run("Middleware handles large response body truncation", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Fields.Response.Enabled = true
+		cfg.Fields.Response.Body = true
+		cfg.Fields.Response.MaxBodySize = 10
+
+		mockLogger := &MockLogger{}
+		cl := &ConsoleLogger{
+			id:     "test-middleware",
+			filter: newLogFilter(cfg),
+			logger: mockLogger,
+		}
+
+		req := httptest.NewRequest("GET", "/api/test", nil)
+		rec := httptest.NewRecorder()
+
+		longResponse := "this is a very long response body that should be truncated for logging but sent in full to client"
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			n, err := w.Write([]byte(longResponse))
+			assert.NoError(t, err)
+			assert.Equal(t, len(longResponse), n)
+		}
+
+		route, err := httpserver.NewRouteFromHandlerFunc(
+			"test",
+			"/api/test",
+			handler,
+			cl.Middleware(),
+		)
+		require.NoError(t, err)
+		route.ServeHTTP(rec, req)
+
+		// Client should receive full response
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, longResponse, rec.Body.String())
+
+		// Logger should have been called
+		assert.Equal(t, "test-middleware", mockLogger.loggedMessage)
 	})
 }
 
@@ -229,6 +529,13 @@ func TestLogFilter_skipMethod(t *testing.T) {
 	}
 }
 
+// errorReader implements io.Reader but always returns an error
+type errorReader struct{}
+
+func (e errorReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("simulated read error")
+}
+
 func TestReadBody(t *testing.T) {
 	t.Parallel()
 
@@ -270,6 +577,16 @@ func TestReadBody(t *testing.T) {
 		_, err = buf.ReadFrom(req.Body)
 		require.NoError(t, err)
 		assert.Equal(t, bodyContent, buf.String())
+	})
+
+	t.Run("Read error handling", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/test", nil)
+		req.Body = io.NopCloser(errorReader{})
+
+		body, err := readBody(req, 1024)
+		assert.Error(t, err)
+		assert.Nil(t, body)
+		assert.Contains(t, err.Error(), "simulated read error")
 	})
 }
 
@@ -548,6 +865,23 @@ func TestConsoleLogger_captureRequestBody(t *testing.T) {
 		assert.Nil(t, body)
 	})
 
+	t.Run("Returns nil on readBody error", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Fields.Request.Body = true
+
+		cl := &ConsoleLogger{
+			id:     "test-logger",
+			filter: newLogFilter(cfg),
+		}
+
+		// Create a request with an error reader
+		req := httptest.NewRequest("POST", "/test", nil)
+		req.Body = io.NopCloser(errorReader{})
+		body := cl.captureRequestBody(req)
+
+		assert.Nil(t, body)
+	})
+
 	t.Run("Truncates logged request body but preserves full body for handler", func(t *testing.T) {
 		cfg := logger.NewConsoleLogger()
 		cfg.Fields.Request.Body = true
@@ -741,5 +1075,35 @@ func TestConsoleLogger_captureAndRestoreResponse(t *testing.T) {
 
 		assert.NotNil(t, body)
 		assert.Equal(t, http.StatusOK, originalWriter.Status())
+	})
+
+	t.Run("Handles headers with multiple values", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cl := &ConsoleLogger{
+			id:     "test-logger",
+			filter: newLogFilter(cfg),
+		}
+
+		buffer := NewResponseBuffer()
+		// Add header with multiple values
+		buffer.Header().Add("Set-Cookie", "sessionid=abc123")
+		buffer.Header().Add("Set-Cookie", "userid=xyz789")
+		buffer.Header().Set("Content-Type", "application/json")
+		buffer.WriteHeader(200)
+		_, err := buffer.Write([]byte("response"))
+		require.NoError(t, err)
+
+		originalWriter := NewResponseBuffer()
+		body := cl.captureAndRestoreResponse(buffer, originalWriter)
+
+		assert.NotNil(t, body)
+		assert.Equal(t, 200, originalWriter.Status())
+
+		// Check that multiple Set-Cookie headers are preserved
+		cookies := originalWriter.Header()["Set-Cookie"]
+		assert.Len(t, cookies, 2)
+		assert.Contains(t, cookies, "sessionid=abc123")
+		assert.Contains(t, cookies, "userid=xyz789")
+		assert.Equal(t, "application/json", originalWriter.Header().Get("Content-Type"))
 	})
 }

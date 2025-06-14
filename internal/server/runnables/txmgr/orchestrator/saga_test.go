@@ -357,7 +357,7 @@ func TestGetTransactionStatus_NotFound(t *testing.T) {
 }
 
 func TestConcurrentParticipantRegistration(t *testing.T) {
-	handler := logging.SetupHandler("error")
+	handler := logging.SetupHandlerText("error")
 	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
@@ -395,7 +395,7 @@ func TestConcurrentParticipantRegistration(t *testing.T) {
 // TestProcessTransactionWithNoParticipants tests that transactions
 // reach completed state even when no participants are registered for reload
 func TestProcessTransactionWithNoParticipants(t *testing.T) {
-	handler := logging.SetupHandler("debug")
+	handler := logging.SetupHandlerText("debug")
 	storage := txstorage.NewMemoryStorage()
 	orchestrator := NewSagaOrchestrator(storage, handler)
 	ctx := t.Context()

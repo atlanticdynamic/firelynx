@@ -13,12 +13,20 @@ write_timeout = "30s"
 id = "main"
 listener_id = "http"
 
+[[endpoints.middlewares]]
+id = "request-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
 [[endpoints.routes]]
-app_id = "echo"
+app_id = "greetz"
 [endpoints.routes.http]
 path_prefix = "/"
 
 [[apps]]
-id = "echo"
+id = "greetz"
 [apps.echo]
 response = "Hello, World!"

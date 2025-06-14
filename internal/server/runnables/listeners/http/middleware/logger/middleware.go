@@ -48,7 +48,15 @@ type ConsoleLogger struct {
 
 func NewConsoleLogger(id string, cfg *logger.ConsoleLogger) *ConsoleLogger {
 	filter := newLogFilter(cfg)
-	handler := centralLogger.SetupHandler(string(cfg.Options.Level))
+
+	var handler slog.Handler
+	switch cfg.Options.Format {
+	case logger.FormatJSON:
+		handler = centralLogger.SetupHandlerJSON(string(cfg.Options.Level))
+	default:
+		handler = centralLogger.SetupHandlerText(string(cfg.Options.Level))
+	}
+
 	logger := slog.New(handler).WithGroup("http")
 	return &ConsoleLogger{
 		id:     id,
