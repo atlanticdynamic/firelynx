@@ -444,4 +444,139 @@ func TestProcessMiddlewares(t *testing.T) {
 			"Type should remain unspecified when not provided",
 		)
 	})
+
+	// Test console logger format and level processing
+	t.Run("ConsoleLoggerFormatProcessing", func(t *testing.T) {
+		tests := []struct {
+			name           string
+			format         string
+			level          string
+			expectedFormat pbMiddleware.LogOptionsGeneral_Format
+			expectedLevel  pbMiddleware.LogOptionsGeneral_Level
+		}{
+			{
+				name:           "JSON format with info level",
+				format:         "json",
+				level:          "info",
+				expectedFormat: pbMiddleware.LogOptionsGeneral_FORMAT_JSON,
+				expectedLevel:  pbMiddleware.LogOptionsGeneral_LEVEL_INFO,
+			},
+			{
+				name:           "TXT format with debug level",
+				format:         "txt",
+				level:          "debug",
+				expectedFormat: pbMiddleware.LogOptionsGeneral_FORMAT_TXT,
+				expectedLevel:  pbMiddleware.LogOptionsGeneral_LEVEL_DEBUG,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				// Create a config with console logger middleware
+				config := &pbSettings.ServerConfig{
+					Endpoints: []*pbSettings.Endpoint{
+						{
+							Id: proto.String("endpoint1"),
+							Middlewares: []*pbMiddleware.Middleware{
+								{
+									Id:   proto.String("logger1"),
+									Type: pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
+									Config: &pbMiddleware.Middleware_ConsoleLogger{
+										ConsoleLogger: &pbMiddleware.ConsoleLoggerConfig{
+											Options: &pbMiddleware.LogOptionsGeneral{},
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				// Create a config map with console logger format and level
+				configMap := map[string]any{
+					"endpoints": []any{
+						map[string]any{
+							"id": "endpoint1",
+							"middlewares": []any{
+								map[string]any{
+									"id":   "logger1",
+									"type": "console_logger",
+									"console_logger": map[string]any{
+										"options": map[string]any{
+											"format": tt.format,
+											"level":  tt.level,
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				// Process middlewares
+				errs := processMiddlewares(config, configMap)
+				assert.Empty(t, errs, "Did not expect errors")
+
+				// Verify console logger format and level
+				consoleLogger := config.Endpoints[0].Middlewares[0].GetConsoleLogger()
+				require.NotNil(t, consoleLogger)
+				require.NotNil(t, consoleLogger.Options)
+				assert.Equal(t, tt.expectedFormat, consoleLogger.Options.GetFormat())
+				assert.Equal(t, tt.expectedLevel, consoleLogger.Options.GetLevel())
+			})
+		}
+	})
+
+	// Test with unsupported middleware type in post-processing
+	t.Run("UnsupportedMiddlewareTypePostProcessing", func(t *testing.T) {
+		// Create a config with endpoints and middlewares
+		config := &pbSettings.ServerConfig{
+			Endpoints: []*pbSettings.Endpoint{
+				{
+					Id: proto.String("endpoint1"),
+					Middlewares: []*pbMiddleware.Middleware{
+						{
+							Id: proto.String("limiter1"),
+						},
+					},
+				},
+			},
+		}
+
+		// Create a config map with unsupported middleware type
+		configMap := map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"id": "endpoint1",
+					"middlewares": []any{
+						map[string]any{
+							"id":   "limiter1",
+							"type": "rate_limiter",
+						},
+					},
+				},
+			},
+		}
+
+		// Process middlewares
+		errs := processMiddlewares(config, configMap)
+		assert.NotEmpty(t, errs, "Expected errors for unsupported middleware type")
+
+		// Should have two errors: one for unsupported type, one for no post-processing handler
+		assert.Len(t, errs, 2, "Should have exactly two errors")
+		assert.Contains(t, errs[0].Error(), "unsupported middleware type: rate_limiter")
+		assert.Contains(
+			t,
+			errs[1].Error(),
+			"no post-processing handler for middleware type: rate_limiter",
+		)
+
+		// Type should be set to UNSPECIFIED
+		assert.Equal(
+			t,
+			pbMiddleware.Middleware_TYPE_UNSPECIFIED,
+			config.Endpoints[0].Middlewares[0].GetType(),
+			"Middleware type should be UNSPECIFIED for unsupported type",
+		)
+	})
 }

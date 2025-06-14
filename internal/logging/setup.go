@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/log"
 )
 
-// SetupHandler configures the default logger to use the provided handler
-func SetupHandler(logLevel string) slog.Handler {
+// SetupHandlerText configures the default logger to use the provided handler
+func SetupHandlerText(logLevel string) slog.Handler {
 	reportCaller := false
 	reportTimestamp := false
 	lvl := log.InfoLevel
@@ -36,8 +36,38 @@ func SetupHandler(logLevel string) slog.Handler {
 	})
 }
 
+// SetupHandlerJSON configures a JSON slog handler with the provided log level
+func SetupHandlerJSON(logLevel string) slog.Handler {
+	reportCaller := false
+	var level slog.Level
+
+	switch strings.ToLower(logLevel) {
+	case "trace":
+		reportCaller = true
+		level = slog.LevelDebug
+	case "debug":
+		reportCaller = false
+		level = slog.LevelDebug
+	case "info":
+		level = slog.LevelInfo
+	case "warn", "warning":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+
+	opts := &slog.HandlerOptions{
+		Level:     level,
+		AddSource: reportCaller,
+	}
+
+	return slog.NewJSONHandler(os.Stdout, opts)
+}
+
 // SetupLogger configures the default logger based on provided log level
 func SetupLogger(logLevel string) {
-	handler := SetupHandler(logLevel)
+	handler := SetupHandlerText(logLevel)
 	slog.SetDefault(slog.New(handler))
 }

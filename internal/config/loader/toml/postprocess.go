@@ -197,10 +197,26 @@ func processMiddlewares(config *pbSettings.ServerConfig, configMap map[string]an
 						continue
 					}
 
-					// Set the type field based on string value
+					// Process middleware based on type
 					if typeVal, ok := middlewareMap["type"].(string); ok {
+						// Set the type field
 						errs := processMiddlewareType(middleware, typeVal)
 						errList = append(errList, errs...)
+
+						// Process middleware-specific configuration
+						switch typeVal {
+						case "console_logger":
+							errs := processConsoleLoggerConfig(middleware, middlewareMap)
+							errList = append(errList, errs...)
+						default:
+							errList = append(
+								errList,
+								fmt.Errorf(
+									"no post-processing handler for middleware type: %s",
+									typeVal,
+								),
+							)
+						}
 					}
 				}
 			}
@@ -223,6 +239,85 @@ func processMiddlewareType(middleware *pbMiddleware.Middleware, typeVal string) 
 		errList = append(errList, fmt.Errorf("unsupported middleware type: %s", typeVal))
 	}
 	middleware.Type = &middlewareType
+
+	return errList
+}
+
+// processConsoleLoggerConfig handles console logger-specific enum conversions
+func processConsoleLoggerConfig(
+	middleware *pbMiddleware.Middleware,
+	middlewareMap map[string]any,
+) []error {
+	var errList []error
+
+	// Get the console_logger configuration
+	consoleLoggerConfig, ok := middlewareMap["console_logger"].(map[string]any)
+	if !ok {
+		return errList
+	}
+
+	// Get the console logger config from the middleware
+	if consoleConfig := middleware.GetConsoleLogger(); consoleConfig != nil {
+		// Process options if they exist
+		if optionsMap, ok := consoleLoggerConfig["options"].(map[string]any); ok {
+			errs := processConsoleLoggerOptions(consoleConfig, optionsMap)
+			errList = append(errList, errs...)
+		}
+	}
+
+	return errList
+}
+
+// processConsoleLoggerOptions handles format and level enum conversions
+func processConsoleLoggerOptions(
+	config *pbMiddleware.ConsoleLoggerConfig,
+	optionsMap map[string]any,
+) []error {
+	var errList []error
+
+	// Ensure options exist
+	if config.Options == nil {
+		config.Options = &pbMiddleware.LogOptionsGeneral{}
+	}
+
+	// Process format enum
+	if formatStr, ok := optionsMap["format"].(string); ok {
+		var format pbMiddleware.LogOptionsGeneral_Format
+		switch formatStr {
+		case "txt":
+			format = pbMiddleware.LogOptionsGeneral_FORMAT_TXT
+		case "json":
+			format = pbMiddleware.LogOptionsGeneral_FORMAT_JSON
+		default:
+			format = pbMiddleware.LogOptionsGeneral_FORMAT_UNSPECIFIED
+			errList = append(
+				errList,
+				fmt.Errorf("unsupported console logger format: %s", formatStr),
+			)
+		}
+		config.Options.Format = &format
+	}
+
+	// Process level enum
+	if levelStr, ok := optionsMap["level"].(string); ok {
+		var level pbMiddleware.LogOptionsGeneral_Level
+		switch levelStr {
+		case "debug":
+			level = pbMiddleware.LogOptionsGeneral_LEVEL_DEBUG
+		case "info":
+			level = pbMiddleware.LogOptionsGeneral_LEVEL_INFO
+		case "warn":
+			level = pbMiddleware.LogOptionsGeneral_LEVEL_WARN
+		case "error":
+			level = pbMiddleware.LogOptionsGeneral_LEVEL_ERROR
+		case "fatal":
+			level = pbMiddleware.LogOptionsGeneral_LEVEL_FATAL
+		default:
+			level = pbMiddleware.LogOptionsGeneral_LEVEL_UNSPECIFIED
+			errList = append(errList, fmt.Errorf("unsupported console logger level: %s", levelStr))
+		}
+		config.Options.Level = &level
+	}
 
 	return errList
 }

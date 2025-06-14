@@ -408,6 +408,40 @@ func TestLevelConversion(t *testing.T) {
 	})
 }
 
+func TestFromProtoFormatConversion(t *testing.T) {
+	t.Parallel()
+
+	t.Run("JSON format conversion from proto", func(t *testing.T) {
+		pbConfig := &pb.ConsoleLoggerConfig{
+			Options: &pb.LogOptionsGeneral{
+				Format: func() *pb.LogOptionsGeneral_Format {
+					f := pb.LogOptionsGeneral_FORMAT_JSON
+					return &f
+				}(),
+			},
+		}
+
+		config, err := FromProto(pbConfig)
+		require.NoError(t, err)
+		assert.Equal(t, FormatJSON, config.Options.Format)
+	})
+
+	t.Run("TXT format conversion from proto", func(t *testing.T) {
+		pbConfig := &pb.ConsoleLoggerConfig{
+			Options: &pb.LogOptionsGeneral{
+				Format: func() *pb.LogOptionsGeneral_Format {
+					f := pb.LogOptionsGeneral_FORMAT_TXT
+					return &f
+				}(),
+			},
+		}
+
+		config, err := FromProto(pbConfig)
+		require.NoError(t, err)
+		assert.Equal(t, FormatTxt, config.Options.Format)
+	})
+}
+
 func TestDirectionConfigConversion(t *testing.T) {
 	t.Parallel()
 

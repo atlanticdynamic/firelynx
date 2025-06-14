@@ -13,11 +13,13 @@ import (
 	"github.com/robbyt/go-loglater/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestConfigTransaction_ToProto(t *testing.T) {
-	handler := logging.SetupHandler("debug")
+	t.Parallel()
+	handler := logging.SetupHandlerText("debug")
 
 	t.Run("converts transaction to protobuf", func(t *testing.T) {
 		cfg := &config.Config{Version: version.Version}
@@ -86,6 +88,7 @@ func TestConfigTransaction_ToProto(t *testing.T) {
 }
 
 func TestConvertStorageRecordToProto(t *testing.T) {
+	t.Parallel()
 	testTime := time.Now()
 
 	tests := []struct {
@@ -106,7 +109,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			},
 			want: &pb.LogRecord{
 				Level:   pb.LogRecord_LEVEL_DEBUG.Enum(),
-				Message: stringPtr("debug message"),
+				Message: proto.String("debug message"),
 				Attrs: map[string]*structpb.Value{
 					"key1": structpb.NewStringValue("value1"),
 					"key2": structpb.NewNumberValue(42),
@@ -125,7 +128,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			},
 			want: &pb.LogRecord{
 				Level:   pb.LogRecord_LEVEL_INFO.Enum(),
-				Message: stringPtr("info message"),
+				Message: proto.String("info message"),
 				Attrs: map[string]*structpb.Value{
 					"success": structpb.NewBoolValue(true),
 				},
@@ -141,7 +144,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			},
 			want: &pb.LogRecord{
 				Level:   pb.LogRecord_LEVEL_WARN.Enum(),
-				Message: stringPtr("warning message"),
+				Message: proto.String("warning message"),
 				Attrs:   map[string]*structpb.Value{},
 			},
 		},
@@ -157,7 +160,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			},
 			want: &pb.LogRecord{
 				Level:   pb.LogRecord_LEVEL_ERROR.Enum(),
-				Message: stringPtr("error message"),
+				Message: proto.String("error message"),
 				Attrs: map[string]*structpb.Value{
 					"duration": structpb.NewNumberValue(123.456),
 				},
@@ -186,10 +189,6 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			assert.Equal(t, testTime.Unix(), got.Time.Seconds)
 		})
 	}
-}
-
-func stringPtr(s string) *string {
-	return &s
 }
 
 func TestGetLogsVsPlaybackLogs(t *testing.T) {
@@ -239,7 +238,7 @@ func TestGetLogsVsPlaybackLogs(t *testing.T) {
 }
 
 func TestConfigTransaction_ToProto_IncludesConfig(t *testing.T) {
-	handler := logging.SetupHandler("debug")
+	handler := logging.SetupHandlerText("debug")
 
 	t.Run("includes config when domainConfig is set", func(t *testing.T) {
 		cfg := &config.Config{Version: version.Version}
