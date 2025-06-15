@@ -43,12 +43,14 @@ type requestProcessor interface {
 	SetWriter(w httpserver.ResponseWriter)
 }
 
+// ConsoleLogger is a middleware implementation that logs HTTP requests and responses to the console, or other configured output.
 type ConsoleLogger struct {
 	id     string
 	filter filter
 	logger lgr
 }
 
+// NewConsoleLogger creates a new ConsoleLogger middleware implementation instance.
 func NewConsoleLogger(id string, cfg *logger.ConsoleLogger) (*ConsoleLogger, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("console logger config cannot be nil")
