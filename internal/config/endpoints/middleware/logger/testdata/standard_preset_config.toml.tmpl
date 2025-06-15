@@ -2,7 +2,7 @@ version = "v1"
 
 [[listeners]]
 id = "http"
-address = "127.0.0.1:8080"
+address = "127.0.0.1:{{.Port}}"
 type = "http"
 
 [listeners.http]
@@ -19,7 +19,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 preset = "standard"
-output = "/tmp/test.log"
+output = "/tmp/test-{{.Port}}.log"
 
 [endpoints.middlewares.console_logger.options]
 format = "json"

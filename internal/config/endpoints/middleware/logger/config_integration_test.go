@@ -1,10 +1,10 @@
 package logger_test
 
 import (
+	"bytes"
 	_ "embed"
-	"fmt"
-	"strings"
 	"testing"
+	"text/template"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
@@ -13,23 +13,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed testdata/standard_preset_config.toml
-var standardPresetConfigTOML string
+//go:embed testdata/standard_preset_config.toml.tmpl
+var standardPresetConfigTemplate string
 
 func TestFullConfigParsingWithPreset(t *testing.T) {
 	t.Parallel()
 
 	port := testutil.GetRandomPort(t)
 
-	// Update the embedded TOML with dynamic values
-	tomlData := strings.ReplaceAll(
-		standardPresetConfigTOML,
-		"127.0.0.1:8080",
-		fmt.Sprintf("127.0.0.1:%d", port),
-	)
-	tomlData = strings.ReplaceAll(tomlData, "/tmp/test.log", fmt.Sprintf("/tmp/test-%d.log", port))
+	// Render the template with dynamic values
+	tmpl, err := template.New("config").Parse(standardPresetConfigTemplate)
+	require.NoError(t, err, "Template should parse successfully")
 
-	cfg, err := config.NewConfigFromBytes([]byte(tomlData))
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, map[string]interface{}{
+		"Port": port,
+	})
+	require.NoError(t, err, "Template should execute successfully")
+
+	cfg, err := config.NewConfigFromBytes(buf.Bytes())
 	require.NoError(t, err, "Config should load successfully")
 
 	err = cfg.Validate()
