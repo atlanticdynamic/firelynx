@@ -3,6 +3,7 @@ package cfg
 import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
 )
 
 // ConfigProvider defines the minimal interface required to extract configuration
@@ -18,4 +19,8 @@ type ConfigProvider interface {
 	// GetAppCollection returns the app collection for linking routes to app instances.
 	// Returns nil if no app collection is available.
 	GetAppCollection() apps.AppLookup
+
+	// GetMiddlewarePool returns the middleware pool for reusing middleware instances.
+	// Structure: map[middleware-type]map[middleware-id]middleware-instance
+	GetMiddlewarePool() map[string]map[string]middleware.Instance
 }
