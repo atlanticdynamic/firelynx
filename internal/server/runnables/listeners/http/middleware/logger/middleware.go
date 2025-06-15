@@ -61,7 +61,10 @@ func NewConsoleLogger(id string, cfg *logger.ConsoleLogger) (*ConsoleLogger, err
 	filter := newLogFilter(&configCopy)
 
 	// Expand environment variables in output
-	expandedOutput := interpolation.ExpandEnvVars(configCopy.Output)
+	expandedOutput, err := interpolation.ExpandEnvVars(configCopy.Output)
+	if err != nil {
+		return nil, fmt.Errorf("environment variable expansion failed: %w", err)
+	}
 
 	// Create writer based on output configuration
 	writer, err := writers.CreateWriter(expandedOutput)

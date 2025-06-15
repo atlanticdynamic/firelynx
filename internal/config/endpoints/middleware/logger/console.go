@@ -304,7 +304,10 @@ func (c *ConsoleLogger) ToTree() *fancy.ComponentTree {
 // validateOutputWritability checks if the output destination is writable
 func (c *ConsoleLogger) validateOutputWritability() error {
 	// Expand environment variables in the output path
-	expandedOutput := interpolation.ExpandEnvVars(c.Output)
+	expandedOutput, err := interpolation.ExpandEnvVars(c.Output)
+	if err != nil {
+		return fmt.Errorf("environment variable expansion failed: %w", err)
+	}
 
 	// Check if it's a file path that needs validation
 	writerType := writers.ParseWriterType(expandedOutput)

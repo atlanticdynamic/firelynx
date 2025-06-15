@@ -72,7 +72,11 @@ func FromProto(pbConfig *pb.ConsoleLoggerConfig) (*ConsoleLogger, error) {
 
 	// Convert output with environment variable interpolation
 	// Empty string defaults to stdout in CreateWriter
-	config.Output = interpolation.ExpandEnvVars(pbConfig.GetOutput())
+	expandedOutput, err := interpolation.ExpandEnvVars(pbConfig.GetOutput())
+	if err != nil {
+		return nil, fmt.Errorf("environment variable expansion failed: %w", err)
+	}
+	config.Output = expandedOutput
 
 	// Convert preset
 	config.Preset = presetFromProto(pbConfig.GetPreset())

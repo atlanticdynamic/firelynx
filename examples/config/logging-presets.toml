@@ -1,13 +1,18 @@
 # FireLynx Configuration Example: Logger Presets and Output Destinations
 #
 # This configuration demonstrates the new preset-based logging system and
-# configurable output destinations with environment variable interpolation.
+# configurable output destinations.
 #
 # Features demonstrated:
 # - Using preset configurations for common logging scenarios
-# - File output with environment variable interpolation
-# - Multiple logger instances with different destinations
+# - File output destinations
+# - Path filtering with exclude patterns
 # - Simplified configuration using presets
+#
+# Environment Variable Support:
+# The output field supports environment variable interpolation using ${VAR_NAME} syntax.
+# Example: output = "/var/log/app-${HOSTNAME}.log"
+# If HOSTNAME is not set, configuration loading will fail with a clear error message.
 
 version = "v1"
 
@@ -33,7 +38,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 preset = "detailed"                              # Includes headers, query params, etc.
-output = "/tmp/firelynx-${HOSTNAME}.log"         # Environment variable interpolation
+output = "/tmp/firelynx-server.log"              # File output destination
 exclude_paths = ["/health", "/metrics"]         # Skip health checks
 
 [endpoints.middlewares.console_logger.options]

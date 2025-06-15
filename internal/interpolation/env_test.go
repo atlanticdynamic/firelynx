@@ -11,10 +11,11 @@ import (
 func TestExpandEnvVars(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name     string
-		input    string
-		envVars  map[string]string
-		expected string
+		name        string
+		input       string
+		envVars     map[string]string
+		expected    string
+		expectError bool
 	}{
 		{
 			name:     "empty string",
@@ -47,16 +48,18 @@ func TestExpandEnvVars(t *testing.T) {
 			expected: "a/b/c",
 		},
 		{
-			name:     "undefined env var",
-			input:    "${UNDEFINED_VAR}",
-			envVars:  nil,
-			expected: "${UNDEFINED_VAR}",
+			name:        "undefined env var",
+			input:       "${UNDEFINED_VAR}",
+			envVars:     nil,
+			expected:    "${UNDEFINED_VAR}",
+			expectError: true,
 		},
 		{
-			name:     "mixed defined and undefined",
-			input:    "${DEFINED}/${UNDEFINED}",
-			envVars:  map[string]string{"DEFINED": "value"},
-			expected: "value/${UNDEFINED}",
+			name:        "mixed defined and undefined",
+			input:       "${DEFINED}/${UNDEFINED}",
+			envVars:     map[string]string{"DEFINED": "value"},
+			expected:    "value/${UNDEFINED}",
+			expectError: true,
 		},
 		{
 			name:     "log file path example",
@@ -74,6 +77,20 @@ func TestExpandEnvVars(t *testing.T) {
 			},
 			expected: "s3://key123:secret456@my-bucket/logs",
 		},
+		{
+			name:        "multiple undefined vars",
+			input:       "${VAR1}/${VAR2}/${VAR3}",
+			envVars:     nil,
+			expected:    "${VAR1}/${VAR2}/${VAR3}",
+			expectError: true,
+		},
+		{
+			name:        "partial undefined vars",
+			input:       "${DEFINED1}/${UNDEFINED1}/${DEFINED2}/${UNDEFINED2}",
+			envVars:     map[string]string{"DEFINED1": "value1", "DEFINED2": "value2"},
+			expected:    "value1/${UNDEFINED1}/value2/${UNDEFINED2}",
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -86,7 +103,12 @@ func TestExpandEnvVars(t *testing.T) {
 				}(key)
 			}
 
-			result := ExpandEnvVars(tt.input)
+			result, err := ExpandEnvVars(tt.input)
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -142,7 +164,8 @@ func TestExpandEnvVarsPatternValidation(t *testing.T) {
 				}()
 			}
 
-			result := ExpandEnvVars(tt.input)
+			result, err := ExpandEnvVars(tt.input)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
