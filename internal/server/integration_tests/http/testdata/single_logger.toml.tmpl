@@ -1,0 +1,48 @@
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = "127.0.0.1:{{.Port}}"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "file-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+output = "{{.LogFile}}"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+[endpoints.middlewares.console_logger.fields]
+method = true
+path = true
+status_code = true
+
+[endpoints.middlewares.console_logger.fields.request]
+enabled = true
+
+[endpoints.middlewares.console_logger.fields.response]
+enabled = true
+
+[[endpoints.routes]]
+app_id = "test-echo"
+
+[endpoints.routes.http]
+path_prefix = "/"
+
+[[apps]]
+id = "test-echo"
+
+[apps.echo]
+response = "Single Logger Test Response"
