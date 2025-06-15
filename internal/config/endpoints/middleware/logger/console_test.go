@@ -1,9 +1,12 @@
 package logger
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewConsoleLogger(t *testing.T) {
@@ -302,6 +305,106 @@ func TestConsoleLogger_ApplyPreset(t *testing.T) {
 				"Expected fields configuration not met for preset %s",
 				tt.preset,
 			)
+		})
+	}
+}
+
+func TestConsoleLogger_validateOutputWritability(t *testing.T) {
+	t.Parallel()
+
+	// Set up temp directory structure for relative path testing
+	tempDir := t.TempDir()
+	subDir := filepath.Join(tempDir, "subdir")
+	err := os.MkdirAll(subDir, 0755)
+	require.NoError(t, err)
+	
+	// Change to subdirectory so relative paths work predictably
+	originalWd, err := os.Getwd()
+	require.NoError(t, err)
+	err = os.Chdir(subDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err := os.Chdir(originalWd)
+		require.NoError(t, err)
+	})
+
+	tests := []struct {
+		name        string
+		output      string
+		setupEnv    map[string]string
+		expectError bool
+		errorText   string
+	}{
+		{
+			name:        "stdout is always valid",
+			output:      "stdout",
+			expectError: false,
+		},
+		{
+			name:        "stderr is always valid",
+			output:      "stderr",
+			expectError: false,
+		},
+		{
+			name:        "valid file path in temp directory",
+			output:      "/tmp/test-logger.log",
+			expectError: false,
+		},
+		{
+			name:        "environment variable expansion with valid file",
+			output:      "/tmp/test-${TEST_VAR}.log",
+			setupEnv:    map[string]string{"TEST_VAR": "logger"},
+			expectError: false,
+		},
+		{
+			name:        "environment variable expansion fails",
+			output:      "/tmp/test-${UNDEFINED_VAR}.log",
+			expectError: true,
+			errorText:   "environment variable expansion failed",
+		},
+		{
+			name:        "invalid file path - non-existent directory",
+			output:      "/non/existent/directory/file.log",
+			expectError: true,
+			errorText:   "output path not writable",
+		},
+		{
+			name:        "invalid file path - permission denied",
+			output:      "/root/restricted.log",
+			expectError: true,
+			errorText:   "output path not writable",
+		},
+		{
+			name:        "relative path with parent directory traversal",
+			output:      "../test-relative.log",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set up environment variables for this test
+			for key, value := range tt.setupEnv {
+				require.NoError(t, os.Setenv(key, value))
+				defer func(k string) {
+					require.NoError(t, os.Unsetenv(k))
+				}(key)
+			}
+
+			logger := &ConsoleLogger{
+				Output: tt.output,
+			}
+
+			err := logger.validateOutputWritability()
+
+			if tt.expectError {
+				assert.Error(t, err)
+				if tt.errorText != "" {
+					assert.Contains(t, err.Error(), tt.errorText)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
