@@ -238,3 +238,129 @@ response = "Normal Test Response"
 id = "test-echo-env-interpolation"
 [apps.echo]
 response = "Environment Interpolation Test Response"
+
+# Text Format Endpoint with Standard Preset
+[[endpoints]]
+id = "text-standard"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "text-standard-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "standard"
+output = "{{.LogFile}}.text-standard.log"
+
+[endpoints.middlewares.console_logger.options]
+format = "txt"                         # Text format instead of JSON
+level = "info"
+
+[[endpoints.routes]]
+app_id = "text-echo-standard"
+[endpoints.routes.http]
+path_prefix = "/text-standard"
+
+# Text Format Endpoint with Detailed Preset
+[[endpoints]]
+id = "text-detailed"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "text-detailed-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "detailed"
+output = "{{.LogFile}}.text-detailed.log"
+
+[endpoints.middlewares.console_logger.options]
+format = "txt"
+level = "debug"
+
+[[endpoints.routes]]
+app_id = "text-echo-detailed"
+[endpoints.routes.http]
+path_prefix = "/text-detailed"
+
+[[apps]]
+id = "text-echo-standard"
+[apps.echo]
+response = "Text Standard Response"
+
+[[apps]]
+id = "text-echo-detailed"
+[apps.echo]
+response = "Text Detailed Response"
+
+# Multiple Middleware Per Endpoint Test
+[[endpoints]]
+id = "multi-middleware-endpoint"
+listener_id = "http"
+
+# Logger for GET requests only
+[[endpoints.middlewares]]
+id = "get-only-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+include_only_methods = ["GET"]
+output = "{{.LogFile}}.get-only.log"
+preset = "minimal"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+# Logger for POST requests only
+[[endpoints.middlewares]]
+id = "post-only-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+include_only_methods = ["POST"]
+output = "{{.LogFile}}.post-only.log"
+preset = "detailed"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "debug"
+
+[[endpoints.routes]]
+app_id = "multi-middleware-echo"
+[endpoints.routes.http]
+path_prefix = "/multi-middleware"
+
+# Method Exclusion Test Endpoint
+[[endpoints]]
+id = "exclude-methods-endpoint"
+listener_id = "http"
+
+# Logger that excludes HEAD and OPTIONS methods
+[[endpoints.middlewares]]
+id = "exclude-methods-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+exclude_methods = ["HEAD", "OPTIONS"]
+output = "{{.LogFile}}.exclude-methods.log"
+preset = "standard"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+[[endpoints.routes]]
+app_id = "exclude-methods-echo"
+[endpoints.routes.http]
+path_prefix = "/exclude-methods"
+
+[[apps]]
+id = "multi-middleware-echo"
+[apps.echo]
+response = "Multi Middleware Response"
+
+[[apps]]
+id = "exclude-methods-echo"
+[apps.echo]
+response = "Exclude Methods Response"

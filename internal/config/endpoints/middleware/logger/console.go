@@ -3,9 +3,12 @@ package logger
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
+	"github.com/atlanticdynamic/firelynx/internal/logging/writers"
 )
 
 // ConsoleLogger represents a console logger middleware configuration
@@ -222,6 +225,11 @@ func (c *ConsoleLogger) Validate() error {
 		c.Output = "stdout" // Set default
 	}
 
+	// Validate file writability for non-singleton outputs
+	if err := c.validateOutputWritability(); err != nil {
+		errs = append(errs, err)
+	}
+
 	// Validate max body size (if specified, should be non-negative)
 	if c.Fields.Request.MaxBodySize < 0 {
 		errs = append(errs, errors.New("request max body size cannot be negative"))
@@ -291,4 +299,31 @@ func (c *ConsoleLogger) ToTree() *fancy.ComponentTree {
 	}
 
 	return tree
+}
+
+// validateOutputWritability checks if the output destination is writable
+func (c *ConsoleLogger) validateOutputWritability() error {
+	// Expand environment variables in the output path
+	expandedOutput := interpolation.ExpandEnvVars(c.Output)
+
+	// Check if it's a file path that needs validation
+	writerType := writers.ParseWriterType(expandedOutput)
+	if writerType != writers.WriterTypeFile {
+		return nil // stdout/stderr don't need validation
+	}
+
+	// Attempt to create the writer to validate writability
+	writer, err := writers.CreateWriter(expandedOutput)
+	if err != nil {
+		return fmt.Errorf("output path not writable: %w", err)
+	}
+
+	// Close the file if it was opened
+	if closer, ok := writer.(io.Closer); ok {
+		if closeErr := closer.Close(); closeErr != nil {
+			return fmt.Errorf("failed to close validation file: %w", closeErr)
+		}
+	}
+
+	return nil
 }

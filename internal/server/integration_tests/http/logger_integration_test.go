@@ -511,6 +511,214 @@ func (s *LoggerIntegrationTestSuite) TestEnvironmentVariableInterpolation() {
 	}
 }
 
+func (s *LoggerIntegrationTestSuite) TestMultipleMiddlewarePerEndpoint() {
+	// Test GET request - should only appear in get-only.log
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/multi-middleware", s.port))
+	s.Require().NoError(err, "Failed to make GET request")
+	defer resp.Body.Close()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK for GET")
+
+	// Test POST request - should only appear in post-only.log
+	postResp, err := http.Post(
+		fmt.Sprintf("http://127.0.0.1:%d/multi-middleware", s.port),
+		"application/json",
+		strings.NewReader(`{"test": "data"}`),
+	)
+	s.Require().NoError(err, "Failed to make POST request")
+	defer postResp.Body.Close()
+
+	s.Require().Equal(http.StatusOK, postResp.StatusCode, "Expected 200 OK for POST")
+
+	// Wait for logs to be written
+	getOnlyLogFile := s.logFile + ".get-only.log"
+	postOnlyLogFile := s.logFile + ".post-only.log"
+
+	// Verify GET request appears only in get-only.log
+	s.Eventually(func() bool {
+		entries := s.readLogEntries(getOnlyLogFile)
+		for _, entry := range entries {
+			if entry.HTTP.Path == "/multi-middleware" && entry.HTTP.Method == "GET" {
+				return true
+			}
+		}
+		return false
+	}, 5*time.Second, 100*time.Millisecond, "GET request should appear in get-only.log")
+
+	// Verify POST request appears only in post-only.log
+	s.Eventually(func() bool {
+		entries := s.readLogEntries(postOnlyLogFile)
+		for _, entry := range entries {
+			if entry.HTTP.Path == "/multi-middleware" && entry.HTTP.Method == "POST" {
+				return true
+			}
+		}
+		return false
+	}, 5*time.Second, 100*time.Millisecond, "POST request should appear in post-only.log")
+
+	// Verify GET request does NOT appear in post-only.log
+	postEntries := s.readLogEntries(postOnlyLogFile)
+	for _, entry := range postEntries {
+		s.NotEqual("GET", entry.HTTP.Method, "GET requests should not appear in post-only.log")
+	}
+
+	// Verify POST request does NOT appear in get-only.log
+	getEntries := s.readLogEntries(getOnlyLogFile)
+	for _, entry := range getEntries {
+		s.NotEqual("POST", entry.HTTP.Method, "POST requests should not appear in get-only.log")
+	}
+
+	// Verify different presets are applied
+	// GET logger uses minimal preset (only method, path, status)
+	getEntry := getEntries[0]
+	s.Equal("GET", getEntry.HTTP.Method)
+	s.Equal("/multi-middleware", getEntry.HTTP.Path)
+	s.Equal(200, getEntry.HTTP.StatusCode)
+	s.Empty(getEntry.HTTP.ClientIP, "Minimal preset should not include client IP")
+	s.Zero(getEntry.HTTP.Duration, "Minimal preset should not include duration")
+
+	// POST logger uses detailed preset (includes more fields)
+	postEntry := postEntries[0]
+	s.Equal("POST", postEntry.HTTP.Method)
+	s.Equal("/multi-middleware", postEntry.HTTP.Path)
+	s.Equal(200, postEntry.HTTP.StatusCode)
+	s.NotEmpty(postEntry.HTTP.ClientIP, "Detailed preset should include client IP")
+	s.NotZero(postEntry.HTTP.Duration, "Detailed preset should include duration")
+	s.NotEmpty(postEntry.HTTP.Protocol, "Detailed preset should include protocol")
+	s.NotEmpty(postEntry.HTTP.Host, "Detailed preset should include host")
+
+	s.T().Logf("GET-only log entries: %d", len(getEntries))
+	s.T().Logf("POST-only log entries: %d", len(postEntries))
+}
+
+func (s *LoggerIntegrationTestSuite) TestMethodExclusion() {
+	// Test excluded methods (HEAD and OPTIONS should not be logged)
+	client := &http.Client{}
+
+	// Make a GET request - should be logged
+	getReq, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("http://127.0.0.1:%d/exclude-methods", s.port),
+		nil,
+	)
+	s.Require().NoError(err)
+	getResp, err := client.Do(getReq)
+	s.Require().NoError(err)
+	defer getResp.Body.Close()
+
+	// Make a HEAD request - should NOT be logged
+	headReq, err := http.NewRequest(
+		"HEAD",
+		fmt.Sprintf("http://127.0.0.1:%d/exclude-methods", s.port),
+		nil,
+	)
+	s.Require().NoError(err)
+	headResp, err := client.Do(headReq)
+	s.Require().NoError(err)
+	defer headResp.Body.Close()
+
+	// Make an OPTIONS request - should NOT be logged
+	optionsReq, err := http.NewRequest(
+		"OPTIONS",
+		fmt.Sprintf("http://127.0.0.1:%d/exclude-methods", s.port),
+		nil,
+	)
+	s.Require().NoError(err)
+	optionsResp, err := client.Do(optionsReq)
+	s.Require().NoError(err)
+	defer optionsResp.Body.Close()
+
+	// Wait for logs and verify
+	excludeLogFile := s.logFile + ".exclude-methods.log"
+
+	s.Eventually(func() bool {
+		entries := s.readLogEntries(excludeLogFile)
+		return len(entries) > 0
+	}, 5*time.Second, 100*time.Millisecond, "Should have at least one log entry")
+
+	entries := s.readLogEntries(excludeLogFile)
+
+	// Verify only GET request is logged
+	for _, entry := range entries {
+		s.NotEqual("HEAD", entry.HTTP.Method, "HEAD requests should be excluded")
+		s.NotEqual("OPTIONS", entry.HTTP.Method, "OPTIONS requests should be excluded")
+	}
+
+	// Should have exactly one entry (the GET request)
+	s.Len(entries, 1, "Should have exactly one log entry (GET request only)")
+	s.Equal("GET", entries[0].HTTP.Method, "The single entry should be the GET request")
+
+	s.T().Logf("Excluded methods test passed with %d logged entries", len(entries))
+}
+
+func (s *LoggerIntegrationTestSuite) TestTextFormatLogger() {
+	// Test standard preset with text format
+	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/text-standard", s.port))
+	s.Require().NoError(err, "Failed to make request to /text-standard")
+	defer resp.Body.Close()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
+
+	standardLogFile := s.logFile + ".text-standard.log"
+	s.Eventually(func() bool {
+		content := s.readTextLogFile(standardLogFile)
+		return strings.Contains(content, "/text-standard") && strings.Contains(content, "GET")
+	}, 5*time.Second, 100*time.Millisecond, "Standard text log should contain request entry")
+
+	// Test detailed preset with text format
+	resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/text-detailed?test=value", s.port))
+	s.Require().NoError(err, "Failed to make request to /text-detailed")
+	defer resp.Body.Close()
+
+	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
+
+	detailedLogFile := s.logFile + ".text-detailed.log"
+	s.Eventually(func() bool {
+		content := s.readTextLogFile(detailedLogFile)
+		return strings.Contains(content, "/text-detailed") &&
+			strings.Contains(content, "test=value")
+	}, 5*time.Second, 100*time.Millisecond, "Detailed text log should contain request entry with query params")
+
+	// Verify text format characteristics
+	standardContent := s.readTextLogFile(standardLogFile)
+	s.NotEmpty(standardContent, "Standard text log should not be empty")
+	s.NotContains(standardContent, "{", "Text format should not contain JSON braces")
+	s.Contains(standardContent, "INFO", "Text format should contain INFO level")
+	s.Contains(standardContent, "method=GET", "Text format should contain method=GET")
+	s.Contains(standardContent, "path=/text-standard", "Text format should contain path")
+	s.Contains(standardContent, "status=200", "Text format should contain status code")
+	s.Contains(standardContent, "client_ip=127.0.0.1", "Text format should contain client IP")
+	s.Contains(standardContent, "duration=", "Text format should contain duration")
+
+	detailedContent := s.readTextLogFile(detailedLogFile)
+	s.NotEmpty(detailedContent, "Detailed text log should not be empty")
+	s.NotContains(detailedContent, "{", "Text format should not contain JSON braces")
+	s.Contains(detailedContent, "INFO", "Text format should contain INFO level")
+	s.Contains(detailedContent, "method=GET", "Text format should contain method=GET")
+	s.Contains(detailedContent, "path=/text-detailed", "Text format should contain path")
+	s.Contains(
+		detailedContent,
+		"query=\"test=value\"",
+		"Detailed text format should contain query params",
+	)
+	s.Contains(detailedContent, "protocol=HTTP/1.1", "Detailed text format should contain protocol")
+	s.Contains(detailedContent, "host=127.0.0.1:", "Detailed text format should contain host")
+	s.Contains(detailedContent, "scheme=http", "Detailed text format should contain scheme")
+
+	s.T().Logf("Standard text log content: %s", standardContent)
+	s.T().Logf("Detailed text log content: %s", detailedContent)
+}
+
+// Helper function to read text log files (non-JSON)
+func (s *LoggerIntegrationTestSuite) readTextLogFile(logFilePath string) string {
+	content, err := os.ReadFile(logFilePath)
+	if err != nil {
+		s.T().Logf("Text log file %s does not exist or cannot be read: %v", logFilePath, err)
+		return ""
+	}
+	return string(content)
+}
+
 // Helper function to read and parse log entries from a file
 func (s *LoggerIntegrationTestSuite) readLogEntries(logFilePath string) []LogEntry {
 	file, err := os.Open(logFilePath)
