@@ -315,9 +315,9 @@ func TestConsoleLogger_validateOutputWritability(t *testing.T) {
 	// Set up temp directory structure for relative path testing
 	tempDir := t.TempDir()
 	subDir := filepath.Join(tempDir, "subdir")
-	err := os.MkdirAll(subDir, 0755)
+	err := os.MkdirAll(subDir, 0o755)
 	require.NoError(t, err)
-	
+
 	// Change to subdirectory so relative paths work predictably
 	originalWd, err := os.Getwd()
 	require.NoError(t, err)

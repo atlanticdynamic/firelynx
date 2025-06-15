@@ -1,6 +1,7 @@
 package toml
 
 import (
+	_ "embed"
 	"testing"
 
 	pbMiddleware "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
@@ -10,65 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Shared TOML configuration template with manual field configuration
-const manualLoggerTOMLConfig = `
-version = "v1"
-
-[[listeners]]
-id = "http"
-address = "127.0.0.1:8080"
-type = "http"
-
-[[endpoints]]
-id = "manual-endpoint"
-listener_id = "http"
-
-[[endpoints.middlewares]]
-id = "manual-logger"
-type = "console_logger"
-
-[endpoints.middlewares.console_logger]
-output = "/tmp/manual.log"
-
-[endpoints.middlewares.console_logger.options]
-format = "json"
-level = "warn"
-
-[endpoints.middlewares.console_logger.fields]
-method = true
-path = true
-status_code = true
-client_ip = true
-duration = true
-query_params = true
-protocol = true
-host = true
-
-[endpoints.middlewares.console_logger.fields.request]
-enabled = true
-headers = true
-include_headers = ["User-Agent", "Content-Type", "Accept"]
-exclude_headers = ["Authorization", "Cookie"]
-
-[endpoints.middlewares.console_logger.fields.response]
-enabled = true
-headers = true
-body_size = true
-include_headers = ["Content-Type", "Cache-Control"]
-exclude_headers = ["Set-Cookie"]
-
-[[endpoints.routes]]
-app_id = "test-echo"
-
-[endpoints.routes.http]
-path_prefix = "/manual-test"
-
-[[apps]]
-id = "test-echo"
-
-[apps.echo]
-response = "Manual Test Response"
-`
+//go:embed testdata/manual_logger_config.toml
+var manualLoggerTOMLConfig string
 
 // TestProcessConsoleLoggerFields tests the low-level field processing function
 func TestProcessConsoleLoggerFields(t *testing.T) {
