@@ -15,8 +15,12 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
+	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
+	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
+	httpLogger "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware/logger"
 	"github.com/gofrs/uuid/v5"
 	"github.com/robbyt/go-loglater"
 	"github.com/robbyt/go-loglater/storage"
@@ -72,6 +76,10 @@ type ConfigTransaction struct {
 
 	// Application collection for linking routes to app instances
 	appCollection serverApps.AppLookup
+
+	// Middleware pool for sharing instances across routes
+	// Structure: map[middleware-type]map[middleware-id]middleware-instance
+	middlewarePool map[string]map[string]httpMiddleware.Instance
 
 	// Validation state
 	IsValid atomic.Bool
@@ -129,18 +137,24 @@ func New(
 	}
 
 	tx := &ConfigTransaction{
-		ID:            txID,
-		Source:        source,
-		SourceDetail:  sourceDetail,
-		RequestID:     requestID,
-		CreatedAt:     time.Now(),
-		fsm:           sm,
-		participants:  participants,
-		logger:        logger,
-		logCollector:  logCollector,
-		domainConfig:  cfg,
-		appCollection: appCollection,
-		IsValid:       atomic.Bool{},
+		ID:             txID,
+		Source:         source,
+		SourceDetail:   sourceDetail,
+		RequestID:      requestID,
+		CreatedAt:      time.Now(),
+		fsm:            sm,
+		participants:   participants,
+		logger:         logger,
+		logCollector:   logCollector,
+		domainConfig:   cfg,
+		appCollection:  appCollection,
+		middlewarePool: make(map[string]map[string]httpMiddleware.Instance),
+		IsValid:        atomic.Bool{},
+	}
+
+	// Create middleware instances
+	if err := tx.createMiddlewareInstances(); err != nil {
+		return nil, fmt.Errorf("failed to create middleware instances: %w", err)
 	}
 
 	// Log the transaction creation
@@ -482,4 +496,60 @@ func convertToAppDefinitions(configApps apps.AppCollection) []serverApps.AppDefi
 	}
 
 	return definitions
+}
+
+// createMiddlewareInstances creates middleware instances from all endpoints
+func (tx *ConfigTransaction) createMiddlewareInstances() error {
+	for _, endpoint := range tx.domainConfig.Endpoints {
+		// Process endpoint middleware
+		for _, mw := range endpoint.Middlewares {
+			if err := tx.createMiddleware(mw); err != nil {
+				return err
+			}
+		}
+		// Process route middleware
+		for _, route := range endpoint.Routes {
+			for _, mw := range route.Middlewares {
+				if err := tx.createMiddleware(mw); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// createMiddleware creates a single middleware instance if not already in pool
+func (tx *ConfigTransaction) createMiddleware(mw middleware.Middleware) error {
+	mwType := mw.Config.Type()
+
+	// Initialize type map if needed
+	if tx.middlewarePool[mwType] == nil {
+		tx.middlewarePool[mwType] = make(map[string]httpMiddleware.Instance)
+	}
+
+	// Check if already exists
+	if _, exists := tx.middlewarePool[mwType][mw.ID]; exists {
+		return nil
+	}
+
+	// Create new instance
+	switch config := mw.Config.(type) {
+	case *configLogger.ConsoleLogger:
+		instance, err := httpLogger.NewConsoleLogger(mw.ID, config)
+		if err != nil {
+			return fmt.Errorf("failed to create console logger '%s': %w", mw.ID, err)
+		}
+		tx.middlewarePool[mwType][mw.ID] = instance
+	default:
+		return fmt.Errorf("unsupported middleware type: %T", mw.Config)
+	}
+
+	tx.logger.Debug("Created middleware instance", "type", mwType, "id", mw.ID)
+	return nil
+}
+
+// GetMiddlewarePool returns the middleware pool for use by adapters
+func (tx *ConfigTransaction) GetMiddlewarePool() map[string]map[string]httpMiddleware.Instance {
+	return tx.middlewarePool
 }

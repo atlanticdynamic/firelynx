@@ -36,26 +36,62 @@ type LogEntry struct {
 	Time  string `json:"time"`
 	Level string `json:"level"`
 	Msg   string `json:"msg"`
-	HTTP  struct {
-		Method      string                 `json:"method,omitempty"`
-		Path        string                 `json:"path,omitempty"`
-		StatusCode  int                    `json:"status,omitempty"`
-		ClientIP    string                 `json:"client_ip,omitempty"`
-		Duration    int                    `json:"duration,omitempty"`
-		Query       string                 `json:"query,omitempty"`        // Query string as used by logger
-		QueryParams map[string]interface{} `json:"query_params,omitempty"` // Keep for backward compatibility
-		Protocol    string                 `json:"protocol,omitempty"`
-		Host        string                 `json:"host,omitempty"`
-		Scheme      string                 `json:"scheme,omitempty"`
-		UserAgent   string                 `json:"user_agent,omitempty"`
-		BodySize    *int                   `json:"body_size,omitempty"`
-		Request     struct {
-			Headers map[string][]string `json:"headers,omitempty"`
-		} `json:"request,omitempty"`
-		Response struct {
-			Headers map[string][]string `json:"headers,omitempty"`
-		} `json:"response,omitempty"`
-	} `json:"http,omitempty"`
+	HTTP  HTTPLogData
+}
+
+// HTTPLogData represents the HTTP request/response data structure in logs
+type HTTPLogData struct {
+	Method      string         `json:"method,omitempty"`
+	Path        string         `json:"path,omitempty"`
+	StatusCode  int            `json:"status,omitempty"`
+	ClientIP    string         `json:"client_ip,omitempty"`
+	Duration    int            `json:"duration,omitempty"`
+	Query       string         `json:"query,omitempty"`        // Query string as used by logger
+	QueryParams map[string]any `json:"query_params,omitempty"` // Keep for backward compatibility
+	Protocol    string         `json:"protocol,omitempty"`
+	Host        string         `json:"host,omitempty"`
+	Scheme      string         `json:"scheme,omitempty"`
+	UserAgent   string         `json:"user_agent,omitempty"`
+	BodySize    *int           `json:"body_size,omitempty"`
+	Request     struct {
+		Headers map[string][]string `json:"headers,omitempty"`
+	} `json:"request,omitempty"`
+	Response struct {
+		Headers map[string][]string `json:"headers,omitempty"`
+	} `json:"response,omitempty"`
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for LogEntry to handle dynamic group names
+func (le *LogEntry) UnmarshalJSON(data []byte) error {
+	// Unmarshal into a map to access all fields
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// Extract standard fields
+	le.Time, _ = raw["time"].(string)
+	le.Level, _ = raw["level"].(string)
+	le.Msg, _ = raw["msg"].(string)
+
+	// Find HTTP data in any group that has a "method" field
+	for key, value := range raw {
+		if key == "time" || key == "level" || key == "msg" {
+			continue
+		}
+
+		if httpData, ok := value.(map[string]any); ok {
+			if _, hasMethod := httpData["method"]; hasMethod {
+				// Use a temporary JSON round-trip for clean unmarshaling
+				if httpBytes, err := json.Marshal(httpData); err == nil {
+					json.Unmarshal(httpBytes, &le.HTTP)
+				}
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 type LoggerIntegrationTestSuite struct {
