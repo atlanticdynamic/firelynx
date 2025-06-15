@@ -82,7 +82,7 @@ func NewConsoleLogger(id string, cfg *logger.ConsoleLogger) (*ConsoleLogger, err
 		handler = centralLogger.SetupHandlerText(string(configCopy.Options.Level), writer)
 	}
 
-	lgr := slog.New(handler).WithGroup("http")
+	lgr := slog.New(handler).WithGroup(id)
 	return &ConsoleLogger{
 		id:     id,
 		filter: filter,
