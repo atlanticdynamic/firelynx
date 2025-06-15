@@ -1,0 +1,36 @@
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = "127.0.0.1:{{.Port}}"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "test-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "standard"
+output = "/tmp/test-{{.Port}}.log"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+[[endpoints.routes]]
+app_id = "test-echo"
+[endpoints.routes.http]
+path_prefix = "/"
+
+[[apps]]
+id = "test-echo"
+[apps.echo]
+response = "Test Response"

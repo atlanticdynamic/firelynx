@@ -79,7 +79,8 @@ func TestNewConsoleLogger(t *testing.T) {
 		cfg.Options.Level = logger.LevelDebug
 		cfg.Options.Format = logger.FormatTxt
 
-		consoleLogger := NewConsoleLogger("test-logger", cfg)
+		consoleLogger, err := NewConsoleLogger("test-logger", cfg)
+		require.NoError(t, err)
 		assert.Equal(t, "test-logger", consoleLogger.id)
 		assert.NotNil(t, consoleLogger)
 		assert.NotNil(t, consoleLogger.filter)
@@ -91,7 +92,8 @@ func TestNewConsoleLogger(t *testing.T) {
 		cfg.Options.Level = logger.LevelInfo
 		cfg.Options.Format = logger.FormatJSON
 
-		consoleLogger := NewConsoleLogger("test-logger-json", cfg)
+		consoleLogger, err := NewConsoleLogger("test-logger-json", cfg)
+		require.NoError(t, err)
 		assert.Equal(t, "test-logger-json", consoleLogger.id)
 		assert.NotNil(t, consoleLogger)
 		assert.NotNil(t, consoleLogger.filter)
@@ -102,7 +104,8 @@ func TestNewConsoleLogger(t *testing.T) {
 func TestConsoleLogger_Middleware(t *testing.T) {
 	t.Run("Middleware function creation", func(t *testing.T) {
 		cfg := logger.NewConsoleLogger()
-		consoleLogger := NewConsoleLogger("test-logger", cfg)
+		consoleLogger, err := NewConsoleLogger("test-logger", cfg)
+		require.NoError(t, err)
 		middleware := consoleLogger.Middleware()
 
 		assert.NotNil(t, middleware)
@@ -114,7 +117,8 @@ func TestConsoleLogger_Middleware(t *testing.T) {
 		cfg.Fields.Request.Enabled = true
 		cfg.Fields.Response.Enabled = true
 
-		consoleLogger := NewConsoleLogger("test-logger", cfg)
+		consoleLogger, err := NewConsoleLogger("test-logger", cfg)
+		require.NoError(t, err)
 		middleware := consoleLogger.Middleware()
 
 		assert.NotNil(t, middleware)

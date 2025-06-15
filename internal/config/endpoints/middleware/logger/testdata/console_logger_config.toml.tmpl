@@ -1,0 +1,30 @@
+[console_logger]
+output = "{{.Output}}"
+{{- if .Preset}}
+preset = "{{.Preset}}"
+{{- end}}
+
+[console_logger.options]
+format = "{{.Format}}"
+level = "{{.Level}}"
+
+{{- if .Fields}}
+[console_logger.fields]
+{{- range $key, $value := .Fields}}
+{{$key}} = {{$value}}
+{{- end}}
+
+{{- if .RequestConfig}}
+[console_logger.fields.request]
+{{- range $key, $value := .RequestConfig}}
+{{$key}} = {{if eq (printf "%T" $value) "[]string"}}{{printf "%#v" $value}}{{else}}{{$value}}{{end}}
+{{- end}}
+{{- end}}
+
+{{- if .ResponseConfig}}
+[console_logger.fields.response]
+{{- range $key, $value := .ResponseConfig}}
+{{$key}} = {{if eq (printf "%T" $value) "[]string"}}{{printf "%#v" $value}}{{else}}{{$value}}{{end}}
+{{- end}}
+{{- end}}
+{{- end}}

@@ -1,0 +1,366 @@
+# FireLynx Integration Test Configuration: Logger with File Output
+# Template variables: {{.Port}}, {{.LogFile}}
+version = "v1"
+
+# HTTP Listener Configuration
+[[listeners]]
+id = "http"
+address = "127.0.0.1:{{.Port}}"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+# Main Endpoint with Standard Logger
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "standard-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "standard"                    # Use standard preset (method, path, status, client_ip, duration)
+output = "{{.LogFile}}"                # Output to file instead of stdout
+exclude_paths = ["/health"]            # Skip health checks
+
+[endpoints.middlewares.console_logger.options]
+format = "json"                        # JSON format for easy parsing
+level = "info"                         # Info level logging
+
+[[endpoints.routes]]
+app_id = "test-echo"
+[endpoints.routes.http]
+path_prefix = "/test"
+
+# Environment Variable Endpoint with Detailed Logger  
+[[endpoints]]
+id = "env-endpoint"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "env-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "detailed"                    # Use detailed preset (includes headers, query params)
+output = "${FIRELYNX_LOG_DIR}/access-${HOSTNAME}.log"  # Environment variable interpolation
+exclude_paths = ["/health", "/metrics"]
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "debug"
+
+[[endpoints.routes]]
+app_id = "test-echo-env"
+[endpoints.routes.http]
+path_prefix = "/env-test"
+
+# Minimal Logger Endpoint
+[[endpoints]]
+id = "minimal-endpoint"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "minimal-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "minimal"                     # Use minimal preset (method, path, status only)
+output = "{{.LogFile}}.minimal"        # Template-provided log file
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+[[endpoints.routes]]
+app_id = "test-echo-minimal"
+[endpoints.routes.http]
+path_prefix = "/minimal-test"
+
+# Manual Configuration Endpoint
+[[endpoints]]
+id = "manual-endpoint"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "manual-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+output = "${FIRELYNX_LOG_DIR}/manual-${TEST_SESSION}.log"  # Another env var target
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+[endpoints.middlewares.console_logger.fields]
+# Manual field selection without preset
+method = true
+path = true
+status_code = true
+client_ip = true
+duration = true
+query_params = true
+protocol = true
+host = true
+
+[endpoints.middlewares.console_logger.fields.request]
+enabled = true
+headers = true
+include_headers = ["User-Agent", "Content-Type", "Accept"]
+exclude_headers = ["Authorization", "Cookie"]
+
+[endpoints.middlewares.console_logger.fields.response]
+enabled = true
+headers = true
+body_size = true
+include_headers = ["Content-Type", "Cache-Control"]
+exclude_headers = ["Set-Cookie"]
+
+[[endpoints.routes]]
+app_id = "test-echo-manual"
+[endpoints.routes.http]
+path_prefix = "/manual-test"
+
+# Preset Test Endpoint (same as main but different path for testing)
+[[endpoints]]
+id = "preset-endpoint"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "preset-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "standard"
+output = "{{.LogFile}}"
+exclude_paths = ["/health"]
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+[[endpoints.routes]]
+app_id = "test-echo-preset"
+[endpoints.routes.http]
+path_prefix = "/preset-test"
+
+# Path Filtering Test Endpoints (for testing exclude_paths)
+[[endpoints]]
+id = "filtering-endpoint"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "filtering-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "standard"
+output = "{{.LogFile}}"
+exclude_paths = ["/health"]
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+[[endpoints.routes]]
+app_id = "test-echo-health"
+[endpoints.routes.http]
+path_prefix = "/health"
+
+[[endpoints.routes]]
+app_id = "test-echo-normal"
+[endpoints.routes.http]
+path_prefix = "/normal"
+
+# Environment Interpolation Test Endpoint
+[[endpoints]]
+id = "env-interpolation-endpoint"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "env-interpolation-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "detailed"
+output = "${FIRELYNX_LOG_DIR}/env-test-${TEST_SESSION}.log"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "debug"
+
+[[endpoints.routes]]
+app_id = "test-echo-env-interpolation"
+[endpoints.routes.http]
+path_prefix = "/env-interpolation-test"
+
+# Application Definitions
+[[apps]]
+id = "test-echo"
+[apps.echo]
+response = "Integration Test Response"
+
+[[apps]]
+id = "test-echo-env"
+[apps.echo]
+response = "Environment Variable Test Response"
+
+[[apps]]
+id = "test-echo-minimal"
+[apps.echo]
+response = "Minimal Test Response"
+
+[[apps]]
+id = "test-echo-manual"
+[apps.echo]
+response = "Manual Test Response"
+
+[[apps]]
+id = "test-echo-preset"
+[apps.echo]
+response = "Preset Test Response"
+
+[[apps]]
+id = "test-echo-health"
+[apps.echo]
+response = "Health Check Response"
+
+[[apps]]
+id = "test-echo-normal"
+[apps.echo]
+response = "Normal Test Response"
+
+[[apps]]
+id = "test-echo-env-interpolation"
+[apps.echo]
+response = "Environment Interpolation Test Response"
+
+# Text Format Endpoint with Standard Preset
+[[endpoints]]
+id = "text-standard"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "text-standard-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "standard"
+output = "{{.LogFile}}.text-standard.log"
+
+[endpoints.middlewares.console_logger.options]
+format = "txt"                         # Text format instead of JSON
+level = "info"
+
+[[endpoints.routes]]
+app_id = "text-echo-standard"
+[endpoints.routes.http]
+path_prefix = "/text-standard"
+
+# Text Format Endpoint with Detailed Preset
+[[endpoints]]
+id = "text-detailed"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "text-detailed-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+preset = "detailed"
+output = "{{.LogFile}}.text-detailed.log"
+
+[endpoints.middlewares.console_logger.options]
+format = "txt"
+level = "debug"
+
+[[endpoints.routes]]
+app_id = "text-echo-detailed"
+[endpoints.routes.http]
+path_prefix = "/text-detailed"
+
+[[apps]]
+id = "text-echo-standard"
+[apps.echo]
+response = "Text Standard Response"
+
+[[apps]]
+id = "text-echo-detailed"
+[apps.echo]
+response = "Text Detailed Response"
+
+# Multiple Middleware Per Endpoint Test
+[[endpoints]]
+id = "multi-middleware-endpoint"
+listener_id = "http"
+
+# Logger for GET requests only
+[[endpoints.middlewares]]
+id = "get-only-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+include_only_methods = ["GET"]
+output = "{{.LogFile}}.get-only.log"
+preset = "minimal"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+# Logger for POST requests only
+[[endpoints.middlewares]]
+id = "post-only-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+include_only_methods = ["POST"]
+output = "{{.LogFile}}.post-only.log"
+preset = "detailed"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "debug"
+
+[[endpoints.routes]]
+app_id = "multi-middleware-echo"
+[endpoints.routes.http]
+path_prefix = "/multi-middleware"
+
+# Method Exclusion Test Endpoint
+[[endpoints]]
+id = "exclude-methods-endpoint"
+listener_id = "http"
+
+# Logger that excludes HEAD and OPTIONS methods
+[[endpoints.middlewares]]
+id = "exclude-methods-logger"
+type = "console_logger"
+
+[endpoints.middlewares.console_logger]
+exclude_methods = ["HEAD", "OPTIONS"]
+output = "{{.LogFile}}.exclude-methods.log"
+preset = "standard"
+
+[endpoints.middlewares.console_logger.options]
+format = "json"
+level = "info"
+
+[[endpoints.routes]]
+app_id = "exclude-methods-echo"
+[endpoints.routes.http]
+path_prefix = "/exclude-methods"
+
+[[apps]]
+id = "multi-middleware-echo"
+[apps.echo]
+response = "Multi Middleware Response"
+
+[[apps]]
+id = "exclude-methods-echo"
+[apps.echo]
+response = "Exclude Methods Response"

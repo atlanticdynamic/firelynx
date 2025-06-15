@@ -258,9 +258,37 @@ func processConsoleLoggerConfig(
 
 	// Get the console logger config from the middleware
 	if consoleConfig := middleware.GetConsoleLogger(); consoleConfig != nil {
+		// Process preset enum if it exists
+		if presetStr, ok := consoleLoggerConfig["preset"].(string); ok {
+			var preset pbMiddleware.ConsoleLoggerConfig_LogPreset
+			switch presetStr {
+			case "minimal":
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_MINIMAL
+			case "standard":
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_STANDARD
+			case "detailed":
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_DETAILED
+			case "debug":
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_DEBUG
+			default:
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_UNSPECIFIED
+				errList = append(
+					errList,
+					fmt.Errorf("unsupported console logger preset: %s", presetStr),
+				)
+			}
+			consoleConfig.Preset = &preset
+		}
+
 		// Process options if they exist
 		if optionsMap, ok := consoleLoggerConfig["options"].(map[string]any); ok {
 			errs := processConsoleLoggerOptions(consoleConfig, optionsMap)
+			errList = append(errList, errs...)
+		}
+
+		// Process fields if they exist
+		if fieldsMap, ok := consoleLoggerConfig["fields"].(map[string]any); ok {
+			errs := processConsoleLoggerFields(consoleConfig, fieldsMap)
 			errList = append(errList, errs...)
 		}
 	}
@@ -317,6 +345,119 @@ func processConsoleLoggerOptions(
 			errList = append(errList, fmt.Errorf("unsupported console logger level: %s", levelStr))
 		}
 		config.Options.Level = &level
+	}
+
+	return errList
+}
+
+// processConsoleLoggerFields handles field-level boolean configuration
+func processConsoleLoggerFields(
+	config *pbMiddleware.ConsoleLoggerConfig,
+	fieldsMap map[string]any,
+) []error {
+	var errList []error
+
+	// Ensure fields exist
+	if config.Fields == nil {
+		config.Fields = &pbMiddleware.LogOptionsHTTP{}
+	}
+
+	// Process HTTP field boolean settings
+	if methodVal, ok := fieldsMap["method"].(bool); ok {
+		config.Fields.Method = &methodVal
+	}
+	if pathVal, ok := fieldsMap["path"].(bool); ok {
+		config.Fields.Path = &pathVal
+	}
+	if clientIpVal, ok := fieldsMap["client_ip"].(bool); ok {
+		config.Fields.ClientIp = &clientIpVal
+	}
+	if queryParamsVal, ok := fieldsMap["query_params"].(bool); ok {
+		config.Fields.QueryParams = &queryParamsVal
+	}
+	if protocolVal, ok := fieldsMap["protocol"].(bool); ok {
+		config.Fields.Protocol = &protocolVal
+	}
+	if hostVal, ok := fieldsMap["host"].(bool); ok {
+		config.Fields.Host = &hostVal
+	}
+	if schemeVal, ok := fieldsMap["scheme"].(bool); ok {
+		config.Fields.Scheme = &schemeVal
+	}
+	if statusCodeVal, ok := fieldsMap["status_code"].(bool); ok {
+		config.Fields.StatusCode = &statusCodeVal
+	}
+	if durationVal, ok := fieldsMap["duration"].(bool); ok {
+		config.Fields.Duration = &durationVal
+	}
+
+	// Process request direction config
+	if requestMap, ok := fieldsMap["request"].(map[string]any); ok {
+		if config.Fields.Request == nil {
+			config.Fields.Request = &pbMiddleware.LogOptionsHTTP_DirectionConfig{}
+		}
+		errs := processDirectionConfig(config.Fields.Request, requestMap)
+		errList = append(errList, errs...)
+	}
+
+	// Process response direction config
+	if responseMap, ok := fieldsMap["response"].(map[string]any); ok {
+		if config.Fields.Response == nil {
+			config.Fields.Response = &pbMiddleware.LogOptionsHTTP_DirectionConfig{}
+		}
+		errs := processDirectionConfig(config.Fields.Response, responseMap)
+		errList = append(errList, errs...)
+	}
+
+	return errList
+}
+
+// processDirectionConfig handles request/response direction configuration
+func processDirectionConfig(
+	config *pbMiddleware.LogOptionsHTTP_DirectionConfig,
+	directionMap map[string]any,
+) []error {
+	var errList []error
+
+	// Process boolean fields
+	if enabledVal, ok := directionMap["enabled"].(bool); ok {
+		config.Enabled = &enabledVal
+	}
+	if bodyVal, ok := directionMap["body"].(bool); ok {
+		config.Body = &bodyVal
+	}
+	if bodySizeVal, ok := directionMap["body_size"].(bool); ok {
+		config.BodySize = &bodySizeVal
+	}
+	if headersVal, ok := directionMap["headers"].(bool); ok {
+		config.Headers = &headersVal
+	}
+
+	// Process max body size
+	if maxBodySizeVal, ok := directionMap["max_body_size"].(int); ok {
+		maxBodySize := int32(maxBodySizeVal)
+		config.MaxBodySize = &maxBodySize
+	}
+
+	// Process header include/exclude lists
+	if includeHeadersArray, ok := directionMap["include_headers"].([]any); ok {
+		var includeHeaders []string
+		for _, headerAny := range includeHeadersArray {
+			if headerStr, ok := headerAny.(string); ok {
+				includeHeaders = append(includeHeaders, headerStr)
+			}
+		}
+		config.IncludeHeaders = includeHeaders
+	}
+
+	if excludeHeadersArray, ok := directionMap["exclude_headers"].([]any); ok {
+		var excludeHeaders []string
+		for _, headerAny := range excludeHeadersArray {
+			if headerStr, ok := headerAny.(string); ok {
+				excludeHeaders = append(excludeHeaders, headerStr)
+			}
+		}
+		config.ExcludeHeaders = excludeHeaders
 	}
 
 	return errList

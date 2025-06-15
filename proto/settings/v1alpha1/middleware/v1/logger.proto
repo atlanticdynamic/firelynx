@@ -55,14 +55,30 @@ message LogOptionsHTTP {
 
 // Configuration for console logger middleware
 message ConsoleLoggerConfig {
+  // Preset configuration bundles for common logging scenarios
+  enum LogPreset {
+    PRESET_UNSPECIFIED = 0;
+    PRESET_MINIMAL = 1; // Only method, path, status code
+    PRESET_STANDARD = 2; // Minimal + client IP, duration
+    PRESET_DETAILED = 3; // Standard + headers, query params
+    PRESET_DEBUG = 4; // Everything including request/response bodies
+  }
+
   LogOptionsGeneral options = 1; // general logging options (format, level)
   LogOptionsHTTP fields = 2; // HTTP-specific field selection and formatting
 
+  // Output destination (supports environment variable interpolation with ${VAR_NAME})
+  // Examples: "stdout", "stderr", "/var/log/app.log", "file:///var/log/app-${HOSTNAME}.log"
+  string output = 3 [default = "stdout"];
+
+  // Preset configuration (applied before custom field overrides)
+  LogPreset preset = 4 [default = PRESET_UNSPECIFIED];
+
   // Path filtering - paths are matched as prefixes
-  repeated string include_only_paths = 3; // if set, only log requests matching these path prefixes
-  repeated string exclude_paths = 4; // exclude requests matching these path prefixes (e.g., "/health", "/metrics")
+  repeated string include_only_paths = 5; // if set, only log requests matching these path prefixes
+  repeated string exclude_paths = 6; // exclude requests matching these path prefixes (e.g., "/health", "/metrics")
 
   // Method filtering
-  repeated string include_only_methods = 5; // if set, only log these HTTP methods (e.g., ["GET", "POST"])
-  repeated string exclude_methods = 6; // exclude these HTTP methods from logging (e.g., ["OPTIONS"])
+  repeated string include_only_methods = 7; // if set, only log these HTTP methods (e.g., ["GET", "POST"])
+  repeated string exclude_methods = 8; // exclude these HTTP methods from logging (e.g., ["OPTIONS"])
 }

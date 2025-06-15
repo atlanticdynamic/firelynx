@@ -31,7 +31,10 @@ func CreateMiddlewareCollection(collection middleware.MiddlewareCollection) ([]M
 func createMiddleware(id string, cfg middleware.Middleware) (Middleware, error) {
 	switch config := cfg.Config.(type) {
 	case *configLogger.ConsoleLogger:
-		consoleLogger := logger.NewConsoleLogger(id, config)
+		consoleLogger, err := logger.NewConsoleLogger(id, config)
+		if err != nil {
+			return nil, err
+		}
 		return consoleLogger.Middleware(), nil
 	default:
 		return nil, fmt.Errorf("unsupported middleware type: %T", cfg.Config)

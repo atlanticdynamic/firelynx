@@ -202,7 +202,8 @@ func extractEndpointRoutes(
 		logger.Debug("Found app for route",
 			"app_id", httpRoute.AppID,
 			"route_id", routeID,
-			"path_prefix", httpRoute.PathPrefix)
+			"path_prefix", httpRoute.PathPrefix,
+			"middleware_count", len(httpRoute.Middlewares))
 
 		// Create a handler function for this route
 		handlerFunc := func(w http.ResponseWriter, r *http.Request) {
@@ -235,6 +236,10 @@ func extractEndpointRoutes(
 			)
 			continue
 		}
+
+		logger.Debug("Created middleware for route",
+			"route_id", routeID,
+			"middleware_count", len(middlewares))
 
 		// Create the HTTP route with the handler and middleware
 		route, err := httpserver.NewRouteFromHandlerFunc(
