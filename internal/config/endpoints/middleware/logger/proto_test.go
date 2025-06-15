@@ -495,13 +495,13 @@ func TestPresetConversion(t *testing.T) {
 
 	tests := []struct {
 		domain Preset
-		proto  pb.LogPreset
+		proto  pb.ConsoleLoggerConfig_LogPreset
 	}{
-		{PresetMinimal, pb.LogPreset_PRESET_MINIMAL},
-		{PresetStandard, pb.LogPreset_PRESET_STANDARD},
-		{PresetDetailed, pb.LogPreset_PRESET_DETAILED},
-		{PresetDebug, pb.LogPreset_PRESET_DEBUG},
-		{PresetUnspecified, pb.LogPreset_PRESET_UNSPECIFIED},
+		{PresetMinimal, pb.ConsoleLoggerConfig_PRESET_MINIMAL},
+		{PresetStandard, pb.ConsoleLoggerConfig_PRESET_STANDARD},
+		{PresetDetailed, pb.ConsoleLoggerConfig_PRESET_DETAILED},
+		{PresetDebug, pb.ConsoleLoggerConfig_PRESET_DEBUG},
+		{PresetUnspecified, pb.ConsoleLoggerConfig_PRESET_UNSPECIFIED},
 	}
 
 	for _, tt := range tests {
@@ -519,9 +519,9 @@ func TestPresetConversion(t *testing.T) {
 	t.Run("Invalid preset defaults to unspecified", func(t *testing.T) {
 		invalidPreset := Preset("invalid")
 		protoPreset := presetToProto(invalidPreset)
-		assert.Equal(t, pb.LogPreset_PRESET_UNSPECIFIED, protoPreset)
+		assert.Equal(t, pb.ConsoleLoggerConfig_PRESET_UNSPECIFIED, protoPreset)
 
-		domainPreset := presetFromProto(pb.LogPreset(999))
+		domainPreset := presetFromProto(pb.ConsoleLoggerConfig_LogPreset(999))
 		assert.Equal(t, PresetUnspecified, domainPreset)
 	})
 }

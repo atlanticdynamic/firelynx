@@ -53,17 +53,17 @@ message LogOptionsHTTP {
   DirectionConfig response = 11; // what to log for responses
 }
 
-// Preset configurations for common logging scenarios
-enum LogPreset {
-  PRESET_UNSPECIFIED = 0;
-  PRESET_MINIMAL = 1;     // Only method, path, status code
-  PRESET_STANDARD = 2;    // Minimal + client IP, duration
-  PRESET_DETAILED = 3;    // Standard + headers, query params
-  PRESET_DEBUG = 4;       // Everything including request/response bodies
-}
-
 // Configuration for console logger middleware
 message ConsoleLoggerConfig {
+  // Preset configuration bundles for common logging scenarios
+  enum LogPreset {
+    PRESET_UNSPECIFIED = 0;
+    PRESET_MINIMAL = 1; // Only method, path, status code
+    PRESET_STANDARD = 2; // Minimal + client IP, duration
+    PRESET_DETAILED = 3; // Standard + headers, query params
+    PRESET_DEBUG = 4; // Everything including request/response bodies
+  }
+
   LogOptionsGeneral options = 1; // general logging options (format, level)
   LogOptionsHTTP fields = 2; // HTTP-specific field selection and formatting
 

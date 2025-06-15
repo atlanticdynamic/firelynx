@@ -260,18 +260,18 @@ func processConsoleLoggerConfig(
 	if consoleConfig := middleware.GetConsoleLogger(); consoleConfig != nil {
 		// Process preset enum if it exists
 		if presetStr, ok := consoleLoggerConfig["preset"].(string); ok {
-			var preset pbMiddleware.LogPreset
+			var preset pbMiddleware.ConsoleLoggerConfig_LogPreset
 			switch presetStr {
 			case "minimal":
-				preset = pbMiddleware.LogPreset_PRESET_MINIMAL
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_MINIMAL
 			case "standard":
-				preset = pbMiddleware.LogPreset_PRESET_STANDARD
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_STANDARD
 			case "detailed":
-				preset = pbMiddleware.LogPreset_PRESET_DETAILED
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_DETAILED
 			case "debug":
-				preset = pbMiddleware.LogPreset_PRESET_DEBUG
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_DEBUG
 			default:
-				preset = pbMiddleware.LogPreset_PRESET_UNSPECIFIED
+				preset = pbMiddleware.ConsoleLoggerConfig_PRESET_UNSPECIFIED
 				errList = append(
 					errList,
 					fmt.Errorf("unsupported console logger preset: %s", presetStr),

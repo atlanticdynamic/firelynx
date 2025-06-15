@@ -211,30 +211,30 @@ func directionConfigFromProto(pbConfig *pb.LogOptionsHTTP_DirectionConfig) Direc
 }
 
 // Helper functions for preset conversion
-func presetToProto(preset Preset) pb.LogPreset {
+func presetToProto(preset Preset) pb.ConsoleLoggerConfig_LogPreset {
 	switch preset {
 	case PresetMinimal:
-		return pb.LogPreset_PRESET_MINIMAL
+		return pb.ConsoleLoggerConfig_PRESET_MINIMAL
 	case PresetStandard:
-		return pb.LogPreset_PRESET_STANDARD
+		return pb.ConsoleLoggerConfig_PRESET_STANDARD
 	case PresetDetailed:
-		return pb.LogPreset_PRESET_DETAILED
+		return pb.ConsoleLoggerConfig_PRESET_DETAILED
 	case PresetDebug:
-		return pb.LogPreset_PRESET_DEBUG
+		return pb.ConsoleLoggerConfig_PRESET_DEBUG
 	default:
-		return pb.LogPreset_PRESET_UNSPECIFIED
+		return pb.ConsoleLoggerConfig_PRESET_UNSPECIFIED
 	}
 }
 
-func presetFromProto(pbPreset pb.LogPreset) Preset {
+func presetFromProto(pbPreset pb.ConsoleLoggerConfig_LogPreset) Preset {
 	switch pbPreset {
-	case pb.LogPreset_PRESET_MINIMAL:
+	case pb.ConsoleLoggerConfig_PRESET_MINIMAL:
 		return PresetMinimal
-	case pb.LogPreset_PRESET_STANDARD:
+	case pb.ConsoleLoggerConfig_PRESET_STANDARD:
 		return PresetStandard
-	case pb.LogPreset_PRESET_DETAILED:
+	case pb.ConsoleLoggerConfig_PRESET_DETAILED:
 		return PresetDetailed
-	case pb.LogPreset_PRESET_DEBUG:
+	case pb.ConsoleLoggerConfig_PRESET_DEBUG:
 		return PresetDebug
 	default:
 		return PresetUnspecified
