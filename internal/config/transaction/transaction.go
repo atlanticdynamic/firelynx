@@ -18,7 +18,10 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
+	"github.com/atlanticdynamic/firelynx/internal/logging/writers"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
+	httpCfg "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
 	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
 	httpLogger "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware/logger"
 	"github.com/gofrs/uuid/v5"
@@ -79,7 +82,7 @@ type ConfigTransaction struct {
 
 	// Middleware pool for sharing instances across routes
 	// Structure: map[middleware-type]map[middleware-id]middleware-instance
-	middlewarePool map[string]map[string]httpMiddleware.Instance
+	middlewarePool httpCfg.MiddlewarePool
 
 	// Validation state
 	IsValid atomic.Bool
@@ -148,8 +151,27 @@ func New(
 		logCollector:   logCollector,
 		domainConfig:   cfg,
 		appCollection:  appCollection,
-		middlewarePool: make(map[string]map[string]httpMiddleware.Instance),
+		middlewarePool: make(httpCfg.MiddlewarePool),
 		IsValid:        atomic.Bool{},
+	}
+
+	// Collect all middlewares for cross-validation
+	var allMiddlewares middleware.MiddlewareCollection
+	for _, endpoint := range cfg.Endpoints {
+		allMiddlewares = allMiddlewares.Merge(endpoint.Middlewares)
+		for _, route := range endpoint.Routes {
+			allMiddlewares = allMiddlewares.Merge(route.Middlewares)
+		}
+	}
+
+	// Validate all middlewares together
+	if err := allMiddlewares.Validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate middlewares: %w", err)
+	}
+
+	// Validate resource conflicts (file path conflicts, etc.)
+	if err := validateResourceConflicts(allMiddlewares); err != nil {
+		return nil, fmt.Errorf("failed to validate resource conflicts: %w", err)
 	}
 
 	// Create middleware instances
@@ -550,6 +572,73 @@ func (tx *ConfigTransaction) createMiddleware(mw middleware.Middleware) error {
 }
 
 // GetMiddlewarePool returns the middleware pool for use by adapters
-func (tx *ConfigTransaction) GetMiddlewarePool() map[string]map[string]httpMiddleware.Instance {
+func (tx *ConfigTransaction) GetMiddlewarePool() httpCfg.MiddlewarePool {
 	return tx.middlewarePool
+}
+
+// validateResourceConflicts validates that middleware instances don't conflict on shared resources
+func validateResourceConflicts(allMiddlewares middleware.MiddlewareCollection) error {
+	var errs []error
+
+	// Check for console logger file conflicts
+	if err := validateConsoleLoggerFileConflicts(allMiddlewares); err != nil {
+		errs = append(errs, err)
+	}
+
+	// Future validation functions for other middleware types can be added here
+	// For example:
+	// if err := validateRateLimiterConflicts(allMiddlewares); err != nil {
+	//     errs = append(errs, err)
+	// }
+
+	return errors.Join(errs...)
+}
+
+// validateConsoleLoggerFileConflicts checks that console loggers don't use the same output file
+func validateConsoleLoggerFileConflicts(allMiddlewares middleware.MiddlewareCollection) error {
+	var consoleLoggers []*configLogger.ConsoleLogger
+
+	// Extract all console loggers from the middleware collection
+	for _, mw := range allMiddlewares {
+		if consoleLogger, ok := mw.Config.(*configLogger.ConsoleLogger); ok {
+			consoleLoggers = append(consoleLoggers, consoleLogger)
+		}
+	}
+
+	if len(consoleLoggers) <= 1 {
+		return nil
+	}
+
+	fileUsage := make(map[string]int)
+
+	for _, logger := range consoleLoggers {
+		expandedOutput, err := expandMiddlewareOutput(logger.Output)
+		if err != nil {
+			continue // Skip validation for this logger if expansion fails
+		}
+
+		// Only track file paths, not stdout/stderr
+		writerType := writers.ParseWriterType(expandedOutput)
+		if writerType == writers.WriterTypeFile {
+			fileUsage[expandedOutput]++
+		}
+	}
+
+	var errs []error
+	for filePath, count := range fileUsage {
+		if count > 1 {
+			errs = append(errs, fmt.Errorf(
+				"duplicate output file '%s' used by %d console logger instances",
+				filePath,
+				count,
+			))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// expandMiddlewareOutput expands environment variables in middleware output paths
+func expandMiddlewareOutput(output string) (string, error) {
+	return interpolation.ExpandEnvVars(output)
 }

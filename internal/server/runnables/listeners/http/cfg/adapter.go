@@ -19,6 +19,9 @@ import (
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
 
+// MiddlewarePool represents a pool of middleware instances organized by type and ID
+type MiddlewarePool map[string]map[string]httpMiddleware.Instance
+
 // ListenerConfig represents configuration for a single HTTP listener.
 type ListenerConfig struct {
 	// ID is the unique identifier for this listener
@@ -47,7 +50,7 @@ type Adapter struct {
 	Routes map[string][]httpserver.Route
 
 	// Middleware pool for reusing instances across routes
-	middlewarePool map[string]map[string]httpMiddleware.Instance
+	middlewarePool MiddlewarePool
 }
 
 // NewAdapter creates a new adapter from a config provider.
@@ -139,7 +142,7 @@ func extractRoutes(
 	cfg *config.Config,
 	listeners map[string]ListenerConfig,
 	appCollection apps.AppLookup,
-	middlewarePool map[string]map[string]httpMiddleware.Instance,
+	middlewarePool MiddlewarePool,
 	logger *slog.Logger,
 ) (map[string][]httpserver.Route, error) {
 	routes := make(map[string][]httpserver.Route)
@@ -185,7 +188,7 @@ func extractEndpointRoutes(
 	endpoint *endpoints.Endpoint,
 	listenerID string,
 	appRegistry apps.AppLookup,
-	middlewarePool map[string]map[string]httpMiddleware.Instance,
+	middlewarePool MiddlewarePool,
 	logger *slog.Logger,
 ) ([]httpserver.Route, error) {
 	var httpServerRoutes []httpserver.Route
@@ -317,7 +320,7 @@ func (a *Adapter) GetRoutesForListener(listenerID string) []httpserver.Route {
 // buildMiddlewareSlice builds a slice of middleware handlers from the pool
 func buildMiddlewareSlice(
 	middlewares middleware.MiddlewareCollection,
-	pool map[string]map[string]httpMiddleware.Instance,
+	pool MiddlewarePool,
 ) ([]httpserver.HandlerFunc, error) {
 	if len(middlewares) == 0 {
 		return nil, nil

@@ -17,7 +17,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
-	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -29,7 +28,7 @@ type MockConfigProvider struct {
 	config         *config.Config
 	txID           string
 	appReg         apps.AppLookup
-	middlewarePool map[string]map[string]httpMiddleware.Instance
+	middlewarePool MiddlewarePool
 }
 
 func (m *MockConfigProvider) GetConfig() *config.Config {
@@ -44,9 +43,9 @@ func (m *MockConfigProvider) GetAppCollection() apps.AppLookup {
 	return m.appReg
 }
 
-func (m *MockConfigProvider) GetMiddlewarePool() map[string]map[string]httpMiddleware.Instance {
+func (m *MockConfigProvider) GetMiddlewarePool() MiddlewarePool {
 	if m.middlewarePool == nil {
-		return make(map[string]map[string]httpMiddleware.Instance)
+		return make(MiddlewarePool)
 	}
 	return m.middlewarePool
 }
@@ -325,7 +324,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 				tt.endpoint,
 				tt.listenerID,
 				appRegistry,
-				make(map[string]map[string]httpMiddleware.Instance),
+				make(MiddlewarePool),
 				logger,
 			)
 
@@ -444,7 +443,7 @@ func TestExtractRoutes(t *testing.T) {
 			cfg,
 			listenersMap,
 			appRegistry,
-			make(map[string]map[string]httpMiddleware.Instance),
+			make(MiddlewarePool),
 			logger,
 		)
 		assert.NoError(t, err)
@@ -461,7 +460,7 @@ func TestExtractRoutes(t *testing.T) {
 			cfg,
 			listenersMap,
 			appRegistry,
-			make(map[string]map[string]httpMiddleware.Instance),
+			make(MiddlewarePool),
 			logger,
 		)
 		assert.NoError(t, err)
@@ -504,7 +503,7 @@ func TestExtractRoutes(t *testing.T) {
 			cfg,
 			listenersMap,
 			appRegistry,
-			make(map[string]map[string]httpMiddleware.Instance),
+			make(MiddlewarePool),
 			logger,
 		)
 		assert.Error(t, err)
@@ -660,7 +659,7 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 		endpoint,
 		"http-1",
 		appRegistry,
-		make(map[string]map[string]httpMiddleware.Instance),
+		make(MiddlewarePool),
 		logger,
 	)
 	assert.NoError(t, err) // Route creation succeeds
@@ -714,7 +713,7 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 		endpoint,
 		"http-1",
 		appRegistry,
-		make(map[string]map[string]httpMiddleware.Instance),
+		make(MiddlewarePool),
 		logger,
 	)
 	assert.NoError(t, err)

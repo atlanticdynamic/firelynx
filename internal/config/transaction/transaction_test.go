@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -12,8 +13,14 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
+	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
+	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
+	httpCfg "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -1147,5 +1154,460 @@ func TestAppFactoryIntegration(t *testing.T) {
 		// Verify no apps exist
 		_, exists := collection.GetApp("nonexistent")
 		assert.False(t, exists)
+	})
+}
+
+func TestCreateMiddleware(t *testing.T) {
+	t.Parallel()
+
+	t.Run("creates console logger middleware", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+		}
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Create a console logger middleware config
+		mw := middleware.Middleware{
+			ID: "test-logger",
+			Config: &configLogger.ConsoleLogger{
+				Options: configLogger.LogOptionsGeneral{
+					Format: configLogger.FormatJSON,
+					Level:  configLogger.LevelInfo,
+				},
+				Output: "stdout",
+			},
+		}
+
+		err = tx.createMiddleware(mw)
+		assert.NoError(t, err)
+
+		// Verify middleware was added to pool
+		mwType := mw.Config.Type()
+		assert.Contains(t, tx.middlewarePool, mwType)
+		assert.Contains(t, tx.middlewarePool[mwType], "test-logger")
+	})
+
+	t.Run("reuses existing middleware instance", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+		}
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Create middleware
+		mw := middleware.Middleware{
+			ID: "test-logger",
+			Config: &configLogger.ConsoleLogger{
+				Options: configLogger.LogOptionsGeneral{
+					Format: configLogger.FormatJSON,
+					Level:  configLogger.LevelInfo,
+				},
+				Output: "stdout",
+			},
+		}
+
+		// Create first instance
+		err = tx.createMiddleware(mw)
+		require.NoError(t, err)
+		firstInstance := tx.middlewarePool[mw.Config.Type()][mw.ID]
+
+		// Try to create again - should reuse
+		err = tx.createMiddleware(mw)
+		assert.NoError(t, err)
+		secondInstance := tx.middlewarePool[mw.Config.Type()][mw.ID]
+
+		// Should be the same instance
+		assert.Equal(t, firstInstance, secondInstance)
+	})
+
+	t.Run("handles unsupported middleware type", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+		}
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Create unsupported middleware
+		mw := middleware.Middleware{
+			ID:     "unsupported",
+			Config: &mockMiddlewareConfig{configType: "unsupported"},
+		}
+
+		err = tx.createMiddleware(mw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported middleware type")
+	})
+
+	t.Run("handles console logger creation failure", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+		}
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Create console logger with invalid output that will fail
+		mw := middleware.Middleware{
+			ID: "failing-logger",
+			Config: &configLogger.ConsoleLogger{
+				Options: configLogger.LogOptionsGeneral{
+					Format: configLogger.FormatJSON,
+					Level:  configLogger.LevelInfo,
+				},
+				Output: "/root/no-permission/test.log", // Should fail due to permissions
+			},
+		}
+
+		err = tx.createMiddleware(mw)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create console logger")
+	})
+}
+
+func TestGetMiddlewarePool(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns middleware pool", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+		}
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		pool := tx.GetMiddlewarePool()
+		assert.NotNil(t, pool)
+		assert.IsType(t, httpCfg.MiddlewarePool{}, pool)
+	})
+
+	t.Run("pool contains created middleware", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+		}
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Create middleware
+		mw := middleware.Middleware{
+			ID: "test-logger",
+			Config: &configLogger.ConsoleLogger{
+				Options: configLogger.LogOptionsGeneral{
+					Format: configLogger.FormatJSON,
+					Level:  configLogger.LevelInfo,
+				},
+				Output: "stdout",
+			},
+		}
+
+		err = tx.createMiddleware(mw)
+		require.NoError(t, err)
+
+		pool := tx.GetMiddlewarePool()
+		mwType := mw.Config.Type()
+		assert.Contains(t, pool, mwType)
+		assert.Contains(t, pool[mwType], "test-logger")
+	})
+}
+
+func TestCreateMiddlewareInstances(t *testing.T) {
+	t.Parallel()
+
+	t.Run("creates middleware from endpoints", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+
+		// Create config with endpoints and middleware
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Endpoints: endpoints.EndpointCollection{
+				{
+					ID:         "endpoint1",
+					ListenerID: "http-1",
+					Middlewares: middleware.MiddlewareCollection{
+						{
+							ID: "endpoint-logger",
+							Config: &configLogger.ConsoleLogger{
+								Options: configLogger.LogOptionsGeneral{
+									Format: configLogger.FormatJSON,
+									Level:  configLogger.LevelInfo,
+								},
+								Output: "stdout",
+							},
+						},
+					},
+					Routes: routes.RouteCollection{
+						{
+							AppID: "test-app",
+							Middlewares: middleware.MiddlewareCollection{
+								{
+									ID: "route-logger",
+									Config: &configLogger.ConsoleLogger{
+										Options: configLogger.LogOptionsGeneral{
+											Format: configLogger.FormatJSON,
+											Level:  configLogger.LevelDebug,
+										},
+										Output: "stdout",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Verify middleware instances were created
+		pool := tx.GetMiddlewarePool()
+		loggerType := "console_logger"
+
+		assert.Contains(t, pool, loggerType)
+		assert.Contains(t, pool[loggerType], "endpoint-logger")
+		assert.Contains(t, pool[loggerType], "route-logger")
+		assert.Len(t, pool[loggerType], 2)
+	})
+
+	t.Run("shares middleware instances with same ID", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+
+		// Create config with same middleware ID used in multiple places
+		sharedLoggerConfig := &configLogger.ConsoleLogger{
+			Options: configLogger.LogOptionsGeneral{
+				Format: configLogger.FormatJSON,
+				Level:  configLogger.LevelInfo,
+			},
+			Output: "stdout",
+		}
+
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Endpoints: endpoints.EndpointCollection{
+				{
+					ID:         "endpoint1",
+					ListenerID: "http-1",
+					Middlewares: middleware.MiddlewareCollection{
+						{
+							ID:     "shared-logger",
+							Config: sharedLoggerConfig,
+						},
+					},
+					Routes: routes.RouteCollection{
+						{
+							AppID: "app1",
+							Middlewares: middleware.MiddlewareCollection{
+								{
+									ID:     "shared-logger", // Same ID
+									Config: sharedLoggerConfig,
+								},
+							},
+						},
+						{
+							AppID: "app2",
+							Middlewares: middleware.MiddlewareCollection{
+								{
+									ID:     "shared-logger", // Same ID again
+									Config: sharedLoggerConfig,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Verify only one instance was created
+		pool := tx.GetMiddlewarePool()
+		loggerType := "console_logger"
+
+		assert.Contains(t, pool, loggerType)
+		assert.Len(t, pool[loggerType], 1)
+		assert.Contains(t, pool[loggerType], "shared-logger")
+	})
+
+	t.Run("different IDs create different instances", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+
+		// Create config with different middleware IDs but same config
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Endpoints: endpoints.EndpointCollection{
+				{
+					ID:         "endpoint1",
+					ListenerID: "http-1",
+					Routes: routes.RouteCollection{
+						{
+							AppID: "app1",
+							Middlewares: middleware.MiddlewareCollection{
+								{
+									ID: "logger1",
+									Config: &configLogger.ConsoleLogger{
+										Options: configLogger.LogOptionsGeneral{
+											Format: configLogger.FormatJSON,
+											Level:  configLogger.LevelInfo,
+										},
+										Output: "stdout",
+									},
+								},
+							},
+						},
+						{
+							AppID: "app2",
+							Middlewares: middleware.MiddlewareCollection{
+								{
+									ID: "logger2", // Different ID
+									Config: &configLogger.ConsoleLogger{
+										Options: configLogger.LogOptionsGeneral{
+											Format: configLogger.FormatJSON,
+											Level:  configLogger.LevelInfo,
+										},
+										Output: "stdout",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Verify two instances were created
+		pool := tx.GetMiddlewarePool()
+		loggerType := "console_logger"
+
+		assert.Contains(t, pool, loggerType)
+		assert.Len(t, pool[loggerType], 2)
+		assert.Contains(t, pool[loggerType], "logger1")
+		assert.Contains(t, pool[loggerType], "logger2")
+
+		// Verify they are different instances
+		instance1 := pool[loggerType]["logger1"]
+		instance2 := pool[loggerType]["logger2"]
+		assert.NotEqual(t, instance1, instance2)
+	})
+
+	t.Run("handles middleware creation failure", func(t *testing.T) {
+		handler := slog.NewTextHandler(os.Stdout, nil)
+
+		// Create config with invalid middleware
+		cfg := &config.Config{
+			Version: config.VersionLatest,
+			Endpoints: endpoints.EndpointCollection{
+				{
+					ID:         "endpoint1",
+					ListenerID: "http-1",
+					Middlewares: middleware.MiddlewareCollection{
+						{
+							ID:     "bad-middleware",
+							Config: &mockMiddlewareConfig{configType: "unsupported"},
+						},
+					},
+				},
+			},
+		}
+
+		_, err := New(SourceTest, "test", "", cfg, handler)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to create middleware instances")
+	})
+}
+
+// mockMiddlewareConfig is a test implementation of middleware.MiddlewareConfig
+type mockMiddlewareConfig struct {
+	configType string
+}
+
+func (m *mockMiddlewareConfig) Type() string                 { return m.configType }
+func (m *mockMiddlewareConfig) Validate() error              { return nil }
+func (m *mockMiddlewareConfig) ToProto() any                 { return nil }
+func (m *mockMiddlewareConfig) String() string               { return m.configType }
+func (m *mockMiddlewareConfig) ToTree() *fancy.ComponentTree { return nil }
+
+// createDualLoggerConfig creates a test config with two console loggers
+func createDualLoggerConfig(t *testing.T, output1, output2 string) *config.Config {
+	t.Helper()
+	return &config.Config{
+		Version: config.VersionLatest,
+		Endpoints: endpoints.EndpointCollection{
+			{
+				ID:         "endpoint1",
+				ListenerID: "http-1",
+				Routes: routes.RouteCollection{
+					{
+						AppID: "app1",
+						Middlewares: middleware.MiddlewareCollection{
+							{
+								ID: "logger1",
+								Config: &configLogger.ConsoleLogger{
+									Options: configLogger.LogOptionsGeneral{
+										Format: configLogger.FormatJSON,
+										Level:  configLogger.LevelInfo,
+									},
+									Output: output1,
+								},
+							},
+						},
+					},
+					{
+						AppID: "app2",
+						Middlewares: middleware.MiddlewareCollection{
+							{
+								ID: "logger2",
+								Config: &configLogger.ConsoleLogger{
+									Options: configLogger.LogOptionsGeneral{
+										Format: configLogger.FormatJSON,
+										Level:  configLogger.LevelInfo,
+									},
+									Output: output2,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func TestMiddlewareDuplicateOutputFileValidation(t *testing.T) {
+	t.Parallel()
+	handler := slog.NewTextHandler(os.Stdout, nil)
+
+	t.Run("fails validation with duplicate output files", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		logFile := filepath.Join(tmpDir, "test.log")
+		cfg := createDualLoggerConfig(t, logFile, logFile)
+		_, err := New(SourceTest, "test", "", cfg, handler)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to validate resource conflicts")
+		assert.Contains(t, err.Error(), "duplicate output file")
+	})
+
+	t.Run("passes validation with different output files", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cfg := createDualLoggerConfig(t,
+			filepath.Join(tmpDir, "test1.log"),
+			filepath.Join(tmpDir, "test2.log"))
+		tx, err := New(SourceTest, "test", "", cfg, handler)
+		assert.NoError(t, err)
+		assert.NotNil(t, tx)
+	})
+
+	t.Run("allows multiple stdout/stderr loggers", func(t *testing.T) {
+		cfg := createDualLoggerConfig(t, "stdout", "stderr")
+		tx, err := New(SourceTest, "test", "", cfg, handler)
+		assert.NoError(t, err)
+		assert.NotNil(t, tx)
 	})
 }

@@ -136,11 +136,29 @@ func (s *LoggerIntegrationTestSuite) SetupSuite() {
 
 	// Template variables
 	templateVars := struct {
-		Port    int
-		LogFile string
+		Port               int
+		LogFile            string
+		StandardLogFile    string
+		PresetLogFile      string
+		FilteringLogFile   string
+		MinimalLogFile     string
+		TextStandardFile   string
+		TextDetailedFile   string
+		GetOnlyLogFile     string
+		PostOnlyLogFile    string
+		ExcludeMethodsFile string
 	}{
-		Port:    s.port,
-		LogFile: s.logFile,
+		Port:               s.port,
+		LogFile:            s.logFile,
+		StandardLogFile:    s.logFile + ".standard",
+		PresetLogFile:      s.logFile + ".preset",
+		FilteringLogFile:   s.logFile + ".filtering",
+		MinimalLogFile:     s.logFile + ".minimal",
+		TextStandardFile:   s.logFile + ".text-standard.log",
+		TextDetailedFile:   s.logFile + ".text-detailed.log",
+		GetOnlyLogFile:     s.logFile + ".get-only.log",
+		PostOnlyLogFile:    s.logFile + ".post-only.log",
+		ExcludeMethodsFile: s.logFile + ".exclude-methods.log",
 	}
 
 	// Render the configuration template
@@ -267,11 +285,12 @@ func (s *LoggerIntegrationTestSuite) TestStandardLogger() {
 		"Response should contain expected text",
 	)
 
+	standardLogFile := s.logFile + ".standard"
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
-		logEntries = s.readLogEntries(s.logFile)
+		logEntries = s.readLogEntries(standardLogFile)
 		return len(logEntries) > 0
-	}, 5*time.Second, 100*time.Millisecond, "Log file should contain entries")
+	}, 5*time.Second, 100*time.Millisecond, "Standard log file should contain entries")
 
 	// Find our test request log entry
 	var testEntry *LogEntry
@@ -460,16 +479,17 @@ func (s *LoggerIntegrationTestSuite) TestPresetFunctionality() {
 	s.Require().NoError(err, "Failed to make request")
 	defer resp.Body.Close()
 
+	presetLogFile := s.logFile + ".preset"
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
-		logEntries = s.readLogEntries(s.logFile)
+		logEntries = s.readLogEntries(presetLogFile)
 		for _, entry := range logEntries {
 			if entry.HTTP.Path == "/preset-test" {
 				return true
 			}
 		}
 		return false
-	}, 5*time.Second, 100*time.Millisecond, "Log file should contain /preset-test entry")
+	}, 5*time.Second, 100*time.Millisecond, "Preset log file should contain /preset-test entry")
 
 	var testEntry *LogEntry
 	for _, entry := range logEntries {
@@ -496,16 +516,17 @@ func (s *LoggerIntegrationTestSuite) TestPathFiltering() {
 	s.Require().NoError(err, "Failed to make request")
 	defer resp2.Body.Close()
 
+	filteringLogFile := s.logFile + ".filtering"
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
-		logEntries = s.readLogEntries(s.logFile)
+		logEntries = s.readLogEntries(filteringLogFile)
 		for _, entry := range logEntries {
 			if entry.HTTP.Path == "/normal" {
 				return true
 			}
 		}
 		return false
-	}, 5*time.Second, 100*time.Millisecond, "Log file should contain /normal entry")
+	}, 5*time.Second, 100*time.Millisecond, "Filtering log file should contain /normal entry")
 
 	healthLogged := false
 	normalLogged := false
