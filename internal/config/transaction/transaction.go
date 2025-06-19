@@ -106,7 +106,7 @@ func New(
 	handler slog.Handler,
 ) (*ConfigTransaction, error) {
 	if cfg == nil {
-		return nil, errors.New("config cannot be nil")
+		return nil, ErrNilConfig
 	}
 
 	if handler == nil {
@@ -136,7 +136,7 @@ func New(
 	definitions := convertToAppDefinitions(cfg.Apps)
 	appCollection, appErr := appFactory.CreateAppsFromDefinitions(definitions)
 	if appErr != nil {
-		return nil, fmt.Errorf("failed to create app instances: %w", appErr)
+		return nil, fmt.Errorf("%w: %s", ErrAppCreationFailed, appErr.Error())
 	}
 
 	tx := &ConfigTransaction{
@@ -610,11 +610,17 @@ func validateConsoleLoggerFileConflicts(allMiddlewares middleware.MiddlewareColl
 	}
 
 	fileUsage := make(map[string]int)
+	var errs []error
 
 	for _, logger := range consoleLoggers {
 		expandedOutput, err := expandMiddlewareOutput(logger.Output)
 		if err != nil {
-			continue // Skip validation for this logger if expansion fails
+			errs = append(errs, fmt.Errorf(
+				"failed to expand environment variables in logger output '%s': %w",
+				logger.Output,
+				err,
+			))
+			continue
 		}
 
 		// Only track file paths, not stdout/stderr
@@ -623,12 +629,11 @@ func validateConsoleLoggerFileConflicts(allMiddlewares middleware.MiddlewareColl
 			fileUsage[expandedOutput]++
 		}
 	}
-
-	var errs []error
 	for filePath, count := range fileUsage {
 		if count > 1 {
 			errs = append(errs, fmt.Errorf(
-				"duplicate output file '%s' used by %d console logger instances",
+				"%w: duplicate output file '%s' used by %d console logger instances",
+				ErrResourceConflict,
 				filePath,
 				count,
 			))

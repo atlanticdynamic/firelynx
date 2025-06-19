@@ -19,7 +19,8 @@ import (
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
 
-// MiddlewarePool represents a pool of middleware instances organized by type and ID
+// MiddlewarePool represents a pool of middleware instances organized by type and ID.
+// This pool is read-only after transaction creation and is safe for concurrent access.
 type MiddlewarePool map[string]map[string]httpMiddleware.Instance
 
 // ListenerConfig represents configuration for a single HTTP listener.
@@ -339,7 +340,11 @@ func buildMiddlewareSlice(
 
 		instance, ok := typePool[mw.ID]
 		if !ok {
-			return nil, fmt.Errorf("middleware '%s' of type '%s' not found in pool", mw.ID, mwType)
+			return nil, fmt.Errorf(
+				"middleware '%s' of type '%s' not found in pool (was it validated and created successfully?)",
+				mw.ID,
+				mwType,
+			)
 		}
 
 		// Extract handler function from interface

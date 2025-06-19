@@ -11,12 +11,15 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
+	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
+	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -812,5 +815,55 @@ func TestAdapterGetters(t *testing.T) {
 	t.Run("GetRoutesForListener for nonexistent listener", func(t *testing.T) {
 		routes3 := adapter.GetRoutesForListener("nonexistent")
 		assert.Empty(t, routes3, "Should return empty slice for nonexistent listener")
+	})
+}
+
+func getMockMiddlewareCollection() middleware.MiddlewareCollection {
+	return middleware.MiddlewareCollection{
+		{
+			ID: "logger1",
+			Config: &configLogger.ConsoleLogger{
+				Options: configLogger.LogOptionsGeneral{
+					Format: configLogger.FormatJSON,
+					Level:  configLogger.LevelInfo,
+				},
+				Output: "stdout",
+			},
+		},
+	}
+}
+
+func TestBuildMiddlewareSlice(t *testing.T) {
+	t.Run("returns empty slice for no middleware", func(t *testing.T) {
+		pool := make(MiddlewarePool)
+		handlers, err := buildMiddlewareSlice(nil, pool)
+		assert.NoError(t, err)
+		assert.Nil(t, handlers)
+	})
+
+	t.Run("returns error when middleware type not in pool", func(t *testing.T) {
+		pool := make(MiddlewarePool)
+		middlewares := getMockMiddlewareCollection()
+
+		handlers, err := buildMiddlewareSlice(middlewares, pool)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "middleware type 'console_logger' not found in pool")
+		assert.Nil(t, handlers)
+	})
+
+	t.Run("returns error when middleware ID not in pool", func(t *testing.T) {
+		pool := make(MiddlewarePool)
+		pool["console_logger"] = make(map[string]httpMiddleware.Instance)
+		middlewares := getMockMiddlewareCollection()
+
+		handlers, err := buildMiddlewareSlice(middlewares, pool)
+		assert.Error(t, err)
+		assert.Contains(
+			t,
+			err.Error(),
+			"middleware 'logger1' of type 'console_logger' not found in pool",
+		)
+		assert.Contains(t, err.Error(), "was it validated and created successfully?")
+		assert.Nil(t, handlers)
 	})
 }

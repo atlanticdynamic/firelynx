@@ -712,9 +712,9 @@ func TestNew_ErrorConditions(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		tx, err := New(SourceTest, "test", "", nil, handler)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, tx)
-		assert.Contains(t, err.Error(), "config cannot be nil")
+		assert.ErrorIs(t, err, ErrNilConfig)
 	})
 
 	t.Run("nil handler creates default handler", func(t *testing.T) {
@@ -741,9 +741,9 @@ func TestNew_ErrorConditions(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		tx, err := New(SourceTest, "test", "", cfg, handler)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, tx)
-		assert.Contains(t, err.Error(), "failed to create app instances")
+		assert.ErrorIs(t, err, ErrAppCreationFailed)
 	})
 }
 
@@ -1589,9 +1589,10 @@ func TestMiddlewareDuplicateOutputFileValidation(t *testing.T) {
 		logFile := filepath.Join(tmpDir, "test.log")
 		cfg := createDualLoggerConfig(t, logFile, logFile)
 		_, err := New(SourceTest, "test", "", cfg, handler)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to validate resource conflicts")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrResourceConflict)
 		assert.Contains(t, err.Error(), "duplicate output file")
+		assert.Contains(t, err.Error(), logFile)
 	})
 
 	t.Run("passes validation with different output files", func(t *testing.T) {
