@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
@@ -77,12 +76,16 @@ type ConfigTransaction struct {
 	// Domain configuration
 	domainConfig *config.Config
 
-	// Application collection for linking routes to app instances
-	appCollection serverApps.AppLookup
+	// App-related resources
+	app struct {
+		factory    appFactory
+		collection serverApps.AppLookup
+	}
 
-	// Middleware pool for sharing instances across routes
-	// Structure: map[middleware-type]map[middleware-id]middleware-instance
-	middlewarePool httpCfg.MiddlewarePool
+	// Middleware-related resources
+	middleware struct {
+		pool httpCfg.MiddlewarePool
+	}
 
 	// Validation state
 	IsValid atomic.Bool
@@ -131,53 +134,23 @@ func New(
 	// Create participant collection
 	participants := NewParticipantCollection(handler)
 
-	// Create app instances using the factory
-	appFactory := serverApps.NewAppFactory()
-	definitions := convertToAppDefinitions(cfg.Apps)
-	appCollection, appErr := appFactory.CreateAppsFromDefinitions(definitions)
-	if appErr != nil {
-		return nil, fmt.Errorf("%w: %s", ErrAppCreationFailed, appErr.Error())
-	}
-
 	tx := &ConfigTransaction{
-		ID:             txID,
-		Source:         source,
-		SourceDetail:   sourceDetail,
-		RequestID:      requestID,
-		CreatedAt:      time.Now(),
-		fsm:            sm,
-		participants:   participants,
-		logger:         logger,
-		logCollector:   logCollector,
-		domainConfig:   cfg,
-		appCollection:  appCollection,
-		middlewarePool: make(httpCfg.MiddlewarePool),
-		IsValid:        atomic.Bool{},
+		ID:           txID,
+		Source:       source,
+		SourceDetail: sourceDetail,
+		RequestID:    requestID,
+		CreatedAt:    time.Now(),
+		fsm:          sm,
+		participants: participants,
+		logger:       logger,
+		logCollector: logCollector,
+		domainConfig: cfg,
+		IsValid:      atomic.Bool{},
 	}
 
-	// Collect all middlewares for cross-validation
-	var allMiddlewares middleware.MiddlewareCollection
-	for _, endpoint := range cfg.Endpoints {
-		allMiddlewares = allMiddlewares.Merge(endpoint.Middlewares)
-		for _, route := range endpoint.Routes {
-			allMiddlewares = allMiddlewares.Merge(route.Middlewares)
-		}
-	}
-
-	// Validate all middlewares together
-	if err := allMiddlewares.Validate(); err != nil {
-		return nil, fmt.Errorf("failed to validate middlewares: %w", err)
-	}
-
-	// Validate resource conflicts (file path conflicts, etc.)
-	if err := validateResourceConflicts(allMiddlewares); err != nil {
-		return nil, fmt.Errorf("failed to validate resource conflicts: %w", err)
-	}
-
-	// Create middleware instances
-	if err := tx.createMiddlewareInstances(); err != nil {
-		return nil, fmt.Errorf("failed to create middleware instances: %w", err)
-	}
+	// Initialize factories and pools
+	tx.app.factory = serverApps.NewAppFactory()
+	tx.middleware.pool = make(httpCfg.MiddlewarePool)
 
 	// Log the transaction creation
 	tx.logger.Debug("Transaction created")
@@ -419,7 +392,7 @@ func (tx *ConfigTransaction) GetConfig() *config.Config {
 
 // GetAppCollection returns the app collection associated with this transaction
 func (tx *ConfigTransaction) GetAppCollection() serverApps.AppLookup {
-	return tx.appCollection
+	return tx.app.collection
 }
 
 // PlaybackLogs plays back the transaction logs to the given handler
@@ -503,23 +476,6 @@ func (tx *ConfigTransaction) isTerminalState(state string) bool {
 	return slices.Contains(finitestate.SagaTerminalStates, state)
 }
 
-// convertToAppDefinitions converts config.Apps to server app definitions
-// This adapter allows the server/apps package to work with config data
-// without directly importing the config types
-// TODO: this should be removed, and the apps should be instantiated from the domain config apps layer
-func convertToAppDefinitions(configApps apps.AppCollection) []serverApps.AppDefinition {
-	definitions := make([]serverApps.AppDefinition, 0, len(configApps))
-
-	for _, app := range configApps {
-		definitions = append(definitions, serverApps.AppDefinition{
-			ID:     app.ID,
-			Config: app.Config, // app.Config already implements the Type() method we need
-		})
-	}
-
-	return definitions
-}
-
 // createMiddlewareInstances creates middleware instances from all endpoints
 func (tx *ConfigTransaction) createMiddlewareInstances() error {
 	for _, endpoint := range tx.domainConfig.Endpoints {
@@ -546,12 +502,12 @@ func (tx *ConfigTransaction) createMiddleware(mw middleware.Middleware) error {
 	mwType := mw.Config.Type()
 
 	// Initialize type map if needed
-	if tx.middlewarePool[mwType] == nil {
-		tx.middlewarePool[mwType] = make(map[string]httpMiddleware.Instance)
+	if tx.middleware.pool[mwType] == nil {
+		tx.middleware.pool[mwType] = make(map[string]httpMiddleware.Instance)
 	}
 
 	// Check if already exists
-	if _, exists := tx.middlewarePool[mwType][mw.ID]; exists {
+	if _, exists := tx.middleware.pool[mwType][mw.ID]; exists {
 		return nil
 	}
 
@@ -562,7 +518,7 @@ func (tx *ConfigTransaction) createMiddleware(mw middleware.Middleware) error {
 		if err != nil {
 			return fmt.Errorf("failed to create console logger '%s': %w", mw.ID, err)
 		}
-		tx.middlewarePool[mwType][mw.ID] = instance
+		tx.middleware.pool[mwType][mw.ID] = instance
 	default:
 		return fmt.Errorf("unsupported middleware type: %T", mw.Config)
 	}
@@ -573,7 +529,7 @@ func (tx *ConfigTransaction) createMiddleware(mw middleware.Middleware) error {
 
 // GetMiddlewarePool returns the middleware pool for use by adapters
 func (tx *ConfigTransaction) GetMiddlewarePool() httpCfg.MiddlewarePool {
-	return tx.middlewarePool
+	return tx.middleware.pool
 }
 
 // validateResourceConflicts validates that middleware instances don't conflict on shared resources

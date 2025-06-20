@@ -17,6 +17,9 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
+	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
@@ -658,7 +661,8 @@ func TestConvertToAppDefinitions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := convertToAppDefinitions(tt.input)
+			cfg := &config.Config{Apps: tt.input}
+			result := collectApps(cfg)
 
 			require.Len(t, result, len(tt.expected))
 
@@ -740,10 +744,14 @@ func TestNew_ErrorConditions(t *testing.T) {
 
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		tx, err := New(SourceTest, "test", "", cfg, handler)
+		require.NoError(t, err)
 
+		// Validation should fail due to invalid app config
+		err = tx.RunValidation()
 		require.Error(t, err)
-		assert.Nil(t, tx)
-		assert.ErrorIs(t, err, ErrAppCreationFailed)
+		// The error will be wrapped in ErrValidationFailed, but should contain app creation error
+		assert.ErrorIs(t, err, ErrValidationFailed)
+		assert.Contains(t, err.Error(), "app instantiation validation failed")
 	})
 }
 
@@ -1025,6 +1033,10 @@ func TestGetAppCollection(t *testing.T) {
 	t.Run("returns app collection", func(t *testing.T) {
 		tx, _ := setupTest(t)
 
+		// Need to run validation first to create app collection
+		err := tx.RunValidation()
+		require.NoError(t, err)
+
 		collection := tx.GetAppCollection()
 		assert.NotNil(t, collection)
 	})
@@ -1042,6 +1054,10 @@ func TestGetAppCollection(t *testing.T) {
 
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Need to run validation first to create app collection
+		err = tx.RunValidation()
 		require.NoError(t, err)
 
 		collection := tx.GetAppCollection()
@@ -1120,7 +1136,7 @@ func TestAppFactoryIntegration(t *testing.T) {
 
 		// Create app factory and convert definitions
 		factory := serverApps.NewAppFactory()
-		definitions := convertToAppDefinitions(cfg.Apps)
+		definitions := collectApps(cfg)
 
 		// Create app collection
 		collection, err := factory.CreateAppsFromDefinitions(definitions)
@@ -1144,7 +1160,7 @@ func TestAppFactoryIntegration(t *testing.T) {
 
 		// Create app factory and convert definitions
 		factory := serverApps.NewAppFactory()
-		definitions := convertToAppDefinitions(cfg.Apps)
+		definitions := collectApps(cfg)
 
 		// Create app collection
 		collection, err := factory.CreateAppsFromDefinitions(definitions)
@@ -1185,8 +1201,9 @@ func TestCreateMiddleware(t *testing.T) {
 
 		// Verify middleware was added to pool
 		mwType := mw.Config.Type()
-		assert.Contains(t, tx.middlewarePool, mwType)
-		assert.Contains(t, tx.middlewarePool[mwType], "test-logger")
+		pool := tx.GetMiddlewarePool()
+		assert.Contains(t, pool, mwType)
+		assert.Contains(t, pool[mwType], "test-logger")
 	})
 
 	t.Run("reuses existing middleware instance", func(t *testing.T) {
@@ -1212,12 +1229,14 @@ func TestCreateMiddleware(t *testing.T) {
 		// Create first instance
 		err = tx.createMiddleware(mw)
 		require.NoError(t, err)
-		firstInstance := tx.middlewarePool[mw.Config.Type()][mw.ID]
+		pool := tx.GetMiddlewarePool()
+		firstInstance := pool[mw.Config.Type()][mw.ID]
 
 		// Try to create again - should reuse
 		err = tx.createMiddleware(mw)
 		assert.NoError(t, err)
-		secondInstance := tx.middlewarePool[mw.Config.Type()][mw.ID]
+		pool = tx.GetMiddlewarePool()
+		secondInstance := pool[mw.Config.Type()][mw.ID]
 
 		// Should be the same instance
 		assert.Equal(t, firstInstance, secondInstance)
@@ -1323,6 +1342,22 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		// Create config with endpoints and middleware
 		cfg := &config.Config{
 			Version: config.VersionLatest,
+			// Add required listeners
+			Listeners: listeners.ListenerCollection{
+				{
+					ID:      "http-1",
+					Address: "127.0.0.1:8080",
+					Type:    listeners.TypeHTTP,
+					Options: options.NewHTTP(),
+				},
+			},
+			// Add required apps
+			Apps: apps.AppCollection{
+				{
+					ID:     "test-app",
+					Config: &echo.EchoApp{Response: "test response"},
+				},
+			},
 			Endpoints: endpoints.EndpointCollection{
 				{
 					ID:         "endpoint1",
@@ -1341,7 +1376,8 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 					},
 					Routes: routes.RouteCollection{
 						{
-							AppID: "test-app",
+							AppID:     "test-app",
+							Condition: conditions.NewHTTP("/test", ""),
 							Middlewares: middleware.MiddlewareCollection{
 								{
 									ID: "route-logger",
@@ -1361,6 +1397,10 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		}
 
 		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Need to run validation first to create middleware instances
+		err = tx.RunValidation()
 		require.NoError(t, err)
 
 		// Verify middleware instances were created
@@ -1387,6 +1427,26 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 
 		cfg := &config.Config{
 			Version: config.VersionLatest,
+			// Add required listeners
+			Listeners: listeners.ListenerCollection{
+				{
+					ID:      "http-1",
+					Address: "127.0.0.1:8080",
+					Type:    listeners.TypeHTTP,
+					Options: options.NewHTTP(),
+				},
+			},
+			// Add required apps
+			Apps: apps.AppCollection{
+				{
+					ID:     "app1",
+					Config: &echo.EchoApp{Response: "app1 response"},
+				},
+				{
+					ID:     "app2",
+					Config: &echo.EchoApp{Response: "app2 response"},
+				},
+			},
 			Endpoints: endpoints.EndpointCollection{
 				{
 					ID:         "endpoint1",
@@ -1399,7 +1459,8 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 					},
 					Routes: routes.RouteCollection{
 						{
-							AppID: "app1",
+							AppID:     "app1",
+							Condition: conditions.NewHTTP("/app1", ""),
 							Middlewares: middleware.MiddlewareCollection{
 								{
 									ID:     "shared-logger", // Same ID
@@ -1408,7 +1469,8 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 							},
 						},
 						{
-							AppID: "app2",
+							AppID:     "app2",
+							Condition: conditions.NewHTTP("/app2", ""),
 							Middlewares: middleware.MiddlewareCollection{
 								{
 									ID:     "shared-logger", // Same ID again
@@ -1422,6 +1484,10 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		}
 
 		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Need to run validation first to create middleware instances
+		err = tx.RunValidation()
 		require.NoError(t, err)
 
 		// Verify only one instance was created
@@ -1439,13 +1505,34 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		// Create config with different middleware IDs but same config
 		cfg := &config.Config{
 			Version: config.VersionLatest,
+			// Add required listeners
+			Listeners: listeners.ListenerCollection{
+				{
+					ID:      "http-1",
+					Address: "127.0.0.1:8080",
+					Type:    listeners.TypeHTTP,
+					Options: options.NewHTTP(),
+				},
+			},
+			// Add required apps
+			Apps: apps.AppCollection{
+				{
+					ID:     "app1",
+					Config: &echo.EchoApp{Response: "app1 response"},
+				},
+				{
+					ID:     "app2",
+					Config: &echo.EchoApp{Response: "app2 response"},
+				},
+			},
 			Endpoints: endpoints.EndpointCollection{
 				{
 					ID:         "endpoint1",
 					ListenerID: "http-1",
 					Routes: routes.RouteCollection{
 						{
-							AppID: "app1",
+							AppID:     "app1",
+							Condition: conditions.NewHTTP("/app1", ""),
 							Middlewares: middleware.MiddlewareCollection{
 								{
 									ID: "logger1",
@@ -1460,7 +1547,8 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 							},
 						},
 						{
-							AppID: "app2",
+							AppID:     "app2",
+							Condition: conditions.NewHTTP("/app2", ""),
 							Middlewares: middleware.MiddlewareCollection{
 								{
 									ID: "logger2", // Different ID
@@ -1480,6 +1568,10 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		}
 
 		tx, err := FromTest("test", cfg, handler)
+		require.NoError(t, err)
+
+		// Run validation to create middleware instances
+		err = tx.RunValidation()
 		require.NoError(t, err)
 
 		// Verify two instances were created
@@ -1517,9 +1609,13 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 			},
 		}
 
-		_, err := New(SourceTest, "test", "", cfg, handler)
+		tx, err := New(SourceTest, "test", "", cfg, handler)
+		require.NoError(t, err) // Constructor should succeed
+
+		// Validation should fail when trying to create middleware instances
+		err = tx.RunValidation()
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to create middleware instances")
+		assert.Contains(t, err.Error(), "middleware instantiation validation failed")
 	})
 }
 
@@ -1539,13 +1635,34 @@ func createDualLoggerConfig(t *testing.T, output1, output2 string) *config.Confi
 	t.Helper()
 	return &config.Config{
 		Version: config.VersionLatest,
+		// Add required listeners
+		Listeners: listeners.ListenerCollection{
+			{
+				ID:      "http-1",
+				Address: "127.0.0.1:8080",
+				Type:    listeners.TypeHTTP,
+				Options: options.NewHTTP(),
+			},
+		},
+		// Add required apps
+		Apps: apps.AppCollection{
+			{
+				ID:     "app1",
+				Config: &echo.EchoApp{Response: "app1 response"},
+			},
+			{
+				ID:     "app2",
+				Config: &echo.EchoApp{Response: "app2 response"},
+			},
+		},
 		Endpoints: endpoints.EndpointCollection{
 			{
 				ID:         "endpoint1",
 				ListenerID: "http-1",
 				Routes: routes.RouteCollection{
 					{
-						AppID: "app1",
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/app1", ""),
 						Middlewares: middleware.MiddlewareCollection{
 							{
 								ID: "logger1",
@@ -1560,7 +1677,8 @@ func createDualLoggerConfig(t *testing.T, output1, output2 string) *config.Confi
 						},
 					},
 					{
-						AppID: "app2",
+						AppID:     "app2",
+						Condition: conditions.NewHTTP("/app2", ""),
 						Middlewares: middleware.MiddlewareCollection{
 							{
 								ID: "logger2",
@@ -1588,7 +1706,11 @@ func TestMiddlewareDuplicateOutputFileValidation(t *testing.T) {
 		tmpDir := t.TempDir()
 		logFile := filepath.Join(tmpDir, "test.log")
 		cfg := createDualLoggerConfig(t, logFile, logFile)
-		_, err := New(SourceTest, "test", "", cfg, handler)
+		tx, err := New(SourceTest, "test", "", cfg, handler)
+		require.NoError(t, err)
+
+		// Validation should fail due to duplicate output files
+		err = tx.RunValidation()
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrResourceConflict)
 		assert.Contains(t, err.Error(), "duplicate output file")
@@ -1603,11 +1725,19 @@ func TestMiddlewareDuplicateOutputFileValidation(t *testing.T) {
 		tx, err := New(SourceTest, "test", "", cfg, handler)
 		assert.NoError(t, err)
 		assert.NotNil(t, tx)
+
+		// Validation should pass with different files
+		err = tx.RunValidation()
+		assert.NoError(t, err)
 	})
 
 	t.Run("allows multiple stdout/stderr loggers", func(t *testing.T) {
 		cfg := createDualLoggerConfig(t, "stdout", "stderr")
 		tx, err := New(SourceTest, "test", "", cfg, handler)
+		assert.NoError(t, err)
+
+		// Validation should pass with stdout/stderr
+		err = tx.RunValidation()
 		assert.NoError(t, err)
 		assert.NotNil(t, tx)
 	})
