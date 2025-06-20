@@ -12,11 +12,36 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
+	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
+
+// MiddlewarePool represents a pool of middleware instances organized by type and ID.
+// This pool is read-only after transaction creation and is safe for concurrent access.
+type MiddlewarePool map[string]map[string]httpMiddleware.Instance
+
+// GetMiddleware retrieves a middleware instance by type and ID.
+// Returns the instance and true if found, nil and false otherwise.
+func (p MiddlewarePool) GetMiddleware(middlewareType, id string) (httpMiddleware.Instance, bool) {
+	typeMap, ok := p[middlewareType]
+	if !ok {
+		return nil, false
+	}
+	instance, ok := typeMap[id]
+	return instance, ok
+}
+
+// AddMiddleware adds a middleware instance to the pool.
+// Creates the type map if it doesn't exist.
+func (p MiddlewarePool) AddMiddleware(middlewareType, id string, instance httpMiddleware.Instance) {
+	if p[middlewareType] == nil {
+		p[middlewareType] = make(map[string]httpMiddleware.Instance)
+	}
+	p[middlewareType][id] = instance
+}
 
 // ListenerConfig represents configuration for a single HTTP listener.
 type ListenerConfig struct {
@@ -44,6 +69,9 @@ type Adapter struct {
 
 	// Routes is a map of listener ID to a slice of routes
 	Routes map[string][]httpserver.Route
+
+	// Middleware pool for reusing instances across routes
+	middlewarePool MiddlewarePool
 }
 
 // NewAdapter creates a new adapter from a config provider.
@@ -75,15 +103,16 @@ func NewAdapter(provider ConfigProvider, logger *slog.Logger) (*Adapter, error) 
 
 	// Create adapter with extracted configuration
 	adapter := &Adapter{
-		TxID:      provider.GetTransactionID(),
-		Listeners: listeners,
-		Routes:    make(map[string][]httpserver.Route),
+		TxID:           provider.GetTransactionID(),
+		Listeners:      listeners,
+		Routes:         make(map[string][]httpserver.Route),
+		middlewarePool: provider.GetMiddlewarePool(),
 	}
 
 	// If we have an app registry, extract routes
 	if appCol != nil {
 		logger.Debug("Extracting routes with app collection")
-		routes, routesErr := extractRoutes(cfg, listeners, appCol, logger)
+		routes, routesErr := extractRoutes(cfg, listeners, appCol, adapter.middlewarePool, logger)
 		if routesErr != nil {
 			return nil, fmt.Errorf("failed to extract HTTP routes: %w", routesErr)
 		}
@@ -134,6 +163,7 @@ func extractRoutes(
 	cfg *config.Config,
 	listeners map[string]ListenerConfig,
 	appCollection apps.AppLookup,
+	middlewarePool MiddlewarePool,
 	logger *slog.Logger,
 ) (map[string][]httpserver.Route, error) {
 	routes := make(map[string][]httpserver.Route)
@@ -149,7 +179,13 @@ func extractRoutes(
 		// Process each endpoint for this listener
 		for _, endpoint := range endpointsForListener {
 			// Process HTTP routes for this endpoint
-			endpointRoutes, err := extractEndpointRoutes(&endpoint, id, appCollection, logger)
+			endpointRoutes, err := extractEndpointRoutes(
+				&endpoint,
+				id,
+				appCollection,
+				middlewarePool,
+				logger,
+			)
 			if err != nil {
 				errz = append(
 					errz,
@@ -173,6 +209,7 @@ func extractEndpointRoutes(
 	endpoint *endpoints.Endpoint,
 	listenerID string,
 	appRegistry apps.AppLookup,
+	middlewarePool MiddlewarePool,
 	logger *slog.Logger,
 ) ([]httpserver.Route, error) {
 	var httpServerRoutes []httpserver.Route
@@ -227,17 +264,17 @@ func extractEndpointRoutes(
 			}
 		}
 
-		// Create middleware instances from the HTTP route configuration
-		middlewares, err := middleware.CreateMiddlewareCollection(httpRoute.Middlewares)
+		// Build middleware slice from pool
+		middlewares, err := buildMiddlewareSlice(httpRoute.Middlewares, middlewarePool)
 		if err != nil {
 			errz = append(
 				errz,
-				fmt.Errorf("failed to create middleware for route %s: %w", routeID, err),
+				fmt.Errorf("failed to build middleware for route %s: %w", routeID, err),
 			)
 			continue
 		}
 
-		logger.Debug("Created middleware for route",
+		logger.Debug("Built middleware for route",
 			"route_id", routeID,
 			"middleware_count", len(middlewares))
 
@@ -299,4 +336,40 @@ func (a *Adapter) GetRoutesForListener(listenerID string) []httpserver.Route {
 		return []httpserver.Route{}
 	}
 	return routes
+}
+
+// buildMiddlewareSlice builds a slice of middleware handlers from the pool
+func buildMiddlewareSlice(
+	middlewares middleware.MiddlewareCollection,
+	pool MiddlewarePool,
+) ([]httpserver.HandlerFunc, error) {
+	if len(middlewares) == 0 {
+		return nil, nil
+	}
+
+	handlers := make([]httpserver.HandlerFunc, 0, len(middlewares))
+
+	for _, mw := range middlewares {
+		mwType := mw.Config.Type()
+
+		// Look up in pool - check type first for better error messages
+		typePool, typeExists := pool[mwType]
+		if !typeExists {
+			return nil, fmt.Errorf("middleware type '%s' not found in pool", mwType)
+		}
+
+		instance, instanceExists := typePool[mw.ID]
+		if !instanceExists {
+			return nil, fmt.Errorf(
+				"middleware '%s' of type '%s' not found in pool (was it validated and created successfully?)",
+				mw.ID,
+				mwType,
+			)
+		}
+
+		// Extract handler function from interface
+		handlers = append(handlers, instance.Middleware())
+	}
+
+	return handlers, nil
 }

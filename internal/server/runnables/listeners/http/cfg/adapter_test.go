@@ -11,12 +11,15 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
+	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
+	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -25,9 +28,10 @@ import (
 
 // MockConfigProvider implements the ConfigProvider interface for testing
 type MockConfigProvider struct {
-	config *config.Config
-	txID   string
-	appReg apps.AppLookup
+	config         *config.Config
+	txID           string
+	appReg         apps.AppLookup
+	middlewarePool MiddlewarePool
 }
 
 func (m *MockConfigProvider) GetConfig() *config.Config {
@@ -40,6 +44,13 @@ func (m *MockConfigProvider) GetTransactionID() string {
 
 func (m *MockConfigProvider) GetAppCollection() apps.AppLookup {
 	return m.appReg
+}
+
+func (m *MockConfigProvider) GetMiddlewarePool() MiddlewarePool {
+	if m.middlewarePool == nil {
+		return make(MiddlewarePool)
+	}
+	return m.middlewarePool
 }
 
 // MockAppRegistry is a simple implementation of apps.AppLookup for testing
@@ -312,7 +323,13 @@ func TestExtractEndpointRoutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Call the function being tested
-			routes, err := extractEndpointRoutes(tt.endpoint, tt.listenerID, appRegistry, logger)
+			routes, err := extractEndpointRoutes(
+				tt.endpoint,
+				tt.listenerID,
+				appRegistry,
+				make(MiddlewarePool),
+				logger,
+			)
 
 			// Check error expectation
 			if tt.expectError {
@@ -425,7 +442,13 @@ func TestExtractRoutes(t *testing.T) {
 		}
 
 		// Extract routes
-		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		routeMap, err := extractRoutes(
+			cfg,
+			listenersMap,
+			appRegistry,
+			make(MiddlewarePool),
+			logger,
+		)
 		assert.NoError(t, err)
 		assert.Len(t, routeMap, 1)
 		assert.Len(t, routeMap["http-1"], 1)
@@ -436,7 +459,13 @@ func TestExtractRoutes(t *testing.T) {
 		listenersMap := map[string]ListenerConfig{}
 		cfg := &config.Config{Version: config.VersionLatest}
 
-		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		routeMap, err := extractRoutes(
+			cfg,
+			listenersMap,
+			appRegistry,
+			make(MiddlewarePool),
+			logger,
+		)
 		assert.NoError(t, err)
 		assert.Empty(t, routeMap)
 	})
@@ -473,7 +502,13 @@ func TestExtractRoutes(t *testing.T) {
 			},
 		}
 
-		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		routeMap, err := extractRoutes(
+			cfg,
+			listenersMap,
+			appRegistry,
+			make(MiddlewarePool),
+			logger,
+		)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to process routes for endpoint endpoint-1")
 		assert.Len(t, routeMap["http-1"], 0)
@@ -623,7 +658,13 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 		},
 	}
 
-	routes, err := extractEndpointRoutes(endpoint, "http-1", appRegistry, logger)
+	routes, err := extractEndpointRoutes(
+		endpoint,
+		"http-1",
+		appRegistry,
+		make(MiddlewarePool),
+		logger,
+	)
 	assert.NoError(t, err) // Route creation succeeds
 	assert.Len(t, routes, 1)
 
@@ -671,7 +712,13 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 		},
 	}
 
-	routes, err := extractEndpointRoutes(endpoint, "http-1", appRegistry, logger)
+	routes, err := extractEndpointRoutes(
+		endpoint,
+		"http-1",
+		appRegistry,
+		make(MiddlewarePool),
+		logger,
+	)
 	assert.NoError(t, err)
 	assert.Len(t, routes, 1)
 
@@ -768,5 +815,55 @@ func TestAdapterGetters(t *testing.T) {
 	t.Run("GetRoutesForListener for nonexistent listener", func(t *testing.T) {
 		routes3 := adapter.GetRoutesForListener("nonexistent")
 		assert.Empty(t, routes3, "Should return empty slice for nonexistent listener")
+	})
+}
+
+func getMockMiddlewareCollection() middleware.MiddlewareCollection {
+	return middleware.MiddlewareCollection{
+		{
+			ID: "logger1",
+			Config: &configLogger.ConsoleLogger{
+				Options: configLogger.LogOptionsGeneral{
+					Format: configLogger.FormatJSON,
+					Level:  configLogger.LevelInfo,
+				},
+				Output: "stdout",
+			},
+		},
+	}
+}
+
+func TestBuildMiddlewareSlice(t *testing.T) {
+	t.Run("returns empty slice for no middleware", func(t *testing.T) {
+		pool := make(MiddlewarePool)
+		handlers, err := buildMiddlewareSlice(nil, pool)
+		assert.NoError(t, err)
+		assert.Nil(t, handlers)
+	})
+
+	t.Run("returns error when middleware type not in pool", func(t *testing.T) {
+		pool := make(MiddlewarePool)
+		middlewares := getMockMiddlewareCollection()
+
+		handlers, err := buildMiddlewareSlice(middlewares, pool)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "middleware type 'console_logger' not found in pool")
+		assert.Nil(t, handlers)
+	})
+
+	t.Run("returns error when middleware ID not in pool", func(t *testing.T) {
+		pool := make(MiddlewarePool)
+		pool["console_logger"] = make(map[string]httpMiddleware.Instance)
+		middlewares := getMockMiddlewareCollection()
+
+		handlers, err := buildMiddlewareSlice(middlewares, pool)
+		assert.Error(t, err)
+		assert.Contains(
+			t,
+			err.Error(),
+			"middleware 'logger1' of type 'console_logger' not found in pool",
+		)
+		assert.Contains(t, err.Error(), "was it validated and created successfully?")
+		assert.Nil(t, handlers)
 	})
 }

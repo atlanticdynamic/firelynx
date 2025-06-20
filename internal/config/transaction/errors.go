@@ -39,6 +39,9 @@ var (
 	ErrValidationFailed = errors.New("validation failed")
 	ErrTerminalError    = errors.New("terminal error")
 	ErrAccumulatedError = errors.New("accumulated error")
+
+	// ErrResourceConflict indicates a resource conflict during validation
+	ErrResourceConflict = errors.New("resource conflict")
 )
 
 // ValidationError wraps a validation error for a specific field

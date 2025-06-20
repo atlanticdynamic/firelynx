@@ -140,9 +140,9 @@ func TestRunValidation_NilConfig(t *testing.T) {
 		nil, // nil config
 		slog.New(slog.NewTextHandler(os.Stdout, nil)).Handler(),
 	)
-	assert.Error(t, err)
+	require.Error(t, err)
 	// Constructor should return ErrNilConfig when config is nil
-	require.ErrorContains(t, err, "config cannot be nil")
+	require.ErrorIs(t, err, ErrNilConfig)
 
 	// The nil config check in RunValidation is defensive programming
 	// It would only trigger if someone manually constructed a ConfigTransaction
