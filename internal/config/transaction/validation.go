@@ -172,7 +172,7 @@ func validateAndCreateMiddleware(tx *ConfigTransaction) error {
 		return fmt.Errorf("middleware config validation failed: %w", err)
 	}
 
-	if err := tx.createMiddlewareInstances(); err != nil {
+	if err := tx.middleware.collection.CreateFromDefinitions(allMiddlewares); err != nil {
 		return fmt.Errorf("middleware instantiation failed: %w", err)
 	}
 

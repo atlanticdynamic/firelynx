@@ -334,122 +334,6 @@ func TestConfigTransaction_MarkFailed(t *testing.T) {
 	assert.Equal(t, finitestate.StateFailed, tx.GetState())
 }
 
-func TestConfigTransaction_LegacyMethods(t *testing.T) {
-	t.Parallel()
-
-	t.Run("BeginPreparation", func(t *testing.T) {
-		tx, _ := setupTest(t)
-
-		// Setup to validated state
-		err := tx.BeginValidation()
-		require.NoError(t, err)
-		tx.IsValid.Store(true)
-		err = tx.MarkValidated()
-		require.NoError(t, err)
-
-		// BeginPreparation should map to BeginExecution
-		err = tx.BeginPreparation()
-		assert.NoError(t, err)
-		assert.Equal(t, finitestate.StateExecuting, tx.GetState())
-	})
-
-	t.Run("MarkPrepared", func(t *testing.T) {
-		tx, _ := setupTest(t)
-
-		// Setup to executing state
-		err := tx.BeginValidation()
-		require.NoError(t, err)
-		tx.IsValid.Store(true)
-		err = tx.MarkValidated()
-		require.NoError(t, err)
-		err = tx.BeginExecution()
-		require.NoError(t, err)
-
-		// MarkPrepared should map to MarkSucceeded
-		err = tx.MarkPrepared()
-		assert.NoError(t, err)
-		assert.Equal(t, finitestate.StateSucceeded, tx.GetState())
-	})
-
-	t.Run("BeginCommit", func(t *testing.T) {
-		tx, _ := setupTest(t)
-
-		// Setup to validated state
-		err := tx.BeginValidation()
-		require.NoError(t, err)
-		tx.IsValid.Store(true)
-		err = tx.MarkValidated()
-		require.NoError(t, err)
-
-		// BeginCommit should map to BeginExecution
-		err = tx.BeginCommit()
-		assert.NoError(t, err)
-		assert.Equal(t, finitestate.StateExecuting, tx.GetState())
-	})
-
-	t.Run("MarkCommitted", func(t *testing.T) {
-		tx, _ := setupTest(t)
-
-		// Setup to executing state
-		err := tx.BeginValidation()
-		require.NoError(t, err)
-		tx.IsValid.Store(true)
-		err = tx.MarkValidated()
-		require.NoError(t, err)
-		err = tx.BeginExecution()
-		require.NoError(t, err)
-
-		// MarkCommitted should map to MarkSucceeded
-		err = tx.MarkCommitted()
-		assert.NoError(t, err)
-		assert.Equal(t, finitestate.StateSucceeded, tx.GetState())
-	})
-
-	t.Run("BeginRollback", func(t *testing.T) {
-		ctx := t.Context()
-		tx, _ := setupTest(t)
-
-		// Setup to failed state
-		err := tx.BeginValidation()
-		require.NoError(t, err)
-		tx.IsValid.Store(true)
-		err = tx.MarkValidated()
-		require.NoError(t, err)
-		err = tx.BeginExecution()
-		require.NoError(t, err)
-		err = tx.MarkFailed(ctx, errors.New("failed"))
-		require.NoError(t, err)
-
-		// BeginRollback should map to BeginCompensation
-		err = tx.BeginRollback()
-		assert.NoError(t, err)
-		assert.Equal(t, finitestate.StateCompensating, tx.GetState())
-	})
-
-	t.Run("MarkRolledBack", func(t *testing.T) {
-		ctx := t.Context()
-		tx, _ := setupTest(t)
-
-		// Setup to compensating state
-		err := tx.BeginValidation()
-		require.NoError(t, err)
-		tx.IsValid.Store(true)
-		err = tx.MarkValidated()
-		require.NoError(t, err)
-		err = tx.BeginExecution()
-		require.NoError(t, err)
-		err = tx.MarkFailed(ctx, errors.New("failed"))
-		require.NoError(t, err)
-		err = tx.BeginCompensation()
-		require.NoError(t, err)
-
-		// MarkRolledBack should map to MarkCompensated
-		err = tx.MarkRolledBack()
-		assert.NoError(t, err)
-		assert.Equal(t, finitestate.StateCompensated, tx.GetState())
-	})
-}
-
 func TestConfigTransaction_GetConfig(t *testing.T) {
 	t.Parallel()
 
@@ -1196,7 +1080,8 @@ func TestCreateMiddleware(t *testing.T) {
 			},
 		}
 
-		err = tx.createMiddleware(mw)
+		middlewares := middleware.MiddlewareCollection{mw}
+		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
 		assert.NoError(t, err)
 
 		// Verify middleware was added to pool
@@ -1227,13 +1112,15 @@ func TestCreateMiddleware(t *testing.T) {
 		}
 
 		// Create first instance
-		err = tx.createMiddleware(mw)
+		middlewares := middleware.MiddlewareCollection{mw}
+		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
 		require.NoError(t, err)
 		pool := tx.GetMiddlewarePool()
 		firstInstance := pool[mw.Config.Type()][mw.ID]
 
 		// Try to create again - should reuse
-		err = tx.createMiddleware(mw)
+		middlewares = middleware.MiddlewareCollection{mw}
+		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
 		assert.NoError(t, err)
 		pool = tx.GetMiddlewarePool()
 		secondInstance := pool[mw.Config.Type()][mw.ID]
@@ -1256,7 +1143,8 @@ func TestCreateMiddleware(t *testing.T) {
 			Config: &mockMiddlewareConfig{configType: "unsupported"},
 		}
 
-		err = tx.createMiddleware(mw)
+		middlewares := middleware.MiddlewareCollection{mw}
+		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported middleware type")
 	})
@@ -1281,7 +1169,8 @@ func TestCreateMiddleware(t *testing.T) {
 			},
 		}
 
-		err = tx.createMiddleware(mw)
+		middlewares := middleware.MiddlewareCollection{mw}
+		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to create console logger")
 	})
@@ -1323,7 +1212,8 @@ func TestGetMiddlewarePool(t *testing.T) {
 			},
 		}
 
-		err = tx.createMiddleware(mw)
+		middlewares := middleware.MiddlewareCollection{mw}
+		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
 		require.NoError(t, err)
 
 		pool := tx.GetMiddlewarePool()

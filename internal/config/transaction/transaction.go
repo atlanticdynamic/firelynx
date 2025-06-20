@@ -21,8 +21,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/logging/writers"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	httpCfg "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
-	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
-	httpLogger "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware/logger"
 	"github.com/gofrs/uuid/v5"
 	"github.com/robbyt/go-loglater"
 	"github.com/robbyt/go-loglater/storage"
@@ -84,7 +82,7 @@ type ConfigTransaction struct {
 
 	// Middleware-related resources
 	middleware struct {
-		pool httpCfg.MiddlewarePool
+		collection *httpCfg.MiddlewareCollection
 	}
 
 	// Validation state
@@ -148,9 +146,9 @@ func New(
 		IsValid:      atomic.Bool{},
 	}
 
-	// Initialize factories and pools
+	// Initialize factories and collections
 	tx.app.factory = serverApps.NewAppFactory()
-	tx.middleware.pool = make(httpCfg.MiddlewarePool)
+	tx.middleware.collection = httpCfg.NewMiddlewareCollection()
 
 	// Log the transaction creation
 	tx.logger.Debug("Transaction created")
@@ -243,26 +241,6 @@ func (tx *ConfigTransaction) MarkSucceeded() error {
 
 	tx.logger.Debug("Transaction executed successfully", "state", finitestate.StateSucceeded)
 	return nil
-}
-
-// BeginPreparation is a legacy method that maps to BeginExecution
-func (tx *ConfigTransaction) BeginPreparation() error {
-	return tx.BeginExecution()
-}
-
-// MarkPrepared is a legacy method that maps to MarkSucceeded
-func (tx *ConfigTransaction) MarkPrepared() error {
-	return tx.MarkSucceeded()
-}
-
-// BeginCommit is a legacy method that maps to BeginExecution
-func (tx *ConfigTransaction) BeginCommit() error {
-	return tx.BeginExecution()
-}
-
-// MarkCommitted is a legacy method that maps to MarkSucceeded
-func (tx *ConfigTransaction) MarkCommitted() error {
-	return tx.MarkSucceeded()
 }
 
 // MarkCompleted marks the transaction as fully completed
@@ -375,16 +353,6 @@ func (tx *ConfigTransaction) MarkFailed(ctx context.Context, err error) error {
 	return nil
 }
 
-// BeginRollback is a legacy method that maps to BeginCompensation
-func (tx *ConfigTransaction) BeginRollback() error {
-	return tx.BeginCompensation()
-}
-
-// MarkRolledBack is a legacy method that maps to MarkCompensated
-func (tx *ConfigTransaction) MarkRolledBack() error {
-	return tx.MarkCompensated()
-}
-
 // GetConfig returns the configuration associated with this transaction
 func (tx *ConfigTransaction) GetConfig() *config.Config {
 	return tx.domainConfig
@@ -476,60 +444,9 @@ func (tx *ConfigTransaction) isTerminalState(state string) bool {
 	return slices.Contains(finitestate.SagaTerminalStates, state)
 }
 
-// createMiddlewareInstances creates middleware instances from all endpoints
-func (tx *ConfigTransaction) createMiddlewareInstances() error {
-	for _, endpoint := range tx.domainConfig.Endpoints {
-		// Process endpoint middleware
-		for _, mw := range endpoint.Middlewares {
-			if err := tx.createMiddleware(mw); err != nil {
-				return err
-			}
-		}
-		// Process route middleware
-		for _, route := range endpoint.Routes {
-			for _, mw := range route.Middlewares {
-				if err := tx.createMiddleware(mw); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-// createMiddleware creates a single middleware instance if not already in pool
-func (tx *ConfigTransaction) createMiddleware(mw middleware.Middleware) error {
-	mwType := mw.Config.Type()
-
-	// Initialize type map if needed
-	if tx.middleware.pool[mwType] == nil {
-		tx.middleware.pool[mwType] = make(map[string]httpMiddleware.Instance)
-	}
-
-	// Check if already exists
-	if _, exists := tx.middleware.pool[mwType][mw.ID]; exists {
-		return nil
-	}
-
-	// Create new instance
-	switch config := mw.Config.(type) {
-	case *configLogger.ConsoleLogger:
-		instance, err := httpLogger.NewConsoleLogger(mw.ID, config)
-		if err != nil {
-			return fmt.Errorf("failed to create console logger '%s': %w", mw.ID, err)
-		}
-		tx.middleware.pool[mwType][mw.ID] = instance
-	default:
-		return fmt.Errorf("unsupported middleware type: %T", mw.Config)
-	}
-
-	tx.logger.Debug("Created middleware instance", "type", mwType, "id", mw.ID)
-	return nil
-}
-
 // GetMiddlewarePool returns the middleware pool for use by adapters
 func (tx *ConfigTransaction) GetMiddlewarePool() httpCfg.MiddlewarePool {
-	return tx.middleware.pool
+	return tx.middleware.collection.GetPool()
 }
 
 // validateResourceConflicts validates that middleware instances don't conflict on shared resources

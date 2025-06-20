@@ -23,6 +23,26 @@ import (
 // This pool is read-only after transaction creation and is safe for concurrent access.
 type MiddlewarePool map[string]map[string]httpMiddleware.Instance
 
+// GetMiddleware retrieves a middleware instance by type and ID.
+// Returns the instance and true if found, nil and false otherwise.
+func (p MiddlewarePool) GetMiddleware(middlewareType, id string) (httpMiddleware.Instance, bool) {
+	typeMap, ok := p[middlewareType]
+	if !ok {
+		return nil, false
+	}
+	instance, ok := typeMap[id]
+	return instance, ok
+}
+
+// AddMiddleware adds a middleware instance to the pool.
+// Creates the type map if it doesn't exist.
+func (p MiddlewarePool) AddMiddleware(middlewareType, id string, instance httpMiddleware.Instance) {
+	if p[middlewareType] == nil {
+		p[middlewareType] = make(map[string]httpMiddleware.Instance)
+	}
+	p[middlewareType][id] = instance
+}
+
 // ListenerConfig represents configuration for a single HTTP listener.
 type ListenerConfig struct {
 	// ID is the unique identifier for this listener
@@ -332,14 +352,14 @@ func buildMiddlewareSlice(
 	for _, mw := range middlewares {
 		mwType := mw.Config.Type()
 
-		// Look up in pool
-		typePool, ok := pool[mwType]
-		if !ok {
+		// Look up in pool - check type first for better error messages
+		typePool, typeExists := pool[mwType]
+		if !typeExists {
 			return nil, fmt.Errorf("middleware type '%s' not found in pool", mwType)
 		}
 
-		instance, ok := typePool[mw.ID]
-		if !ok {
+		instance, instanceExists := typePool[mw.ID]
+		if !instanceExists {
 			return nil, fmt.Errorf(
 				"middleware '%s' of type '%s' not found in pool (was it validated and created successfully?)",
 				mw.ID,
