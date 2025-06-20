@@ -294,7 +294,7 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 		assert.Len(t, attrs, 9) // All fields enabled
 
 		// Verify specific attributes
-		attrMap := make(map[string]interface{})
+		attrMap := make(map[string]any)
 		for _, attr := range attrs {
 			attrMap[attr.Key] = attr.Value.Any()
 		}
@@ -391,7 +391,7 @@ func TestLogFilter_BuildLogAttrs(t *testing.T) {
 		require.Len(t, attrs, 2) // Request and response groups
 
 		// Verify groups exist
-		var requestGroup, responseGroup *interface{}
+		var requestGroup, responseGroup *any
 		for _, attr := range attrs {
 			if attr.Key == groupRequest {
 				value := attr.Value.Any()

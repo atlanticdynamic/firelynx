@@ -21,13 +21,13 @@ func TestTOMLPresetParsing(t *testing.T) {
 
 	tests := []struct {
 		name                   string
-		templateData           map[string]interface{}
+		templateData           map[string]any
 		expectedPreset         Preset
 		expectFieldsAfterApply func(fields LogOptionsHTTP) bool
 	}{
 		{
 			name: "Debug preset from TOML",
-			templateData: map[string]interface{}{
+			templateData: map[string]any{
 				"Output": "/tmp/debug-test.log",
 				"Preset": "debug",
 				"Format": "json",
@@ -46,7 +46,7 @@ func TestTOMLPresetParsing(t *testing.T) {
 		},
 		{
 			name: "Minimal preset from TOML",
-			templateData: map[string]interface{}{
+			templateData: map[string]any{
 				"Output": "/tmp/minimal-test.log",
 				"Preset": "minimal",
 				"Format": "json",
