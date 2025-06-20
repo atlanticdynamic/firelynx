@@ -26,7 +26,7 @@ func TestFullConfigParsingWithPreset(t *testing.T) {
 	require.NoError(t, err, "Template should parse successfully")
 
 	var buf bytes.Buffer
-	err = tmpl.Execute(&buf, map[string]interface{}{
+	err = tmpl.Execute(&buf, map[string]any{
 		"Port": port,
 	})
 	require.NoError(t, err, "Template should execute successfully")
