@@ -451,20 +451,7 @@ func (tx *ConfigTransaction) GetMiddlewarePool() httpCfg.MiddlewarePool {
 
 // validateResourceConflicts validates that middleware instances don't conflict on shared resources
 func validateResourceConflicts(allMiddlewares middleware.MiddlewareCollection) error {
-	var errs []error
-
-	// Check for console logger file conflicts
-	if err := validateConsoleLoggerFileConflicts(allMiddlewares); err != nil {
-		errs = append(errs, err)
-	}
-
-	// Future validation functions for other middleware types can be added here
-	// For example:
-	// if err := validateRateLimiterConflicts(allMiddlewares); err != nil {
-	//     errs = append(errs, err)
-	// }
-
-	return errors.Join(errs...)
+	return validateConsoleLoggerFileConflicts(allMiddlewares)
 }
 
 // validateConsoleLoggerFileConflicts checks that console loggers don't use the same output file
