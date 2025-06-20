@@ -37,14 +37,14 @@ func TestRunner_GetState(t *testing.T) {
 		r := h.runner
 		defer h.cancel()
 
+		// Check initial state is New before starting
+		assert.Equal(t, finitestate.StatusNew, r.GetState())
+
 		// Start runner in background
 		runErrCh := make(chan error, 1)
 		go func() {
 			runErrCh <- r.Run(h.ctx)
 		}()
-
-		// Check initial state is New
-		assert.Equal(t, finitestate.StatusNew, r.GetState())
 
 		// Wait for state to become Running
 		require.Eventually(t, func() bool {
