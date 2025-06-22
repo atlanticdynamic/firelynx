@@ -18,4 +18,8 @@ type ConfigProvider interface {
 	// GetAppCollection returns the app collection for linking routes to app instances.
 	// Returns nil if no app collection is available.
 	GetAppCollection() apps.AppLookup
+
+	// GetMiddlewareRegistry returns the middleware registry for looking up middleware instances.
+	// Structure: map[middleware-type]map[middleware-id]middleware-instance
+	GetMiddlewareRegistry() MiddlewareRegistry
 }

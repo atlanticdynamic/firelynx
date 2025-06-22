@@ -25,9 +25,10 @@ import (
 
 // MockConfigProvider implements the ConfigProvider interface for testing
 type MockConfigProvider struct {
-	config *config.Config
-	txID   string
-	appReg apps.AppLookup
+	config             *config.Config
+	txID               string
+	appReg             apps.AppLookup
+	middlewareRegistry MiddlewareRegistry
 }
 
 func (m *MockConfigProvider) GetConfig() *config.Config {
@@ -40,6 +41,13 @@ func (m *MockConfigProvider) GetTransactionID() string {
 
 func (m *MockConfigProvider) GetAppCollection() apps.AppLookup {
 	return m.appReg
+}
+
+func (m *MockConfigProvider) GetMiddlewareRegistry() MiddlewareRegistry {
+	if m.middlewareRegistry == nil {
+		return make(MiddlewareRegistry)
+	}
+	return m.middlewareRegistry
 }
 
 // MockAppRegistry is a simple implementation of apps.AppLookup for testing
@@ -312,7 +320,13 @@ func TestExtractEndpointRoutes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Call the function being tested
-			routes, err := extractEndpointRoutes(tt.endpoint, tt.listenerID, appRegistry, logger)
+			routes, err := extractEndpointRoutes(
+				tt.endpoint,
+				tt.listenerID,
+				appRegistry,
+				make(MiddlewareRegistry),
+				logger,
+			)
 
 			// Check error expectation
 			if tt.expectError {
@@ -425,7 +439,13 @@ func TestExtractRoutes(t *testing.T) {
 		}
 
 		// Extract routes
-		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		routeMap, err := extractRoutes(
+			cfg,
+			listenersMap,
+			appRegistry,
+			make(MiddlewareRegistry),
+			logger,
+		)
 		assert.NoError(t, err)
 		assert.Len(t, routeMap, 1)
 		assert.Len(t, routeMap["http-1"], 1)
@@ -436,7 +456,13 @@ func TestExtractRoutes(t *testing.T) {
 		listenersMap := map[string]ListenerConfig{}
 		cfg := &config.Config{Version: config.VersionLatest}
 
-		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		routeMap, err := extractRoutes(
+			cfg,
+			listenersMap,
+			appRegistry,
+			make(MiddlewareRegistry),
+			logger,
+		)
 		assert.NoError(t, err)
 		assert.Empty(t, routeMap)
 	})
@@ -473,7 +499,13 @@ func TestExtractRoutes(t *testing.T) {
 			},
 		}
 
-		routeMap, err := extractRoutes(cfg, listenersMap, appRegistry, logger)
+		routeMap, err := extractRoutes(
+			cfg,
+			listenersMap,
+			appRegistry,
+			make(MiddlewareRegistry),
+			logger,
+		)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to process routes for endpoint endpoint-1")
 		assert.Len(t, routeMap["http-1"], 0)
@@ -623,7 +655,13 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 		},
 	}
 
-	routes, err := extractEndpointRoutes(endpoint, "http-1", appRegistry, logger)
+	routes, err := extractEndpointRoutes(
+		endpoint,
+		"http-1",
+		appRegistry,
+		make(MiddlewareRegistry),
+		logger,
+	)
 	assert.NoError(t, err) // Route creation succeeds
 	assert.Len(t, routes, 1)
 
@@ -671,7 +709,13 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 		},
 	}
 
-	routes, err := extractEndpointRoutes(endpoint, "http-1", appRegistry, logger)
+	routes, err := extractEndpointRoutes(
+		endpoint,
+		"http-1",
+		appRegistry,
+		make(MiddlewareRegistry),
+		logger,
+	)
 	assert.NoError(t, err)
 	assert.Len(t, routes, 1)
 

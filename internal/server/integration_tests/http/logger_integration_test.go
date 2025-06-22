@@ -36,26 +36,62 @@ type LogEntry struct {
 	Time  string `json:"time"`
 	Level string `json:"level"`
 	Msg   string `json:"msg"`
-	HTTP  struct {
-		Method      string                 `json:"method,omitempty"`
-		Path        string                 `json:"path,omitempty"`
-		StatusCode  int                    `json:"status,omitempty"`
-		ClientIP    string                 `json:"client_ip,omitempty"`
-		Duration    int                    `json:"duration,omitempty"`
-		Query       string                 `json:"query,omitempty"`        // Query string as used by logger
-		QueryParams map[string]interface{} `json:"query_params,omitempty"` // Keep for backward compatibility
-		Protocol    string                 `json:"protocol,omitempty"`
-		Host        string                 `json:"host,omitempty"`
-		Scheme      string                 `json:"scheme,omitempty"`
-		UserAgent   string                 `json:"user_agent,omitempty"`
-		BodySize    *int                   `json:"body_size,omitempty"`
-		Request     struct {
-			Headers map[string][]string `json:"headers,omitempty"`
-		} `json:"request,omitempty"`
-		Response struct {
-			Headers map[string][]string `json:"headers,omitempty"`
-		} `json:"response,omitempty"`
-	} `json:"http,omitempty"`
+	HTTP  HTTPLogData
+}
+
+// HTTPLogData represents the HTTP request/response data structure in logs
+type HTTPLogData struct {
+	Method      string         `json:"method,omitempty"`
+	Path        string         `json:"path,omitempty"`
+	StatusCode  int            `json:"status,omitempty"`
+	ClientIP    string         `json:"client_ip,omitempty"`
+	Duration    int            `json:"duration,omitempty"`
+	Query       string         `json:"query,omitempty"`        // Query string as used by logger
+	QueryParams map[string]any `json:"query_params,omitempty"` // Keep for backward compatibility
+	Protocol    string         `json:"protocol,omitempty"`
+	Host        string         `json:"host,omitempty"`
+	Scheme      string         `json:"scheme,omitempty"`
+	UserAgent   string         `json:"user_agent,omitempty"`
+	BodySize    *int           `json:"body_size,omitempty"`
+	Request     struct {
+		Headers map[string][]string `json:"headers,omitempty"`
+	} `json:"request,omitempty"`
+	Response struct {
+		Headers map[string][]string `json:"headers,omitempty"`
+	} `json:"response,omitempty"`
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for LogEntry to handle dynamic group names
+func (le *LogEntry) UnmarshalJSON(data []byte) error {
+	// Unmarshal into a map to access all fields
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	// Extract standard fields
+	le.Time, _ = raw["time"].(string)
+	le.Level, _ = raw["level"].(string)
+	le.Msg, _ = raw["msg"].(string)
+
+	// Find HTTP data in any group that has a "method" field
+	for key, value := range raw {
+		if key == "time" || key == "level" || key == "msg" {
+			continue
+		}
+
+		if httpData, ok := value.(map[string]any); ok {
+			if _, hasMethod := httpData["method"]; hasMethod {
+				// Use a temporary JSON round-trip for clean unmarshaling
+				if httpBytes, err := json.Marshal(httpData); err == nil {
+					json.Unmarshal(httpBytes, &le.HTTP)
+				}
+				break
+			}
+		}
+	}
+
+	return nil
 }
 
 type LoggerIntegrationTestSuite struct {
@@ -100,11 +136,29 @@ func (s *LoggerIntegrationTestSuite) SetupSuite() {
 
 	// Template variables
 	templateVars := struct {
-		Port    int
-		LogFile string
+		Port               int
+		LogFile            string
+		StandardLogFile    string
+		PresetLogFile      string
+		FilteringLogFile   string
+		MinimalLogFile     string
+		TextStandardFile   string
+		TextDetailedFile   string
+		GetOnlyLogFile     string
+		PostOnlyLogFile    string
+		ExcludeMethodsFile string
 	}{
-		Port:    s.port,
-		LogFile: s.logFile,
+		Port:               s.port,
+		LogFile:            s.logFile,
+		StandardLogFile:    s.logFile + ".standard",
+		PresetLogFile:      s.logFile + ".preset",
+		FilteringLogFile:   s.logFile + ".filtering",
+		MinimalLogFile:     s.logFile + ".minimal",
+		TextStandardFile:   s.logFile + ".text-standard.log",
+		TextDetailedFile:   s.logFile + ".text-detailed.log",
+		GetOnlyLogFile:     s.logFile + ".get-only.log",
+		PostOnlyLogFile:    s.logFile + ".post-only.log",
+		ExcludeMethodsFile: s.logFile + ".exclude-methods.log",
 	}
 
 	// Render the configuration template
@@ -231,11 +285,12 @@ func (s *LoggerIntegrationTestSuite) TestStandardLogger() {
 		"Response should contain expected text",
 	)
 
+	standardLogFile := s.logFile + ".standard"
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
-		logEntries = s.readLogEntries(s.logFile)
+		logEntries = s.readLogEntries(standardLogFile)
 		return len(logEntries) > 0
-	}, 5*time.Second, 100*time.Millisecond, "Log file should contain entries")
+	}, 5*time.Second, 100*time.Millisecond, "Standard log file should contain entries")
 
 	// Find our test request log entry
 	var testEntry *LogEntry
@@ -424,16 +479,17 @@ func (s *LoggerIntegrationTestSuite) TestPresetFunctionality() {
 	s.Require().NoError(err, "Failed to make request")
 	defer resp.Body.Close()
 
+	presetLogFile := s.logFile + ".preset"
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
-		logEntries = s.readLogEntries(s.logFile)
+		logEntries = s.readLogEntries(presetLogFile)
 		for _, entry := range logEntries {
 			if entry.HTTP.Path == "/preset-test" {
 				return true
 			}
 		}
 		return false
-	}, 5*time.Second, 100*time.Millisecond, "Log file should contain /preset-test entry")
+	}, 5*time.Second, 100*time.Millisecond, "Preset log file should contain /preset-test entry")
 
 	var testEntry *LogEntry
 	for _, entry := range logEntries {
@@ -460,16 +516,17 @@ func (s *LoggerIntegrationTestSuite) TestPathFiltering() {
 	s.Require().NoError(err, "Failed to make request")
 	defer resp2.Body.Close()
 
+	filteringLogFile := s.logFile + ".filtering"
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
-		logEntries = s.readLogEntries(s.logFile)
+		logEntries = s.readLogEntries(filteringLogFile)
 		for _, entry := range logEntries {
 			if entry.HTTP.Path == "/normal" {
 				return true
 			}
 		}
 		return false
-	}, 5*time.Second, 100*time.Millisecond, "Log file should contain /normal entry")
+	}, 5*time.Second, 100*time.Millisecond, "Filtering log file should contain /normal entry")
 
 	healthLogged := false
 	normalLogged := false

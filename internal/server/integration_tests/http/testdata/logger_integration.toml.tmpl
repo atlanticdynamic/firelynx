@@ -1,5 +1,5 @@
 # FireLynx Integration Test Configuration: Logger with File Output
-# Template variables: {{.Port}}, {{.LogFile}}
+# Template variables: {{.Port}}, {{.LogFile}}, {{.StandardLogFile}}, {{.PresetLogFile}}, {{.FilteringLogFile}}
 version = "v1"
 
 # HTTP Listener Configuration
@@ -23,7 +23,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 preset = "standard"                    # Use standard preset (method, path, status, client_ip, duration)
-output = "{{.LogFile}}"                # Output to file instead of stdout
+output = "{{.StandardLogFile}}"        # Output to file instead of stdout
 exclude_paths = ["/health"]            # Skip health checks
 
 [endpoints.middlewares.console_logger.options]
@@ -69,7 +69,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 preset = "minimal"                     # Use minimal preset (method, path, status only)
-output = "{{.LogFile}}.minimal"        # Template-provided log file
+output = "{{.MinimalLogFile}}"        # Template-provided log file
 
 [endpoints.middlewares.console_logger.options]
 format = "json"
@@ -136,7 +136,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 preset = "standard"
-output = "{{.LogFile}}"
+output = "{{.PresetLogFile}}"
 exclude_paths = ["/health"]
 
 [endpoints.middlewares.console_logger.options]
@@ -159,7 +159,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 preset = "standard"
-output = "{{.LogFile}}"
+output = "{{.FilteringLogFile}}"
 exclude_paths = ["/health"]
 
 [endpoints.middlewares.console_logger.options]
@@ -250,7 +250,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 preset = "standard"
-output = "{{.LogFile}}.text-standard.log"
+output = "{{.TextStandardFile}}"
 
 [endpoints.middlewares.console_logger.options]
 format = "txt"                         # Text format instead of JSON
@@ -272,7 +272,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 preset = "detailed"
-output = "{{.LogFile}}.text-detailed.log"
+output = "{{.TextDetailedFile}}"
 
 [endpoints.middlewares.console_logger.options]
 format = "txt"
@@ -305,7 +305,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 include_only_methods = ["GET"]
-output = "{{.LogFile}}.get-only.log"
+output = "{{.GetOnlyLogFile}}"
 preset = "minimal"
 
 [endpoints.middlewares.console_logger.options]
@@ -319,7 +319,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 include_only_methods = ["POST"]
-output = "{{.LogFile}}.post-only.log"
+output = "{{.PostOnlyLogFile}}"
 preset = "detailed"
 
 [endpoints.middlewares.console_logger.options]
@@ -343,7 +343,7 @@ type = "console_logger"
 
 [endpoints.middlewares.console_logger]
 exclude_methods = ["HEAD", "OPTIONS"]
-output = "{{.LogFile}}.exclude-methods.log"
+output = "{{.ExcludeMethodsFile}}"
 preset = "standard"
 
 [endpoints.middlewares.console_logger.options]

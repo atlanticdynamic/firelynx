@@ -38,7 +38,7 @@ func (m *mockSagaProcessor) ProcessTransaction(
 	tx *transaction.ConfigTransaction,
 ) error {
 	m.tb.Helper()
-	if err := tx.MarkCommitted(); err != nil {
+	if err := tx.MarkSucceeded(); err != nil {
 		return err
 	}
 	m.txStorage.SetCurrent(tx)

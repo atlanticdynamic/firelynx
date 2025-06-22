@@ -14,9 +14,13 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
+	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
+	"github.com/atlanticdynamic/firelynx/internal/logging/writers"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
+	httpCfg "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
 	"github.com/gofrs/uuid/v5"
 	"github.com/robbyt/go-loglater"
 	"github.com/robbyt/go-loglater/storage"
@@ -70,8 +74,17 @@ type ConfigTransaction struct {
 	// Domain configuration
 	domainConfig *config.Config
 
-	// Application collection for linking routes to app instances
-	appCollection serverApps.AppLookup
+	// App-related resources
+	app struct {
+		factory    appFactory
+		collection serverApps.AppLookup
+	}
+
+	// Middleware-related resources
+	middleware struct {
+		factory    middlewareFactory
+		collection *httpCfg.MiddlewareCollection
+	}
 
 	// Validation state
 	IsValid atomic.Bool
@@ -95,7 +108,7 @@ func New(
 	handler slog.Handler,
 ) (*ConfigTransaction, error) {
 	if cfg == nil {
-		return nil, errors.New("config cannot be nil")
+		return nil, ErrNilConfig
 	}
 
 	if handler == nil {
@@ -120,28 +133,23 @@ func New(
 	// Create participant collection
 	participants := NewParticipantCollection(handler)
 
-	// Create app instances using the factory
-	appFactory := serverApps.NewAppFactory()
-	definitions := convertToAppDefinitions(cfg.Apps)
-	appCollection, appErr := appFactory.CreateAppsFromDefinitions(definitions)
-	if appErr != nil {
-		return nil, fmt.Errorf("failed to create app instances: %w", appErr)
+	tx := &ConfigTransaction{
+		ID:           txID,
+		Source:       source,
+		SourceDetail: sourceDetail,
+		RequestID:    requestID,
+		CreatedAt:    time.Now(),
+		fsm:          sm,
+		participants: participants,
+		logger:       logger,
+		logCollector: logCollector,
+		domainConfig: cfg,
+		IsValid:      atomic.Bool{},
 	}
 
-	tx := &ConfigTransaction{
-		ID:            txID,
-		Source:        source,
-		SourceDetail:  sourceDetail,
-		RequestID:     requestID,
-		CreatedAt:     time.Now(),
-		fsm:           sm,
-		participants:  participants,
-		logger:        logger,
-		logCollector:  logCollector,
-		domainConfig:  cfg,
-		appCollection: appCollection,
-		IsValid:       atomic.Bool{},
-	}
+	// Initialize factories and collections
+	tx.app.factory = serverApps.NewAppFactory()
+	tx.middleware.factory = httpCfg.NewMiddlewareFactory()
 
 	// Log the transaction creation
 	tx.logger.Debug("Transaction created")
@@ -234,26 +242,6 @@ func (tx *ConfigTransaction) MarkSucceeded() error {
 
 	tx.logger.Debug("Transaction executed successfully", "state", finitestate.StateSucceeded)
 	return nil
-}
-
-// BeginPreparation is a legacy method that maps to BeginExecution
-func (tx *ConfigTransaction) BeginPreparation() error {
-	return tx.BeginExecution()
-}
-
-// MarkPrepared is a legacy method that maps to MarkSucceeded
-func (tx *ConfigTransaction) MarkPrepared() error {
-	return tx.MarkSucceeded()
-}
-
-// BeginCommit is a legacy method that maps to BeginExecution
-func (tx *ConfigTransaction) BeginCommit() error {
-	return tx.BeginExecution()
-}
-
-// MarkCommitted is a legacy method that maps to MarkSucceeded
-func (tx *ConfigTransaction) MarkCommitted() error {
-	return tx.MarkSucceeded()
 }
 
 // MarkCompleted marks the transaction as fully completed
@@ -366,16 +354,6 @@ func (tx *ConfigTransaction) MarkFailed(ctx context.Context, err error) error {
 	return nil
 }
 
-// BeginRollback is a legacy method that maps to BeginCompensation
-func (tx *ConfigTransaction) BeginRollback() error {
-	return tx.BeginCompensation()
-}
-
-// MarkRolledBack is a legacy method that maps to MarkCompensated
-func (tx *ConfigTransaction) MarkRolledBack() error {
-	return tx.MarkCompensated()
-}
-
 // GetConfig returns the configuration associated with this transaction
 func (tx *ConfigTransaction) GetConfig() *config.Config {
 	return tx.domainConfig
@@ -383,7 +361,7 @@ func (tx *ConfigTransaction) GetConfig() *config.Config {
 
 // GetAppCollection returns the app collection associated with this transaction
 func (tx *ConfigTransaction) GetAppCollection() serverApps.AppLookup {
-	return tx.appCollection
+	return tx.app.collection
 }
 
 // PlaybackLogs plays back the transaction logs to the given handler
@@ -467,19 +445,69 @@ func (tx *ConfigTransaction) isTerminalState(state string) bool {
 	return slices.Contains(finitestate.SagaTerminalStates, state)
 }
 
-// convertToAppDefinitions converts config.Apps to server app definitions
-// This adapter allows the server/apps package to work with config data
-// without directly importing the config types
-// TODO: this should be removed, and the apps should be instantiated from the domain config apps layer
-func convertToAppDefinitions(configApps apps.AppCollection) []serverApps.AppDefinition {
-	definitions := make([]serverApps.AppDefinition, 0, len(configApps))
+// GetMiddlewareRegistry returns the middleware registry for use by adapters
+func (tx *ConfigTransaction) GetMiddlewareRegistry() httpCfg.MiddlewareRegistry {
+	if tx.middleware.collection == nil {
+		return make(httpCfg.MiddlewareRegistry)
+	}
+	return tx.middleware.collection.GetRegistry()
+}
 
-	for _, app := range configApps {
-		definitions = append(definitions, serverApps.AppDefinition{
-			ID:     app.ID,
-			Config: app.Config, // app.Config already implements the Type() method we need
-		})
+// validateResourceConflicts validates that middleware instances don't conflict on shared resources
+func validateResourceConflicts(allMiddlewares middleware.MiddlewareCollection) error {
+	return validateConsoleLoggerFileConflicts(allMiddlewares)
+}
+
+// validateConsoleLoggerFileConflicts checks that console loggers don't use the same output file
+func validateConsoleLoggerFileConflicts(allMiddlewares middleware.MiddlewareCollection) error {
+	var consoleLoggers []*configLogger.ConsoleLogger
+
+	// Extract all console loggers from the middleware collection
+	for _, mw := range allMiddlewares {
+		if consoleLogger, ok := mw.Config.(*configLogger.ConsoleLogger); ok {
+			consoleLoggers = append(consoleLoggers, consoleLogger)
+		}
 	}
 
-	return definitions
+	if len(consoleLoggers) <= 1 {
+		return nil
+	}
+
+	fileUsage := make(map[string]int)
+	var errs []error
+
+	for _, logger := range consoleLoggers {
+		expandedOutput, err := expandMiddlewareOutput(logger.Output)
+		if err != nil {
+			errs = append(errs, fmt.Errorf(
+				"failed to expand environment variables in logger output '%s': %w",
+				logger.Output,
+				err,
+			))
+			continue
+		}
+
+		// Only track file paths, not stdout/stderr
+		writerType := writers.ParseWriterType(expandedOutput)
+		if writerType == writers.WriterTypeFile {
+			fileUsage[expandedOutput]++
+		}
+	}
+	for filePath, count := range fileUsage {
+		if count > 1 {
+			errs = append(errs, fmt.Errorf(
+				"%w: duplicate output file '%s' used by %d console logger instances",
+				ErrResourceConflict,
+				filePath,
+				count,
+			))
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// expandMiddlewareOutput expands environment variables in middleware output paths
+func expandMiddlewareOutput(output string) (string, error) {
+	return interpolation.ExpandEnvVars(output)
 }
