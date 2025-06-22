@@ -8,12 +8,15 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
+	httpCfg "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
 )
 
 type appFactory interface {
-	CreateAppsFromDefinitions(
-		definitions []serverApps.AppDefinition,
-	) (*serverApps.AppInstances, error)
+	CreateAppsFromDefinitions(defs []serverApps.AppDefinition) (*serverApps.AppInstances, error)
+}
+
+type middlewareFactory interface {
+	CreateFromDefinitions(middleware.MiddlewareCollection) (*httpCfg.MiddlewareCollection, error)
 }
 
 // RunValidation performs comprehensive validation of the entire transaction
@@ -172,10 +175,11 @@ func validateAndCreateMiddleware(tx *ConfigTransaction) error {
 		return fmt.Errorf("middleware config validation failed: %w", err)
 	}
 
-	if err := tx.middleware.collection.CreateFromDefinitions(allMiddlewares); err != nil {
+	middlewareCollection, err := tx.middleware.factory.CreateFromDefinitions(allMiddlewares)
+	if err != nil {
 		return fmt.Errorf("middleware instantiation failed: %w", err)
 	}
-
+	tx.middleware.collection = middlewareCollection
 	return nil
 }
 

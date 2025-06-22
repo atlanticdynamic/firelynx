@@ -1081,12 +1081,13 @@ func TestCreateMiddleware(t *testing.T) {
 		}
 
 		middlewares := middleware.MiddlewareCollection{mw}
-		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
-		assert.NoError(t, err)
+		middlewareCollection, err := tx.middleware.factory.CreateFromDefinitions(middlewares)
+		require.NoError(t, err)
+		tx.middleware.collection = middlewareCollection
 
 		// Verify middleware was added to pool
 		mwType := mw.Config.Type()
-		pool := tx.GetMiddlewarePool()
+		pool := tx.GetMiddlewareRegistry()
 		assert.Contains(t, pool, mwType)
 		assert.Contains(t, pool[mwType], "test-logger")
 	})
@@ -1113,16 +1114,18 @@ func TestCreateMiddleware(t *testing.T) {
 
 		// Create first instance
 		middlewares := middleware.MiddlewareCollection{mw}
-		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
+		middlewareCollection, err := tx.middleware.factory.CreateFromDefinitions(middlewares)
 		require.NoError(t, err)
-		pool := tx.GetMiddlewarePool()
+		tx.middleware.collection = middlewareCollection
+		pool := tx.GetMiddlewareRegistry()
 		firstInstance := pool[mw.Config.Type()][mw.ID]
 
 		// Try to create again - should reuse
 		middlewares = middleware.MiddlewareCollection{mw}
-		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
-		assert.NoError(t, err)
-		pool = tx.GetMiddlewarePool()
+		middlewareCollection, err = tx.middleware.factory.CreateFromDefinitions(middlewares)
+		require.NoError(t, err)
+		tx.middleware.collection = middlewareCollection
+		pool = tx.GetMiddlewareRegistry()
 		secondInstance := pool[mw.Config.Type()][mw.ID]
 
 		// Should be the same instance
@@ -1144,7 +1147,7 @@ func TestCreateMiddleware(t *testing.T) {
 		}
 
 		middlewares := middleware.MiddlewareCollection{mw}
-		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
+		_, err = tx.middleware.factory.CreateFromDefinitions(middlewares)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported middleware type")
 	})
@@ -1170,16 +1173,16 @@ func TestCreateMiddleware(t *testing.T) {
 		}
 
 		middlewares := middleware.MiddlewareCollection{mw}
-		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
+		_, err = tx.middleware.factory.CreateFromDefinitions(middlewares)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to create console logger")
+		assert.Contains(t, err.Error(), "failed to create middleware")
 	})
 }
 
-func TestGetMiddlewarePool(t *testing.T) {
+func TestGetMiddlewareRegistry(t *testing.T) {
 	t.Parallel()
 
-	t.Run("returns middleware pool", func(t *testing.T) {
+	t.Run("returns middleware registry", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		cfg := &config.Config{
 			Version: config.VersionLatest,
@@ -1187,12 +1190,12 @@ func TestGetMiddlewarePool(t *testing.T) {
 		tx, err := FromTest("test", cfg, handler)
 		require.NoError(t, err)
 
-		pool := tx.GetMiddlewarePool()
-		assert.NotNil(t, pool)
-		assert.IsType(t, httpCfg.MiddlewarePool{}, pool)
+		registry := tx.GetMiddlewareRegistry()
+		assert.NotNil(t, registry)
+		assert.IsType(t, httpCfg.MiddlewareRegistry{}, registry)
 	})
 
-	t.Run("pool contains created middleware", func(t *testing.T) {
+	t.Run("registry contains created middleware", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		cfg := &config.Config{
 			Version: config.VersionLatest,
@@ -1213,10 +1216,11 @@ func TestGetMiddlewarePool(t *testing.T) {
 		}
 
 		middlewares := middleware.MiddlewareCollection{mw}
-		err = tx.middleware.collection.CreateFromDefinitions(middlewares)
+		middlewareCollection, err := tx.middleware.factory.CreateFromDefinitions(middlewares)
 		require.NoError(t, err)
+		tx.middleware.collection = middlewareCollection
 
-		pool := tx.GetMiddlewarePool()
+		pool := tx.GetMiddlewareRegistry()
 		mwType := mw.Config.Type()
 		assert.Contains(t, pool, mwType)
 		assert.Contains(t, pool[mwType], "test-logger")
@@ -1294,7 +1298,7 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify middleware instances were created
-		pool := tx.GetMiddlewarePool()
+		pool := tx.GetMiddlewareRegistry()
 		loggerType := "console_logger"
 
 		assert.Contains(t, pool, loggerType)
@@ -1381,7 +1385,7 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify only one instance was created
-		pool := tx.GetMiddlewarePool()
+		pool := tx.GetMiddlewareRegistry()
 		loggerType := "console_logger"
 
 		assert.Contains(t, pool, loggerType)
@@ -1465,7 +1469,7 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify two instances were created
-		pool := tx.GetMiddlewarePool()
+		pool := tx.GetMiddlewareRegistry()
 		loggerType := "console_logger"
 
 		assert.Contains(t, pool, loggerType)

@@ -11,6 +11,8 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/logging/writers"
 )
 
+const ConsoleLoggerType = "console_logger"
+
 // ConsoleLogger represents a console logger middleware configuration
 type ConsoleLogger struct {
 	Options LogOptionsGeneral `json:"options" toml:"options"`
@@ -183,7 +185,7 @@ func (c *ConsoleLogger) applyDebugPreset() {
 
 // Type returns the middleware type
 func (c *ConsoleLogger) Type() string {
-	return "console_logger"
+	return ConsoleLoggerType
 }
 
 // Validate validates the console logger configuration

@@ -19,7 +19,7 @@ type ConfigProvider interface {
 	// Returns nil if no app collection is available.
 	GetAppCollection() apps.AppLookup
 
-	// GetMiddlewarePool returns the middleware pool for reusing middleware instances.
+	// GetMiddlewareRegistry returns the middleware registry for looking up middleware instances.
 	// Structure: map[middleware-type]map[middleware-id]middleware-instance
-	GetMiddlewarePool() MiddlewarePool
+	GetMiddlewareRegistry() MiddlewareRegistry
 }

@@ -82,6 +82,7 @@ type ConfigTransaction struct {
 
 	// Middleware-related resources
 	middleware struct {
+		factory    middlewareFactory
 		collection *httpCfg.MiddlewareCollection
 	}
 
@@ -148,7 +149,7 @@ func New(
 
 	// Initialize factories and collections
 	tx.app.factory = serverApps.NewAppFactory()
-	tx.middleware.collection = httpCfg.NewMiddlewareCollection()
+	tx.middleware.factory = httpCfg.NewMiddlewareFactory()
 
 	// Log the transaction creation
 	tx.logger.Debug("Transaction created")
@@ -444,9 +445,12 @@ func (tx *ConfigTransaction) isTerminalState(state string) bool {
 	return slices.Contains(finitestate.SagaTerminalStates, state)
 }
 
-// GetMiddlewarePool returns the middleware pool for use by adapters
-func (tx *ConfigTransaction) GetMiddlewarePool() httpCfg.MiddlewarePool {
-	return tx.middleware.collection.GetPool()
+// GetMiddlewareRegistry returns the middleware registry for use by adapters
+func (tx *ConfigTransaction) GetMiddlewareRegistry() httpCfg.MiddlewareRegistry {
+	if tx.middleware.collection == nil {
+		return make(httpCfg.MiddlewareRegistry)
+	}
+	return tx.middleware.collection.GetRegistry()
 }
 
 // validateResourceConflicts validates that middleware instances don't conflict on shared resources
