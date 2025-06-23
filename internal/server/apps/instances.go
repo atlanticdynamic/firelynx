@@ -2,9 +2,6 @@ package apps
 
 import "fmt"
 
-// Ensure AppInstances implements AppLookup
-var _ AppLookup = (*AppInstances)(nil)
-
 // AppInstances is an immutable collection of application instances
 type AppInstances struct {
 	// apps is a map of app ID to app instance

@@ -77,7 +77,7 @@ type ConfigTransaction struct {
 	// App-related resources
 	app struct {
 		factory    appFactory
-		collection serverApps.AppLookup
+		collection *serverApps.AppInstances
 	}
 
 	// Middleware-related resources
@@ -360,7 +360,7 @@ func (tx *ConfigTransaction) GetConfig() *config.Config {
 }
 
 // GetAppCollection returns the app collection associated with this transaction
-func (tx *ConfigTransaction) GetAppCollection() serverApps.AppLookup {
+func (tx *ConfigTransaction) GetAppCollection() *serverApps.AppInstances {
 	return tx.app.collection
 }
 
