@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/headers"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 )
 
@@ -31,6 +32,11 @@ func (m Middleware) ToProto() *pb.Middleware {
 		pbMiddleware.Type = pb.Middleware_TYPE_CONSOLE_LOGGER.Enum()
 		pbMiddleware.Config = &pb.Middleware_ConsoleLogger{
 			ConsoleLogger: config.ToProto().(*pb.ConsoleLoggerConfig),
+		}
+	case *headers.Headers:
+		pbMiddleware.Type = pb.Middleware_TYPE_HEADERS.Enum()
+		pbMiddleware.Config = &pb.Middleware_Headers{
+			Headers: config.ToProto().(*pb.HeadersConfig),
 		}
 	default:
 		// Unknown middleware type - this should be caught during validation
@@ -78,6 +84,16 @@ func middlewareFromProto(pbMiddleware *pb.Middleware) (Middleware, error) {
 			middleware.Config = config
 		} else {
 			return Middleware{}, fmt.Errorf("console logger middleware missing config")
+		}
+	case pb.Middleware_TYPE_HEADERS:
+		if headersConfig := pbMiddleware.GetHeaders(); headersConfig != nil {
+			config, err := headers.FromProto(headersConfig)
+			if err != nil {
+				return Middleware{}, fmt.Errorf("headers config: %w", err)
+			}
+			middleware.Config = config
+		} else {
+			return Middleware{}, fmt.Errorf("headers middleware missing config")
 		}
 	case pb.Middleware_TYPE_UNSPECIFIED:
 		return Middleware{}, fmt.Errorf("middleware type unspecified")

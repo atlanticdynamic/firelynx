@@ -26,6 +26,7 @@ type Middleware_Type int32
 const (
 	Middleware_TYPE_UNSPECIFIED    Middleware_Type = 0
 	Middleware_TYPE_CONSOLE_LOGGER Middleware_Type = 1
+	Middleware_TYPE_HEADERS        Middleware_Type = 2
 )
 
 // Enum value maps for Middleware_Type.
@@ -33,10 +34,12 @@ var (
 	Middleware_Type_name = map[int32]string{
 		0: "TYPE_UNSPECIFIED",
 		1: "TYPE_CONSOLE_LOGGER",
+		2: "TYPE_HEADERS",
 	}
 	Middleware_Type_value = map[string]int32{
 		"TYPE_UNSPECIFIED":    0,
 		"TYPE_CONSOLE_LOGGER": 1,
+		"TYPE_HEADERS":        2,
 	}
 )
 
@@ -75,6 +78,7 @@ type Middleware struct {
 	// Types that are valid to be assigned to Config:
 	//
 	//	*Middleware_ConsoleLogger
+	//	*Middleware_Headers
 	Config        isMiddleware_Config `protobuf_oneof:"config"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -140,6 +144,15 @@ func (x *Middleware) GetConsoleLogger() *ConsoleLoggerConfig {
 	return nil
 }
 
+func (x *Middleware) GetHeaders() *HeadersConfig {
+	if x != nil {
+		if x, ok := x.Config.(*Middleware_Headers); ok {
+			return x.Headers
+		}
+	}
+	return nil
+}
+
 type isMiddleware_Config interface {
 	isMiddleware_Config()
 }
@@ -148,21 +161,29 @@ type Middleware_ConsoleLogger struct {
 	ConsoleLogger *ConsoleLoggerConfig `protobuf:"bytes,100,opt,name=console_logger,json=consoleLogger,oneof"`
 }
 
+type Middleware_Headers struct {
+	Headers *HeadersConfig `protobuf:"bytes,101,opt,name=headers,oneof"`
+}
+
 func (*Middleware_ConsoleLogger) isMiddleware_Config() {}
+
+func (*Middleware_Headers) isMiddleware_Config() {}
 
 var File_settings_v1alpha1_middleware_v1_middleware_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_middleware_v1_middleware_proto_rawDesc = "" +
 	"\n" +
-	"0settings/v1alpha1/middleware/v1/middleware.proto\x12\x1fsettings.v1alpha1.middleware.v1\x1a,settings/v1alpha1/middleware/v1/logger.proto\"\x82\x02\n" +
+	"0settings/v1alpha1/middleware/v1/middleware.proto\x12\x1fsettings.v1alpha1.middleware.v1\x1a,settings/v1alpha1/middleware/v1/logger.proto\x1a-settings/v1alpha1/middleware/v1/headers.proto\"\xe0\x02\n" +
 	"\n" +
 	"Middleware\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12D\n" +
 	"\x04type\x18\x02 \x01(\x0e20.settings.v1alpha1.middleware.v1.Middleware.TypeR\x04type\x12]\n" +
-	"\x0econsole_logger\x18d \x01(\v24.settings.v1alpha1.middleware.v1.ConsoleLoggerConfigH\x00R\rconsoleLogger\"5\n" +
+	"\x0econsole_logger\x18d \x01(\v24.settings.v1alpha1.middleware.v1.ConsoleLoggerConfigH\x00R\rconsoleLogger\x12J\n" +
+	"\aheaders\x18e \x01(\v2..settings.v1alpha1.middleware.v1.HeadersConfigH\x00R\aheaders\"G\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
-	"\x13TYPE_CONSOLE_LOGGER\x10\x01B\b\n" +
+	"\x13TYPE_CONSOLE_LOGGER\x10\x01\x12\x10\n" +
+	"\fTYPE_HEADERS\x10\x02B\b\n" +
 	"\x06configBIZGgithub.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1b\beditionsp\xe8\a"
 
 var (
@@ -183,15 +204,17 @@ var file_settings_v1alpha1_middleware_v1_middleware_proto_goTypes = []any{
 	(Middleware_Type)(0),        // 0: settings.v1alpha1.middleware.v1.Middleware.Type
 	(*Middleware)(nil),          // 1: settings.v1alpha1.middleware.v1.Middleware
 	(*ConsoleLoggerConfig)(nil), // 2: settings.v1alpha1.middleware.v1.ConsoleLoggerConfig
+	(*HeadersConfig)(nil),       // 3: settings.v1alpha1.middleware.v1.HeadersConfig
 }
 var file_settings_v1alpha1_middleware_v1_middleware_proto_depIdxs = []int32{
 	0, // 0: settings.v1alpha1.middleware.v1.Middleware.type:type_name -> settings.v1alpha1.middleware.v1.Middleware.Type
 	2, // 1: settings.v1alpha1.middleware.v1.Middleware.console_logger:type_name -> settings.v1alpha1.middleware.v1.ConsoleLoggerConfig
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 2: settings.v1alpha1.middleware.v1.Middleware.headers:type_name -> settings.v1alpha1.middleware.v1.HeadersConfig
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_middleware_v1_middleware_proto_init() }
@@ -200,8 +223,10 @@ func file_settings_v1alpha1_middleware_v1_middleware_proto_init() {
 		return
 	}
 	file_settings_v1alpha1_middleware_v1_logger_proto_init()
+	file_settings_v1alpha1_middleware_v1_headers_proto_init()
 	file_settings_v1alpha1_middleware_v1_middleware_proto_msgTypes[0].OneofWrappers = []any{
 		(*Middleware_ConsoleLogger)(nil),
+		(*Middleware_Headers)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
