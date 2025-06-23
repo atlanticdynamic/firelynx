@@ -20,65 +20,105 @@ func TestHeaders_ToProto(t *testing.T) {
 		pbConfig, ok := proto.(*pb.HeadersConfig)
 		require.True(t, ok, "ToProto should return *pb.HeadersConfig")
 
-		assert.Empty(t, pbConfig.SetHeaders)
-		assert.Empty(t, pbConfig.AddHeaders)
-		assert.Empty(t, pbConfig.RemoveHeaders)
+		assert.Nil(t, pbConfig.Request)
+		assert.Nil(t, pbConfig.Response)
 	})
 
-	t.Run("full configuration", func(t *testing.T) {
+	t.Run("request operations only", func(t *testing.T) {
 		t.Parallel()
 
 		headers := &Headers{
-			SetHeaders: map[string]string{
-				"Content-Type":  "application/json",
-				"Cache-Control": "no-cache",
+			Request: &HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP": "127.0.0.1",
+				},
+				RemoveHeaders: []string{"X-Forwarded-For"},
 			},
-			AddHeaders: map[string]string{
-				"Set-Cookie": "session=abc123",
-				"X-Custom":   "value",
-			},
-			RemoveHeaders: []string{"Server", "X-Powered-By"},
 		}
 
 		proto := headers.ToProto()
 		pbConfig, ok := proto.(*pb.HeadersConfig)
 		require.True(t, ok, "ToProto should return *pb.HeadersConfig")
 
-		// Check set headers
-		assert.Len(t, pbConfig.SetHeaders, 2)
-		assert.Equal(t, "application/json", pbConfig.SetHeaders["Content-Type"])
-		assert.Equal(t, "no-cache", pbConfig.SetHeaders["Cache-Control"])
+		// Check request operations
+		require.NotNil(t, pbConfig.Request)
+		assert.Len(t, pbConfig.Request.SetHeaders, 1)
+		assert.Equal(t, "127.0.0.1", pbConfig.Request.SetHeaders["X-Real-IP"])
+		assert.Len(t, pbConfig.Request.RemoveHeaders, 1)
+		assert.Contains(t, pbConfig.Request.RemoveHeaders, "X-Forwarded-For")
+		assert.Empty(t, pbConfig.Request.AddHeaders)
 
-		// Check add headers
-		assert.Len(t, pbConfig.AddHeaders, 2)
-		assert.Equal(t, "session=abc123", pbConfig.AddHeaders["Set-Cookie"])
-		assert.Equal(t, "value", pbConfig.AddHeaders["X-Custom"])
-
-		// Check remove headers
-		assert.Len(t, pbConfig.RemoveHeaders, 2)
-		assert.Contains(t, pbConfig.RemoveHeaders, "Server")
-		assert.Contains(t, pbConfig.RemoveHeaders, "X-Powered-By")
+		// Response should be nil
+		assert.Nil(t, pbConfig.Response)
 	})
 
-	t.Run("nil maps are handled", func(t *testing.T) {
+	t.Run("response operations only", func(t *testing.T) {
 		t.Parallel()
 
 		headers := &Headers{
-			SetHeaders:    nil,
-			AddHeaders:    nil,
-			RemoveHeaders: nil,
+			Response: &HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Content-Type-Options": "nosniff",
+					"X-Frame-Options":        "DENY",
+				},
+				AddHeaders: map[string]string{
+					"Set-Cookie": "session=abc123",
+				},
+				RemoveHeaders: []string{"Server", "X-Powered-By"},
+			},
 		}
 
 		proto := headers.ToProto()
 		pbConfig, ok := proto.(*pb.HeadersConfig)
 		require.True(t, ok, "ToProto should return *pb.HeadersConfig")
 
-		assert.NotNil(t, pbConfig.SetHeaders)
-		assert.NotNil(t, pbConfig.AddHeaders)
-		assert.NotNil(t, pbConfig.RemoveHeaders)
-		assert.Empty(t, pbConfig.SetHeaders)
-		assert.Empty(t, pbConfig.AddHeaders)
-		assert.Empty(t, pbConfig.RemoveHeaders)
+		// Request should be nil
+		assert.Nil(t, pbConfig.Request)
+
+		// Check response operations
+		require.NotNil(t, pbConfig.Response)
+		assert.Len(t, pbConfig.Response.SetHeaders, 2)
+		assert.Equal(t, "nosniff", pbConfig.Response.SetHeaders["X-Content-Type-Options"])
+		assert.Equal(t, "DENY", pbConfig.Response.SetHeaders["X-Frame-Options"])
+		assert.Len(t, pbConfig.Response.AddHeaders, 1)
+		assert.Equal(t, "session=abc123", pbConfig.Response.AddHeaders["Set-Cookie"])
+		assert.Len(t, pbConfig.Response.RemoveHeaders, 2)
+		assert.Contains(t, pbConfig.Response.RemoveHeaders, "Server")
+		assert.Contains(t, pbConfig.Response.RemoveHeaders, "X-Powered-By")
+	})
+
+	t.Run("both request and response operations", func(t *testing.T) {
+		t.Parallel()
+
+		headers := &Headers{
+			Request: &HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP": "127.0.0.1",
+				},
+			},
+			Response: &HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Content-Type-Options": "nosniff",
+				},
+				RemoveHeaders: []string{"Server"},
+			},
+		}
+
+		proto := headers.ToProto()
+		pbConfig, ok := proto.(*pb.HeadersConfig)
+		require.True(t, ok, "ToProto should return *pb.HeadersConfig")
+
+		// Check request operations
+		require.NotNil(t, pbConfig.Request)
+		assert.Len(t, pbConfig.Request.SetHeaders, 1)
+		assert.Equal(t, "127.0.0.1", pbConfig.Request.SetHeaders["X-Real-IP"])
+
+		// Check response operations
+		require.NotNil(t, pbConfig.Response)
+		assert.Len(t, pbConfig.Response.SetHeaders, 1)
+		assert.Equal(t, "nosniff", pbConfig.Response.SetHeaders["X-Content-Type-Options"])
+		assert.Len(t, pbConfig.Response.RemoveHeaders, 1)
+		assert.Contains(t, pbConfig.Response.RemoveHeaders, "Server")
 	})
 }
 
@@ -103,68 +143,142 @@ func TestFromProto(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, headers)
 
-		assert.NotNil(t, headers.SetHeaders)
-		assert.NotNil(t, headers.AddHeaders)
-		assert.NotNil(t, headers.RemoveHeaders)
-		assert.Empty(t, headers.SetHeaders)
-		assert.Empty(t, headers.AddHeaders)
-		assert.Empty(t, headers.RemoveHeaders)
+		assert.Nil(t, headers.Request)
+		assert.Nil(t, headers.Response)
 	})
 
-	t.Run("full protobuf config", func(t *testing.T) {
+	t.Run("request operations only", func(t *testing.T) {
 		t.Parallel()
 
 		pbConfig := &pb.HeadersConfig{
-			SetHeaders: map[string]string{
-				"Content-Type":  "application/json",
-				"Cache-Control": "no-cache",
+			Request: &pb.HeadersConfig_HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP": "127.0.0.1",
+				},
+				RemoveHeaders: []string{"X-Forwarded-For"},
 			},
-			AddHeaders: map[string]string{
-				"Set-Cookie": "session=abc123",
-				"X-Custom":   "value",
-			},
-			RemoveHeaders: []string{"Server", "X-Powered-By"},
 		}
 
 		headers, err := FromProto(pbConfig)
 		require.NoError(t, err)
 		require.NotNil(t, headers)
 
-		// Check set headers
-		assert.Len(t, headers.SetHeaders, 2)
-		assert.Equal(t, "application/json", headers.SetHeaders["Content-Type"])
-		assert.Equal(t, "no-cache", headers.SetHeaders["Cache-Control"])
+		// Check request operations
+		require.NotNil(t, headers.Request)
+		assert.Len(t, headers.Request.SetHeaders, 1)
+		assert.Equal(t, "127.0.0.1", headers.Request.SetHeaders["X-Real-IP"])
+		assert.Len(t, headers.Request.RemoveHeaders, 1)
+		assert.Contains(t, headers.Request.RemoveHeaders, "X-Forwarded-For")
+		assert.Empty(t, headers.Request.AddHeaders)
 
-		// Check add headers
-		assert.Len(t, headers.AddHeaders, 2)
-		assert.Equal(t, "session=abc123", headers.AddHeaders["Set-Cookie"])
-		assert.Equal(t, "value", headers.AddHeaders["X-Custom"])
-
-		// Check remove headers
-		assert.Len(t, headers.RemoveHeaders, 2)
-		assert.Contains(t, headers.RemoveHeaders, "Server")
-		assert.Contains(t, headers.RemoveHeaders, "X-Powered-By")
+		// Response should be nil
+		assert.Nil(t, headers.Response)
 	})
 
-	t.Run("nil maps in protobuf are handled", func(t *testing.T) {
+	t.Run("response operations only", func(t *testing.T) {
 		t.Parallel()
 
 		pbConfig := &pb.HeadersConfig{
-			SetHeaders:    nil,
-			AddHeaders:    nil,
-			RemoveHeaders: nil,
+			Response: &pb.HeadersConfig_HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Content-Type-Options": "nosniff",
+					"X-Frame-Options":        "DENY",
+				},
+				AddHeaders: map[string]string{
+					"Set-Cookie": "session=abc123",
+				},
+				RemoveHeaders: []string{"Server", "X-Powered-By"},
+			},
 		}
 
 		headers, err := FromProto(pbConfig)
 		require.NoError(t, err)
 		require.NotNil(t, headers)
 
-		assert.NotNil(t, headers.SetHeaders)
-		assert.NotNil(t, headers.AddHeaders)
-		assert.NotNil(t, headers.RemoveHeaders)
-		assert.Empty(t, headers.SetHeaders)
-		assert.Empty(t, headers.AddHeaders)
-		assert.Empty(t, headers.RemoveHeaders)
+		// Request should be nil
+		assert.Nil(t, headers.Request)
+
+		// Check response operations
+		require.NotNil(t, headers.Response)
+		assert.Len(t, headers.Response.SetHeaders, 2)
+		assert.Equal(t, "nosniff", headers.Response.SetHeaders["X-Content-Type-Options"])
+		assert.Equal(t, "DENY", headers.Response.SetHeaders["X-Frame-Options"])
+		assert.Len(t, headers.Response.AddHeaders, 1)
+		assert.Equal(t, "session=abc123", headers.Response.AddHeaders["Set-Cookie"])
+		assert.Len(t, headers.Response.RemoveHeaders, 2)
+		assert.Contains(t, headers.Response.RemoveHeaders, "Server")
+		assert.Contains(t, headers.Response.RemoveHeaders, "X-Powered-By")
+	})
+
+	t.Run("both request and response operations", func(t *testing.T) {
+		t.Parallel()
+
+		pbConfig := &pb.HeadersConfig{
+			Request: &pb.HeadersConfig_HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP": "127.0.0.1",
+				},
+			},
+			Response: &pb.HeadersConfig_HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Content-Type-Options": "nosniff",
+				},
+				RemoveHeaders: []string{"Server"},
+			},
+		}
+
+		headers, err := FromProto(pbConfig)
+		require.NoError(t, err)
+		require.NotNil(t, headers)
+
+		// Check request operations
+		require.NotNil(t, headers.Request)
+		assert.Len(t, headers.Request.SetHeaders, 1)
+		assert.Equal(t, "127.0.0.1", headers.Request.SetHeaders["X-Real-IP"])
+
+		// Check response operations
+		require.NotNil(t, headers.Response)
+		assert.Len(t, headers.Response.SetHeaders, 1)
+		assert.Equal(t, "nosniff", headers.Response.SetHeaders["X-Content-Type-Options"])
+		assert.Len(t, headers.Response.RemoveHeaders, 1)
+		assert.Contains(t, headers.Response.RemoveHeaders, "Server")
+	})
+
+	t.Run("nil operations in protobuf are handled", func(t *testing.T) {
+		t.Parallel()
+
+		pbConfig := &pb.HeadersConfig{
+			Request: &pb.HeadersConfig_HeaderOperations{
+				SetHeaders:    nil,
+				AddHeaders:    nil,
+				RemoveHeaders: nil,
+			},
+			Response: &pb.HeadersConfig_HeaderOperations{
+				SetHeaders:    nil,
+				AddHeaders:    nil,
+				RemoveHeaders: nil,
+			},
+		}
+
+		headers, err := FromProto(pbConfig)
+		require.NoError(t, err)
+		require.NotNil(t, headers)
+
+		require.NotNil(t, headers.Request)
+		assert.NotNil(t, headers.Request.SetHeaders)
+		assert.NotNil(t, headers.Request.AddHeaders)
+		assert.NotNil(t, headers.Request.RemoveHeaders)
+		assert.Empty(t, headers.Request.SetHeaders)
+		assert.Empty(t, headers.Request.AddHeaders)
+		assert.Empty(t, headers.Request.RemoveHeaders)
+
+		require.NotNil(t, headers.Response)
+		assert.NotNil(t, headers.Response.SetHeaders)
+		assert.NotNil(t, headers.Response.AddHeaders)
+		assert.NotNil(t, headers.Response.RemoveHeaders)
+		assert.Empty(t, headers.Response.SetHeaders)
+		assert.Empty(t, headers.Response.AddHeaders)
+		assert.Empty(t, headers.Response.RemoveHeaders)
 	})
 }
 
@@ -175,15 +289,25 @@ func TestRoundTripConversion(t *testing.T) {
 		t.Parallel()
 
 		original := &Headers{
-			SetHeaders: map[string]string{
-				"Content-Type":  "application/json",
-				"X-API-Version": "v2.1",
+			Request: &HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP":     "127.0.0.1",
+					"X-API-Version": "v2.1",
+				},
+				AddHeaders: map[string]string{
+					"X-Custom": "request-value",
+				},
+				RemoveHeaders: []string{"X-Forwarded-For"},
 			},
-			AddHeaders: map[string]string{
-				"Set-Cookie":           "session=abc123",
-				"X-Supported-Versions": "v1.0",
+			Response: &HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Content-Type-Options": "nosniff",
+				},
+				AddHeaders: map[string]string{
+					"Set-Cookie": "session=abc123",
+				},
+				RemoveHeaders: []string{"Server", "X-Powered-By"},
 			},
-			RemoveHeaders: []string{"Server", "X-Powered-By", "X-AspNet-Version"},
 		}
 
 		// Convert to proto
@@ -195,10 +319,17 @@ func TestRoundTripConversion(t *testing.T) {
 		converted, err := FromProto(pbConfig)
 		require.NoError(t, err)
 
-		// Verify they are equivalent
-		assert.Equal(t, original.SetHeaders, converted.SetHeaders)
-		assert.Equal(t, original.AddHeaders, converted.AddHeaders)
-		assert.ElementsMatch(t, original.RemoveHeaders, converted.RemoveHeaders)
+		// Verify request operations are equivalent
+		require.NotNil(t, converted.Request)
+		assert.Equal(t, original.Request.SetHeaders, converted.Request.SetHeaders)
+		assert.Equal(t, original.Request.AddHeaders, converted.Request.AddHeaders)
+		assert.ElementsMatch(t, original.Request.RemoveHeaders, converted.Request.RemoveHeaders)
+
+		// Verify response operations are equivalent
+		require.NotNil(t, converted.Response)
+		assert.Equal(t, original.Response.SetHeaders, converted.Response.SetHeaders)
+		assert.Equal(t, original.Response.AddHeaders, converted.Response.AddHeaders)
+		assert.ElementsMatch(t, original.Response.RemoveHeaders, converted.Response.RemoveHeaders)
 	})
 
 	t.Run("empty configuration round trip", func(t *testing.T) {
@@ -216,8 +347,7 @@ func TestRoundTripConversion(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify they are equivalent
-		assert.Equal(t, original.SetHeaders, converted.SetHeaders)
-		assert.Equal(t, original.AddHeaders, converted.AddHeaders)
-		assert.Equal(t, original.RemoveHeaders, converted.RemoveHeaders)
+		assert.Equal(t, original.Request, converted.Request)
+		assert.Equal(t, original.Response, converted.Response)
 	})
 }

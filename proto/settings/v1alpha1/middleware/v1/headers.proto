@@ -5,12 +5,21 @@ option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/m
 
 // Configuration for headers middleware
 message HeadersConfig {
-  // Headers to set (replace existing values)
-  map<string, string> set_headers = 1;
+  // Operations that can be performed on headers
+  message HeaderOperations {
+    // Headers to set (replace existing values)
+    map<string, string> set_headers = 1;
+    
+    // Headers to add (append to existing values)
+    map<string, string> add_headers = 2;
+    
+    // Header names to remove
+    repeated string remove_headers = 3;
+  }
   
-  // Headers to add (append to existing values)
-  map<string, string> add_headers = 2;
+  // Operations to perform on request headers
+  HeaderOperations request = 1;
   
-  // Header names to remove
-  repeated string remove_headers = 3;
+  // Operations to perform on response headers
+  HeaderOperations response = 2;
 }

@@ -24,12 +24,10 @@ const (
 // Configuration for headers middleware
 type HeadersConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Headers to set (replace existing values)
-	SetHeaders map[string]string `protobuf:"bytes,1,rep,name=set_headers,json=setHeaders" json:"set_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Headers to add (append to existing values)
-	AddHeaders map[string]string `protobuf:"bytes,2,rep,name=add_headers,json=addHeaders" json:"add_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// Header names to remove
-	RemoveHeaders []string `protobuf:"bytes,3,rep,name=remove_headers,json=removeHeaders" json:"remove_headers,omitempty"`
+	// Operations to perform on request headers
+	Request *HeadersConfig_HeaderOperations `protobuf:"bytes,1,opt,name=request" json:"request,omitempty"`
+	// Operations to perform on response headers
+	Response      *HeadersConfig_HeaderOperations `protobuf:"bytes,2,opt,name=response" json:"response,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -64,21 +62,78 @@ func (*HeadersConfig) Descriptor() ([]byte, []int) {
 	return file_settings_v1alpha1_middleware_v1_headers_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *HeadersConfig) GetSetHeaders() map[string]string {
+func (x *HeadersConfig) GetRequest() *HeadersConfig_HeaderOperations {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *HeadersConfig) GetResponse() *HeadersConfig_HeaderOperations {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+// Operations that can be performed on headers
+type HeadersConfig_HeaderOperations struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Headers to set (replace existing values)
+	SetHeaders map[string]string `protobuf:"bytes,1,rep,name=set_headers,json=setHeaders" json:"set_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Headers to add (append to existing values)
+	AddHeaders map[string]string `protobuf:"bytes,2,rep,name=add_headers,json=addHeaders" json:"add_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Header names to remove
+	RemoveHeaders []string `protobuf:"bytes,3,rep,name=remove_headers,json=removeHeaders" json:"remove_headers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeadersConfig_HeaderOperations) Reset() {
+	*x = HeadersConfig_HeaderOperations{}
+	mi := &file_settings_v1alpha1_middleware_v1_headers_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeadersConfig_HeaderOperations) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeadersConfig_HeaderOperations) ProtoMessage() {}
+
+func (x *HeadersConfig_HeaderOperations) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_middleware_v1_headers_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeadersConfig_HeaderOperations.ProtoReflect.Descriptor instead.
+func (*HeadersConfig_HeaderOperations) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_middleware_v1_headers_proto_rawDescGZIP(), []int{0, 0}
+}
+
+func (x *HeadersConfig_HeaderOperations) GetSetHeaders() map[string]string {
 	if x != nil {
 		return x.SetHeaders
 	}
 	return nil
 }
 
-func (x *HeadersConfig) GetAddHeaders() map[string]string {
+func (x *HeadersConfig_HeaderOperations) GetAddHeaders() map[string]string {
 	if x != nil {
 		return x.AddHeaders
 	}
 	return nil
 }
 
-func (x *HeadersConfig) GetRemoveHeaders() []string {
+func (x *HeadersConfig_HeaderOperations) GetRemoveHeaders() []string {
 	if x != nil {
 		return x.RemoveHeaders
 	}
@@ -89,11 +144,14 @@ var File_settings_v1alpha1_middleware_v1_headers_proto protoreflect.FileDescript
 
 const file_settings_v1alpha1_middleware_v1_headers_proto_rawDesc = "" +
 	"\n" +
-	"-settings/v1alpha1/middleware/v1/headers.proto\x12\x1fsettings.v1alpha1.middleware.v1\"\xf6\x02\n" +
-	"\rHeadersConfig\x12_\n" +
-	"\vset_headers\x18\x01 \x03(\v2>.settings.v1alpha1.middleware.v1.HeadersConfig.SetHeadersEntryR\n" +
-	"setHeaders\x12_\n" +
-	"\vadd_headers\x18\x02 \x03(\v2>.settings.v1alpha1.middleware.v1.HeadersConfig.AddHeadersEntryR\n" +
+	"-settings/v1alpha1/middleware/v1/headers.proto\x12\x1fsettings.v1alpha1.middleware.v1\"\xe5\x04\n" +
+	"\rHeadersConfig\x12Y\n" +
+	"\arequest\x18\x01 \x01(\v2?.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperationsR\arequest\x12[\n" +
+	"\bresponse\x18\x02 \x01(\v2?.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperationsR\bresponse\x1a\x9b\x03\n" +
+	"\x10HeaderOperations\x12p\n" +
+	"\vset_headers\x18\x01 \x03(\v2O.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.SetHeadersEntryR\n" +
+	"setHeaders\x12p\n" +
+	"\vadd_headers\x18\x02 \x03(\v2O.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.AddHeadersEntryR\n" +
 	"addHeaders\x12%\n" +
 	"\x0eremove_headers\x18\x03 \x03(\tR\rremoveHeaders\x1a=\n" +
 	"\x0fSetHeadersEntry\x12\x10\n" +
@@ -115,20 +173,23 @@ func file_settings_v1alpha1_middleware_v1_headers_proto_rawDescGZIP() []byte {
 	return file_settings_v1alpha1_middleware_v1_headers_proto_rawDescData
 }
 
-var file_settings_v1alpha1_middleware_v1_headers_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_settings_v1alpha1_middleware_v1_headers_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_settings_v1alpha1_middleware_v1_headers_proto_goTypes = []any{
-	(*HeadersConfig)(nil), // 0: settings.v1alpha1.middleware.v1.HeadersConfig
-	nil,                   // 1: settings.v1alpha1.middleware.v1.HeadersConfig.SetHeadersEntry
-	nil,                   // 2: settings.v1alpha1.middleware.v1.HeadersConfig.AddHeadersEntry
+	(*HeadersConfig)(nil),                  // 0: settings.v1alpha1.middleware.v1.HeadersConfig
+	(*HeadersConfig_HeaderOperations)(nil), // 1: settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations
+	nil,                                    // 2: settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.SetHeadersEntry
+	nil,                                    // 3: settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.AddHeadersEntry
 }
 var file_settings_v1alpha1_middleware_v1_headers_proto_depIdxs = []int32{
-	1, // 0: settings.v1alpha1.middleware.v1.HeadersConfig.set_headers:type_name -> settings.v1alpha1.middleware.v1.HeadersConfig.SetHeadersEntry
-	2, // 1: settings.v1alpha1.middleware.v1.HeadersConfig.add_headers:type_name -> settings.v1alpha1.middleware.v1.HeadersConfig.AddHeadersEntry
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1, // 0: settings.v1alpha1.middleware.v1.HeadersConfig.request:type_name -> settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations
+	1, // 1: settings.v1alpha1.middleware.v1.HeadersConfig.response:type_name -> settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations
+	2, // 2: settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.set_headers:type_name -> settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.SetHeadersEntry
+	3, // 3: settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.add_headers:type_name -> settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.AddHeadersEntry
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_middleware_v1_headers_proto_init() }
@@ -142,7 +203,7 @@ func file_settings_v1alpha1_middleware_v1_headers_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_middleware_v1_headers_proto_rawDesc), len(file_settings_v1alpha1_middleware_v1_headers_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

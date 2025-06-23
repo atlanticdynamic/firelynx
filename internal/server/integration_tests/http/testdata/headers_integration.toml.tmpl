@@ -21,8 +21,8 @@ listener_id = "http"
 id = "set-headers-mw"
 type = "headers"
 
-[endpoints.middlewares.headers]
-[endpoints.middlewares.headers.set_headers]
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.set_headers]
 "Content-Type" = "application/json"
 "X-API-Version" = "v2.1"
 "Cache-Control" = "no-cache"
@@ -41,8 +41,8 @@ listener_id = "http"
 id = "add-headers-mw"
 type = "headers"
 
-[endpoints.middlewares.headers]
-[endpoints.middlewares.headers.add_headers]
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.add_headers]
 "Set-Cookie" = "session=abc123; Path=/"
 "X-Custom-Header" = "custom-value"
 
@@ -60,7 +60,7 @@ listener_id = "http"
 id = "remove-headers-mw"
 type = "headers"
 
-[endpoints.middlewares.headers]
+[endpoints.middlewares.headers.response]
 remove_headers = ["Server", "X-Powered-By", "X-AspNet-Version"]
 
 [[endpoints.routes]]
@@ -77,12 +77,12 @@ listener_id = "http"
 id = "combined-headers-mw"
 type = "headers"
 
-[endpoints.middlewares.headers]
+[endpoints.middlewares.headers.response]
 remove_headers = ["Server", "X-Powered-By"]
-[endpoints.middlewares.headers.set_headers]
+[endpoints.middlewares.headers.response.set_headers]
 "X-Content-Type-Options" = "nosniff"
 "X-Frame-Options" = "DENY"
-[endpoints.middlewares.headers.add_headers]
+[endpoints.middlewares.headers.response.add_headers]
 "Set-Cookie" = "secure=true; HttpOnly"
 
 [[endpoints.routes]]
@@ -99,9 +99,9 @@ listener_id = "http"
 id = "security-headers-mw"
 type = "headers"
 
-[endpoints.middlewares.headers]
+[endpoints.middlewares.headers.response]
 remove_headers = ["Server", "X-Powered-By"]
-[endpoints.middlewares.headers.set_headers]
+[endpoints.middlewares.headers.response.set_headers]
 "X-Content-Type-Options" = "nosniff"
 "X-Frame-Options" = "DENY"
 "X-XSS-Protection" = "1; mode=block"
@@ -122,8 +122,8 @@ listener_id = "http"
 id = "cors-headers-mw"
 type = "headers"
 
-[endpoints.middlewares.headers]
-[endpoints.middlewares.headers.set_headers]
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.set_headers]
 "Access-Control-Allow-Origin" = "*"
 "Access-Control-Allow-Methods" = "GET,POST,PUT,DELETE"
 "Access-Control-Allow-Headers" = "Content-Type,Authorization"
@@ -142,8 +142,8 @@ listener_id = "http"
 id = "multiple-cookies-mw"
 type = "headers"
 
-[endpoints.middlewares.headers]
-[endpoints.middlewares.headers.add_headers]
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.add_headers]
 "Set-Cookie" = "session=abc123; Path=/"
 
 [[endpoints.routes]]
@@ -160,8 +160,8 @@ listener_id = "http"
 id = "overwrite-headers-mw"
 type = "headers"
 
-[endpoints.middlewares.headers]
-[endpoints.middlewares.headers.set_headers]
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.set_headers]
 "Content-Type" = "application/json"
 "X-Override" = "middleware-value"
 
@@ -169,6 +169,27 @@ type = "headers"
 app_id = "content-type-app"
 [endpoints.routes.http]
 path_prefix = "/overwrite"
+
+# Request Headers Test - Manipulate request headers
+[[endpoints]]
+id = "request-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "request-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.request]
+remove_headers = ["X-Forwarded-For"]
+[endpoints.middlewares.headers.request.set_headers]
+"X-Real-IP" = "127.0.0.1"
+[endpoints.middlewares.headers.request.add_headers]
+"X-Request-ID" = "test-request-id"
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/request-headers"
 
 # No Headers Endpoint - Control group with no headers middleware
 [[endpoints]]

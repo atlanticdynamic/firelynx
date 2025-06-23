@@ -1,22 +1,26 @@
-// Package headers provides HTTP response header manipulation middleware.
+// Package headers provides HTTP header manipulation middleware for both requests and responses.
 //
-// This middleware allows setting, adding, and removing HTTP response headers
-// with proper operation ordering: remove → set → add. It validates all headers
-// using RFC-compliant rules and integrates with the go-supervisor middleware chain.
+// This middleware allows setting, adding, and removing HTTP headers on both incoming
+// requests and outgoing responses with operation ordering: remove, set, add.
+// It validates all headers using RFC-compliant rules and integrates with the go-supervisor
+// middleware chain.
 //
 // Example configuration:
 //
 //	[[endpoints.middlewares]]
-//	id = "security-headers"
+//	id = "headers-example"
 //	type = "headers"
 //
-//	[endpoints.middlewares.headers]
+//	[endpoints.middlewares.headers.request]
+//	remove_headers = ["X-Forwarded-For"]
+//	[endpoints.middlewares.headers.request.set_headers]
+//	"X-Real-IP" = "127.0.0.1"
+//
+//	[endpoints.middlewares.headers.response]
 //	remove_headers = ["Server", "X-Powered-By"]
-//	[endpoints.middlewares.headers.set_headers]
+//	[endpoints.middlewares.headers.response.set_headers]
 //	"X-Content-Type-Options" = "nosniff"
 //	"X-Frame-Options" = "DENY"
-//	[endpoints.middlewares.headers.add_headers]
-//	"Set-Cookie" = "secure=true; HttpOnly"
 package headers
 
 import (
@@ -27,7 +31,7 @@ import (
 	supervisorHeaders "github.com/robbyt/go-supervisor/runnables/httpserver/middleware/headers"
 )
 
-// HeadersMiddleware is a middleware implementation that manipulates HTTP response headers.
+// HeadersMiddleware is a middleware implementation that manipulates HTTP request and response headers.
 type HeadersMiddleware struct {
 	id         string
 	middleware httpserver.HandlerFunc
@@ -46,25 +50,56 @@ func NewHeadersMiddleware(id string, cfg *headers.Headers) (*HeadersMiddleware, 
 	// Build operations for go-supervisor headers middleware
 	var operations []supervisorHeaders.HeaderOperation
 
-	// Add remove operations
-	if len(cfg.RemoveHeaders) > 0 {
-		operations = append(operations, supervisorHeaders.WithRemove(cfg.RemoveHeaders...))
+	// Add request header operations
+	if cfg.Request != nil {
+		if len(cfg.Request.RemoveHeaders) > 0 {
+			operations = append(
+				operations,
+				supervisorHeaders.WithRemoveRequest(cfg.Request.RemoveHeaders...),
+			)
+		}
+
+		if len(cfg.Request.SetHeaders) > 0 {
+			operations = append(
+				operations,
+				supervisorHeaders.WithSetRequest(
+					supervisorHeaders.HeaderMap(cfg.Request.SetHeaders),
+				),
+			)
+		}
+
+		if len(cfg.Request.AddHeaders) > 0 {
+			operations = append(
+				operations,
+				supervisorHeaders.WithAddRequest(
+					supervisorHeaders.HeaderMap(cfg.Request.AddHeaders),
+				),
+			)
+		}
 	}
 
-	// Add set operations
-	if len(cfg.SetHeaders) > 0 {
-		operations = append(
-			operations,
-			supervisorHeaders.WithSet(supervisorHeaders.HeaderMap(cfg.SetHeaders)),
-		)
-	}
+	// Add response header operations
+	if cfg.Response != nil {
+		if len(cfg.Response.RemoveHeaders) > 0 {
+			operations = append(
+				operations,
+				supervisorHeaders.WithRemove(cfg.Response.RemoveHeaders...),
+			)
+		}
 
-	// Add add operations
-	if len(cfg.AddHeaders) > 0 {
-		operations = append(
-			operations,
-			supervisorHeaders.WithAdd(supervisorHeaders.HeaderMap(cfg.AddHeaders)),
-		)
+		if len(cfg.Response.SetHeaders) > 0 {
+			operations = append(
+				operations,
+				supervisorHeaders.WithSet(supervisorHeaders.HeaderMap(cfg.Response.SetHeaders)),
+			)
+		}
+
+		if len(cfg.Response.AddHeaders) > 0 {
+			operations = append(
+				operations,
+				supervisorHeaders.WithAdd(supervisorHeaders.HeaderMap(cfg.Response.AddHeaders)),
+			)
+		}
 	}
 
 	// Create the middleware using go-supervisor's NewWithOperations
@@ -76,7 +111,7 @@ func NewHeadersMiddleware(id string, cfg *headers.Headers) (*HeadersMiddleware, 
 	}, nil
 }
 
-// Middleware returns the middleware function that manipulates response headers.
+// Middleware returns the middleware function that manipulates request and response headers.
 func (hm *HeadersMiddleware) Middleware() httpserver.HandlerFunc {
 	return hm.middleware
 }

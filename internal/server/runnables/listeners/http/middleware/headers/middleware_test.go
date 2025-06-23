@@ -14,17 +14,53 @@ import (
 func TestNewHeadersMiddleware(t *testing.T) {
 	t.Parallel()
 
-	t.Run("valid configuration", func(t *testing.T) {
-		t.Parallel()
-
+	t.Run("valid configuration with response headers", func(t *testing.T) {
 		cfg := &headers.Headers{
-			SetHeaders: map[string]string{
-				"Content-Type": "application/json",
+			Response: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"Content-Type": "application/json",
+				},
+				AddHeaders: map[string]string{
+					"Set-Cookie": "session=abc123",
+				},
+				RemoveHeaders: []string{"Server"},
 			},
-			AddHeaders: map[string]string{
-				"Set-Cookie": "session=abc123",
+		}
+
+		middleware, err := NewHeadersMiddleware("test", cfg)
+		require.NoError(t, err)
+		assert.NotNil(t, middleware)
+		assert.Equal(t, "test", middleware.id)
+	})
+
+	t.Run("valid configuration with request headers", func(t *testing.T) {
+		cfg := &headers.Headers{
+			Request: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP": "127.0.0.1",
+				},
+				RemoveHeaders: []string{"X-Forwarded-For"},
 			},
-			RemoveHeaders: []string{"Server"},
+		}
+
+		middleware, err := NewHeadersMiddleware("test", cfg)
+		require.NoError(t, err)
+		assert.NotNil(t, middleware)
+		assert.Equal(t, "test", middleware.id)
+	})
+
+	t.Run("valid configuration with both request and response headers", func(t *testing.T) {
+		cfg := &headers.Headers{
+			Request: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP": "127.0.0.1",
+				},
+			},
+			Response: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Content-Type-Options": "nosniff",
+				},
+			},
 		}
 
 		middleware, err := NewHeadersMiddleware("test", cfg)
@@ -34,20 +70,30 @@ func TestNewHeadersMiddleware(t *testing.T) {
 	})
 
 	t.Run("nil configuration", func(t *testing.T) {
-		t.Parallel()
-
 		middleware, err := NewHeadersMiddleware("test", nil)
 		assert.Error(t, err)
 		assert.Nil(t, middleware)
 		assert.Contains(t, err.Error(), "headers config cannot be nil")
 	})
 
-	t.Run("invalid configuration", func(t *testing.T) {
-		t.Parallel()
+	t.Run("invalid configuration - empty", func(t *testing.T) {
+		cfg := headers.NewHeaders() // No operations configured
+		middleware, err := NewHeadersMiddleware("test", cfg)
+		assert.Error(t, err)
+		assert.Nil(t, middleware)
+		assert.Contains(
+			t,
+			err.Error(),
+			"at least one of request or response operations must be configured",
+		)
+	})
 
+	t.Run("invalid configuration - bad header name", func(t *testing.T) {
 		cfg := &headers.Headers{
-			SetHeaders: map[string]string{
-				"": "invalid-empty-name",
+			Response: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"": "invalid-empty-name",
+				},
 			},
 		}
 
@@ -56,28 +102,19 @@ func TestNewHeadersMiddleware(t *testing.T) {
 		assert.Nil(t, middleware)
 		assert.Contains(t, err.Error(), "invalid headers config")
 	})
-
-	t.Run("empty configuration is valid", func(t *testing.T) {
-		t.Parallel()
-
-		cfg := headers.NewHeaders()
-		middleware, err := NewHeadersMiddleware("test", cfg)
-		require.NoError(t, err)
-		assert.NotNil(t, middleware)
-	})
 }
 
-func TestHeadersMiddleware_Integration(t *testing.T) {
+func TestHeadersMiddleware_ResponseHeaders(t *testing.T) {
 	t.Parallel()
 
 	t.Run("set headers only", func(t *testing.T) {
-		t.Parallel()
-
 		cfg := &headers.Headers{
-			SetHeaders: map[string]string{
-				"Content-Type":  "application/json",
-				"Cache-Control": "no-cache",
-				"X-API-Version": "v2.1",
+			Response: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"Content-Type":  "application/json",
+					"Cache-Control": "no-cache",
+					"X-API-Version": "v2.1",
+				},
 			},
 		}
 
@@ -103,12 +140,12 @@ func TestHeadersMiddleware_Integration(t *testing.T) {
 	})
 
 	t.Run("add headers only", func(t *testing.T) {
-		t.Parallel()
-
 		cfg := &headers.Headers{
-			AddHeaders: map[string]string{
-				"Set-Cookie":     "theme=dark", // Only one Set-Cookie in the map
-				"X-Multi-Header": "value1",
+			Response: &headers.HeaderOperations{
+				AddHeaders: map[string]string{
+					"Set-Cookie":     "theme=dark",
+					"X-Multi-Header": "value1",
+				},
 			},
 		}
 
@@ -140,10 +177,10 @@ func TestHeadersMiddleware_Integration(t *testing.T) {
 	})
 
 	t.Run("remove headers only", func(t *testing.T) {
-		t.Parallel()
-
 		cfg := &headers.Headers{
-			RemoveHeaders: []string{"Server", "X-Powered-By", "X-AspNet-Version"},
+			Response: &headers.HeaderOperations{
+				RemoveHeaders: []string{"Server", "X-Powered-By", "X-AspNet-Version"},
+			},
 		}
 
 		middleware, err := NewHeadersMiddleware("test", cfg)
@@ -177,16 +214,16 @@ func TestHeadersMiddleware_Integration(t *testing.T) {
 	})
 
 	t.Run("all operations combined", func(t *testing.T) {
-		t.Parallel()
-
 		cfg := &headers.Headers{
-			RemoveHeaders: []string{"Server", "X-Powered-By"},
-			SetHeaders: map[string]string{
-				"X-Content-Type-Options": "nosniff",
-				"X-Frame-Options":        "DENY",
-			},
-			AddHeaders: map[string]string{
-				"Set-Cookie": "secure=true; HttpOnly",
+			Response: &headers.HeaderOperations{
+				RemoveHeaders: []string{"Server", "X-Powered-By"},
+				SetHeaders: map[string]string{
+					"X-Content-Type-Options": "nosniff",
+					"X-Frame-Options":        "DENY",
+				},
+				AddHeaders: map[string]string{
+					"Set-Cookie": "secure=true; HttpOnly",
+				},
 			},
 		}
 
@@ -227,15 +264,15 @@ func TestHeadersMiddleware_Integration(t *testing.T) {
 	})
 
 	t.Run("operation ordering: remove → set → add", func(t *testing.T) {
-		t.Parallel()
-
 		cfg := &headers.Headers{
-			RemoveHeaders: []string{"X-Test"},
-			SetHeaders: map[string]string{
-				"X-Test": "set-value",
-			},
-			AddHeaders: map[string]string{
-				"X-Test": "add-value",
+			Response: &headers.HeaderOperations{
+				RemoveHeaders: []string{"X-Test"},
+				SetHeaders: map[string]string{
+					"X-Test": "set-value",
+				},
+				AddHeaders: map[string]string{
+					"X-Test": "add-value",
+				},
 			},
 		}
 
@@ -264,22 +301,160 @@ func TestHeadersMiddleware_Integration(t *testing.T) {
 		assert.Contains(t, values, "add-value")
 		assert.NotContains(t, values, "original-value") // Should be removed
 	})
+}
 
-	t.Run("empty configuration does nothing", func(t *testing.T) {
-		t.Parallel()
+func TestHeadersMiddleware_RequestHeaders(t *testing.T) {
+	t.Parallel()
 
-		cfg := headers.NewHeaders()
+	t.Run("set request headers", func(t *testing.T) {
+		cfg := &headers.Headers{
+			Request: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP":     "127.0.0.1",
+					"X-API-Version": "v2.1",
+				},
+			},
+		}
+
 		middleware, err := NewHeadersMiddleware("test", cfg)
 		require.NoError(t, err)
 
 		req := httptest.NewRequest("GET", "/test", nil)
 		rec := httptest.NewRecorder()
 
-		// Pre-set a header that should remain unchanged
-		rec.Header().Set("Existing", "value")
+		// Set original request headers
+		req.Header.Set("X-Real-IP", "192.168.1.1")
+		req.Header.Set("User-Agent", "test-agent")
 
 		route, err := httpserver.NewRouteFromHandlerFunc("test", "/test",
 			func(w http.ResponseWriter, r *http.Request) {
+				// Verify request headers were modified
+				assert.Equal(t, "127.0.0.1", r.Header.Get("X-Real-IP"))
+				assert.Equal(t, "v2.1", r.Header.Get("X-API-Version"))
+				assert.Equal(t, "test-agent", r.Header.Get("User-Agent")) // Should remain
+
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("response"))
+				assert.NoError(t, err)
+			}, middleware.Middleware())
+		require.NoError(t, err)
+
+		route.ServeHTTP(rec, req)
+	})
+
+	t.Run("add request headers", func(t *testing.T) {
+		cfg := &headers.Headers{
+			Request: &headers.HeaderOperations{
+				AddHeaders: map[string]string{
+					"X-Custom":      "value1",
+					"Authorization": "Bearer token2",
+				},
+			},
+		}
+
+		middleware, err := NewHeadersMiddleware("test", cfg)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		rec := httptest.NewRecorder()
+
+		// Set original request header
+		req.Header.Set("Authorization", "Bearer token1")
+
+		route, err := httpserver.NewRouteFromHandlerFunc("test", "/test",
+			func(w http.ResponseWriter, r *http.Request) {
+				// Verify request headers were added
+				assert.Equal(t, "value1", r.Header.Get("X-Custom"))
+
+				// Authorization should have both values
+				auths := r.Header.Values("Authorization")
+				assert.Len(t, auths, 2)
+				assert.Contains(t, auths, "Bearer token1")
+				assert.Contains(t, auths, "Bearer token2")
+
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("response"))
+				assert.NoError(t, err)
+			}, middleware.Middleware())
+		require.NoError(t, err)
+
+		route.ServeHTTP(rec, req)
+	})
+
+	t.Run("remove request headers", func(t *testing.T) {
+		cfg := &headers.Headers{
+			Request: &headers.HeaderOperations{
+				RemoveHeaders: []string{"X-Forwarded-For", "X-Real-IP"},
+			},
+		}
+
+		middleware, err := NewHeadersMiddleware("test", cfg)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		rec := httptest.NewRecorder()
+
+		// Set request headers that should be removed
+		req.Header.Set("X-Forwarded-For", "192.168.1.1")
+		req.Header.Set("X-Real-IP", "10.0.0.1")
+		req.Header.Set("User-Agent", "test-agent") // Should remain
+
+		route, err := httpserver.NewRouteFromHandlerFunc("test", "/test",
+			func(w http.ResponseWriter, r *http.Request) {
+				// Verify request headers were removed
+				assert.Empty(t, r.Header.Get("X-Forwarded-For"))
+				assert.Empty(t, r.Header.Get("X-Real-IP"))
+				assert.Equal(t, "test-agent", r.Header.Get("User-Agent")) // Should remain
+
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("response"))
+				assert.NoError(t, err)
+			}, middleware.Middleware())
+		require.NoError(t, err)
+
+		route.ServeHTTP(rec, req)
+	})
+}
+
+func TestHeadersMiddleware_BothRequestAndResponse(t *testing.T) {
+	t.Parallel()
+
+	t.Run("request and response operations", func(t *testing.T) {
+		cfg := &headers.Headers{
+			Request: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Real-IP": "127.0.0.1",
+				},
+				RemoveHeaders: []string{"X-Forwarded-For"},
+			},
+			Response: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Content-Type-Options": "nosniff",
+				},
+				RemoveHeaders: []string{"Server"},
+			},
+		}
+
+		middleware, err := NewHeadersMiddleware("test", cfg)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		rec := httptest.NewRecorder()
+
+		// Set request headers
+		req.Header.Set("X-Forwarded-For", "192.168.1.1")
+		req.Header.Set("User-Agent", "test-agent")
+
+		// Set response headers
+		rec.Header().Set("Server", "Apache/2.4")
+
+		route, err := httpserver.NewRouteFromHandlerFunc("test", "/test",
+			func(w http.ResponseWriter, r *http.Request) {
+				// Verify request headers were modified
+				assert.Equal(t, "127.0.0.1", r.Header.Get("X-Real-IP"))
+				assert.Empty(t, r.Header.Get("X-Forwarded-For"))
+				assert.Equal(t, "test-agent", r.Header.Get("User-Agent"))
+
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte("response"))
 				assert.NoError(t, err)
@@ -288,15 +463,17 @@ func TestHeadersMiddleware_Integration(t *testing.T) {
 
 		route.ServeHTTP(rec, req)
 
-		assert.Equal(t, "value", rec.Header().Get("Existing"))
+		// Verify response headers were modified
+		assert.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+		assert.Empty(t, rec.Header().Get("Server"))
 	})
 
 	t.Run("middleware chain continues", func(t *testing.T) {
-		t.Parallel()
-
 		cfg := &headers.Headers{
-			SetHeaders: map[string]string{
-				"X-Test": "middleware-value",
+			Response: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Test": "middleware-value",
+				},
 			},
 		}
 
