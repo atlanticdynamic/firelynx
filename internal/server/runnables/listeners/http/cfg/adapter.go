@@ -143,7 +143,7 @@ func extractListeners(
 func extractRoutes(
 	cfg *config.Config,
 	listeners map[string]ListenerConfig,
-	appCollection apps.AppLookup,
+	appCollection *apps.AppInstances,
 	middlewareRegistry MiddlewareRegistry,
 	logger *slog.Logger,
 ) (map[string][]httpserver.Route, error) {
@@ -189,7 +189,7 @@ func extractRoutes(
 func extractEndpointRoutes(
 	endpoint *endpoints.Endpoint,
 	listenerID string,
-	appRegistry apps.AppLookup,
+	appRegistry *apps.AppInstances,
 	middlewareRegistry MiddlewareRegistry,
 	logger *slog.Logger,
 ) ([]httpserver.Route, error) {

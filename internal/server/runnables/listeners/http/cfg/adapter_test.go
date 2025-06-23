@@ -27,7 +27,7 @@ import (
 type MockConfigProvider struct {
 	config             *config.Config
 	txID               string
-	appReg             apps.AppLookup
+	appInstances       *apps.AppInstances
 	middlewareRegistry MiddlewareRegistry
 }
 
@@ -39,8 +39,8 @@ func (m *MockConfigProvider) GetTransactionID() string {
 	return m.txID
 }
 
-func (m *MockConfigProvider) GetAppCollection() apps.AppLookup {
-	return m.appReg
+func (m *MockConfigProvider) GetAppCollection() *apps.AppInstances {
+	return m.appInstances
 }
 
 func (m *MockConfigProvider) GetMiddlewareRegistry() MiddlewareRegistry {
@@ -50,35 +50,12 @@ func (m *MockConfigProvider) GetMiddlewareRegistry() MiddlewareRegistry {
 	return m.middlewareRegistry
 }
 
-// MockAppRegistry is a simple implementation of apps.AppLookup for testing
-type MockAppRegistry struct {
-	apps map[string]apps.App
-}
-
-// NewMockAppRegistry creates a new MockAppRegistry instance
-func NewMockAppRegistry() *MockAppRegistry {
-	return &MockAppRegistry{
-		apps: make(map[string]apps.App),
-	}
-}
-
-// GetApp retrieves an app by ID
-func (m *MockAppRegistry) GetApp(id string) (apps.App, bool) {
-	app, ok := m.apps[id]
-	return app, ok
-}
-
-// RegisterApp adds an app to the registry
-func (m *MockAppRegistry) RegisterApp(app apps.App) {
-	m.apps[app.String()] = app
-}
-
 func TestNewAdapter(t *testing.T) {
 	// Create mock config provider with nil config
 	nilProvider := &MockConfigProvider{
-		config: nil,
-		txID:   "test-tx-id",
-		appReg: nil,
+		config:       nil,
+		txID:         "test-tx-id",
+		appInstances: nil,
 	}
 
 	// Test with nil provider
@@ -98,9 +75,9 @@ func TestNewAdapter(t *testing.T) {
 
 	// Create mock config provider with valid config
 	validProvider := &MockConfigProvider{
-		config: validConfig,
-		txID:   "test-tx-id",
-		appReg: nil,
+		config:       validConfig,
+		txID:         "test-tx-id",
+		appInstances: nil,
 	}
 
 	// Test with valid but empty config
@@ -194,10 +171,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 	// Create a logger for testing
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	// Set up the app registry with mock apps
-	appRegistry := NewMockAppRegistry()
-
-	// Register test apps with the registry
+	// Set up app instances with mock apps
 	appID1 := "test-app-1"
 	appID2 := "test-app-2"
 	appID3 := "missing-app"
@@ -205,8 +179,8 @@ func TestExtractEndpointRoutes(t *testing.T) {
 	testApp1 := mocks.NewMockApp(appID1)
 	testApp2 := mocks.NewMockApp(appID2)
 
-	appRegistry.RegisterApp(testApp1)
-	appRegistry.RegisterApp(testApp2)
+	appInstances, err := apps.NewAppInstances([]apps.App{testApp1, testApp2})
+	require.NoError(t, err)
 	// Note: appID3 is intentionally not registered to test error handling
 
 	// Set up static data for routes
@@ -323,7 +297,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 			routes, err := extractEndpointRoutes(
 				tt.endpoint,
 				tt.listenerID,
-				appRegistry,
+				appInstances,
 				make(MiddlewareRegistry),
 				logger,
 			)
@@ -355,7 +329,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 				r := httptest.NewRequest("GET", tt.pathPrefixes[i], nil).WithContext(ctx)
 
 				// Set up the mock app to expect a call and implement behavior
-				if app, ok := appRegistry.GetApp(tt.appIDs[i]); ok {
+				if app, ok := appInstances.GetApp(tt.appIDs[i]); ok {
 					mockApp := app.(*mocks.MockApp)
 
 					// Set up the mock to write a response when HandleHTTP is called
@@ -387,7 +361,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 					require.NoError(t, err)
 					assert.Equal(t, "success", string(body), "Expected 'success' response body")
 				} else {
-					t.Fatalf("Could not find app %s in registry", tt.appIDs[i])
+					t.Fatalf("Could not find app %s in app instances", tt.appIDs[i])
 				}
 			}
 		})
@@ -400,10 +374,10 @@ func TestExtractRoutes(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	t.Run("successful route extraction with app collection", func(t *testing.T) {
-		// Set up app registry
-		appRegistry := NewMockAppRegistry()
+		// Set up app instances
 		testApp := mocks.NewMockApp("test-app")
-		appRegistry.RegisterApp(testApp)
+		appInstances, err := apps.NewAppInstances([]apps.App{testApp})
+		require.NoError(t, err)
 
 		// Create listeners map
 		listenersMap := map[string]ListenerConfig{
@@ -442,7 +416,7 @@ func TestExtractRoutes(t *testing.T) {
 		routeMap, err := extractRoutes(
 			cfg,
 			listenersMap,
-			appRegistry,
+			appInstances,
 			make(MiddlewareRegistry),
 			logger,
 		)
@@ -452,14 +426,15 @@ func TestExtractRoutes(t *testing.T) {
 	})
 
 	t.Run("empty listeners map", func(t *testing.T) {
-		appRegistry := NewMockAppRegistry()
+		appInstances, err := apps.NewAppInstances([]apps.App{})
+		require.NoError(t, err)
 		listenersMap := map[string]ListenerConfig{}
 		cfg := &config.Config{Version: config.VersionLatest}
 
 		routeMap, err := extractRoutes(
 			cfg,
 			listenersMap,
-			appRegistry,
+			appInstances,
 			make(MiddlewareRegistry),
 			logger,
 		)
@@ -468,7 +443,8 @@ func TestExtractRoutes(t *testing.T) {
 	})
 
 	t.Run("error in endpoint processing", func(t *testing.T) {
-		appRegistry := NewMockAppRegistry()
+		appInstances, err := apps.NewAppInstances([]apps.App{})
+		require.NoError(t, err)
 		listenersMap := map[string]ListenerConfig{
 			"http-1": {ID: "http-1", Address: ":8080"},
 		}
@@ -502,7 +478,7 @@ func TestExtractRoutes(t *testing.T) {
 		routeMap, err := extractRoutes(
 			cfg,
 			listenersMap,
-			appRegistry,
+			appInstances,
 			make(MiddlewareRegistry),
 			logger,
 		)
@@ -514,10 +490,10 @@ func TestExtractRoutes(t *testing.T) {
 
 func TestNewAdapterWithRoutes(t *testing.T) {
 	t.Run("adapter with app collection", func(t *testing.T) {
-		// Set up app registry
-		appRegistry := NewMockAppRegistry()
+		// Set up app instances
 		testApp := mocks.NewMockApp("test-app")
-		appRegistry.RegisterApp(testApp)
+		appInstances, err := apps.NewAppInstances([]apps.App{testApp})
+		require.NoError(t, err)
 
 		// Create config with HTTP listener and endpoints
 		cfg := &config.Config{
@@ -552,9 +528,9 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 		}
 
 		provider := &MockConfigProvider{
-			config: cfg,
-			txID:   "test-tx-id",
-			appReg: appRegistry,
+			config:       cfg,
+			txID:         "test-tx-id",
+			appInstances: appInstances,
 		}
 
 		adapter, err := NewAdapter(provider, nil)
@@ -578,9 +554,9 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 		}
 
 		provider := &MockConfigProvider{
-			config: cfg,
-			txID:   "test-tx-id",
-			appReg: nil,
+			config:       cfg,
+			txID:         "test-tx-id",
+			appInstances: nil,
 		}
 
 		adapter, err := NewAdapter(provider, nil)
@@ -591,7 +567,8 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 	})
 
 	t.Run("error extracting routes", func(t *testing.T) {
-		appRegistry := NewMockAppRegistry()
+		appInstances, err := apps.NewAppInstances([]apps.App{})
+		require.NoError(t, err)
 		cfg := &config.Config{
 			Version: config.VersionLatest,
 			Listeners: listeners.ListenerCollection{
@@ -619,9 +596,9 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 		}
 
 		provider := &MockConfigProvider{
-			config: cfg,
-			txID:   "test-tx-id",
-			appReg: appRegistry,
+			config:       cfg,
+			txID:         "test-tx-id",
+			appInstances: appInstances,
 		}
 
 		adapter, err := NewAdapter(provider, nil)
@@ -635,11 +612,11 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 	t.Parallel()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	appRegistry := NewMockAppRegistry()
 
-	// Register a mock app that returns an error
+	// Create app instances with a mock app that returns an error
 	errorApp := mocks.NewMockApp("error-app")
-	appRegistry.RegisterApp(errorApp)
+	appInstances, err := apps.NewAppInstances([]apps.App{errorApp})
+	require.NoError(t, err)
 
 	endpoint := &endpoints.Endpoint{
 		ID:         "test-endpoint",
@@ -658,7 +635,7 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 	routes, err := extractEndpointRoutes(
 		endpoint,
 		"http-1",
-		appRegistry,
+		appInstances,
 		make(MiddlewareRegistry),
 		logger,
 	)
@@ -683,10 +660,10 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 	t.Parallel()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	appRegistry := NewMockAppRegistry()
 
 	testApp := mocks.NewMockApp("test-app")
-	appRegistry.RegisterApp(testApp)
+	appInstances, err := apps.NewAppInstances([]apps.App{testApp})
+	require.NoError(t, err)
 
 	staticData := map[string]any{
 		"version":  "1.0",
@@ -712,7 +689,7 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 	routes, err := extractEndpointRoutes(
 		endpoint,
 		"http-1",
-		appRegistry,
+		appInstances,
 		make(MiddlewareRegistry),
 		logger,
 	)

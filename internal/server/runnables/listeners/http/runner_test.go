@@ -3,16 +3,12 @@ package http
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,45 +19,24 @@ func mockConfig() *config.Config {
 	}
 }
 
-// createTestRegistry creates a mock registry with one app for testing
-func createTestRegistry(t *testing.T) *mocks.MockRegistry {
+// setupAppsInTransaction runs validation to create apps in the transaction
+// This uses the normal validation flow instead of reflection
+func setupAppsInTransaction(t *testing.T, tx *transaction.ConfigTransaction) {
 	t.Helper()
-	registry := mocks.NewMockRegistry()
-	mockApp := mocks.NewMockApp("test-app")
-	mockApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-	registry.On("GetApp", mock.Anything).Return(mockApp, true)
-
-	return registry
+	// Run validation which creates the app instances
+	err := tx.RunValidation()
+	require.NoError(t, err, "Failed to run validation to set up apps")
 }
 
-// Helper to manually set the app collection field in the transaction using reflection
-// This is only for testing purposes - we wouldn't do this in production code
-func setAppCollection(t *testing.T, tx *transaction.ConfigTransaction, collection apps.AppLookup) {
-	t.Helper()
-	// Use reflection to set the private field
-	txValue := reflect.ValueOf(tx).Elem()
-	collectionField := txValue.FieldByName("appCollection")
-
-	// Create a new reflect.Value from our collection
-	collectionValue := reflect.ValueOf(collection)
-
-	// Check if the field is valid and can be set
-	if collectionField.IsValid() && collectionField.CanSet() {
-		collectionField.Set(collectionValue)
-	}
-}
-
-// createMockTransaction creates a test transaction with a mock app registry
+// createMockTransaction creates a test transaction with apps set up
 func createMockTransaction(t *testing.T) *transaction.ConfigTransaction {
 	t.Helper()
 	cfg := mockConfig()
 	tx, err := transaction.FromTest(t.Name(), cfg, nil)
 	require.NoError(t, err)
 
-	// Create and set a mock registry using reflection
-	registry := createTestRegistry(t)
-	setAppCollection(t, tx, registry)
+	// Set up apps using normal validation flow
+	setupAppsInTransaction(t, tx)
 
 	return tx
 }
