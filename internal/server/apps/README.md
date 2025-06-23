@@ -15,7 +15,7 @@ This package handles:
 
 - **factory.go**: Creates app instances from domain configurations
 - **instances.go**: Registry for managing app instances by ID
-- **interfaces.go**: Common interfaces for all app types
+- **app.go**: Common App interface definition
 - **instantiators.go**: Type-specific app creation logic
 - **echo/**: Echo app implementation
 
@@ -27,16 +27,6 @@ Currently implemented:
 Future implementations:
 - **ScriptApp**: Executes scripts (Risor, Starlark, WebAssembly)
 - **CompositeApp**: Chains multiple script apps
-
-## App Interface
-
-All apps implement:
-```go
-type App interface {
-    ID() string
-    Process(ctx context.Context, request any) (any, error)
-}
-```
 
 ## Integration
 
