@@ -24,11 +24,18 @@
 package headers
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/headers"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	supervisorHeaders "github.com/robbyt/go-supervisor/runnables/httpserver/middleware/headers"
+)
+
+// Sentinel errors for headers middleware.
+var (
+	ErrNilConfig     = errors.New("headers config cannot be nil")
+	ErrInvalidConfig = errors.New("invalid headers config")
 )
 
 // HeadersMiddleware is a middleware implementation that manipulates HTTP request and response headers.
@@ -40,11 +47,11 @@ type HeadersMiddleware struct {
 // NewHeadersMiddleware creates a new HeadersMiddleware instance.
 func NewHeadersMiddleware(id string, cfg *headers.Headers) (*HeadersMiddleware, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("headers config cannot be nil")
+		return nil, ErrNilConfig
 	}
 
 	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid headers config: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrInvalidConfig, err)
 	}
 
 	// Build operations for go-supervisor headers middleware
