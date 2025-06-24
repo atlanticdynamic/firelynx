@@ -1,6 +1,5 @@
 # Headers Middleware Example Configuration
-# This example demonstrates how to configure the headers middleware to manipulate
-# both request and response headers in firelynx.
+# Demonstrates how to use the headers middleware for adding/removing request or response headers.
 
 version = "v1"
 
@@ -17,35 +16,6 @@ write_timeout = "30s"
 id = "main"
 listener_id = "http"
 
-# Security Headers Middleware - Add security headers to responses
-[[endpoints.middlewares]]
-id = "security-headers"
-type = "headers"
-
-[endpoints.middlewares.headers.response]
-# Remove headers that might expose server information
-remove_headers = ["Server", "X-Powered-By"]
-
-[endpoints.middlewares.headers.response.set_headers]
-# Security headers to protect against common vulnerabilities
-"X-Content-Type-Options" = "nosniff"
-"X-Frame-Options" = "DENY"
-"X-XSS-Protection" = "1; mode=block"
-"Referrer-Policy" = "strict-origin-when-cross-origin"
-
-# Request Header Normalization Middleware - Clean up request headers
-[[endpoints.middlewares]]
-id = "request-cleaner"
-type = "headers"
-
-[endpoints.middlewares.headers.request]
-# Remove potentially problematic proxy headers
-remove_headers = ["X-Forwarded-For", "X-Real-IP"]
-
-[endpoints.middlewares.headers.request.set_headers]
-# Set a consistent client identification header
-"X-Client-Source" = "firelynx"
-
 [[endpoints.routes]]
 app_id = "echo"
 [endpoints.routes.http]
@@ -55,3 +25,29 @@ path_prefix = "/"
 id = "echo"
 [apps.echo]
 response = "Hello from firelynx with headers middleware!"
+
+[[endpoints.middlewares]]
+id = "header-cleanup"
+type = "headers" # must be "headers" to enable this middleware
+
+[endpoints.middlewares.headers.request]
+remove_headers = ["User-Agent"]
+add_headers = {"X-Request-Source" = "firelynx"}
+
+# Configure the header middleware on the main endpoint to remove these from the response
+[endpoints.middlewares.headers.response]
+remove_headers = ["Server", "X-Powered-By"]
+
+# This will replace all other response headers with the specified headers
+# set_headers = {"X-Server" = "nosniff"}
+
+# This will append the X-Server header to the response headers
+# add_headers = {"X-Server" = "firelynx"}
+
+# This will append multiple headers to the response
+[endpoints.middlewares.headers.response.add_headers]
+"X-Server" = "firelynx"
+"X-Content-Type-Options" = "nosniff"
+"X-Frame-Options" = "DENY"
+"X-XSS-Protection" = "1; mode=block"
+"Referrer-Policy" = "strict-origin-when-cross-origin"
