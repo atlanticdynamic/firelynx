@@ -135,6 +135,51 @@ func TestHeadersMiddleware_ResponseHeaders(t *testing.T) {
 		assert.Equal(t, "v2.1", rec.Header().Get("X-API-Version"))
 	})
 
+	t.Run("set headers preserves unrelated headers", func(t *testing.T) {
+		cfg := &headers.Headers{
+			Response: &headers.HeaderOperations{
+				SetHeaders: map[string]string{
+					"X-Custom-Header": "custom-value",
+					"Cache-Control":   "max-age=3600",
+				},
+			},
+		}
+
+		middleware, err := NewHeadersMiddleware("test", cfg)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/test", nil)
+		rec := httptest.NewRecorder()
+
+		// Pre-set various unrelated headers that should NOT be removed
+		rec.Header().Set("Content-Type", "text/plain")
+		rec.Header().Set("X-Request-ID", "123-456-789")
+		rec.Header().Set("Authorization", "Bearer token123")
+		rec.Header().Set("Accept-Encoding", "gzip")
+		rec.Header().Set("User-Agent", "Test/1.0")
+
+		route, err := httpserver.NewRouteFromHandlerFunc("test", "/test",
+			func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("response"))
+				assert.NoError(t, err)
+			}, middleware.Middleware())
+		require.NoError(t, err)
+
+		route.ServeHTTP(rec, req)
+
+		// Verify that set headers are present
+		assert.Equal(t, "custom-value", rec.Header().Get("X-Custom-Header"))
+		assert.Equal(t, "max-age=3600", rec.Header().Get("Cache-Control"))
+
+		// Verify that unrelated headers were NOT deleted
+		assert.Equal(t, "text/plain", rec.Header().Get("Content-Type"))
+		assert.Equal(t, "123-456-789", rec.Header().Get("X-Request-ID"))
+		assert.Equal(t, "Bearer token123", rec.Header().Get("Authorization"))
+		assert.Equal(t, "gzip", rec.Header().Get("Accept-Encoding"))
+		assert.Equal(t, "Test/1.0", rec.Header().Get("User-Agent"))
+	})
+
 	t.Run("add headers only", func(t *testing.T) {
 		cfg := &headers.Headers{
 			Response: &headers.HeaderOperations{

@@ -26,11 +26,21 @@ package headers
 import (
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/headers"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	supervisorHeaders "github.com/robbyt/go-supervisor/runnables/httpserver/middleware/headers"
 )
+
+// convertToHTTPHeader converts map[string]string to http.Header
+func convertToHTTPHeader(headers map[string]string) http.Header {
+	h := make(http.Header)
+	for key, value := range headers {
+		h.Set(key, value)
+	}
+	return h
+}
 
 // Sentinel errors for headers middleware.
 var (
@@ -70,7 +80,7 @@ func NewHeadersMiddleware(id string, cfg *headers.Headers) (*HeadersMiddleware, 
 			operations = append(
 				operations,
 				supervisorHeaders.WithSetRequest(
-					supervisorHeaders.HeaderMap(cfg.Request.SetHeaders),
+					convertToHTTPHeader(cfg.Request.SetHeaders),
 				),
 			)
 		}
@@ -79,7 +89,7 @@ func NewHeadersMiddleware(id string, cfg *headers.Headers) (*HeadersMiddleware, 
 			operations = append(
 				operations,
 				supervisorHeaders.WithAddRequest(
-					supervisorHeaders.HeaderMap(cfg.Request.AddHeaders),
+					convertToHTTPHeader(cfg.Request.AddHeaders),
 				),
 			)
 		}
@@ -97,14 +107,14 @@ func NewHeadersMiddleware(id string, cfg *headers.Headers) (*HeadersMiddleware, 
 		if len(cfg.Response.SetHeaders) > 0 {
 			operations = append(
 				operations,
-				supervisorHeaders.WithSet(supervisorHeaders.HeaderMap(cfg.Response.SetHeaders)),
+				supervisorHeaders.WithSet(convertToHTTPHeader(cfg.Response.SetHeaders)),
 			)
 		}
 
 		if len(cfg.Response.AddHeaders) > 0 {
 			operations = append(
 				operations,
-				supervisorHeaders.WithAdd(supervisorHeaders.HeaderMap(cfg.Response.AddHeaders)),
+				supervisorHeaders.WithAdd(convertToHTTPHeader(cfg.Response.AddHeaders)),
 			)
 		}
 	}
