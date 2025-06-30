@@ -12,8 +12,6 @@ func TestHeaders_ToProto(t *testing.T) {
 	t.Parallel()
 
 	t.Run("empty configuration", func(t *testing.T) {
-		t.Parallel()
-
 		headers := NewHeaders()
 		proto := headers.ToProto()
 
@@ -25,8 +23,6 @@ func TestHeaders_ToProto(t *testing.T) {
 	})
 
 	t.Run("request operations only", func(t *testing.T) {
-		t.Parallel()
-
 		headers := &Headers{
 			Request: &HeaderOperations{
 				SetHeaders: map[string]string{
@@ -40,7 +36,6 @@ func TestHeaders_ToProto(t *testing.T) {
 		pbConfig, ok := proto.(*pb.HeadersConfig)
 		require.True(t, ok, "ToProto should return *pb.HeadersConfig")
 
-		// Check request operations
 		require.NotNil(t, pbConfig.Request)
 		assert.Len(t, pbConfig.Request.SetHeaders, 1)
 		assert.Equal(t, "127.0.0.1", pbConfig.Request.SetHeaders["X-Real-IP"])
@@ -48,13 +43,10 @@ func TestHeaders_ToProto(t *testing.T) {
 		assert.Contains(t, pbConfig.Request.RemoveHeaders, "X-Forwarded-For")
 		assert.Empty(t, pbConfig.Request.AddHeaders)
 
-		// Response should be nil
 		assert.Nil(t, pbConfig.Response)
 	})
 
 	t.Run("response operations only", func(t *testing.T) {
-		t.Parallel()
-
 		headers := &Headers{
 			Response: &HeaderOperations{
 				SetHeaders: map[string]string{
@@ -72,10 +64,8 @@ func TestHeaders_ToProto(t *testing.T) {
 		pbConfig, ok := proto.(*pb.HeadersConfig)
 		require.True(t, ok, "ToProto should return *pb.HeadersConfig")
 
-		// Request should be nil
 		assert.Nil(t, pbConfig.Request)
 
-		// Check response operations
 		require.NotNil(t, pbConfig.Response)
 		assert.Len(t, pbConfig.Response.SetHeaders, 2)
 		assert.Equal(t, "nosniff", pbConfig.Response.SetHeaders["X-Content-Type-Options"])
@@ -88,8 +78,6 @@ func TestHeaders_ToProto(t *testing.T) {
 	})
 
 	t.Run("both request and response operations", func(t *testing.T) {
-		t.Parallel()
-
 		headers := &Headers{
 			Request: &HeaderOperations{
 				SetHeaders: map[string]string{
@@ -108,12 +96,10 @@ func TestHeaders_ToProto(t *testing.T) {
 		pbConfig, ok := proto.(*pb.HeadersConfig)
 		require.True(t, ok, "ToProto should return *pb.HeadersConfig")
 
-		// Check request operations
 		require.NotNil(t, pbConfig.Request)
 		assert.Len(t, pbConfig.Request.SetHeaders, 1)
 		assert.Equal(t, "127.0.0.1", pbConfig.Request.SetHeaders["X-Real-IP"])
 
-		// Check response operations
 		require.NotNil(t, pbConfig.Response)
 		assert.Len(t, pbConfig.Response.SetHeaders, 1)
 		assert.Equal(t, "nosniff", pbConfig.Response.SetHeaders["X-Content-Type-Options"])
@@ -126,8 +112,6 @@ func TestFromProto(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil protobuf config", func(t *testing.T) {
-		t.Parallel()
-
 		headers, err := FromProto(nil)
 		assert.Error(t, err)
 		assert.Nil(t, headers)
@@ -135,8 +119,6 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("empty protobuf config", func(t *testing.T) {
-		t.Parallel()
-
 		pbConfig := &pb.HeadersConfig{}
 		headers, err := FromProto(pbConfig)
 
@@ -148,8 +130,6 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("request operations only", func(t *testing.T) {
-		t.Parallel()
-
 		pbConfig := &pb.HeadersConfig{
 			Request: &pb.HeadersConfig_HeaderOperations{
 				SetHeaders: map[string]string{
@@ -163,7 +143,6 @@ func TestFromProto(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, headers)
 
-		// Check request operations
 		require.NotNil(t, headers.Request)
 		assert.Len(t, headers.Request.SetHeaders, 1)
 		assert.Equal(t, "127.0.0.1", headers.Request.SetHeaders["X-Real-IP"])
@@ -171,13 +150,10 @@ func TestFromProto(t *testing.T) {
 		assert.Contains(t, headers.Request.RemoveHeaders, "X-Forwarded-For")
 		assert.Empty(t, headers.Request.AddHeaders)
 
-		// Response should be nil
 		assert.Nil(t, headers.Response)
 	})
 
 	t.Run("response operations only", func(t *testing.T) {
-		t.Parallel()
-
 		pbConfig := &pb.HeadersConfig{
 			Response: &pb.HeadersConfig_HeaderOperations{
 				SetHeaders: map[string]string{
@@ -195,10 +171,8 @@ func TestFromProto(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, headers)
 
-		// Request should be nil
 		assert.Nil(t, headers.Request)
 
-		// Check response operations
 		require.NotNil(t, headers.Response)
 		assert.Len(t, headers.Response.SetHeaders, 2)
 		assert.Equal(t, "nosniff", headers.Response.SetHeaders["X-Content-Type-Options"])
@@ -211,8 +185,6 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("both request and response operations", func(t *testing.T) {
-		t.Parallel()
-
 		pbConfig := &pb.HeadersConfig{
 			Request: &pb.HeadersConfig_HeaderOperations{
 				SetHeaders: map[string]string{
@@ -231,12 +203,10 @@ func TestFromProto(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, headers)
 
-		// Check request operations
 		require.NotNil(t, headers.Request)
 		assert.Len(t, headers.Request.SetHeaders, 1)
 		assert.Equal(t, "127.0.0.1", headers.Request.SetHeaders["X-Real-IP"])
 
-		// Check response operations
 		require.NotNil(t, headers.Response)
 		assert.Len(t, headers.Response.SetHeaders, 1)
 		assert.Equal(t, "nosniff", headers.Response.SetHeaders["X-Content-Type-Options"])
@@ -245,8 +215,6 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("nil operations in protobuf are handled", func(t *testing.T) {
-		t.Parallel()
-
 		pbConfig := &pb.HeadersConfig{
 			Request: &pb.HeadersConfig_HeaderOperations{
 				SetHeaders:    nil,
@@ -286,8 +254,6 @@ func TestRoundTripConversion(t *testing.T) {
 	t.Parallel()
 
 	t.Run("domain to proto to domain", func(t *testing.T) {
-		t.Parallel()
-
 		original := &Headers{
 			Request: &HeaderOperations{
 				SetHeaders: map[string]string{
@@ -310,22 +276,18 @@ func TestRoundTripConversion(t *testing.T) {
 			},
 		}
 
-		// Convert to proto
 		proto := original.ToProto()
 		pbConfig, ok := proto.(*pb.HeadersConfig)
 		require.True(t, ok)
 
-		// Convert back to domain
 		converted, err := FromProto(pbConfig)
 		require.NoError(t, err)
 
-		// Verify request operations are equivalent
 		require.NotNil(t, converted.Request)
 		assert.Equal(t, original.Request.SetHeaders, converted.Request.SetHeaders)
 		assert.Equal(t, original.Request.AddHeaders, converted.Request.AddHeaders)
 		assert.ElementsMatch(t, original.Request.RemoveHeaders, converted.Request.RemoveHeaders)
 
-		// Verify response operations are equivalent
 		require.NotNil(t, converted.Response)
 		assert.Equal(t, original.Response.SetHeaders, converted.Response.SetHeaders)
 		assert.Equal(t, original.Response.AddHeaders, converted.Response.AddHeaders)
@@ -333,20 +295,15 @@ func TestRoundTripConversion(t *testing.T) {
 	})
 
 	t.Run("empty configuration round trip", func(t *testing.T) {
-		t.Parallel()
-
 		original := NewHeaders()
 
-		// Convert to proto
 		proto := original.ToProto()
 		pbConfig, ok := proto.(*pb.HeadersConfig)
 		require.True(t, ok)
 
-		// Convert back to domain
 		converted, err := FromProto(pbConfig)
 		require.NoError(t, err)
 
-		// Verify they are equivalent
 		assert.Equal(t, original.Request, converted.Request)
 		assert.Equal(t, original.Response, converted.Response)
 	})

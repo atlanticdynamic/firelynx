@@ -39,7 +39,6 @@ type HeadersIntegrationTestSuite struct {
 }
 
 func (s *HeadersIntegrationTestSuite) SetupSuite() {
-	// Setup debug logging for better test debugging
 	logging.SetupLogger("debug")
 
 	s.ctx, s.cancel = context.WithCancel(s.T().Context())
@@ -48,14 +47,12 @@ func (s *HeadersIntegrationTestSuite) SetupSuite() {
 	s.runnerErrCh = make(chan error, 1)
 	s.client = &http.Client{Timeout: 5 * time.Second}
 
-	// Template variables
 	templateVars := struct {
 		Port int
 	}{
 		Port: s.port,
 	}
 
-	// Render the configuration template
 	tmpl, err := template.New("config").Parse(headersIntegrationTemplate)
 	s.Require().NoError(err, "Failed to parse config template")
 
@@ -66,31 +63,23 @@ func (s *HeadersIntegrationTestSuite) SetupSuite() {
 	configData := configBuffer.String()
 	s.T().Logf("Rendered config:\n%s", configData)
 
-	// Load and validate the configuration
 	cfg, err := config.NewConfigFromBytes([]byte(configData))
 	s.Require().NoError(err, "Failed to load config")
 	s.Require().NoError(cfg.Validate(), "Config validation failed")
 
-	// Create transaction storage
 	txStore := txstorage.NewMemoryStorage()
-
-	// Create saga orchestrator
 	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
 
-	// Create HTTP runner
 	s.httpRunner, err = httplistener.NewRunner()
 	s.Require().NoError(err)
 
-	// Register HTTP runner with orchestrator
 	err = s.saga.RegisterParticipant(s.httpRunner)
 	s.Require().NoError(err)
 
-	// Start the HTTP runner
 	go func() {
 		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
 	}()
 
-	// Wait for runner to start with error checking
 	s.Require().Eventually(func() bool {
 		select {
 		case err := <-s.runnerErrCh:
@@ -101,22 +90,17 @@ func (s *HeadersIntegrationTestSuite) SetupSuite() {
 		}
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
-	// Create a config transaction
 	tx, err := transaction.FromTest(s.T().Name(), cfg, nil)
 	s.Require().NoError(err)
 
-	// Validate the transaction
 	err = tx.RunValidation()
 	s.Require().NoError(err)
 
-	// Process the transaction through the orchestrator
 	err = s.saga.ProcessTransaction(s.ctx, tx)
 	s.Require().NoError(err)
 
-	// Verify the transaction completed successfully
 	s.Require().Equal("completed", tx.GetState())
 
-	// Wait for the server to be fully ready
 	s.Require().Eventually(func() bool {
 		resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/no-headers", s.port))
 		if err != nil {
@@ -128,21 +112,17 @@ func (s *HeadersIntegrationTestSuite) SetupSuite() {
 }
 
 func (s *HeadersIntegrationTestSuite) TearDownSuite() {
-	// Cancel context to signal shutdown
 	if s.cancel != nil {
 		s.cancel()
 	}
 
-	// Stop HTTP runner if it exists
 	if s.httpRunner != nil {
 		s.httpRunner.Stop()
 
-		// Wait for runner to stop
 		s.Require().Eventually(func() bool {
 			return !s.httpRunner.IsRunning()
 		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
 
-		// Wait for background goroutine to complete
 		select {
 		case err := <-s.runnerErrCh:
 			if err != nil && err != context.Canceled {
@@ -161,7 +141,6 @@ func (s *HeadersIntegrationTestSuite) TestSetHeaders() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify headers were set by middleware
 	s.Equal("v2.1", resp.Header.Get("X-API-Version"), "X-API-Version should be set by middleware")
 	s.Equal(
 		"no-cache",
@@ -169,8 +148,6 @@ func (s *HeadersIntegrationTestSuite) TestSetHeaders() {
 		"Cache-Control should be set by middleware",
 	)
 
-	// Content-Type is overwritten by the echo app after middleware runs
-	// This is expected behavior - apps can override middleware headers
 	s.Equal(
 		"text/plain; charset=utf-8",
 		resp.Header.Get("Content-Type"),
@@ -187,7 +164,6 @@ func (s *HeadersIntegrationTestSuite) TestAddHeaders() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify headers were added
 	s.Equal("session=abc123; Path=/", resp.Header.Get("Set-Cookie"), "Set-Cookie should be added")
 	s.Equal("custom-value", resp.Header.Get("X-Custom-Header"), "X-Custom-Header should be added")
 
@@ -201,7 +177,6 @@ func (s *HeadersIntegrationTestSuite) TestRemoveHeaders() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify headers were removed
 	s.Empty(resp.Header.Get("Server"), "Server header should be removed")
 	s.Empty(resp.Header.Get("X-Powered-By"), "X-Powered-By header should be removed")
 	s.Empty(resp.Header.Get("X-AspNet-Version"), "X-AspNet-Version header should be removed")
@@ -216,11 +191,9 @@ func (s *HeadersIntegrationTestSuite) TestCombinedOperations() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify removed headers are gone
 	s.Empty(resp.Header.Get("Server"), "Server header should be removed")
 	s.Empty(resp.Header.Get("X-Powered-By"), "X-Powered-By header should be removed")
 
-	// Verify set headers
 	s.Equal(
 		"nosniff",
 		resp.Header.Get("X-Content-Type-Options"),
@@ -228,7 +201,6 @@ func (s *HeadersIntegrationTestSuite) TestCombinedOperations() {
 	)
 	s.Equal("DENY", resp.Header.Get("X-Frame-Options"), "X-Frame-Options should be set")
 
-	// Verify added headers
 	s.Equal("secure=true; HttpOnly", resp.Header.Get("Set-Cookie"), "Set-Cookie should be added")
 
 	s.T().Logf("Combined operations response headers: %+v", resp.Header)
@@ -241,7 +213,6 @@ func (s *HeadersIntegrationTestSuite) TestSecurityHeaders() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify security headers are set
 	s.Equal(
 		"nosniff",
 		resp.Header.Get("X-Content-Type-Options"),
@@ -260,7 +231,6 @@ func (s *HeadersIntegrationTestSuite) TestSecurityHeaders() {
 		"Referrer-Policy should be set",
 	)
 
-	// Verify removed headers
 	s.Empty(resp.Header.Get("Server"), "Server header should be removed")
 	s.Empty(resp.Header.Get("X-Powered-By"), "X-Powered-By header should be removed")
 
@@ -274,7 +244,6 @@ func (s *HeadersIntegrationTestSuite) TestCORSHeaders() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify CORS headers are set
 	s.Equal("*", resp.Header.Get("Access-Control-Allow-Origin"), "CORS origin should be set")
 	s.Equal(
 		"GET,POST,PUT,DELETE",
@@ -297,7 +266,6 @@ func (s *HeadersIntegrationTestSuite) TestMultipleCookies() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify multiple Set-Cookie headers can be added
 	s.Equal("session=abc123; Path=/", resp.Header.Get("Set-Cookie"), "Set-Cookie should be added")
 
 	s.T().Logf("Multiple cookies response headers: %+v", resp.Header)
@@ -310,7 +278,6 @@ func (s *HeadersIntegrationTestSuite) TestHeaderOverwrite() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify middleware sets headers, but echo app overwrites Content-Type
 	s.Equal(
 		"text/plain; charset=utf-8",
 		resp.Header.Get("Content-Type"),
@@ -332,18 +299,13 @@ func (s *HeadersIntegrationTestSuite) TestNoHeadersControlGroup() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
-	// Verify no special headers are set (this is our control group)
-	// Should only have basic headers that go-supervisor sets by default
 	s.T().Logf("No headers control group response headers: %+v", resp.Header)
 }
 
 func (s *HeadersIntegrationTestSuite) TestRequestHeaders() {
-	// Test that the middleware doesn't interfere with request processing
-	// by sending custom request headers and verifying the app still functions
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://127.0.0.1:%d/set-headers", s.port), nil)
 	s.Require().NoError(err, "Failed to create request")
 
-	// Add some request headers
 	req.Header.Set("X-Test-Header", "test-value")
 	req.Header.Set("Authorization", "Bearer test-token")
 	req.Header.Set("User-Agent", "HeadersIntegrationTest/1.0")
@@ -354,7 +316,6 @@ func (s *HeadersIntegrationTestSuite) TestRequestHeaders() {
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Request should succeed with custom headers")
 
-	// Verify response headers are still set by middleware (except Content-Type which is overwritten by echo app)
 	s.Equal(
 		"text/plain; charset=utf-8",
 		resp.Header.Get("Content-Type"),
