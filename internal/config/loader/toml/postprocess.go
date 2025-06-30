@@ -208,6 +208,9 @@ func processMiddlewares(config *pbSettings.ServerConfig, configMap map[string]an
 						case "console_logger":
 							errs := processConsoleLoggerConfig(middleware, middlewareMap)
 							errList = append(errList, errs...)
+						case "headers":
+							// Headers middleware doesn't need special post-processing
+							// as it uses simple map[string]string and []string types
 						default:
 							errList = append(
 								errList,
@@ -234,6 +237,8 @@ func processMiddlewareType(middleware *pbMiddleware.Middleware, typeVal string) 
 	switch typeVal {
 	case "console_logger":
 		middlewareType = pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER
+	case "headers":
+		middlewareType = pbMiddleware.Middleware_TYPE_HEADERS
 	default:
 		middlewareType = pbMiddleware.Middleware_TYPE_UNSPECIFIED
 		errList = append(errList, fmt.Errorf("unsupported middleware type: %s", typeVal))

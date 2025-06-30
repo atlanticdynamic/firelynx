@@ -1,0 +1,53 @@
+# Headers Middleware Example Configuration
+# Demonstrates how to use the headers middleware for adding/removing request or response headers.
+
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.routes]]
+app_id = "echo"
+[endpoints.routes.http]
+path_prefix = "/"
+
+[[apps]]
+id = "echo"
+[apps.echo]
+response = "Hello from firelynx with headers middleware!"
+
+[[endpoints.middlewares]]
+id = "header-cleanup"
+type = "headers" # must be "headers" to enable this middleware
+
+[endpoints.middlewares.headers.request]
+remove_headers = ["User-Agent"]
+add_headers = {"X-Request-Source" = "firelynx"}
+
+# Configure the header middleware on the main endpoint to remove these from the response
+[endpoints.middlewares.headers.response]
+remove_headers = ["Server", "X-Powered-By"]
+
+# This will replace all other response headers with the specified headers
+# set_headers = {"X-Server" = "nosniff"}
+
+# This will append the X-Server header to the response headers
+# add_headers = {"X-Server" = "firelynx"}
+
+# This will append multiple headers to the response
+[endpoints.middlewares.headers.response.add_headers]
+"X-Server" = "firelynx"
+"X-Content-Type-Options" = "nosniff"
+"X-Frame-Options" = "DENY"
+"X-XSS-Protection" = "1; mode=block"
+"Referrer-Policy" = "strict-origin-when-cross-origin"

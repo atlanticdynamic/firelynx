@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
+	configHeaders "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/headers"
 	configLogger "github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
+	httpHeaders "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware/headers"
 	httpLogger "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware/logger"
 )
 
@@ -51,6 +53,7 @@ func NewMiddlewareFactory() *MiddlewareFactory {
 	return &MiddlewareFactory{
 		creators: map[string]MiddlewareInstantiator{
 			"console_logger": createConsoleLogger,
+			"headers":        createHeaders,
 		},
 	}
 }
@@ -105,6 +108,15 @@ func createConsoleLogger(id string, config any) (httpMiddleware.Instance, error)
 		return nil, fmt.Errorf("expected *configLogger.ConsoleLogger, got %T", config)
 	}
 	return httpLogger.NewConsoleLogger(id, consoleConfig)
+}
+
+// createHeaders creates headers middleware instances
+func createHeaders(id string, config any) (httpMiddleware.Instance, error) {
+	headersConfig, ok := config.(*configHeaders.Headers)
+	if !ok {
+		return nil, fmt.Errorf("expected *configHeaders.Headers, got %T", config)
+	}
+	return httpHeaders.NewHeadersMiddleware(id, headersConfig)
 }
 
 // MiddlewareCollection manages a collection of middleware instances organized by type and ID.

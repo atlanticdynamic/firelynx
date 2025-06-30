@@ -29,6 +29,12 @@ func TestProcessMiddlewareType(t *testing.T) {
 			expectError:  false,
 		},
 		{
+			name:         "Headers Middleware Type",
+			typeStr:      "headers",
+			expectedType: pbMiddleware.Middleware_TYPE_HEADERS,
+			expectError:  false,
+		},
+		{
 			name:           "Unsupported Middleware Type",
 			typeStr:        "rate_limiter",
 			expectedType:   pbMiddleware.Middleware_TYPE_UNSPECIFIED,
@@ -578,5 +584,265 @@ func TestProcessMiddlewares(t *testing.T) {
 			config.Endpoints[0].Middlewares[0].GetType(),
 			"Middleware type should be UNSPECIFIED for unsupported type",
 		)
+	})
+
+	// Test headers middleware processing (no special post-processing needed)
+	t.Run("HeadersMiddleware", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Endpoints: []*pbSettings.Endpoint{
+				{
+					Id: proto.String("endpoint1"),
+					Middlewares: []*pbMiddleware.Middleware{
+						{
+							Id: proto.String("headers-middleware"),
+						},
+					},
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"id": "endpoint1",
+					"middlewares": []any{
+						map[string]any{
+							"id":   "headers-middleware",
+							"type": "headers",
+						},
+					},
+				},
+			},
+		}
+
+		errs := processMiddlewares(config, configMap)
+		assert.Empty(t, errs, "Should not error with headers middleware")
+
+		middleware := config.Endpoints[0].Middlewares[0]
+		assert.Equal(t, pbMiddleware.Middleware_TYPE_HEADERS, middleware.GetType())
+	})
+
+	// Test console logger with all preset types
+	t.Run("ConsoleLoggerPresets", func(t *testing.T) {
+		presets := []struct {
+			name     string
+			preset   string
+			expected pbMiddleware.ConsoleLoggerConfig_LogPreset
+		}{
+			{"minimal", "minimal", pbMiddleware.ConsoleLoggerConfig_PRESET_MINIMAL},
+			{"standard", "standard", pbMiddleware.ConsoleLoggerConfig_PRESET_STANDARD},
+			{"detailed", "detailed", pbMiddleware.ConsoleLoggerConfig_PRESET_DETAILED},
+			{"debug", "debug", pbMiddleware.ConsoleLoggerConfig_PRESET_DEBUG},
+		}
+
+		for _, preset := range presets {
+			t.Run(preset.name, func(t *testing.T) {
+				config := &pbSettings.ServerConfig{
+					Endpoints: []*pbSettings.Endpoint{
+						{
+							Id: proto.String("endpoint1"),
+							Middlewares: []*pbMiddleware.Middleware{
+								{
+									Id:   proto.String("logger1"),
+									Type: pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
+									Config: &pbMiddleware.Middleware_ConsoleLogger{
+										ConsoleLogger: &pbMiddleware.ConsoleLoggerConfig{},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				configMap := map[string]any{
+					"endpoints": []any{
+						map[string]any{
+							"id": "endpoint1",
+							"middlewares": []any{
+								map[string]any{
+									"id":   "logger1",
+									"type": "console_logger",
+									"console_logger": map[string]any{
+										"preset": preset.preset,
+									},
+								},
+							},
+						},
+					},
+				}
+
+				errs := processMiddlewares(config, configMap)
+				assert.Empty(t, errs, "Should not error with valid preset")
+
+				consoleLogger := config.Endpoints[0].Middlewares[0].GetConsoleLogger()
+				require.NotNil(t, consoleLogger)
+				assert.Equal(t, preset.expected, consoleLogger.GetPreset())
+			})
+		}
+	})
+
+	// Test console logger with all format and level combinations
+	t.Run("ConsoleLoggerFormatsAndLevels", func(t *testing.T) {
+		testCases := []struct {
+			format         string
+			expectedFormat pbMiddleware.LogOptionsGeneral_Format
+			level          string
+			expectedLevel  pbMiddleware.LogOptionsGeneral_Level
+		}{
+			{
+				"txt",
+				pbMiddleware.LogOptionsGeneral_FORMAT_TXT,
+				"debug",
+				pbMiddleware.LogOptionsGeneral_LEVEL_DEBUG,
+			},
+			{
+				"json",
+				pbMiddleware.LogOptionsGeneral_FORMAT_JSON,
+				"info",
+				pbMiddleware.LogOptionsGeneral_LEVEL_INFO,
+			},
+			{
+				"txt",
+				pbMiddleware.LogOptionsGeneral_FORMAT_TXT,
+				"warn",
+				pbMiddleware.LogOptionsGeneral_LEVEL_WARN,
+			},
+			{
+				"json",
+				pbMiddleware.LogOptionsGeneral_FORMAT_JSON,
+				"error",
+				pbMiddleware.LogOptionsGeneral_LEVEL_ERROR,
+			},
+			{
+				"txt",
+				pbMiddleware.LogOptionsGeneral_FORMAT_TXT,
+				"fatal",
+				pbMiddleware.LogOptionsGeneral_LEVEL_FATAL,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.format+"_"+tc.level, func(t *testing.T) {
+				config := &pbSettings.ServerConfig{
+					Endpoints: []*pbSettings.Endpoint{
+						{
+							Id: proto.String("endpoint1"),
+							Middlewares: []*pbMiddleware.Middleware{
+								{
+									Id:   proto.String("logger1"),
+									Type: pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
+									Config: &pbMiddleware.Middleware_ConsoleLogger{
+										ConsoleLogger: &pbMiddleware.ConsoleLoggerConfig{},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				configMap := map[string]any{
+					"endpoints": []any{
+						map[string]any{
+							"id": "endpoint1",
+							"middlewares": []any{
+								map[string]any{
+									"id":   "logger1",
+									"type": "console_logger",
+									"console_logger": map[string]any{
+										"options": map[string]any{
+											"format": tc.format,
+											"level":  tc.level,
+										},
+									},
+								},
+							},
+						},
+					},
+				}
+
+				errs := processMiddlewares(config, configMap)
+				assert.Empty(t, errs, "Should not error with valid format and level")
+
+				consoleLogger := config.Endpoints[0].Middlewares[0].GetConsoleLogger()
+				require.NotNil(t, consoleLogger)
+				require.NotNil(t, consoleLogger.Options)
+				assert.Equal(t, tc.expectedFormat, consoleLogger.Options.GetFormat())
+				assert.Equal(t, tc.expectedLevel, consoleLogger.Options.GetLevel())
+			})
+		}
+	})
+
+	// Test console logger error cases
+	t.Run("ConsoleLoggerErrors", func(t *testing.T) {
+		// Helper function to create config for console logger error tests
+		createErrorTestConfig := func(consoleLoggerConfig map[string]any) (*pbSettings.ServerConfig, map[string]any) {
+			config := &pbSettings.ServerConfig{
+				Endpoints: []*pbSettings.Endpoint{
+					{
+						Id: proto.String("endpoint1"),
+						Middlewares: []*pbMiddleware.Middleware{
+							{
+								Id:   proto.String("logger1"),
+								Type: pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
+								Config: &pbMiddleware.Middleware_ConsoleLogger{
+									ConsoleLogger: &pbMiddleware.ConsoleLoggerConfig{},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			configMap := map[string]any{
+				"endpoints": []any{
+					map[string]any{
+						"id": "endpoint1",
+						"middlewares": []any{
+							map[string]any{
+								"id":             "logger1",
+								"type":           "console_logger",
+								"console_logger": consoleLoggerConfig,
+							},
+						},
+					},
+				},
+			}
+
+			return config, configMap
+		}
+
+		t.Run("InvalidPreset", func(t *testing.T) {
+			config, configMap := createErrorTestConfig(map[string]any{
+				"preset": "invalid-preset",
+			})
+
+			errs := processMiddlewares(config, configMap)
+			require.Len(t, errs, 1)
+			assert.Contains(t, errs[0].Error(), "unsupported console logger preset: invalid-preset")
+		})
+
+		t.Run("InvalidFormat", func(t *testing.T) {
+			config, configMap := createErrorTestConfig(map[string]any{
+				"options": map[string]any{
+					"format": "invalid-format",
+				},
+			})
+
+			errs := processMiddlewares(config, configMap)
+			require.Len(t, errs, 1)
+			assert.Contains(t, errs[0].Error(), "unsupported console logger format: invalid-format")
+		})
+
+		t.Run("InvalidLevel", func(t *testing.T) {
+			config, configMap := createErrorTestConfig(map[string]any{
+				"options": map[string]any{
+					"level": "invalid-level",
+				},
+			})
+
+			errs := processMiddlewares(config, configMap)
+			require.Len(t, errs, 1)
+			assert.Contains(t, errs[0].Error(), "unsupported console logger level: invalid-level")
+		})
 	})
 }

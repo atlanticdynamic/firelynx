@@ -1,0 +1,218 @@
+# FireLynx Integration Test Configuration: Headers Middleware
+# Template variables: {{.Port}}
+version = "v1"
+
+# HTTP Listener Configuration
+[[listeners]]
+id = "http"
+address = "127.0.0.1:{{.Port}}"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+# Set Headers Endpoint - Replace existing headers
+[[endpoints]]
+id = "set-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "set-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.set_headers]
+"Content-Type" = "application/json"
+"X-API-Version" = "v2.1"
+"Cache-Control" = "no-cache"
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/set-headers"
+
+# Add Headers Endpoint - Append to existing headers
+[[endpoints]]
+id = "add-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "add-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.add_headers]
+"Set-Cookie" = "session=abc123; Path=/"
+"X-Custom-Header" = "custom-value"
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/add-headers"
+
+# Remove Headers Endpoint - Delete server headers
+[[endpoints]]
+id = "remove-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "remove-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+remove_headers = ["Server", "X-Powered-By", "X-AspNet-Version"]
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/remove-headers"
+
+# Combined Operations Endpoint - Remove → Set → Add
+[[endpoints]]
+id = "combined-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "combined-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+remove_headers = ["Server", "X-Powered-By"]
+[endpoints.middlewares.headers.response.set_headers]
+"X-Content-Type-Options" = "nosniff"
+"X-Frame-Options" = "DENY"
+[endpoints.middlewares.headers.response.add_headers]
+"Set-Cookie" = "secure=true; HttpOnly"
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/combined-headers"
+
+# Security Headers Endpoint - Common security patterns
+[[endpoints]]
+id = "security-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "security-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+remove_headers = ["Server", "X-Powered-By"]
+[endpoints.middlewares.headers.response.set_headers]
+"X-Content-Type-Options" = "nosniff"
+"X-Frame-Options" = "DENY"
+"X-XSS-Protection" = "1; mode=block"
+"Strict-Transport-Security" = "max-age=31536000; includeSubDomains"
+"Referrer-Policy" = "strict-origin-when-cross-origin"
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/security"
+
+# CORS Headers Endpoint - Cross-origin resource sharing
+[[endpoints]]
+id = "cors-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "cors-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.set_headers]
+"Access-Control-Allow-Origin" = "*"
+"Access-Control-Allow-Methods" = "GET,POST,PUT,DELETE"
+"Access-Control-Allow-Headers" = "Content-Type,Authorization"
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/cors"
+
+# Multiple Set-Cookie Headers Endpoint
+[[endpoints]]
+id = "multiple-cookies"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "multiple-cookies-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.add_headers]
+"Set-Cookie" = "session=abc123; Path=/"
+
+[[endpoints.routes]]
+app_id = "cookie-app"
+[endpoints.routes.http]
+path_prefix = "/multiple-cookies"
+
+# Header Overwrite Test - Middleware should override app headers
+[[endpoints]]
+id = "overwrite-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "overwrite-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+[endpoints.middlewares.headers.response.set_headers]
+"Content-Type" = "application/json"
+"X-Override" = "middleware-value"
+
+[[endpoints.routes]]
+app_id = "content-type-app"
+[endpoints.routes.http]
+path_prefix = "/overwrite"
+
+# Request Headers Test - Manipulate request headers
+[[endpoints]]
+id = "request-headers"
+listener_id = "http"
+
+[[endpoints.middlewares]]
+id = "request-headers-mw"
+type = "headers"
+
+[endpoints.middlewares.headers.request]
+remove_headers = ["X-Forwarded-For"]
+[endpoints.middlewares.headers.request.set_headers]
+"X-Real-IP" = "127.0.0.1"
+[endpoints.middlewares.headers.request.add_headers]
+"X-Request-ID" = "test-request-id"
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/request-headers"
+
+# No Headers Endpoint - Control group with no headers middleware
+[[endpoints]]
+id = "no-headers"
+listener_id = "http"
+
+[[endpoints.routes]]
+app_id = "echo-app"
+[endpoints.routes.http]
+path_prefix = "/no-headers"
+
+# Application Definitions
+[[apps]]
+id = "echo-app"
+[apps.echo]
+response = "Headers Test Response"
+
+[[apps]]
+id = "cookie-app"
+[apps.echo]
+response = "Cookie Test Response"
+
+[[apps]]
+id = "content-type-app"
+[apps.echo]
+response = "Override Test Response"
