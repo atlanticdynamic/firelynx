@@ -87,9 +87,9 @@ remove_headers = ["X-Forwarded-For"]
 ```toml
 [endpoints.middlewares.headers.response.add_headers]
 "Set-Cookie" = "session=abc123; Path=/; HttpOnly"
-# Note: Multiple cookies require separate middleware instances
-# or app-level cookie setting for additional cookies
 ```
+
+The `add_headers` operation appends to existing headers (for any header type). If your application or other middleware already sets headers, this middleware adds additional values without replacing them.
 
 ### CORS Headers
 ```toml
