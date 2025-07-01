@@ -1,9 +1,13 @@
+//nolint:dupl
 package evaluators
 
 import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/robbyt/go-polyscript/engines/starlark/evaluator"
+	"github.com/robbyt/go-polyscript/platform"
 )
 
 var _ Evaluator = (*StarlarkEvaluator)(nil)
@@ -16,6 +20,9 @@ type StarlarkEvaluator struct {
 	URI string
 	// Timeout is the maximum execution time allowed for the script.
 	Timeout time.Duration
+
+	// compiledEvaluator stores the concrete Starlark evaluator after compilation
+	compiledEvaluator *evaluator.Evaluator
 }
 
 // Type returns the type of this evaluator.
@@ -46,4 +53,9 @@ func (s *StarlarkEvaluator) Validate() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// GetCompiledEvaluator returns the abstract platform.Evaluator interface.
+func (s *StarlarkEvaluator) GetCompiledEvaluator() platform.Evaluator {
+	return s.compiledEvaluator
 }

@@ -3,6 +3,8 @@ package evaluators
 
 import (
 	"fmt"
+
+	"github.com/robbyt/go-polyscript/platform"
 )
 
 type EvaluatorType int
@@ -19,6 +21,7 @@ const (
 type Evaluator interface {
 	Type() EvaluatorType
 	Validate() error
+	GetCompiledEvaluator() platform.Evaluator
 }
 
 // String returns a string representation of the EvaluatorType.

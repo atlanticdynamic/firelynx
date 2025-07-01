@@ -88,3 +88,23 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrEmptyEntrypoint))
 	})
 }
+
+func TestExtismEvaluator_GetCompiledEvaluator(t *testing.T) {
+	t.Run("nil evaluator", func(t *testing.T) {
+		evaluator := &ExtismEvaluator{}
+		result := evaluator.GetCompiledEvaluator()
+		assert.Nil(t, result)
+	})
+
+	t.Run("non-nil evaluator", func(t *testing.T) {
+		evaluator := &ExtismEvaluator{}
+		result := evaluator.GetCompiledEvaluator()
+		assert.Nil(t, result)
+
+		// TODO: Add test for compiled evaluator when Phase 2.1 is implemented
+		// Test should verify:
+		// 1. After calling enhanced Validate() with valid WASM module, GetCompiledEvaluator() returns non-nil platform.Evaluator
+		// 2. After calling enhanced Validate() with invalid WASM module, Validate() returns error and GetCompiledEvaluator() returns nil
+		// 3. The returned evaluator can execute simple Extism/WASM modules (integration test with go-polyscript)
+	})
+}

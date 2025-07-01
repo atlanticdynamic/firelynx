@@ -1,9 +1,13 @@
+//nolint:dupl
 package evaluators
 
 import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/robbyt/go-polyscript/engines/risor/evaluator"
+	"github.com/robbyt/go-polyscript/platform"
 )
 
 var _ Evaluator = (*RisorEvaluator)(nil)
@@ -16,6 +20,9 @@ type RisorEvaluator struct {
 	URI string
 	// Timeout is the maximum execution time allowed for the script.
 	Timeout time.Duration
+
+	// compiledEvaluator stores the concrete Risor evaluator after compilation
+	compiledEvaluator *evaluator.Evaluator
 }
 
 // Type returns the type of this evaluator.
@@ -46,4 +53,9 @@ func (r *RisorEvaluator) Validate() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// GetCompiledEvaluator returns the abstract platform.Evaluator interface.
+func (r *RisorEvaluator) GetCompiledEvaluator() platform.Evaluator {
+	return r.compiledEvaluator
 }

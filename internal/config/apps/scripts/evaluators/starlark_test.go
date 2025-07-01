@@ -90,3 +90,23 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		assert.True(t, errors.Is(err, ErrNegativeTimeout))
 	})
 }
+
+func TestStarlarkEvaluator_GetCompiledEvaluator(t *testing.T) {
+	t.Run("nil evaluator", func(t *testing.T) {
+		evaluator := &StarlarkEvaluator{}
+		result := evaluator.GetCompiledEvaluator()
+		assert.Nil(t, result)
+	})
+
+	t.Run("non-nil evaluator", func(t *testing.T) {
+		evaluator := &StarlarkEvaluator{}
+		result := evaluator.GetCompiledEvaluator()
+		assert.Nil(t, result)
+
+		// TODO: Add test for compiled evaluator when Phase 2.1 is implemented
+		// Test should verify:
+		// 1. After calling enhanced Validate() with valid Starlark code, GetCompiledEvaluator() returns non-nil platform.Evaluator
+		// 2. After calling enhanced Validate() with invalid Starlark code, Validate() returns error and GetCompiledEvaluator() returns nil
+		// 3. The returned evaluator can execute simple Starlark scripts (integration test with go-polyscript)
+	})
+}
