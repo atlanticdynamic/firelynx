@@ -304,9 +304,13 @@ func (*ScriptApp_Starlark) isScriptApp_Evaluator() {}
 func (*ScriptApp_Extism) isScriptApp_Evaluator() {}
 
 type RisorEvaluator struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          *string                `protobuf:"bytes,1,opt,name=code" json:"code,omitempty"`
-	Timeout       *durationpb.Duration   `protobuf:"bytes,2,opt,name=timeout" json:"timeout,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Source:
+	//
+	//	*RisorEvaluator_Code
+	//	*RisorEvaluator_Uri
+	Source        isRisorEvaluator_Source `protobuf_oneof:"source"`
+	Timeout       *durationpb.Duration    `protobuf:"bytes,3,opt,name=timeout" json:"timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -341,9 +345,27 @@ func (*RisorEvaluator) Descriptor() ([]byte, []int) {
 	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{2}
 }
 
+func (x *RisorEvaluator) GetSource() isRisorEvaluator_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
 func (x *RisorEvaluator) GetCode() string {
-	if x != nil && x.Code != nil {
-		return *x.Code
+	if x != nil {
+		if x, ok := x.Source.(*RisorEvaluator_Code); ok {
+			return x.Code
+		}
+	}
+	return ""
+}
+
+func (x *RisorEvaluator) GetUri() string {
+	if x != nil {
+		if x, ok := x.Source.(*RisorEvaluator_Uri); ok {
+			return x.Uri
+		}
 	}
 	return ""
 }
@@ -355,10 +377,30 @@ func (x *RisorEvaluator) GetTimeout() *durationpb.Duration {
 	return nil
 }
 
+type isRisorEvaluator_Source interface {
+	isRisorEvaluator_Source()
+}
+
+type RisorEvaluator_Code struct {
+	Code string `protobuf:"bytes,1,opt,name=code,oneof"`
+}
+
+type RisorEvaluator_Uri struct {
+	Uri string `protobuf:"bytes,2,opt,name=uri,oneof"`
+}
+
+func (*RisorEvaluator_Code) isRisorEvaluator_Source() {}
+
+func (*RisorEvaluator_Uri) isRisorEvaluator_Source() {}
+
 type StarlarkEvaluator struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          *string                `protobuf:"bytes,1,opt,name=code" json:"code,omitempty"`
-	Timeout       *durationpb.Duration   `protobuf:"bytes,2,opt,name=timeout" json:"timeout,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Source:
+	//
+	//	*StarlarkEvaluator_Code
+	//	*StarlarkEvaluator_Uri
+	Source        isStarlarkEvaluator_Source `protobuf_oneof:"source"`
+	Timeout       *durationpb.Duration       `protobuf:"bytes,3,opt,name=timeout" json:"timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -393,9 +435,27 @@ func (*StarlarkEvaluator) Descriptor() ([]byte, []int) {
 	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{3}
 }
 
+func (x *StarlarkEvaluator) GetSource() isStarlarkEvaluator_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
 func (x *StarlarkEvaluator) GetCode() string {
-	if x != nil && x.Code != nil {
-		return *x.Code
+	if x != nil {
+		if x, ok := x.Source.(*StarlarkEvaluator_Code); ok {
+			return x.Code
+		}
+	}
+	return ""
+}
+
+func (x *StarlarkEvaluator) GetUri() string {
+	if x != nil {
+		if x, ok := x.Source.(*StarlarkEvaluator_Uri); ok {
+			return x.Uri
+		}
 	}
 	return ""
 }
@@ -407,10 +467,31 @@ func (x *StarlarkEvaluator) GetTimeout() *durationpb.Duration {
 	return nil
 }
 
+type isStarlarkEvaluator_Source interface {
+	isStarlarkEvaluator_Source()
+}
+
+type StarlarkEvaluator_Code struct {
+	Code string `protobuf:"bytes,1,opt,name=code,oneof"`
+}
+
+type StarlarkEvaluator_Uri struct {
+	Uri string `protobuf:"bytes,2,opt,name=uri,oneof"`
+}
+
+func (*StarlarkEvaluator_Code) isStarlarkEvaluator_Source() {}
+
+func (*StarlarkEvaluator_Uri) isStarlarkEvaluator_Source() {}
+
 type ExtismEvaluator struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          *string                `protobuf:"bytes,1,opt,name=code" json:"code,omitempty"`
-	Entrypoint    *string                `protobuf:"bytes,2,opt,name=entrypoint" json:"entrypoint,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Source:
+	//
+	//	*ExtismEvaluator_Code
+	//	*ExtismEvaluator_Uri
+	Source        isExtismEvaluator_Source `protobuf_oneof:"source"`
+	Entrypoint    *string                  `protobuf:"bytes,3,opt,name=entrypoint" json:"entrypoint,omitempty"`
+	Timeout       *durationpb.Duration     `protobuf:"bytes,4,opt,name=timeout" json:"timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -445,9 +526,27 @@ func (*ExtismEvaluator) Descriptor() ([]byte, []int) {
 	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{4}
 }
 
+func (x *ExtismEvaluator) GetSource() isExtismEvaluator_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
 func (x *ExtismEvaluator) GetCode() string {
-	if x != nil && x.Code != nil {
-		return *x.Code
+	if x != nil {
+		if x, ok := x.Source.(*ExtismEvaluator_Code); ok {
+			return x.Code
+		}
+	}
+	return ""
+}
+
+func (x *ExtismEvaluator) GetUri() string {
+	if x != nil {
+		if x, ok := x.Source.(*ExtismEvaluator_Uri); ok {
+			return x.Uri
+		}
 	}
 	return ""
 }
@@ -458,6 +557,29 @@ func (x *ExtismEvaluator) GetEntrypoint() string {
 	}
 	return ""
 }
+
+func (x *ExtismEvaluator) GetTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.Timeout
+	}
+	return nil
+}
+
+type isExtismEvaluator_Source interface {
+	isExtismEvaluator_Source()
+}
+
+type ExtismEvaluator_Code struct {
+	Code string `protobuf:"bytes,1,opt,name=code,oneof"`
+}
+
+type ExtismEvaluator_Uri struct {
+	Uri string `protobuf:"bytes,2,opt,name=uri,oneof"`
+}
+
+func (*ExtismEvaluator_Code) isExtismEvaluator_Source() {}
+
+func (*ExtismEvaluator_Uri) isExtismEvaluator_Source() {}
 
 // Composite script that combines multiple scripts
 type CompositeScriptApp struct {
@@ -580,18 +702,25 @@ const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\x05risor\x18\x03 \x01(\v2!.settings.v1alpha1.RisorEvaluatorH\x00R\x05risor\x12B\n" +
 	"\bstarlark\x18\x04 \x01(\v2$.settings.v1alpha1.StarlarkEvaluatorH\x00R\bstarlark\x12<\n" +
 	"\x06extism\x18\x05 \x01(\v2\".settings.v1alpha1.ExtismEvaluatorH\x00R\x06extismB\v\n" +
-	"\tevaluator\"Y\n" +
-	"\x0eRisorEvaluator\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x123\n" +
-	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"\\\n" +
-	"\x11StarlarkEvaluator\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x123\n" +
-	"\atimeout\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\atimeout\"E\n" +
-	"\x0fExtismEvaluator\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1e\n" +
+	"\tevaluator\"y\n" +
+	"\x0eRisorEvaluator\x12\x14\n" +
+	"\x04code\x18\x01 \x01(\tH\x00R\x04code\x12\x12\n" +
+	"\x03uri\x18\x02 \x01(\tH\x00R\x03uri\x123\n" +
+	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeoutB\b\n" +
+	"\x06source\"|\n" +
+	"\x11StarlarkEvaluator\x12\x14\n" +
+	"\x04code\x18\x01 \x01(\tH\x00R\x04code\x12\x12\n" +
+	"\x03uri\x18\x02 \x01(\tH\x00R\x03uri\x123\n" +
+	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeoutB\b\n" +
+	"\x06source\"\x9a\x01\n" +
+	"\x0fExtismEvaluator\x12\x14\n" +
+	"\x04code\x18\x01 \x01(\tH\x00R\x04code\x12\x12\n" +
+	"\x03uri\x18\x02 \x01(\tH\x00R\x03uri\x12\x1e\n" +
 	"\n" +
-	"entrypoint\x18\x02 \x01(\tR\n" +
-	"entrypoint\"z\n" +
+	"entrypoint\x18\x03 \x01(\tR\n" +
+	"entrypoint\x123\n" +
+	"\atimeout\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\atimeoutB\b\n" +
+	"\x06source\"z\n" +
 	"\x12CompositeScriptApp\x12$\n" +
 	"\x0escript_app_ids\x18\x01 \x03(\tR\fscriptAppIds\x12>\n" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
@@ -636,12 +765,13 @@ var file_settings_v1alpha1_apps_proto_depIdxs = []int32{
 	5,  // 7: settings.v1alpha1.ScriptApp.extism:type_name -> settings.v1alpha1.ExtismEvaluator
 	9,  // 8: settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
 	9,  // 9: settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
-	8,  // 10: settings.v1alpha1.CompositeScriptApp.static_data:type_name -> settings.v1alpha1.StaticData
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	9,  // 10: settings.v1alpha1.ExtismEvaluator.timeout:type_name -> google.protobuf.Duration
+	8,  // 11: settings.v1alpha1.CompositeScriptApp.static_data:type_name -> settings.v1alpha1.StaticData
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_apps_proto_init() }
@@ -659,6 +789,18 @@ func file_settings_v1alpha1_apps_proto_init() {
 		(*ScriptApp_Risor)(nil),
 		(*ScriptApp_Starlark)(nil),
 		(*ScriptApp_Extism)(nil),
+	}
+	file_settings_v1alpha1_apps_proto_msgTypes[2].OneofWrappers = []any{
+		(*RisorEvaluator_Code)(nil),
+		(*RisorEvaluator_Uri)(nil),
+	}
+	file_settings_v1alpha1_apps_proto_msgTypes[3].OneofWrappers = []any{
+		(*StarlarkEvaluator_Code)(nil),
+		(*StarlarkEvaluator_Uri)(nil),
+	}
+	file_settings_v1alpha1_apps_proto_msgTypes[4].OneofWrappers = []any{
+		(*ExtismEvaluator_Code)(nil),
+		(*ExtismEvaluator_Uri)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

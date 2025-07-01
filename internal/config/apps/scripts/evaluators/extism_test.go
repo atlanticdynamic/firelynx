@@ -27,7 +27,7 @@ func TestExtismEvaluator_String(t *testing.T) {
 		{
 			name:      "empty",
 			evaluator: &ExtismEvaluator{},
-			want:      "Extism(code=0 chars, entrypoint=)",
+			want:      "Extism(code=0 chars, entrypoint=, timeout=0s)",
 		},
 		{
 			name: "with code and entrypoint",
@@ -35,7 +35,7 @@ func TestExtismEvaluator_String(t *testing.T) {
 				Code:       "base64content",
 				Entrypoint: "handle_request",
 			},
-			want: "Extism(code=13 chars, entrypoint=handle_request)",
+			want: "Extism(code=13 chars, entrypoint=handle_request, timeout=0s)",
 		},
 	}
 

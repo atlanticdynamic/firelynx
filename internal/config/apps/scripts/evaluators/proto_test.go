@@ -28,7 +28,7 @@ func TestRisorEvaluatorFromProto(t *testing.T) {
 
 	t.Run("with code", func(t *testing.T) {
 		proto := &settingsv1alpha1.RisorEvaluator{
-			Code: proto.String("print('hello')"),
+			Source: &settingsv1alpha1.RisorEvaluator_Code{Code: "print('hello')"},
 		}
 		got := RisorEvaluatorFromProto(proto)
 		want := &RisorEvaluator{Code: "print('hello')", Timeout: 0}
@@ -46,7 +46,7 @@ func TestRisorEvaluatorFromProto(t *testing.T) {
 
 	t.Run("with code and timeout", func(t *testing.T) {
 		proto := &settingsv1alpha1.RisorEvaluator{
-			Code:    proto.String("print('hello')"),
+			Source:  &settingsv1alpha1.RisorEvaluator_Code{Code: "print('hello')"},
 			Timeout: durationpb.New(5 * time.Second),
 		}
 		got := RisorEvaluatorFromProto(proto)
@@ -122,7 +122,7 @@ func TestStarlarkEvaluatorFromProto(t *testing.T) {
 
 	t.Run("with code", func(t *testing.T) {
 		proto := &settingsv1alpha1.StarlarkEvaluator{
-			Code: proto.String("print('hello')"),
+			Source: &settingsv1alpha1.StarlarkEvaluator_Code{Code: "print('hello')"},
 		}
 		got := StarlarkEvaluatorFromProto(proto)
 		want := &StarlarkEvaluator{Code: "print('hello')", Timeout: 0}
@@ -140,7 +140,7 @@ func TestStarlarkEvaluatorFromProto(t *testing.T) {
 
 	t.Run("with code and timeout", func(t *testing.T) {
 		proto := &settingsv1alpha1.StarlarkEvaluator{
-			Code:    proto.String("print('hello')"),
+			Source:  &settingsv1alpha1.StarlarkEvaluator_Code{Code: "print('hello')"},
 			Timeout: durationpb.New(5 * time.Second),
 		}
 		got := StarlarkEvaluatorFromProto(proto)
@@ -215,7 +215,7 @@ func TestExtismEvaluatorFromProto(t *testing.T) {
 
 	t.Run("with code", func(t *testing.T) {
 		proto := &settingsv1alpha1.ExtismEvaluator{
-			Code: proto.String("base64content"),
+			Source: &settingsv1alpha1.ExtismEvaluator_Code{Code: "base64content"},
 		}
 		got := ExtismEvaluatorFromProto(proto)
 		want := &ExtismEvaluator{Code: "base64content", Entrypoint: ""}
@@ -233,7 +233,7 @@ func TestExtismEvaluatorFromProto(t *testing.T) {
 
 	t.Run("with code and entrypoint", func(t *testing.T) {
 		proto := &settingsv1alpha1.ExtismEvaluator{
-			Code:       proto.String("base64content"),
+			Source:     &settingsv1alpha1.ExtismEvaluator_Code{Code: "base64content"},
 			Entrypoint: proto.String("handle_request"),
 		}
 		got := ExtismEvaluatorFromProto(proto)
@@ -301,7 +301,7 @@ func TestEvaluatorFromProto(t *testing.T) {
 		proto := &settingsv1alpha1.ScriptApp{
 			Evaluator: &settingsv1alpha1.ScriptApp_Risor{
 				Risor: &settingsv1alpha1.RisorEvaluator{
-					Code: proto.String("print('hello')"),
+					Source: &settingsv1alpha1.RisorEvaluator_Code{Code: "print('hello')"},
 				},
 			},
 		}
@@ -317,7 +317,7 @@ func TestEvaluatorFromProto(t *testing.T) {
 		proto := &settingsv1alpha1.ScriptApp{
 			Evaluator: &settingsv1alpha1.ScriptApp_Starlark{
 				Starlark: &settingsv1alpha1.StarlarkEvaluator{
-					Code: proto.String("print('hello')"),
+					Source: &settingsv1alpha1.StarlarkEvaluator_Code{Code: "print('hello')"},
 				},
 			},
 		}
@@ -333,7 +333,7 @@ func TestEvaluatorFromProto(t *testing.T) {
 		proto := &settingsv1alpha1.ScriptApp{
 			Evaluator: &settingsv1alpha1.ScriptApp_Extism{
 				Extism: &settingsv1alpha1.ExtismEvaluator{
-					Code:       proto.String("base64content"),
+					Source:     &settingsv1alpha1.ExtismEvaluator_Code{Code: "base64content"},
 					Entrypoint: proto.String("handle_request"),
 				},
 			},
