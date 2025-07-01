@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/robbyt/go-polyscript/engines/extism/evaluator"
+	"github.com/robbyt/go-polyscript/platform"
 )
 
 var _ Evaluator = (*ExtismEvaluator)(nil)
@@ -18,6 +21,9 @@ type ExtismEvaluator struct {
 	Entrypoint string
 	// Timeout is the maximum execution time allowed for the script.
 	Timeout time.Duration
+
+	// compiledEvaluator stores the concrete Extism evaluator after compilation
+	compiledEvaluator *evaluator.Evaluator
 }
 
 // Type returns the type of this evaluator.
@@ -53,4 +59,9 @@ func (e *ExtismEvaluator) Validate() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// GetCompiledEvaluator returns the abstract platform.Evaluator interface.
+func (e *ExtismEvaluator) GetCompiledEvaluator() platform.Evaluator {
+	return e.compiledEvaluator
 }
