@@ -12,6 +12,8 @@ var _ Evaluator = (*StarlarkEvaluator)(nil)
 type StarlarkEvaluator struct {
 	// Code contains the Starlark script source code.
 	Code string
+	// URI contains the location to load the script from (file://, https://, etc.)
+	URI string
 	// Timeout is the maximum execution time allowed for the script.
 	Timeout time.Duration
 }

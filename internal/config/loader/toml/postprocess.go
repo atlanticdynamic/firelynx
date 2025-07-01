@@ -512,16 +512,26 @@ func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []er
 				continue
 			}
 
-			// Process app based on type (explicit or inferred)
+			// Process app based on type
 			if typeVal, ok := appMap["type"].(string); ok {
 				// Set the type field
 				errs := processAppType(app, typeVal)
 				errList = append(errList, errs...)
-			}
 
-			// Process app configurations based on which config sections are present
-			// For now, we only process basic app structure
-			// Script-specific processing will be added later
+				// Process app-specific configuration
+				switch typeVal {
+				case "script":
+					errs := processScriptAppConfig(app, appMap)
+					errList = append(errList, errs...)
+				case "echo":
+					// Echo app doesn't need special post-processing
+				default:
+					errList = append(
+						errList,
+						fmt.Errorf("no post-processing handler for app type: %s", typeVal),
+					)
+				}
+			}
 		}
 	}
 
@@ -549,10 +559,101 @@ func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
 	return errList
 }
 
-// processStaticDataField handles static_data conversion from TOML map to protobuf
-func processStaticDataField(staticData **pbSettings.StaticData, staticDataMap map[string]any) {
-	if *staticData == nil {
-		*staticData = &pbSettings.StaticData{}
+// processScriptAppConfig handles script app-specific configuration
+func processScriptAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) []error {
+	var errList []error
+
+	// Get the script configuration
+	scriptConfig, ok := appMap["script"].(map[string]any)
+	if !ok {
+		return errList
 	}
-	(*staticData).Data = protobaggins.MapToStructValues(staticDataMap)
+
+	// Get the script app config from the app
+	if scriptApp := app.GetScript(); scriptApp != nil {
+		// Process evaluator configurations
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		errList = append(errList, errs...)
+	}
+
+	return errList
+}
+
+// processScriptEvaluators handles script evaluator-specific configuration
+func processScriptEvaluators(scriptApp *pbSettings.ScriptApp, scriptConfig map[string]any) []error {
+	var errList []error
+
+	// Process Risor evaluator
+	if risorConfig, ok := scriptConfig["risor"].(map[string]any); ok {
+		if risorEval := scriptApp.GetRisor(); risorEval != nil {
+			errs := processRisorEvaluator(risorEval, risorConfig)
+			errList = append(errList, errs...)
+		}
+	}
+
+	// Process Starlark evaluator
+	if starlarkConfig, ok := scriptConfig["starlark"].(map[string]any); ok {
+		if starlarkEval := scriptApp.GetStarlark(); starlarkEval != nil {
+			errs := processStarlarkEvaluator(starlarkEval, starlarkConfig)
+			errList = append(errList, errs...)
+		}
+	}
+
+	// Process Extism evaluator
+	if extismConfig, ok := scriptConfig["extism"].(map[string]any); ok {
+		if extismEval := scriptApp.GetExtism(); extismEval != nil {
+			errs := processExtismEvaluator(extismEval, extismConfig)
+			errList = append(errList, errs...)
+		}
+	}
+
+	return errList
+}
+
+// processRisorEvaluator handles Risor evaluator post-processing
+func processRisorEvaluator(risor *pbSettings.RisorEvaluator, risorConfig map[string]any) []error {
+	var errList []error
+
+	// Handle source oneof - if both code and uri are present, prioritize code
+	if codeVal, hasCode := risorConfig["code"].(string); hasCode {
+		risor.Source = &pbSettings.RisorEvaluator_Code{Code: codeVal}
+	} else if uriVal, hasURI := risorConfig["uri"].(string); hasURI {
+		risor.Source = &pbSettings.RisorEvaluator_Uri{Uri: uriVal}
+	}
+
+	return errList
+}
+
+// processStarlarkEvaluator handles Starlark evaluator post-processing
+func processStarlarkEvaluator(
+	starlark *pbSettings.StarlarkEvaluator,
+	starlarkConfig map[string]any,
+) []error {
+	var errList []error
+
+	// Handle source oneof - if both code and uri are present, prioritize code
+	if codeVal, hasCode := starlarkConfig["code"].(string); hasCode {
+		starlark.Source = &pbSettings.StarlarkEvaluator_Code{Code: codeVal}
+	} else if uriVal, hasURI := starlarkConfig["uri"].(string); hasURI {
+		starlark.Source = &pbSettings.StarlarkEvaluator_Uri{Uri: uriVal}
+	}
+
+	return errList
+}
+
+// processExtismEvaluator handles Extism evaluator post-processing
+func processExtismEvaluator(
+	extism *pbSettings.ExtismEvaluator,
+	extismConfig map[string]any,
+) []error {
+	var errList []error
+
+	// Handle source oneof - if both code and uri are present, prioritize code
+	if codeVal, hasCode := extismConfig["code"].(string); hasCode {
+		extism.Source = &pbSettings.ExtismEvaluator_Code{Code: codeVal}
+	} else if uriVal, hasURI := extismConfig["uri"].(string); hasURI {
+		extism.Source = &pbSettings.ExtismEvaluator_Uri{Uri: uriVal}
+	}
+
+	return errList
 }
