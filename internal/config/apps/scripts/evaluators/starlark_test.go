@@ -66,7 +66,7 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyCode))
+		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
 	})
 
 	t.Run("negative timeout", func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyCode))
+		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
 		assert.True(t, errors.Is(err, ErrNegativeTimeout))
 	})
 }

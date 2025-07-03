@@ -11,7 +11,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.4.1
 	github.com/robbyt/go-loglater v0.1.4
-	github.com/robbyt/go-polyscript v0.0.2
+	github.com/robbyt/go-polyscript v0.0.3
 	github.com/robbyt/go-supervisor v0.0.15
 	github.com/robbyt/protobaggins v0.1.0
 	github.com/stretchr/testify v1.10.0
@@ -44,7 +44,7 @@ require (
 	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.opentelemetry.io/proto/otlp v1.7.0 // indirect
-	go.starlark.net v0.0.0-20250623223156-8bf495bf4e9a // indirect
+	go.starlark.net v0.0.0-20250701195324-d457b4515e0e // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect

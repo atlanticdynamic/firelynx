@@ -61,20 +61,15 @@ merge_mode = "last" # Default, can be omitted
 
 [apps.script.risor]
 code = """
-    import "http"
-    import "json"
-
-    func handler(req http.Request) http.Response {
-        # Example: Access static data
-        db_conn = req.static_data.db_connection
-        # ... logic to handle user requests using db_conn ...
-        return http.Response{
-            StatusCode: 200,
-            Body: json.marshal({ "user_id": "123", "name": "Alice" }),
-            Header: {"Content-Type": ["application/json"]},
+    func handler() {
+        # Example: Access static data from context
+        return {
+            "user_id": "123",
+            "name": "Alice",
+            "status": "success"
         }
     }
-    export default: handler
+    handler()
 """
 timeout = "0.5s"
 
@@ -89,21 +84,16 @@ data = { api_key = "prod_api_key_xyz", discount_rate = 0.1 }
 
 [apps.script.starlark]
 code = """
-load("@stdlib/json", "json")
-load("@stdlib/http", "http")
+def handler():
+    # Example: Access static data from context
+    return {
+        "product_id": "p456",
+        "name": "Widget",
+        "status": "success"
+    }
 
-def handler(req):
-    # Example: Access static data
-    api_key = req.static_data["api_key"]
-    # ... logic to handle product requests ...
-    return http.Response(
-        status_code=200,
-        body=json.marshal({"product_id": "p456", "name": "Widget"}),
-        header={"Content-Type": ["application/json"]},
-    )
-
-def main(req):
-    return handler(req)
+result = handler()
+_ = result
 """
 timeout = "1s"
 
@@ -114,9 +104,10 @@ id = "inventory-app"
 [apps.script]
 
 [apps.script.extism]
-# code = "path/to/inventory_plugin.wasm"
-code = """(module)""" # Placeholder WASM
-entrypoint = "handle_http"
+# Using wasmdata.TestModule for demonstration
+# In production, use file:// URI or proper base64 encoded WASM
+code = "{{.WASMBase64}}"
+entrypoint = "{{.Entrypoint}}"
 
 # Order Processor (Composite)
 [[apps]]
