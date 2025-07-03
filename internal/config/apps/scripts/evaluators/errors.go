@@ -20,6 +20,8 @@ var (
 	// XOR validation errors (applies to all evaluators)
 	ErrMissingCodeAndURI = fmt.Errorf("%w: must have either code or uri", ErrEvaluator)
 	ErrBothCodeAndURI    = fmt.Errorf("%w: cannot have both code and uri", ErrEvaluator)
+
+	ErrLoaderCreation = fmt.Errorf("%w: failed to create script loader", ErrEvaluator)
 )
 
 // NewInvalidEvaluatorTypeError returns a new error for an invalid evaluator type.

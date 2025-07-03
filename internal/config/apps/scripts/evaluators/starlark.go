@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/robbyt/go-polyscript/engines/starlark"
 	"github.com/robbyt/go-polyscript/engines/starlark/evaluator"
 	"github.com/robbyt/go-polyscript/platform"
-	"github.com/robbyt/go-polyscript/platform/script/loader"
 )
 
 var _ Evaluator = (*StarlarkEvaluator)(nil)
@@ -65,30 +63,10 @@ func (s *StarlarkEvaluator) Validate() error {
 	}
 
 	// Create loader based on source type
-	var scriptLoader loader.Loader
-	var err error
-
-	if s.Code != "" {
-		// Load from inline code
-		scriptLoader, err = loader.NewFromString(s.Code)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to create loader from code: %w", err))
-			return errors.Join(errs...)
-		}
-	} else if s.URI != "" {
-		// Load from URI (file:// or https://)
-		if strings.HasPrefix(s.URI, "http://") || strings.HasPrefix(s.URI, "https://") {
-			// HTTP/HTTPS URL
-			scriptLoader, err = loader.NewFromHTTP(s.URI)
-		} else {
-			// File path (remove file:// prefix if present)
-			path := strings.TrimPrefix(s.URI, "file://")
-			scriptLoader, err = loader.NewFromDisk(path)
-		}
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to create loader from URI %s: %w", s.URI, err))
-			return errors.Join(errs...)
-		}
+	scriptLoader, err := createLoaderFromSource(s.Code, s.URI)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("%w: %w", ErrLoaderCreation, err))
+		return errors.Join(errs...)
 	}
 
 	// Compile script using go-polyscript

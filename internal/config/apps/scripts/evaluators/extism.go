@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/robbyt/go-polyscript/engines/extism"
@@ -93,17 +92,10 @@ func (e *ExtismEvaluator) Validate() error {
 			return errors.Join(errs...)
 		}
 	} else if e.URI != "" {
-		// Load from URI (file:// or https://)
-		if strings.HasPrefix(e.URI, "http://") || strings.HasPrefix(e.URI, "https://") {
-			// HTTP/HTTPS URL
-			scriptLoader, err = loader.NewFromHTTP(e.URI)
-		} else {
-			// File path (remove file:// prefix if present)
-			path := strings.TrimPrefix(e.URI, "file://")
-			scriptLoader, err = loader.NewFromDisk(path)
-		}
+		// Use shared loader creation for URI-based loading
+		scriptLoader, err = createLoaderFromSource("", e.URI)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to create loader from URI %s: %w", e.URI, err))
+			errs = append(errs, fmt.Errorf("%w: %w", ErrLoaderCreation, err))
 			return errors.Join(errs...)
 		}
 	}
