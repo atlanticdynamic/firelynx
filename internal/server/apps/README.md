@@ -17,17 +17,16 @@ This package handles:
 - **instances.go**: Registry for managing app instances by ID
 - **app.go**: Common App interface definition
 - **instantiators.go**: Type-specific app creation logic
-- **echo/**: Echo app implementation
 
 ## App Types
 
 Currently implemented:
 - **EchoApp**: Returns request information for testing
+- **ScriptApp**: Executes scripts (Risor, Starlark, WebAssembly)
 
 Future implementations:
-- **ScriptApp**: Executes scripts (Risor, Starlark, WebAssembly)
 - **CompositeApp**: Chains multiple script apps
 
 ## Integration
 
-The app registry is used by HTTP listeners to route requests to the appropriate app instance based on configured routes.
+The app registry routes HTTP requests to configured application instances based on path mappings.
