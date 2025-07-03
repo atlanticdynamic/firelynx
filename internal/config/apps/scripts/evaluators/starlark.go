@@ -73,7 +73,10 @@ func (s *StarlarkEvaluator) Validate() error {
 	logger := slog.Default()
 	compiledEvaluator, err := starlark.FromStarlarkLoader(logger.Handler(), scriptLoader)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("starlark script compilation failed: %w", err))
+		errs = append(
+			errs,
+			fmt.Errorf("%w: starlark script compilation failed: %w", ErrCompilationFailed, err),
+		)
 		return errors.Join(errs...)
 	}
 

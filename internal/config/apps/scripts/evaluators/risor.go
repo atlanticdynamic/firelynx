@@ -73,7 +73,10 @@ func (r *RisorEvaluator) Validate() error {
 	logger := slog.Default()
 	compiledEvaluator, err := risor.FromRisorLoader(logger.Handler(), scriptLoader)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("risor script compilation failed: %w", err))
+		errs = append(
+			errs,
+			fmt.Errorf("%w: risor script compilation failed: %w", ErrCompilationFailed, err),
+		)
 		return errors.Join(errs...)
 	}
 

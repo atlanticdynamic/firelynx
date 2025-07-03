@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/robbyt/go-polyscript/engines/extism/wasmdata"
@@ -145,21 +146,20 @@ func (s *ScriptValidationIntegrationSuite) assertValidationSuccess(configBytes [
 
 func (s *ScriptValidationIntegrationSuite) assertValidationError(
 	configBytes []byte,
-	expectedErrorContains string,
+	expectedError error,
 ) {
 	_, err := s.loadAndValidateConfig(configBytes)
 	s.Require().Error(err, "Config validation should fail")
-	s.Contains(err.Error(), expectedErrorContains, "Error should contain expected message")
+	s.Require().ErrorIs(err, expectedError, "Error should be the expected sentinel error")
 }
 
 func (s *ScriptValidationIntegrationSuite) assertCompilationError(
 	configBytes []byte,
-	evaluatorType string,
+	expectedError error,
 ) {
 	_, err := s.loadAndValidateConfig(configBytes)
 	s.Require().Error(err, "Config validation should fail due to compilation error")
-	s.Contains(err.Error(), "compilation failed", "Error should indicate compilation failure")
-	s.Contains(err.Error(), evaluatorType, "Error should reference the evaluator type")
+	s.Require().ErrorIs(err, expectedError, "Error should be the expected compilation error")
 }
 
 func (s *ScriptValidationIntegrationSuite) getScriptPath(filename string) string {
@@ -179,8 +179,7 @@ func (s *ScriptValidationIntegrationSuite) TestInlineCodeValidation() {
 		template      string
 		data          map[string]any
 		expectError   bool
-		errorType     string
-		errorContains string
+		expectedError error
 		skip          bool
 		skipReason    string
 	}{
@@ -190,11 +189,11 @@ func (s *ScriptValidationIntegrationSuite) TestInlineCodeValidation() {
 			data:     map[string]any{"Port": port},
 		},
 		{
-			name:        "RisorInvalid",
-			template:    "risor_inline_invalid.toml.tmpl",
-			data:        map[string]any{"Port": port},
-			expectError: true,
-			errorType:   "risor",
+			name:          "RisorInvalid",
+			template:      "risor_inline_invalid.toml.tmpl",
+			data:          map[string]any{"Port": port},
+			expectError:   true,
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 		{
 			name:     "StarlarkValid",
@@ -202,11 +201,11 @@ func (s *ScriptValidationIntegrationSuite) TestInlineCodeValidation() {
 			data:     map[string]any{"Port": port},
 		},
 		{
-			name:        "StarlarkInvalid",
-			template:    "starlark_inline_invalid.toml.tmpl",
-			data:        map[string]any{"Port": port},
-			expectError: true,
-			errorType:   "starlark",
+			name:          "StarlarkInvalid",
+			template:      "starlark_inline_invalid.toml.tmpl",
+			data:          map[string]any{"Port": port},
+			expectError:   true,
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 		{
 			name:     "ExtismValid",
@@ -227,7 +226,7 @@ func (s *ScriptValidationIntegrationSuite) TestInlineCodeValidation() {
 			template:      "extism_inline_invalid.toml.tmpl",
 			data:          map[string]any{"Port": port},
 			expectError:   true,
-			errorContains: "failed to decode base64",
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 	}
 
@@ -240,11 +239,7 @@ func (s *ScriptValidationIntegrationSuite) TestInlineCodeValidation() {
 			configBytes := s.renderTemplate(tc.template, tc.data)
 
 			if tc.expectError {
-				if tc.errorType != "" {
-					s.assertCompilationError(configBytes, tc.errorType)
-				} else if tc.errorContains != "" {
-					s.assertValidationError(configBytes, tc.errorContains)
-				}
+				s.assertCompilationError(configBytes, tc.expectedError)
 			} else {
 				s.assertValidationSuccess(configBytes)
 			}
@@ -257,12 +252,12 @@ func (s *ScriptValidationIntegrationSuite) TestExternalFileValidation() {
 	port := testutil.GetRandomPort(s.T())
 
 	testCases := []struct {
-		name        string
-		template    string
-		scriptFile  string
-		expectError bool
-		errorType   string
-		extraData   map[string]any
+		name          string
+		template      string
+		scriptFile    string
+		expectError   bool
+		expectedError error
+		extraData     map[string]any
 	}{
 		{
 			name:       "RisorFileValid",
@@ -270,11 +265,11 @@ func (s *ScriptValidationIntegrationSuite) TestExternalFileValidation() {
 			scriptFile: "valid_risor.risor",
 		},
 		{
-			name:        "RisorFileInvalid",
-			template:    "risor_file_invalid.toml.tmpl",
-			scriptFile:  "invalid_risor.risor",
-			expectError: true,
-			errorType:   "risor",
+			name:          "RisorFileInvalid",
+			template:      "risor_file_invalid.toml.tmpl",
+			scriptFile:    "invalid_risor.risor",
+			expectError:   true,
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 		{
 			name:       "StarlarkFileValid",
@@ -282,11 +277,11 @@ func (s *ScriptValidationIntegrationSuite) TestExternalFileValidation() {
 			scriptFile: "valid_starlark.star",
 		},
 		{
-			name:        "StarlarkFileInvalid",
-			template:    "starlark_file_invalid.toml.tmpl",
-			scriptFile:  "invalid_starlark.star",
-			expectError: true,
-			errorType:   "starlark",
+			name:          "StarlarkFileInvalid",
+			template:      "starlark_file_invalid.toml.tmpl",
+			scriptFile:    "invalid_starlark.star",
+			expectError:   true,
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 		{
 			name:       "ExtismFileValid",
@@ -295,11 +290,11 @@ func (s *ScriptValidationIntegrationSuite) TestExternalFileValidation() {
 			extraData:  map[string]any{"Entrypoint": wasmdata.EntrypointGreet},
 		},
 		{
-			name:        "ExtismFileInvalid",
-			template:    "extism_file_invalid.toml.tmpl",
-			scriptFile:  "invalid.wasm",
-			expectError: true,
-			errorType:   "extism",
+			name:          "ExtismFileInvalid",
+			template:      "extism_file_invalid.toml.tmpl",
+			scriptFile:    "invalid.wasm",
+			expectError:   true,
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 	}
 
@@ -324,7 +319,7 @@ func (s *ScriptValidationIntegrationSuite) TestExternalFileValidation() {
 			configBytes := s.renderTemplate(tc.template, data)
 
 			if tc.expectError {
-				s.assertCompilationError(configBytes, tc.errorType)
+				s.assertCompilationError(configBytes, tc.expectedError)
 			} else {
 				s.assertValidationSuccess(configBytes)
 			}
@@ -337,12 +332,12 @@ func (s *ScriptValidationIntegrationSuite) TestCrossEvaluatorScenarios() {
 	port := testutil.GetRandomPort(s.T())
 
 	testCases := []struct {
-		name        string
-		template    string
-		expectError bool
-		errorType   string
-		skip        bool
-		skipReason  string
+		name          string
+		template      string
+		expectError   bool
+		expectedError error
+		skip          bool
+		skipReason    string
 	}{
 		{
 			name:     "AllValidEvaluators",
@@ -352,10 +347,10 @@ func (s *ScriptValidationIntegrationSuite) TestCrossEvaluatorScenarios() {
 			skipReason: "go-polyscript v0.0.3 bug: base64 WASM fails with 'invalid magic number'",
 		},
 		{
-			name:        "MixedValidInvalid",
-			template:    "mixed_evaluators_invalid.toml.tmpl",
-			expectError: true,
-			errorType:   "starlark",
+			name:          "MixedValidInvalid",
+			template:      "mixed_evaluators_invalid.toml.tmpl",
+			expectError:   true,
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 	}
 
@@ -378,7 +373,7 @@ func (s *ScriptValidationIntegrationSuite) TestCrossEvaluatorScenarios() {
 			configBytes := s.renderTemplate(tc.template, data)
 
 			if tc.expectError {
-				s.assertCompilationError(configBytes, tc.errorType)
+				s.assertCompilationError(configBytes, tc.expectedError)
 			} else {
 				s.assertValidationSuccess(configBytes)
 			}
@@ -394,7 +389,7 @@ func (s *ScriptValidationIntegrationSuite) TestFileSystemEdgeCases() {
 		name          string
 		setupFunc     func() string
 		template      string
-		errorContains string
+		expectedError error
 		isCompileErr  bool
 	}{
 		{
@@ -403,7 +398,7 @@ func (s *ScriptValidationIntegrationSuite) TestFileSystemEdgeCases() {
 				return filepath.Join(s.tempDir, "nonexistent.risor")
 			},
 			template:      "risor_file_valid.toml.tmpl",
-			errorContains: "no such file",
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 		{
 			name: "EmptyFile",
@@ -422,7 +417,7 @@ func (s *ScriptValidationIntegrationSuite) TestFileSystemEdgeCases() {
 				return "not-a-valid-path"
 			},
 			template:      "risor_file_valid.toml.tmpl",
-			errorContains: "failed to create loader",
+			expectedError: evaluators.ErrCompilationFailed,
 		},
 	}
 
@@ -436,9 +431,9 @@ func (s *ScriptValidationIntegrationSuite) TestFileSystemEdgeCases() {
 			})
 
 			if tc.isCompileErr {
-				s.assertCompilationError(configBytes, "risor")
+				s.assertCompilationError(configBytes, evaluators.ErrCompilationFailed)
 			} else {
-				s.assertValidationError(configBytes, tc.errorContains)
+				s.assertValidationError(configBytes, tc.expectedError)
 			}
 		})
 	}
