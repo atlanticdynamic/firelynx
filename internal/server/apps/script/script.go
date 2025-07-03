@@ -75,16 +75,10 @@ func (s *ScriptApp) HandleHTTP(
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	// Prepare runtime data with the actual request object at top level
+	// According to go-polyscript data system, all data should be at top level of ctx
 	runtimeData := map[string]any{
-		"input_data": map[string]any{
-			"request": map[string]any{
-				"Method":   r.Method,
-				"URL":      r.URL.String(),
-				"URL_Path": r.URL.Path,
-				"Headers":  flattenHeaders(r.Header),
-				"Query":    r.URL.Query(),
-			},
-		},
+		"request": r, // Pass the actual *http.Request at top level
 	}
 
 	// Merge static data from config and runtime data
@@ -224,24 +218,14 @@ func getEvaluatorTimeout(eval evaluators.Evaluator) time.Duration {
 	}
 }
 
-// flattenHeaders converts http.Header to a simple map[string]string
-func flattenHeaders(headers http.Header) map[string]string {
-	flat := make(map[string]string)
-	for key, values := range headers {
-		if len(values) > 0 {
-			flat[key] = values[0]
-		}
-	}
-	return flat
-}
-
 // handleScriptResult processes the script execution result and writes the HTTP response
 func handleScriptResult(w http.ResponseWriter, result platform.EvaluatorResponse) error {
 	value := result.Interface()
 
 	switch v := value.(type) {
 	case map[string]any:
-		return handleMapResult(w, v)
+		w.Header().Set("Content-Type", "application/json")
+		return json.NewEncoder(w).Encode(v)
 
 	case string:
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -258,51 +242,4 @@ func handleScriptResult(w http.ResponseWriter, result platform.EvaluatorResponse
 		_, err := fmt.Fprintf(w, "%v", v)
 		return err
 	}
-}
-
-// handleMapResult handles map results with HTTP response conventions
-func handleMapResult(w http.ResponseWriter, result map[string]any) error {
-	if status, ok := result["status"].(int); ok {
-		w.WriteHeader(status)
-	}
-
-	if headers, ok := result["headers"].(map[string]any); ok {
-		for key, value := range headers {
-			if strValue, ok := value.(string); ok {
-				w.Header().Set(key, strValue)
-			}
-		}
-	}
-
-	if body, ok := result["body"]; ok {
-		switch b := body.(type) {
-		case string:
-			if w.Header().Get("Content-Type") == "" {
-				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			}
-			_, err := w.Write([]byte(b))
-			return err
-
-		case []byte:
-			if w.Header().Get("Content-Type") == "" {
-				w.Header().Set("Content-Type", "application/octet-stream")
-			}
-			_, err := w.Write(b)
-			return err
-
-		case map[string]any:
-			w.Header().Set("Content-Type", "application/json")
-			return json.NewEncoder(w).Encode(b)
-
-		default:
-			if w.Header().Get("Content-Type") == "" {
-				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-			}
-			_, err := fmt.Fprintf(w, "%v", b)
-			return err
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(result)
 }
