@@ -198,3 +198,69 @@ func TestScriptApp_HandleHTTP_Timeout(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusGatewayTimeout, w.Code)
 }
+
+func TestScriptApp_HandleHTTP_StarlarkScript(t *testing.T) {
+	starlarkEval := &evaluators.StarlarkEvaluator{
+		Code: `
+# Starlark script that returns a simple map (will be JSON-encoded automatically)
+result = {
+	"message": "Hello from Starlark!",
+	"language": "python-like"
+}
+# The underscore variable is returned to Go
+_ = result`,
+		Timeout: 5 * time.Second,
+	}
+
+	config := &scripts.AppScript{
+		Evaluator: starlarkEval,
+	}
+
+	app, err := New("starlark-app", config, slog.Default())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	err = app.HandleHTTP(t.Context(), w, req, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+	assert.Contains(t, w.Body.String(), "Hello from Starlark!")
+	assert.Contains(t, w.Body.String(), "python-like")
+}
+
+func TestScriptApp_HandleHTTP_StarlarkWithStaticData(t *testing.T) {
+	starlarkEval := &evaluators.StarlarkEvaluator{
+		Code: `
+# Access static data in Starlark
+config_value = ctx.get("config_key", "default")
+result = {
+	"message": "Starlark with config",
+	"config": config_value
+}
+# The underscore variable is returned to Go
+_ = result`,
+		Timeout: 5 * time.Second,
+	}
+
+	staticData := map[string]any{
+		"config_key": "production",
+	}
+
+	config := &scripts.AppScript{
+		Evaluator:  starlarkEval,
+		StaticData: &staticdata.StaticData{Data: staticData},
+	}
+
+	app, err := New("starlark-app", config, slog.Default())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/test", nil)
+	w := httptest.NewRecorder()
+
+	err = app.HandleHTTP(t.Context(), w, req, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "production")
+}

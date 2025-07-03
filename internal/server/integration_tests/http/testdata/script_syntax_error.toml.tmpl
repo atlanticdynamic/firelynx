@@ -14,19 +14,19 @@ id = "api-endpoint"
 listener_id = "api"
 
 [[endpoints.routes]]
-app_id = "risor-hello"
+app_id = "syntax-error-test"
 [endpoints.routes.http]
-path_prefix = "/hello"
+path_prefix = "/error"
 
 [[apps]]
-id = "risor-hello"
+id = "syntax-error-test"
 [apps.script]
 [apps.script.risor]
 code = '''
-// Return a simple map (will be JSON-encoded automatically)
+// This has invalid syntax - missing closing brace
 {
-    "message": "Hello from Risor!",
-    "timestamp": time.now().format("2006-01-02T15:04:05Z07:00")
-}
+    "message": "This will fail",
+    "status": 200
+// Missing closing brace
 '''
 timeout = "5s"

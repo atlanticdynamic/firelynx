@@ -14,19 +14,22 @@ id = "api-endpoint"
 listener_id = "api"
 
 [[endpoints.routes]]
-app_id = "risor-hello"
+app_id = "timeout-test"
 [endpoints.routes.http]
-path_prefix = "/hello"
+path_prefix = "/timeout"
 
 [[apps]]
-id = "risor-hello"
+id = "timeout-test"
 [apps.script]
 [apps.script.risor]
 code = '''
-// Return a simple map (will be JSON-encoded automatically)
+// Infinite loop to force timeout
+for i := 0; i < 100000000; i++ {
+    x := i * i
+}
 {
-    "message": "Hello from Risor!",
-    "timestamp": time.now().format("2006-01-02T15:04:05Z07:00")
+    "message": "This should never be reached",
+    "status": 200
 }
 '''
-timeout = "5s"
+timeout = "1ms"
