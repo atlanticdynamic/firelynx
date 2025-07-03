@@ -2,39 +2,18 @@ package config_test
 
 import (
 	"embed"
-	"encoding/base64"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"text/template"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
-	"github.com/robbyt/go-polyscript/engines/extism/wasmdata"
 	"github.com/stretchr/testify/require"
 )
 
-//go:embed *.toml *.toml.tmpl
+//go:embed *.toml
 var exampleFiles embed.FS
-
-func renderTemplate(t *testing.T, templateContent []byte) []byte {
-	t.Helper()
-
-	tmpl, err := template.New("config").Parse(string(templateContent))
-	require.NoError(t, err, "Failed to parse template")
-
-	data := map[string]any{
-		"WASMBase64": base64.StdEncoding.EncodeToString(wasmdata.TestModule),
-		"Entrypoint": wasmdata.EntrypointGreet,
-	}
-
-	var buf strings.Builder
-	err = tmpl.Execute(&buf, data)
-	require.NoError(t, err, "Failed to render template")
-
-	return []byte(buf.String())
-}
 
 func TestLoadingAllExampleConfigs(t *testing.T) {
 	entries, err := exampleFiles.ReadDir(".")
@@ -49,22 +28,11 @@ func TestLoadingAllExampleConfigs(t *testing.T) {
         }
 
         t.Run(name, func(t *testing.T) {
-			// Setup common test data
-			rawData, err := exampleFiles.ReadFile(name)
+			data, err := exampleFiles.ReadFile(name)
 			require.NoError(t, err, "Failed to read embedded file: %s", name)
 
-			// Render template if needed
-			var data []byte
-			if strings.HasSuffix(name, ".tmpl") {
-				data = renderTemplate(t, rawData)
-			} else {
-				data = rawData
-			}
-
 			tmpDir := t.TempDir()
-			// Use .toml extension for temp file even if source is .toml.tmpl
-			tmpFileName := strings.TrimSuffix(name, ".tmpl")
-			tmpFile := filepath.Join(tmpDir, tmpFileName)
+			tmpFile := filepath.Join(tmpDir, name)
 			err = os.WriteFile(tmpFile, data, 0o644)
 			require.NoError(t, err, "Failed to write temp file for %s", name)
 
