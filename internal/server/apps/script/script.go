@@ -7,16 +7,11 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
-	extism "github.com/robbyt/go-polyscript/engines/extism"
-	risor "github.com/robbyt/go-polyscript/engines/risor"
-	starlark "github.com/robbyt/go-polyscript/engines/starlark"
 	"github.com/robbyt/go-polyscript/platform"
-	"github.com/robbyt/go-polyscript/platform/script/loader"
 )
 
 // ScriptApp implements the server-side script application using go-polyscript
@@ -123,76 +118,22 @@ func (s *ScriptApp) HandleHTTP(
 	return nil
 }
 
-// createPolyscriptEvaluator creates and compiles a go-polyscript evaluator from domain config
-// This loads the script content (from code or URI) and compiles it for execution
+// createPolyscriptEvaluator gets the pre-compiled evaluator from domain validation
+// All evaluators must be compiled during the Validate() phase in the domain layer
 func createPolyscriptEvaluator(
 	config *scripts.AppScript,
 	logger *slog.Logger,
 ) (platform.Evaluator, error) {
-	handler := logger.Handler()
-
-	switch e := config.Evaluator.(type) {
-	case *evaluators.RisorEvaluator:
-		loader, err := createLoaderFromEvaluator(e.Code, e.URI)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create risor loader: %w", err)
-		}
-
-		// Compile the Risor script with static data
-		if config.StaticData != nil {
-			return risor.FromRisorLoaderWithData(handler, loader, config.StaticData.Data)
-		}
-		return risor.FromRisorLoader(handler, loader)
-
-	case *evaluators.StarlarkEvaluator:
-		loader, err := createLoaderFromEvaluator(e.Code, e.URI)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create starlark loader: %w", err)
-		}
-
-		// Compile the Starlark script with static data
-		if config.StaticData != nil {
-			return starlark.FromStarlarkLoaderWithData(handler, loader, config.StaticData.Data)
-		}
-		return starlark.FromStarlarkLoader(handler, loader)
-
-	case *evaluators.ExtismEvaluator:
-		loader, err := createLoaderFromEvaluator(e.Code, e.URI)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create extism loader: %w", err)
-		}
-
-		// Compile the WASM module with static data
-		if config.StaticData != nil {
-			return extism.FromExtismLoaderWithData(handler, loader, config.StaticData.Data, e.Entrypoint)
-		}
-		return extism.FromExtismLoader(handler, loader, e.Entrypoint)
-
-	default:
-		return nil, fmt.Errorf("unsupported evaluator type: %T", e)
+	// All evaluators must be pre-compiled during domain validation
+	compiledEvaluator := config.Evaluator.GetCompiledEvaluator()
+	if compiledEvaluator == nil {
+		return nil, fmt.Errorf(
+			"evaluator not compiled during validation phase - this indicates a domain validation bug for evaluator type: %T",
+			config.Evaluator,
+		)
 	}
-}
 
-// createLoaderFromEvaluator creates a go-polyscript loader from code or URI
-func createLoaderFromEvaluator(code, uri string) (loader.Loader, error) {
-	if code != "" {
-		return loader.NewFromString(code)
-	} else if uri != "" {
-		return createLoaderFromURI(uri)
-	} else {
-		return nil, fmt.Errorf("evaluator must have either code or uri")
-	}
-}
-
-// createLoaderFromURI creates a go-polyscript Loader from a URI
-func createLoaderFromURI(uri string) (loader.Loader, error) {
-	if strings.HasPrefix(uri, "file://") {
-		return loader.NewFromDisk(uri)
-	} else if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
-		return loader.NewFromHTTP(uri)
-	} else {
-		return nil, fmt.Errorf("unsupported URI scheme: %s", uri)
-	}
+	return compiledEvaluator, nil
 }
 
 // getEvaluatorTimeout gets timeout from evaluator, with fallback
