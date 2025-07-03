@@ -579,81 +579,77 @@ func processScriptAppConfig(app *pbSettings.AppDefinition, appMap map[string]any
 	return errList
 }
 
+// extractSourceFromConfig extracts code or uri from TOML config map.
+// Returns the extracted values and whether any source was found.
+// Code takes precedence over uri if both are present.
+func extractSourceFromConfig(config map[string]any) (code string, uri string, hasSource bool) {
+	if codeVal, hasCode := config["code"].(string); hasCode && codeVal != "" {
+		return codeVal, "", true
+	} else if uriVal, hasURI := config["uri"].(string); hasURI && uriVal != "" {
+		return "", uriVal, true
+	}
+	return "", "", false
+}
+
 // processScriptEvaluators handles script evaluator-specific configuration
 func processScriptEvaluators(scriptApp *pbSettings.ScriptApp, scriptConfig map[string]any) []error {
 	var errList []error
 
-	// Process Risor evaluator
+	// Process each evaluator type
 	if risorConfig, ok := scriptConfig["risor"].(map[string]any); ok {
-		if risorEval := scriptApp.GetRisor(); risorEval != nil {
-			errs := processRisorEvaluator(risorEval, risorConfig)
-			errList = append(errList, errs...)
-		}
+		processRisorSource(scriptApp.GetRisor(), risorConfig)
 	}
-
-	// Process Starlark evaluator
 	if starlarkConfig, ok := scriptConfig["starlark"].(map[string]any); ok {
-		if starlarkEval := scriptApp.GetStarlark(); starlarkEval != nil {
-			errs := processStarlarkEvaluator(starlarkEval, starlarkConfig)
-			errList = append(errList, errs...)
-		}
+		processStarlarkSource(scriptApp.GetStarlark(), starlarkConfig)
 	}
-
-	// Process Extism evaluator
 	if extismConfig, ok := scriptConfig["extism"].(map[string]any); ok {
-		if extismEval := scriptApp.GetExtism(); extismEval != nil {
-			errs := processExtismEvaluator(extismEval, extismConfig)
-			errList = append(errList, errs...)
-		}
+		processExtismSource(scriptApp.GetExtism(), extismConfig)
 	}
 
 	return errList
 }
 
-// processRisorEvaluator handles Risor evaluator post-processing
-func processRisorEvaluator(risor *pbSettings.RisorEvaluator, risorConfig map[string]any) []error {
-	var errList []error
-
-	// Handle source oneof - if both code and uri are present, prioritize code
-	if codeVal, hasCode := risorConfig["code"].(string); hasCode {
-		risor.Source = &pbSettings.RisorEvaluator_Code{Code: codeVal}
-	} else if uriVal, hasURI := risorConfig["uri"].(string); hasURI {
-		risor.Source = &pbSettings.RisorEvaluator_Uri{Uri: uriVal}
+func processRisorSource(eval *pbSettings.RisorEvaluator, config map[string]any) {
+	if eval == nil {
+		return
 	}
-
-	return errList
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.RisorEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.RisorEvaluator_Uri{Uri: uri}
+	}
 }
 
-// processStarlarkEvaluator handles Starlark evaluator post-processing
-func processStarlarkEvaluator(
-	starlark *pbSettings.StarlarkEvaluator,
-	starlarkConfig map[string]any,
-) []error {
-	var errList []error
-
-	// Handle source oneof - if both code and uri are present, prioritize code
-	if codeVal, hasCode := starlarkConfig["code"].(string); hasCode {
-		starlark.Source = &pbSettings.StarlarkEvaluator_Code{Code: codeVal}
-	} else if uriVal, hasURI := starlarkConfig["uri"].(string); hasURI {
-		starlark.Source = &pbSettings.StarlarkEvaluator_Uri{Uri: uriVal}
+func processStarlarkSource(eval *pbSettings.StarlarkEvaluator, config map[string]any) {
+	if eval == nil {
+		return
 	}
-
-	return errList
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.StarlarkEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.StarlarkEvaluator_Uri{Uri: uri}
+	}
 }
 
-// processExtismEvaluator handles Extism evaluator post-processing
-func processExtismEvaluator(
-	extism *pbSettings.ExtismEvaluator,
-	extismConfig map[string]any,
-) []error {
-	var errList []error
-
-	// Handle source oneof - if both code and uri are present, prioritize code
-	if codeVal, hasCode := extismConfig["code"].(string); hasCode {
-		extism.Source = &pbSettings.ExtismEvaluator_Code{Code: codeVal}
-	} else if uriVal, hasURI := extismConfig["uri"].(string); hasURI {
-		extism.Source = &pbSettings.ExtismEvaluator_Uri{Uri: uriVal}
+func processExtismSource(eval *pbSettings.ExtismEvaluator, config map[string]any) {
+	if eval == nil {
+		return
 	}
-
-	return errList
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.ExtismEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.ExtismEvaluator_Uri{Uri: uri}
+	}
 }

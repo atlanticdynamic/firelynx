@@ -308,3 +308,86 @@ func TestPostProcessConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "unsupported listener type: unsupported_type")
 	})
 }
+
+// TestExtractSourceFromConfig tests the extractSourceFromConfig helper function
+func TestExtractSourceFromConfig(t *testing.T) {
+	t.Parallel()
+
+	t.Run("CodePresent", func(t *testing.T) {
+		config := map[string]any{
+			"code": "print('hello')",
+		}
+
+		code, uri, hasSource := extractSourceFromConfig(config)
+		assert.True(t, hasSource, "Should have source")
+		assert.Equal(t, "print('hello')", code, "Should return code value")
+		assert.Empty(t, uri, "Should return empty uri")
+	})
+
+	t.Run("UriPresent", func(t *testing.T) {
+		config := map[string]any{
+			"uri": "file://script.risor",
+		}
+
+		code, uri, hasSource := extractSourceFromConfig(config)
+		assert.True(t, hasSource, "Should have source")
+		assert.Empty(t, code, "Should return empty code")
+		assert.Equal(t, "file://script.risor", uri, "Should return uri value")
+	})
+
+	t.Run("BothPresent_CodeTakesPrecedence", func(t *testing.T) {
+		config := map[string]any{
+			"code": "print('hello')",
+			"uri":  "file://script.risor",
+		}
+
+		code, uri, hasSource := extractSourceFromConfig(config)
+		assert.True(t, hasSource, "Should have source")
+		assert.Equal(t, "print('hello')", code, "Code should take precedence")
+		assert.Empty(t, uri, "Uri should be empty when code present")
+	})
+
+	t.Run("NeitherPresent", func(t *testing.T) {
+		config := map[string]any{
+			"timeout": "30s",
+		}
+
+		code, uri, hasSource := extractSourceFromConfig(config)
+		assert.False(t, hasSource, "Should not have source")
+		assert.Empty(t, code, "Should return empty code")
+		assert.Empty(t, uri, "Should return empty uri")
+	})
+
+	t.Run("EmptyValues", func(t *testing.T) {
+		config := map[string]any{
+			"code": "",
+			"uri":  "",
+		}
+
+		code, uri, hasSource := extractSourceFromConfig(config)
+		assert.False(t, hasSource, "Should not have source for empty values")
+		assert.Empty(t, code, "Should return empty code")
+		assert.Empty(t, uri, "Should return empty uri")
+	})
+
+	t.Run("NonStringValues", func(t *testing.T) {
+		config := map[string]any{
+			"code": 123,
+			"uri":  true,
+		}
+
+		code, uri, hasSource := extractSourceFromConfig(config)
+		assert.False(t, hasSource, "Should not have source for non-string values")
+		assert.Empty(t, code, "Should return empty code")
+		assert.Empty(t, uri, "Should return empty uri")
+	})
+
+	t.Run("EmptyConfig", func(t *testing.T) {
+		config := map[string]any{}
+
+		code, uri, hasSource := extractSourceFromConfig(config)
+		assert.False(t, hasSource, "Should not have source for empty config")
+		assert.Empty(t, code, "Should return empty code")
+		assert.Empty(t, uri, "Should return empty uri")
+	})
+}
