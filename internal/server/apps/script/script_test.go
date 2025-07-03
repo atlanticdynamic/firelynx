@@ -19,6 +19,9 @@ func TestScriptApp_String_ReturnsAppID(t *testing.T) {
 		Code: `{"message": "hello"}`,
 	}
 
+	err := risorEval.Validate()
+	require.NoError(t, err)
+
 	config := &scripts.AppScript{
 		Evaluator: risorEval,
 	}
@@ -68,6 +71,9 @@ func TestScriptApp_New_RisorEvaluator(t *testing.T) {
 		Timeout: 5 * time.Second,
 	}
 
+	err := risorEval.Validate()
+	require.NoError(t, err)
+
 	config := &scripts.AppScript{
 		Evaluator: risorEval,
 	}
@@ -82,6 +88,9 @@ func TestScriptApp_New_StarlarkEvaluator(t *testing.T) {
 		Code:    `result = {"status": 200, "message": "success"}`,
 		Timeout: 3 * time.Second,
 	}
+
+	err := starlarkEval.Validate()
+	require.NoError(t, err)
 
 	config := &scripts.AppScript{
 		Evaluator: starlarkEval,
@@ -101,6 +110,9 @@ func TestScriptApp_HandleHTTP_RisorScript(t *testing.T) {
 		}`,
 		Timeout: 5 * time.Second,
 	}
+
+	err := risorEval.Validate()
+	require.NoError(t, err)
 
 	config := &scripts.AppScript{
 		Evaluator: risorEval,
@@ -128,6 +140,9 @@ func TestScriptApp_HandleHTTP_WithStaticData(t *testing.T) {
 		}`,
 		Timeout: 5 * time.Second,
 	}
+
+	err := risorEval.Validate()
+	require.NoError(t, err)
 
 	staticData := map[string]any{
 		"test_key": "static_value",
@@ -160,14 +175,13 @@ func TestScriptApp_HandleHTTP_ScriptError(t *testing.T) {
 		Timeout: 5 * time.Second,
 	}
 
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
-
-	app, err := New("risor-app", config, slog.Default())
+	// Validation should fail for invalid syntax
+	err := risorEval.Validate()
 	assert.Error(t, err)
-	assert.Nil(t, app)
-	assert.Contains(t, err.Error(), "compiler failed")
+	assert.Contains(t, err.Error(), "compilation failed")
+
+	// Since validation failed, we shouldn't try to create the app
+	// This test demonstrates that invalid scripts are caught during validation
 }
 
 func TestScriptApp_HandleHTTP_Timeout(t *testing.T) {
@@ -183,6 +197,9 @@ func TestScriptApp_HandleHTTP_Timeout(t *testing.T) {
 		}`,
 		Timeout: 1 * time.Millisecond,
 	}
+
+	err := risorEval.Validate()
+	require.NoError(t, err)
 
 	config := &scripts.AppScript{
 		Evaluator: risorEval,
@@ -211,6 +228,9 @@ result = {
 _ = result`,
 		Timeout: 5 * time.Second,
 	}
+
+	err := starlarkEval.Validate()
+	require.NoError(t, err)
 
 	config := &scripts.AppScript{
 		Evaluator: starlarkEval,
@@ -243,6 +263,9 @@ result = {
 _ = result`,
 		Timeout: 5 * time.Second,
 	}
+
+	err := starlarkEval.Validate()
+	require.NoError(t, err)
 
 	staticData := map[string]any{
 		"config_key": "production",
