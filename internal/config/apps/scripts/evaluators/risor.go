@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/robbyt/go-polyscript/engines/risor"
 	"github.com/robbyt/go-polyscript/engines/risor/evaluator"
 	"github.com/robbyt/go-polyscript/platform"
-	"github.com/robbyt/go-polyscript/platform/script/loader"
 )
 
 var _ Evaluator = (*RisorEvaluator)(nil)
@@ -65,30 +63,10 @@ func (r *RisorEvaluator) Validate() error {
 	}
 
 	// Create loader based on source type
-	var scriptLoader loader.Loader
-	var err error
-
-	if r.Code != "" {
-		// Load from inline code
-		scriptLoader, err = loader.NewFromString(r.Code)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to create loader from code: %w", err))
-			return errors.Join(errs...)
-		}
-	} else if r.URI != "" {
-		// Load from URI (file:// or https://)
-		if strings.HasPrefix(r.URI, "http://") || strings.HasPrefix(r.URI, "https://") {
-			// HTTP/HTTPS URL
-			scriptLoader, err = loader.NewFromHTTP(r.URI)
-		} else {
-			// File path (remove file:// prefix if present)
-			path := strings.TrimPrefix(r.URI, "file://")
-			scriptLoader, err = loader.NewFromDisk(path)
-		}
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to create loader from URI %s: %w", r.URI, err))
-			return errors.Join(errs...)
-		}
+	scriptLoader, err := createLoaderFromSource(r.Code, r.URI)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("%w: %w", ErrLoaderCreation, err))
+		return errors.Join(errs...)
 	}
 
 	// Compile script using go-polyscript
