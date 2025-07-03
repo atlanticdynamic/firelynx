@@ -4,10 +4,14 @@ package evaluators
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/robbyt/go-polyscript/engines/risor"
 	"github.com/robbyt/go-polyscript/engines/risor/evaluator"
 	"github.com/robbyt/go-polyscript/platform"
+	"github.com/robbyt/go-polyscript/platform/script/loader"
 )
 
 var _ Evaluator = (*RisorEvaluator)(nil)
@@ -38,19 +42,65 @@ func (r *RisorEvaluator) String() string {
 	return fmt.Sprintf("Risor(code=%d chars, timeout=%s)", len(r.Code), r.Timeout)
 }
 
-// Validate checks if the RisorEvaluator is valid.
+// Validate checks if the RisorEvaluator is valid and compiles the script.
 func (r *RisorEvaluator) Validate() error {
 	var errs []error
 
-	// Code must not be empty
-	if r.Code == "" {
-		errs = append(errs, ErrEmptyCode)
+	// XOR validation: either code OR uri must be present, but not both and not neither
+	if r.Code == "" && r.URI == "" {
+		errs = append(errs, ErrMissingCodeAndURI)
+	}
+	if r.Code != "" && r.URI != "" {
+		errs = append(errs, ErrBothCodeAndURI)
 	}
 
 	// Timeout must not be negative
 	if r.Timeout < 0 {
 		errs = append(errs, ErrNegativeTimeout)
 	}
+
+	// If basic validation failed, don't attempt compilation
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	// Create loader based on source type
+	var scriptLoader loader.Loader
+	var err error
+
+	if r.Code != "" {
+		// Load from inline code
+		scriptLoader, err = loader.NewFromString(r.Code)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to create loader from code: %w", err))
+			return errors.Join(errs...)
+		}
+	} else if r.URI != "" {
+		// Load from URI (file:// or https://)
+		if strings.HasPrefix(r.URI, "http://") || strings.HasPrefix(r.URI, "https://") {
+			// HTTP/HTTPS URL
+			scriptLoader, err = loader.NewFromHTTP(r.URI)
+		} else {
+			// File path (remove file:// prefix if present)
+			path := strings.TrimPrefix(r.URI, "file://")
+			scriptLoader, err = loader.NewFromDisk(path)
+		}
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to create loader from URI %s: %w", r.URI, err))
+			return errors.Join(errs...)
+		}
+	}
+
+	// Compile script using go-polyscript
+	logger := slog.Default()
+	compiledEvaluator, err := risor.FromRisorLoader(logger.Handler(), scriptLoader)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("risor script compilation failed: %w", err))
+		return errors.Join(errs...)
+	}
+
+	// Store the compiled evaluator for later use
+	r.compiledEvaluator = compiledEvaluator
 
 	return errors.Join(errs...)
 }

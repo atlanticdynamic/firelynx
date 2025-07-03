@@ -1,12 +1,17 @@
 package evaluators
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
+	"github.com/robbyt/go-polyscript/engines/extism"
 	"github.com/robbyt/go-polyscript/engines/extism/evaluator"
 	"github.com/robbyt/go-polyscript/platform"
+	"github.com/robbyt/go-polyscript/platform/script/loader"
 )
 
 var _ Evaluator = (*ExtismEvaluator)(nil)
@@ -44,19 +49,75 @@ func (e *ExtismEvaluator) String() string {
 	)
 }
 
-// Validate checks if the ExtismEvaluator is valid.
+// Validate checks if the ExtismEvaluator is valid and compiles the WASM module.
 func (e *ExtismEvaluator) Validate() error {
 	var errs []error
 
-	// Code must not be empty
-	if e.Code == "" {
-		errs = append(errs, ErrEmptyCode)
+	// XOR validation: either code OR uri must be present, but not both and not neither
+	if e.Code == "" && e.URI == "" {
+		errs = append(errs, ErrMissingCodeAndURI)
+	}
+	if e.Code != "" && e.URI != "" {
+		errs = append(errs, ErrBothCodeAndURI)
 	}
 
 	// Entrypoint must not be empty
 	if e.Entrypoint == "" {
 		errs = append(errs, ErrEmptyEntrypoint)
 	}
+
+	// Timeout must not be negative
+	if e.Timeout < 0 {
+		errs = append(errs, ErrNegativeTimeout)
+	}
+
+	// If basic validation failed, don't attempt compilation
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+
+	// Create loader based on source type
+	var scriptLoader loader.Loader
+	var err error
+
+	if e.Code != "" {
+		// Load from inline code (base64 encoded WASM) - decode to bytes first
+		wasmBytes, err := base64.StdEncoding.DecodeString(e.Code)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to decode base64 WASM: %w", err))
+			return errors.Join(errs...)
+		}
+		scriptLoader, err = loader.NewFromBytes(wasmBytes)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to create loader from WASM bytes: %w", err))
+			return errors.Join(errs...)
+		}
+	} else if e.URI != "" {
+		// Load from URI (file:// or https://)
+		if strings.HasPrefix(e.URI, "http://") || strings.HasPrefix(e.URI, "https://") {
+			// HTTP/HTTPS URL
+			scriptLoader, err = loader.NewFromHTTP(e.URI)
+		} else {
+			// File path (remove file:// prefix if present)
+			path := strings.TrimPrefix(e.URI, "file://")
+			scriptLoader, err = loader.NewFromDisk(path)
+		}
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to create loader from URI %s: %w", e.URI, err))
+			return errors.Join(errs...)
+		}
+	}
+
+	// Compile WASM module using go-polyscript
+	logger := slog.Default()
+	compiledEvaluator, err := extism.FromExtismLoader(logger.Handler(), scriptLoader, e.Entrypoint)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("extism WASM module compilation failed: %w", err))
+		return errors.Join(errs...)
+	}
+
+	// Store the compiled evaluator for later use
+	e.compiledEvaluator = compiledEvaluator
 
 	return errors.Join(errs...)
 }

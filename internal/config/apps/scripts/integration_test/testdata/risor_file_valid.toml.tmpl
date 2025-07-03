@@ -1,0 +1,31 @@
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = "127.0.0.1:{{.Port}}"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.routes]]
+app_id = "risor-file-test"
+[endpoints.routes.http]
+path_prefix = "/"
+
+[[apps]]
+id = "risor-file-test"
+
+[apps.script]
+
+[apps.script.static_data]
+data = { source = "external file" }
+
+[apps.script.risor]
+uri = "file://{{.ScriptPath}}"
+timeout = "1s"

@@ -1,9 +1,11 @@
 package evaluators
 
 import (
+	"encoding/base64"
 	"errors"
 	"testing"
 
+	"github.com/robbyt/go-polyscript/engines/extism/wasmdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,23 +50,38 @@ func TestExtismEvaluator_String(t *testing.T) {
 }
 
 func TestExtismEvaluator_Validate(t *testing.T) {
-	t.Run("valid", func(t *testing.T) {
+	t.Run("valid with real WASM module", func(t *testing.T) {
+		// Use real WASM module from go-polyscript
+		wasmBase64 := base64.StdEncoding.EncodeToString(wasmdata.TestModule)
 		evaluator := &ExtismEvaluator{
-			Code:       "base64content",
-			Entrypoint: "handle_request",
+			Code:       wasmBase64,
+			Entrypoint: wasmdata.EntrypointGreet,
 		}
 		err := evaluator.Validate()
 		require.NoError(t, err)
+		assert.NotNil(t, evaluator.GetCompiledEvaluator())
 	})
 
-	t.Run("empty code", func(t *testing.T) {
+	t.Run("neither code nor uri", func(t *testing.T) {
 		evaluator := &ExtismEvaluator{
 			Code:       "",
+			URI:        "",
 			Entrypoint: "handle_request",
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyCode))
+		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
+	})
+
+	t.Run("both code and uri", func(t *testing.T) {
+		evaluator := &ExtismEvaluator{
+			Code:       "base64content",
+			URI:        "file://test.wasm",
+			Entrypoint: "handle_request",
+		}
+		err := evaluator.Validate()
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrBothCodeAndURI)
 	})
 
 	t.Run("empty entrypoint", func(t *testing.T) {
@@ -80,12 +97,13 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 	t.Run("multiple errors", func(t *testing.T) {
 		evaluator := &ExtismEvaluator{
 			Code:       "",
+			URI:        "",
 			Entrypoint: "",
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyCode))
-		assert.True(t, errors.Is(err, ErrEmptyEntrypoint))
+		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
+		assert.ErrorIs(t, err, ErrEmptyEntrypoint)
 	})
 }
 
