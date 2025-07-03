@@ -59,9 +59,9 @@ func New(id string, config *scripts.AppScript, logger *slog.Logger) (*ScriptApp,
 	}, nil
 }
 
-// String returns a string representation
+// String returns the unique identifier of the application
 func (s *ScriptApp) String() string {
-	return fmt.Sprintf("ScriptApp[%s](%s)", s.id, s.config.Evaluator.Type())
+	return s.id
 }
 
 // HandleHTTP handles HTTP requests by executing the script using go-polyscript
