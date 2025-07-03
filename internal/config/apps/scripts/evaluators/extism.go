@@ -83,12 +83,22 @@ func (e *ExtismEvaluator) Validate() error {
 		// Load from inline code (base64 encoded WASM) - decode to bytes first
 		wasmBytes, err := base64.StdEncoding.DecodeString(e.Code)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to decode base64 WASM: %w", err))
+			errs = append(
+				errs,
+				fmt.Errorf("%w: failed to decode base64 WASM: %w", ErrCompilationFailed, err),
+			)
 			return errors.Join(errs...)
 		}
 		scriptLoader, err = loader.NewFromBytes(wasmBytes)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to create loader from WASM bytes: %w", err))
+			errs = append(
+				errs,
+				fmt.Errorf(
+					"%w: failed to create loader from WASM bytes: %w",
+					ErrCompilationFailed,
+					err,
+				),
+			)
 			return errors.Join(errs...)
 		}
 	} else if e.URI != "" {
@@ -104,7 +114,10 @@ func (e *ExtismEvaluator) Validate() error {
 	logger := slog.Default()
 	compiledEvaluator, err := extism.FromExtismLoader(logger.Handler(), scriptLoader, e.Entrypoint)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("extism WASM module compilation failed: %w", err))
+		errs = append(
+			errs,
+			fmt.Errorf("%w: extism WASM module compilation failed: %w", ErrCompilationFailed, err),
+		)
 		return errors.Join(errs...)
 	}
 
