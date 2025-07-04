@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"mime"
 	"net/http"
 	"time"
 
@@ -131,17 +132,20 @@ func (s *ScriptApp) prepareRuntimeData(
 	// Extract JSON body fields for direct access by scripts (especially Extism)
 	// We read the body twice: once for JSON parsing, once for go-polyscript's contextProvider
 	// The contextProvider calls helpers.RequestToMap() which reads r.Body to create a "Body" field
-	if r.Header.Get("Content-Type") == "application/json" {
-		bodyBytes, err := io.ReadAll(r.Body)
-		if err != nil {
-			s.logger.Error("Failed to read request body", "error", err)
-			return runtimeData // Return empty data if body read fails
-		}
+	if mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil {
+		switch mediaType {
+		case "application/json":
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				s.logger.Error("Failed to read request body", "error", err)
+				return runtimeData // Return empty data if body read fails
+			}
 
-		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset for go-polyscript to read
-		var bodyData map[string]any
-		if json.Unmarshal(bodyBytes, &bodyData) == nil {
-			maps.Copy(runtimeData, bodyData)
+			r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset for go-polyscript to read
+			var bodyData map[string]any
+			if json.Unmarshal(bodyBytes, &bodyData) == nil {
+				maps.Copy(runtimeData, bodyData)
+			}
 		}
 	}
 
