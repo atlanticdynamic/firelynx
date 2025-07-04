@@ -3,6 +3,7 @@ package evaluators
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/robbyt/go-polyscript/platform"
 )
@@ -22,6 +23,7 @@ type Evaluator interface {
 	Type() EvaluatorType
 	Validate() error
 	GetCompiledEvaluator() platform.Evaluator
+	GetTimeout() time.Duration
 }
 
 // String returns a string representation of the EvaluatorType.

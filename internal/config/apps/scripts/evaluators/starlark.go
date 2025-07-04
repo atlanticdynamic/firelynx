@@ -90,3 +90,11 @@ func (s *StarlarkEvaluator) Validate() error {
 func (s *StarlarkEvaluator) GetCompiledEvaluator() platform.Evaluator {
 	return s.compiledEvaluator
 }
+
+// GetTimeout returns the timeout duration, with a default fallback.
+func (s *StarlarkEvaluator) GetTimeout() time.Duration {
+	if s.Timeout > 0 {
+		return s.Timeout
+	}
+	return 30 * time.Second
+}
