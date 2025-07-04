@@ -90,3 +90,11 @@ func (r *RisorEvaluator) Validate() error {
 func (r *RisorEvaluator) GetCompiledEvaluator() platform.Evaluator {
 	return r.compiledEvaluator
 }
+
+// GetTimeout returns the timeout duration, with a default fallback.
+func (r *RisorEvaluator) GetTimeout() time.Duration {
+	if r.Timeout > 0 {
+		return r.Timeout
+	}
+	return 30 * time.Second
+}

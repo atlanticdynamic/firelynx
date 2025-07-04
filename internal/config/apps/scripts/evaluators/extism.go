@@ -131,3 +131,11 @@ func (e *ExtismEvaluator) Validate() error {
 func (e *ExtismEvaluator) GetCompiledEvaluator() platform.Evaluator {
 	return e.compiledEvaluator
 }
+
+// GetTimeout returns the timeout duration, with a default fallback.
+func (e *ExtismEvaluator) GetTimeout() time.Duration {
+	if e.Timeout > 0 {
+		return e.Timeout
+	}
+	return 60 * time.Second
+}
