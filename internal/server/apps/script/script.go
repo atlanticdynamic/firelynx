@@ -132,7 +132,12 @@ func (s *ScriptApp) prepareRuntimeData(
 	// We read the body twice: once for JSON parsing, once for go-polyscript's contextProvider
 	// The contextProvider calls helpers.RequestToMap() which reads r.Body to create a "Body" field
 	if r.Header.Get("Content-Type") == "application/json" {
-		bodyBytes, _ := io.ReadAll(r.Body)
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			s.logger.Error("Failed to read request body", "error", err)
+			return runtimeData // Return empty data if body read fails
+		}
+
 		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset for go-polyscript to read
 		var bodyData map[string]any
 		if json.Unmarshal(bodyBytes, &bodyData) == nil {
