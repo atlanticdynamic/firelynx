@@ -59,7 +59,9 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.NoError(t, err)
-		assert.NotNil(t, evaluator.GetCompiledEvaluator())
+		compiled, err := evaluator.GetCompiledEvaluator()
+		assert.NoError(t, err)
+		assert.NotNil(t, compiled)
 	})
 
 	t.Run("neither code nor uri", func(t *testing.T) {
@@ -110,13 +112,15 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 func TestExtismEvaluator_GetCompiledEvaluator(t *testing.T) {
 	t.Run("nil evaluator", func(t *testing.T) {
 		evaluator := &ExtismEvaluator{}
-		result := evaluator.GetCompiledEvaluator()
+		result, err := evaluator.GetCompiledEvaluator()
+		assert.Error(t, err)
 		assert.Nil(t, result)
 	})
 
 	t.Run("non-nil evaluator", func(t *testing.T) {
 		evaluator := &ExtismEvaluator{}
-		result := evaluator.GetCompiledEvaluator()
+		result, err := evaluator.GetCompiledEvaluator()
+		assert.Error(t, err)
 		assert.Nil(t, result)
 
 		// TODO: Add test for compiled evaluator when Phase 2.1 is implemented

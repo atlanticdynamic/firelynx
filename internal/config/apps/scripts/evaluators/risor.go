@@ -1,10 +1,10 @@
-//nolint:dupl
 package evaluators
 
 import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/robbyt/go-polyscript/engines/risor"
@@ -25,6 +25,10 @@ type RisorEvaluator struct {
 
 	// compiledEvaluator stores the concrete Risor evaluator after compilation
 	compiledEvaluator *evaluator.Evaluator
+	// buildOnce ensures build() is called exactly once
+	buildOnce sync.Once
+	// buildErr stores any error from the build process
+	buildErr error
 }
 
 // Type returns the type of this evaluator.
@@ -62,33 +66,18 @@ func (r *RisorEvaluator) Validate() error {
 		return errors.Join(errs...)
 	}
 
-	// Create loader based on source type
-	scriptLoader, err := createLoaderFromSource(r.Code, r.URI)
-	if err != nil {
-		errs = append(errs, fmt.Errorf("%w: %w", ErrLoaderCreation, err))
-		return errors.Join(errs...)
-	}
-
-	// Compile script using go-polyscript
-	logger := slog.Default()
-	compiledEvaluator, err := risor.FromRisorLoader(logger.Handler(), scriptLoader)
-	if err != nil {
-		errs = append(
-			errs,
-			fmt.Errorf("%w: risor script compilation failed: %w", ErrCompilationFailed, err),
-		)
-		return errors.Join(errs...)
-	}
-
-	// Store the compiled evaluator for later use
-	r.compiledEvaluator = compiledEvaluator
-
-	return errors.Join(errs...)
+	// Trigger compilation
+	r.build()
+	return r.buildErr
 }
 
 // GetCompiledEvaluator returns the abstract platform.Evaluator interface.
-func (r *RisorEvaluator) GetCompiledEvaluator() platform.Evaluator {
-	return r.compiledEvaluator
+func (r *RisorEvaluator) GetCompiledEvaluator() (platform.Evaluator, error) {
+	r.build()
+	if r.buildErr != nil {
+		return nil, r.buildErr
+	}
+	return r.compiledEvaluator, nil
 }
 
 // GetTimeout returns the timeout duration, with a default fallback.
@@ -96,5 +85,29 @@ func (r *RisorEvaluator) GetTimeout() time.Duration {
 	if r.Timeout > 0 {
 		return r.Timeout
 	}
-	return 30 * time.Second
+	return DefaultEvalTimeout
+}
+
+// build compiles the script - called lazily by Validate() or GetCompiledEvaluator()
+func (r *RisorEvaluator) build() {
+	r.buildOnce.Do(func() {
+		// Create loader based on source type
+		scriptLoader, err := createLoaderFromSource(r.Code, r.URI)
+		if err != nil {
+			r.buildErr = fmt.Errorf("%w: %w", ErrLoaderCreation, err)
+			return
+		}
+
+		// Compile script using go-polyscript
+		logger := slog.Default()
+		r.compiledEvaluator, err = risor.FromRisorLoader(logger.Handler(), scriptLoader)
+		if err != nil {
+			r.buildErr = fmt.Errorf(
+				"%w: risor script compilation failed: %w",
+				ErrCompilationFailed,
+				err,
+			)
+			return
+		}
+	})
 }
