@@ -1,0 +1,32 @@
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = "127.0.0.1:{{.Port}}"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.routes]]
+app_id = "extism-test"
+[endpoints.routes.http]
+path_prefix = "/"
+
+[[apps]]
+id = "extism-test"
+
+[apps.script]
+
+[apps.script.static_data]
+data = { message = "Hello from Extism integration test" }
+
+[apps.script.extism]
+code = "{{.WASMBase64}}"
+entrypoint = "{{.Entrypoint}}"
+timeout = "1s"

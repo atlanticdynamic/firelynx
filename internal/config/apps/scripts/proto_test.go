@@ -8,7 +8,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestFromProto(t *testing.T) {
@@ -34,7 +33,7 @@ func TestFromProto(t *testing.T) {
 			proto: &settingsv1alpha1.ScriptApp{
 				Evaluator: &settingsv1alpha1.ScriptApp_Risor{
 					Risor: &settingsv1alpha1.RisorEvaluator{
-						Code: proto.String("print('hello')"),
+						Source: &settingsv1alpha1.RisorEvaluator_Code{Code: "print('hello')"},
 					},
 				},
 			},

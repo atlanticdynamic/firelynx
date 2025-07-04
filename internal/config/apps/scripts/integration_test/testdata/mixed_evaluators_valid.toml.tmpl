@@ -1,0 +1,75 @@
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = "127.0.0.1:{{.Port}}"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.routes]]
+app_id = "risor-app"
+[endpoints.routes.http]
+path_prefix = "/risor"
+
+[[endpoints.routes]]
+app_id = "starlark-app"
+[endpoints.routes.http]
+path_prefix = "/starlark"
+
+[[endpoints.routes]]
+app_id = "extism-app"
+[endpoints.routes.http]
+path_prefix = "/extism"
+
+# Risor app
+[[apps]]
+id = "risor-app"
+
+[apps.script]
+[apps.script.risor]
+code = """
+func handler() {
+    return {
+        "engine": "risor",
+        "status": "success"
+    }
+}
+
+handler()
+"""
+timeout = "1s"
+
+# Starlark app
+[[apps]]
+id = "starlark-app"
+
+[apps.script]
+[apps.script.starlark]
+code = """
+def handler():
+    return {
+        "engine": "starlark",
+        "status": "success"
+    }
+
+result = handler()
+_ = result
+"""
+timeout = "1s"
+
+# Extism app
+[[apps]]
+id = "extism-app"
+
+[apps.script]
+[apps.script.extism]
+code = "{{.WASMBase64}}"
+entrypoint = "{{.Entrypoint}}"
+timeout = "1s"

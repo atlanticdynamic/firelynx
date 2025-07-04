@@ -38,18 +38,28 @@ message ScriptApp {
 }
 
 message RisorEvaluator {
-  string code = 1;
-  google.protobuf.Duration timeout = 2;
+  oneof source {
+    string code = 1;
+    string uri = 2;
+  }
+  google.protobuf.Duration timeout = 3;
 }
 
 message StarlarkEvaluator {
-  string code = 1;
-  google.protobuf.Duration timeout = 2;
+  oneof source {
+    string code = 1;
+    string uri = 2;
+  }
+  google.protobuf.Duration timeout = 3;
 }
 
 message ExtismEvaluator {
-  string code = 1;
-  string entrypoint = 2;
+  oneof source {
+    string code = 1;
+    string uri = 2;
+  }
+  string entrypoint = 3;
+  google.protobuf.Duration timeout = 4;
 }
 
 // Composite script that combines multiple scripts

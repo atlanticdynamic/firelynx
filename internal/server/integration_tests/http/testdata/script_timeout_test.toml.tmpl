@@ -1,0 +1,35 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{.Port}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "timeout-test"
+[endpoints.routes.http]
+path_prefix = "/timeout"
+
+[[apps]]
+id = "timeout-test"
+[apps.script]
+[apps.script.risor]
+code = '''
+// Infinite loop to force timeout
+for i := 0; i < 100000000; i++ {
+    x := i * i
+}
+{
+    "message": "This should never be reached",
+    "status": 200
+}
+'''
+timeout = "1ms"

@@ -46,6 +46,9 @@ func (l *TomlLoader) postProcessConfig(
 	errs = processMiddlewares(config, configMap)
 	errList = append(errList, errs...)
 
+	errs = processApps(config, configMap)
+	errList = append(errList, errs...)
+
 	return errors.Join(errList...)
 }
 
@@ -466,4 +469,166 @@ func processDirectionConfig(
 	}
 
 	return errList
+}
+
+// processApps handles app-specific post-processing
+func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []error {
+	errList := []error{}
+
+	if appsArray, ok := configMap["apps"].([]any); ok {
+		for i, appObj := range appsArray {
+			if i >= len(config.Apps) {
+				break
+			}
+
+			app := config.Apps[i]
+			appMap, ok := appObj.(map[string]any)
+			if !ok {
+				errList = append(
+					errList,
+					fmt.Errorf("app at index %d: %w", i, errz.ErrInvalidAppFormat),
+				)
+				continue
+			}
+
+			// Process app based on type
+			if typeVal, ok := appMap["type"].(string); ok {
+				// Set the type field
+				errs := processAppType(app, typeVal)
+				errList = append(errList, errs...)
+
+				// Process app-specific configuration
+				switch typeVal {
+				case "script":
+					errs := processScriptAppConfig(app, appMap)
+					errList = append(errList, errs...)
+				case "echo":
+					// Echo app doesn't need special post-processing
+				default:
+					errList = append(
+						errList,
+						fmt.Errorf("no post-processing handler for app type: %s", typeVal),
+					)
+				}
+			}
+		}
+	}
+
+	return errList
+}
+
+// processAppType sets the app type from string to enum
+func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
+	var appType pbSettings.AppDefinition_Type
+	var errList []error
+
+	switch typeVal {
+	case "script":
+		appType = pbSettings.AppDefinition_TYPE_SCRIPT
+	case "composite_script":
+		appType = pbSettings.AppDefinition_TYPE_COMPOSITE_SCRIPT
+	case "echo":
+		appType = pbSettings.AppDefinition_TYPE_ECHO
+	default:
+		appType = pbSettings.AppDefinition_TYPE_UNSPECIFIED
+		errList = append(errList, fmt.Errorf("unsupported app type: %s", typeVal))
+	}
+	app.Type = &appType
+
+	return errList
+}
+
+// processScriptAppConfig handles script app-specific configuration
+func processScriptAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) []error {
+	var errList []error
+
+	// Get the script configuration
+	scriptConfig, ok := appMap["script"].(map[string]any)
+	if !ok {
+		return errList
+	}
+
+	// Get the script app config from the app
+	if scriptApp := app.GetScript(); scriptApp != nil {
+		// Process evaluator configurations
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		errList = append(errList, errs...)
+	}
+
+	return errList
+}
+
+// extractSourceFromConfig extracts code or uri from TOML config map.
+// Returns the extracted values and whether any source was found.
+// Code takes precedence over uri if both are present.
+func extractSourceFromConfig(config map[string]any) (code string, uri string, hasSource bool) {
+	if codeVal, hasCode := config["code"].(string); hasCode && codeVal != "" {
+		return codeVal, "", true
+	} else if uriVal, hasURI := config["uri"].(string); hasURI && uriVal != "" {
+		return "", uriVal, true
+	}
+	return "", "", false
+}
+
+// processScriptEvaluators handles script evaluator-specific configuration
+func processScriptEvaluators(scriptApp *pbSettings.ScriptApp, scriptConfig map[string]any) []error {
+	var errList []error
+
+	// Process each evaluator type
+	if risorConfig, ok := scriptConfig["risor"].(map[string]any); ok {
+		processRisorSource(scriptApp.GetRisor(), risorConfig)
+	}
+	if starlarkConfig, ok := scriptConfig["starlark"].(map[string]any); ok {
+		processStarlarkSource(scriptApp.GetStarlark(), starlarkConfig)
+	}
+	if extismConfig, ok := scriptConfig["extism"].(map[string]any); ok {
+		processExtismSource(scriptApp.GetExtism(), extismConfig)
+	}
+
+	return errList
+}
+
+func processRisorSource(eval *pbSettings.RisorEvaluator, config map[string]any) {
+	if eval == nil {
+		return
+	}
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.RisorEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.RisorEvaluator_Uri{Uri: uri}
+	}
+}
+
+func processStarlarkSource(eval *pbSettings.StarlarkEvaluator, config map[string]any) {
+	if eval == nil {
+		return
+	}
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.StarlarkEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.StarlarkEvaluator_Uri{Uri: uri}
+	}
+}
+
+func processExtismSource(eval *pbSettings.ExtismEvaluator, config map[string]any) {
+	if eval == nil {
+		return
+	}
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.ExtismEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.ExtismEvaluator_Uri{Uri: uri}
+	}
 }

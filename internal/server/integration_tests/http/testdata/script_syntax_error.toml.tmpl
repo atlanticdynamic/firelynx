@@ -1,0 +1,32 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{.Port}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "syntax-error-test"
+[endpoints.routes.http]
+path_prefix = "/error"
+
+[[apps]]
+id = "syntax-error-test"
+[apps.script]
+[apps.script.risor]
+code = '''
+// This has invalid syntax - missing closing brace
+{
+    "message": "This will fail",
+    "status": 200
+// Missing closing brace
+'''
+timeout = "5s"

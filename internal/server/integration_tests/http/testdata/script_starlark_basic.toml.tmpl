@@ -1,0 +1,41 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{.Port}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "starlark-hello"
+[endpoints.routes.http]
+path_prefix = "/hello"
+
+[[apps]]
+id = "starlark-hello"
+[apps.script]
+[apps.script.starlark]
+code = '''
+# Starlark script that returns a simple map (will be JSON-encoded automatically)
+# go-polyscript automatically converts the *http.Request to a map via helpers.RequestToMap()
+request_data = ctx.get("request", {})
+method = request_data.get("Method", "UNKNOWN")
+path = request_data.get("URL_Path", "/")
+
+result = {
+    "message": "Hello from Starlark!",
+    "request_method": method,
+    "request_path": path,
+    "language": "python-like"
+}
+# The underscore variable is returned to Go
+_ = result
+'''
+timeout = "5s"

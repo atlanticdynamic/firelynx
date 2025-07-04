@@ -1,0 +1,59 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{.Port}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "extism-greet"
+[endpoints.routes.http]
+path_prefix = "/greet"
+
+[[endpoints.routes]]
+app_id = "extism-count"
+[endpoints.routes.http]
+path_prefix = "/count"
+
+[[endpoints.routes]]
+app_id = "extism-reverse"
+[endpoints.routes.http]
+path_prefix = "/reverse"
+
+[[apps]]
+id = "extism-greet"
+[apps.script]
+[apps.script.static_data]
+data = { input = "integration test" }
+[apps.script.extism]
+code = "{{.WasmBase64}}"
+entrypoint = "greet"
+timeout = "10s"
+
+[[apps]]
+id = "extism-count"
+[apps.script]
+[apps.script.static_data]
+data = { input = "integration test" }
+[apps.script.extism]
+code = "{{.WasmBase64}}"
+entrypoint = "count_vowels"
+timeout = "10s"
+
+[[apps]]
+id = "extism-reverse"
+[apps.script]
+[apps.script.static_data]
+data = { input = "integration test" }
+[apps.script.extism]
+code = "{{.WasmBase64}}"
+entrypoint = "reverse_string"
+timeout = "10s"

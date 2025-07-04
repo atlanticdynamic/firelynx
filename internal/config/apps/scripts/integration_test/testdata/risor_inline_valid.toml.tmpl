@@ -1,0 +1,40 @@
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = "127.0.0.1:{{.Port}}"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+[[endpoints.routes]]
+app_id = "risor-test"
+[endpoints.routes.http]
+path_prefix = "/"
+
+[[apps]]
+id = "risor-test"
+
+[apps.script]
+
+[apps.script.static_data]
+data = { message = "Hello from integration test" }
+
+[apps.script.risor]
+code = """
+func process() {
+    return {
+        "message": "Hello from Risor",
+        "status": "success"
+    }
+}
+
+process()
+"""
+timeout = "1s"

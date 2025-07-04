@@ -3,9 +3,16 @@ package evaluators
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/robbyt/go-polyscript/platform"
 )
 
 type EvaluatorType int
+
+const (
+	DefaultEvalTimeout = 1 * time.Minute // Default timeout for script execution
+)
 
 // EvaluatorType enum values - must match the protobuf definition.
 const (
@@ -19,6 +26,8 @@ const (
 type Evaluator interface {
 	Type() EvaluatorType
 	Validate() error
+	GetCompiledEvaluator() (platform.Evaluator, error)
+	GetTimeout() time.Duration
 }
 
 // String returns a string representation of the EvaluatorType.
