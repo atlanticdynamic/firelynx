@@ -12,6 +12,9 @@ var (
 	usedPorts = make(map[int]struct{})
 )
 
+// GetRandomPort returns a random available port for testing.
+// Note: Uses explicit mutex unlock before recursive call to avoid deadlock.
+// Do not change to defer unlock pattern.
 func GetRandomPort(t *testing.T) int {
 	t.Helper()
 	portMutex.Lock()
