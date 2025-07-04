@@ -10,6 +10,10 @@ import (
 
 type EvaluatorType int
 
+const (
+	DefaultEvalTimeout = 1 * time.Minute // Default timeout for script execution
+)
+
 // EvaluatorType enum values - must match the protobuf definition.
 const (
 	EvaluatorTypeUnspecified EvaluatorType = iota
@@ -22,7 +26,7 @@ const (
 type Evaluator interface {
 	Type() EvaluatorType
 	Validate() error
-	GetCompiledEvaluator() platform.Evaluator
+	GetCompiledEvaluator() (platform.Evaluator, error)
 	GetTimeout() time.Duration
 }
 

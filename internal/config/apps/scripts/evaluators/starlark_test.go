@@ -94,13 +94,15 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 func TestStarlarkEvaluator_GetCompiledEvaluator(t *testing.T) {
 	t.Run("nil evaluator", func(t *testing.T) {
 		evaluator := &StarlarkEvaluator{}
-		result := evaluator.GetCompiledEvaluator()
+		result, err := evaluator.GetCompiledEvaluator()
+		assert.Error(t, err)
 		assert.Nil(t, result)
 	})
 
 	t.Run("non-nil evaluator", func(t *testing.T) {
 		evaluator := &StarlarkEvaluator{}
-		result := evaluator.GetCompiledEvaluator()
+		result, err := evaluator.GetCompiledEvaluator()
+		assert.Error(t, err)
 		assert.Nil(t, result)
 
 		// TODO: Add test for compiled evaluator when Phase 2.1 is implemented

@@ -1347,7 +1347,11 @@ func (s *RisorHTTPSIntegrationTestSuite) TestRisorHTTPSExecution() {
 	s.Require().NoError(err, "Failed to parse JSON response")
 
 	// Verify script response content
-	s.Equal("Hello from HTTPS Risor!", scriptResp.Message, "HTTPS script should return expected message")
+	s.Equal(
+		"Hello from HTTPS Risor!",
+		scriptResp.Message,
+		"HTTPS script should return expected message",
+	)
 	s.Equal("https", scriptResp.Source, "Script should indicate HTTPS source")
 	s.Equal("risor", scriptResp.Evaluator, "Script should indicate Risor evaluator")
 	s.NotEmpty(scriptResp.Timestamp, "Script should include timestamp")
@@ -1515,7 +1519,11 @@ func (s *StarlarkHTTPSIntegrationTestSuite) TestStarlarkHTTPSExecution() {
 	s.Require().NoError(err, "Failed to parse JSON response")
 
 	// Verify script response content
-	s.Equal("Hello from HTTPS Starlark!", scriptResp.Message, "HTTPS script should return expected message")
+	s.Equal(
+		"Hello from HTTPS Starlark!",
+		scriptResp.Message,
+		"HTTPS script should return expected message",
+	)
 	s.Equal("https", scriptResp.Source, "Script should indicate HTTPS source")
 	s.Equal("starlark", scriptResp.Evaluator, "Script should indicate Starlark evaluator")
 	s.NotEmpty(scriptResp.Timestamp, "Script should include timestamp")
@@ -1683,7 +1691,11 @@ func (s *ExtismHTTPSIntegrationTestSuite) TestExtismHTTPSExecution() {
 	s.Require().NoError(err, "Failed to parse JSON response")
 
 	// Verify script response content
-	s.Equal("Hello, HTTPS Test!", scriptResp["greeting"], "HTTPS WASM script should return expected greeting")
+	s.Equal(
+		"Hello, HTTPS Test!",
+		scriptResp["greeting"],
+		"HTTPS WASM script should return expected greeting",
+	)
 
 	s.T().Logf("HTTPS Extism response: %+v", scriptResp)
 }

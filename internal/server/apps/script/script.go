@@ -153,9 +153,9 @@ func (s *ScriptApp) prepareRuntimeData(
 func getPolyscriptEvaluator(
 	config *scripts.AppScript,
 ) (platform.Evaluator, error) {
-	compiledEvaluator := config.Evaluator.GetCompiledEvaluator()
-	if compiledEvaluator == nil {
-		return nil, fmt.Errorf("evaluator is nil, was .Validate() run on the domain config")
+	compiledEvaluator, err := config.Evaluator.GetCompiledEvaluator()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get compiled evaluator: %w", err)
 	}
 
 	return compiledEvaluator, nil

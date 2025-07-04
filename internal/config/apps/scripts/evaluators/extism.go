@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/robbyt/go-polyscript/engines/extism"
@@ -28,6 +29,10 @@ type ExtismEvaluator struct {
 
 	// compiledEvaluator stores the concrete Extism evaluator after compilation
 	compiledEvaluator *evaluator.Evaluator
+	// buildOnce ensures build() is called exactly once
+	buildOnce sync.Once
+	// buildErr stores any error from the build process
+	buildErr error
 }
 
 // Type returns the type of this evaluator.
@@ -75,61 +80,72 @@ func (e *ExtismEvaluator) Validate() error {
 		return errors.Join(errs...)
 	}
 
-	// Create loader based on source type
-	var scriptLoader loader.Loader
-	var err error
+	// Trigger compilation
+	e.build()
+	return e.buildErr
+}
 
-	if e.Code != "" {
-		// Load from inline code (base64 encoded WASM) - decode to bytes first
-		wasmBytes, err := base64.StdEncoding.DecodeString(e.Code)
-		if err != nil {
-			errs = append(
-				errs,
-				fmt.Errorf("%w: failed to decode base64 WASM: %w", ErrCompilationFailed, err),
-			)
-			return errors.Join(errs...)
-		}
-		scriptLoader, err = loader.NewFromBytes(wasmBytes)
-		if err != nil {
-			errs = append(
-				errs,
-				fmt.Errorf(
+// build compiles the script - called lazily by Validate() or GetCompiledEvaluator()
+func (e *ExtismEvaluator) build() {
+	e.buildOnce.Do(func() {
+		// Create loader based on source type
+		var scriptLoader loader.Loader
+		var err error
+
+		if e.Code != "" {
+			// Load from inline code (base64 encoded WASM) - decode to bytes first
+			wasmBytes, err := base64.StdEncoding.DecodeString(e.Code)
+			if err != nil {
+				e.buildErr = fmt.Errorf(
+					"%w: failed to decode base64 WASM: %w",
+					ErrCompilationFailed,
+					err,
+				)
+				return
+			}
+			scriptLoader, err = loader.NewFromBytes(wasmBytes)
+			if err != nil {
+				e.buildErr = fmt.Errorf(
 					"%w: failed to create loader from WASM bytes: %w",
 					ErrCompilationFailed,
 					err,
-				),
-			)
-			return errors.Join(errs...)
+				)
+				return
+			}
+		} else if e.URI != "" {
+			// Use shared loader creation for URI-based loading
+			scriptLoader, err = createLoaderFromSource("", e.URI)
+			if err != nil {
+				e.buildErr = fmt.Errorf("%w: %w", ErrLoaderCreation, err)
+				return
+			}
 		}
-	} else if e.URI != "" {
-		// Use shared loader creation for URI-based loading
-		scriptLoader, err = createLoaderFromSource("", e.URI)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("%w: %w", ErrLoaderCreation, err))
-			return errors.Join(errs...)
-		}
-	}
 
-	// Compile WASM module using go-polyscript
-	logger := slog.Default()
-	compiledEvaluator, err := extism.FromExtismLoader(logger.Handler(), scriptLoader, e.Entrypoint)
-	if err != nil {
-		errs = append(
-			errs,
-			fmt.Errorf("%w: extism WASM module compilation failed: %w", ErrCompilationFailed, err),
+		// Compile WASM module using go-polyscript
+		logger := slog.Default()
+		e.compiledEvaluator, err = extism.FromExtismLoader(
+			logger.Handler(),
+			scriptLoader,
+			e.Entrypoint,
 		)
-		return errors.Join(errs...)
-	}
-
-	// Store the compiled evaluator for later use
-	e.compiledEvaluator = compiledEvaluator
-
-	return errors.Join(errs...)
+		if err != nil {
+			e.buildErr = fmt.Errorf(
+				"%w: extism WASM module compilation failed: %w",
+				ErrCompilationFailed,
+				err,
+			)
+			return
+		}
+	})
 }
 
 // GetCompiledEvaluator returns the abstract platform.Evaluator interface.
-func (e *ExtismEvaluator) GetCompiledEvaluator() platform.Evaluator {
-	return e.compiledEvaluator
+func (e *ExtismEvaluator) GetCompiledEvaluator() (platform.Evaluator, error) {
+	e.build()
+	if e.buildErr != nil {
+		return nil, e.buildErr
+	}
+	return e.compiledEvaluator, nil
 }
 
 // GetTimeout returns the timeout duration, with a default fallback.
@@ -137,5 +153,5 @@ func (e *ExtismEvaluator) GetTimeout() time.Duration {
 	if e.Timeout > 0 {
 		return e.Timeout
 	}
-	return 60 * time.Second
+	return DefaultEvalTimeout
 }
