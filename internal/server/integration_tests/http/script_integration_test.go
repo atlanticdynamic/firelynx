@@ -5,6 +5,7 @@ package http_test
 import (
 	"context"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,6 +25,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
+	"github.com/robbyt/go-polyscript/engines/extism/wasmdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -39,6 +41,9 @@ var scriptRisorFileURITemplate string
 
 //go:embed testdata/script_starlark_file_uri.toml.tmpl
 var scriptStarlarkFileURITemplate string
+
+//go:embed testdata/script_extism_basic.toml.tmpl
+var scriptExtismBasicTemplate string
 
 // ScriptResponse represents the expected response structure from our scripts
 type ScriptResponse struct {
@@ -574,6 +579,23 @@ type FileURIResponse struct {
 	Language string `json:"language,omitempty"`
 }
 
+// ExtismGreetResponse represents the response from Extism greet entrypoint
+type ExtismGreetResponse struct {
+	Greeting string `json:"greeting"`
+}
+
+// ExtismCountResponse represents the response from Extism count_vowels entrypoint
+type ExtismCountResponse struct {
+	Count  int    `json:"count"`
+	Vowels string `json:"vowels"`
+	Input  string `json:"input"`
+}
+
+// ExtismReverseResponse represents the response from Extism reverse_string entrypoint
+type ExtismReverseResponse struct {
+	Reversed string `json:"reversed"`
+}
+
 // RisorFileURIIntegrationTestSuite tests Risor script execution from file:// URIs
 type RisorFileURIIntegrationTestSuite struct {
 	suite.Suite
@@ -901,4 +923,217 @@ func (s *StarlarkFileURIIntegrationTestSuite) TestStarlarkFileURIExecution() {
 
 func TestStarlarkFileURIIntegrationSuite(t *testing.T) {
 	suite.Run(t, new(StarlarkFileURIIntegrationTestSuite))
+}
+
+// ExtismIntegrationTestSuite tests Extism WASM script execution via HTTP
+type ExtismIntegrationTestSuite struct {
+	suite.Suite
+	ctx         context.Context
+	cancel      context.CancelFunc
+	port        int
+	httpRunner  *httplistener.Runner
+	saga        *orchestrator.SagaOrchestrator
+	runnerErrCh chan error
+}
+
+func (s *ExtismIntegrationTestSuite) SetupSuite() {
+	logging.SetupLogger("debug")
+
+	s.ctx, s.cancel = context.WithCancel(s.T().Context())
+	s.port = testutil.GetRandomPort(s.T())
+	s.runnerErrCh = make(chan error, 1)
+
+	// Template variables with base64-encoded WASM
+	templateVars := struct {
+		Port       int
+		WasmBase64 string
+	}{
+		Port:       s.port,
+		WasmBase64: base64.StdEncoding.EncodeToString(wasmdata.TestModule),
+	}
+
+	// Render the Extism configuration template
+	tmpl, err := template.New("script_extism_basic").Parse(scriptExtismBasicTemplate)
+	s.Require().NoError(err, "Failed to parse template")
+
+	var configBuffer strings.Builder
+	err = tmpl.Execute(&configBuffer, templateVars)
+	s.Require().NoError(err, "Failed to render config template")
+
+	configData := configBuffer.String()
+	s.T().Logf("Rendered Extism config:\n%s", configData)
+
+	// Load and validate the configuration
+	cfg, err := config.NewConfigFromBytes([]byte(configData))
+	s.Require().NoError(err, "Failed to load config")
+	s.Require().NoError(cfg.Validate(), "Config validation failed")
+
+	// Create transaction storage
+	txStore := txstorage.NewMemoryStorage()
+
+	// Create saga orchestrator
+	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+
+	// Create HTTP runner
+	s.httpRunner, err = httplistener.NewRunner()
+	s.Require().NoError(err)
+
+	// Register HTTP runner with orchestrator
+	err = s.saga.RegisterParticipant(s.httpRunner)
+	s.Require().NoError(err)
+
+	// Start HTTP runner in background
+	go func() {
+		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
+	}()
+
+	// Wait for HTTP runner to start
+	s.Require().Eventually(func() bool {
+		select {
+		case err := <-s.runnerErrCh:
+			s.T().Fatalf("HTTP runner failed to start: %v", err)
+			return false
+		default:
+			return s.httpRunner.IsRunning()
+		}
+	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
+
+	// Create a config transaction
+	tx, err := transaction.FromTest(s.T().Name(), cfg, slog.Default().Handler())
+	s.Require().NoError(err)
+
+	// Validate the transaction
+	err = tx.RunValidation()
+	s.Require().NoError(err)
+
+	// Process the transaction through the orchestrator
+	err = s.saga.ProcessTransaction(s.ctx, tx)
+	s.Require().NoError(err)
+
+	// Verify the transaction completed successfully
+	s.Require().Equal("completed", tx.GetState())
+
+	// Wait for the server to be fully ready
+	s.Require().Eventually(func() bool {
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/greet", s.port))
+		if err != nil {
+			return false
+		}
+		resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
+}
+
+func (s *ExtismIntegrationTestSuite) TearDownSuite() {
+	// Cancel context to signal shutdown
+	if s.cancel != nil {
+		s.cancel()
+	}
+
+	// Stop HTTP runner if it exists
+	if s.httpRunner != nil {
+		s.httpRunner.Stop()
+
+		// Wait for runner to stop
+		s.Require().Eventually(func() bool {
+			return !s.httpRunner.IsRunning()
+		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
+	}
+}
+
+func (s *ExtismIntegrationTestSuite) TestExtismGreetExecution() {
+	// Make a POST request with JSON input to the greet endpoint
+	reqBody := `{"input": "integration test"}`
+	resp, err := http.Post(
+		fmt.Sprintf("http://127.0.0.1:%d/greet", s.port),
+		"application/json",
+		strings.NewReader(reqBody),
+	)
+	s.Require().NoError(err, "Failed to make POST request")
+	defer resp.Body.Close()
+
+	// Verify status code
+	s.Equal(http.StatusOK, resp.StatusCode, "WASM script should return 200 OK")
+
+	// Verify content type
+	s.Equal(
+		"application/json",
+		resp.Header.Get("Content-Type"),
+		"WASM script should return JSON content type",
+	)
+
+	// Read and parse response body
+	body, err := io.ReadAll(resp.Body)
+	s.Require().NoError(err, "Failed to read response body")
+
+	var greetResp ExtismGreetResponse
+	err = json.Unmarshal(body, &greetResp)
+	s.Require().NoError(err, "Failed to parse JSON response")
+
+	// Verify WASM response content
+	s.Equal("Hello, integration test!", greetResp.Greeting, "WASM should return expected greeting")
+
+	s.T().Logf("Extism greet response: %+v", greetResp)
+}
+
+func (s *ExtismIntegrationTestSuite) TestExtismCountVowelsExecution() {
+	// Make a POST request with JSON input to the count endpoint
+	reqBody := `{"input": "hello world"}`
+	resp, err := http.Post(
+		fmt.Sprintf("http://127.0.0.1:%d/count", s.port),
+		"application/json",
+		strings.NewReader(reqBody),
+	)
+	s.Require().NoError(err, "Failed to make POST request")
+	defer resp.Body.Close()
+
+	// Verify status code
+	s.Equal(http.StatusOK, resp.StatusCode, "WASM script should return 200 OK")
+
+	// Read and parse response body
+	body, err := io.ReadAll(resp.Body)
+	s.Require().NoError(err, "Failed to read response body")
+
+	var countResp ExtismCountResponse
+	err = json.Unmarshal(body, &countResp)
+	s.Require().NoError(err, "Failed to parse JSON response")
+
+	// Verify WASM response content - "hello world" has 3 vowels (e, o, o)
+	s.Equal(3, countResp.Count, "WASM should count vowels correctly")
+	s.Equal("aeiouAEIOU", countResp.Vowels, "WASM should return vowel string")
+	s.Equal("hello world", countResp.Input, "WASM should echo input")
+
+	s.T().Logf("Extism count vowels response: %+v", countResp)
+}
+
+func (s *ExtismIntegrationTestSuite) TestExtismReverseStringExecution() {
+	// Make a POST request with JSON input to the reverse endpoint
+	reqBody := `{"input": "extism"}`
+	resp, err := http.Post(
+		fmt.Sprintf("http://127.0.0.1:%d/reverse", s.port),
+		"application/json",
+		strings.NewReader(reqBody),
+	)
+	s.Require().NoError(err, "Failed to make POST request")
+	defer resp.Body.Close()
+
+	// Verify status code
+	s.Equal(http.StatusOK, resp.StatusCode, "WASM script should return 200 OK")
+
+	// Read and parse response body
+	body, err := io.ReadAll(resp.Body)
+	s.Require().NoError(err, "Failed to read response body")
+
+	var reverseResp ExtismReverseResponse
+	err = json.Unmarshal(body, &reverseResp)
+	s.Require().NoError(err, "Failed to parse JSON response")
+
+	// Verify WASM response content
+	s.Equal("msitxe", reverseResp.Reversed, "WASM should reverse string correctly")
+
+	s.T().Logf("Extism reverse string response: %+v", reverseResp)
+}
+
+func TestExtismIntegrationSuite(t *testing.T) {
+	suite.Run(t, new(ExtismIntegrationTestSuite))
 }
