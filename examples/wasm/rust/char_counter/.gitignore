@@ -1,0 +1,29 @@
+# Rust build artifacts
+/target/
+test/target/
+**/*.rs.bk
+*.pdb
+
+# Generated WASM files
+*.wasm
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Debug files
+*.dSYM/

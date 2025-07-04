@@ -1,0 +1,156 @@
+# Advanced Script App Example - Data Integration
+# Demonstrates how scripts can access and process multiple data sources:
+# - App-level static data
+# - Route-level static data  
+# - JSON request body data
+# - HTTP request metadata
+
+version = "v1"
+
+# HTTP Listener Configuration
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+# Endpoint Configuration
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+# Route Configuration with route-level static data
+[[endpoints.routes]]
+app_id = "data-processor"
+
+[endpoints.routes.http]
+path_prefix = "/api/process"
+
+# Route-level static data (merged with app-level data)
+[endpoints.routes.static_data]
+route_name = "data-processing-endpoint"
+allowed_operations = ["transform", "validate", "enrich"]
+
+# Advanced Script Application
+[[apps]]
+id = "data-processor"
+
+[apps.script]
+# App-level static data
+[apps.script.static_data]
+service_name = "data-processor"
+max_items = 100
+default_format = "json"
+[apps.script.static_data.processing_rules]
+validate_required = ["id", "type"]
+transform_fields = ["created_at", "updated_at"]
+enrich_with = ["timestamp", "source"]
+
+# Risor evaluator for data processing
+[apps.script.risor]
+timeout = "15s"
+
+# Advanced script that processes JSON data
+# POST /api/process with JSON body like:
+# {"items": [{"id": 1, "type": "user", "name": "Alice"}]}
+code = '''
+// Advanced data processing script using Risor
+func process() {
+    // Access static data from config
+    service_name := ctx.get("service_name", "data-processor")
+    max_items := ctx.get("max_items", 100)
+    processing_rules := ctx.get("processing_rules", {})
+    
+    // Get JSON body data (extracted by firelynx)
+    items := ctx.get("items", [])
+    
+    // Initialize response structure
+    response := {
+        "service": service_name,
+        "processing_summary": {},
+        "processed_items": [],
+        "errors": []
+    }
+    
+    // Check if we have JSON body data
+    if len(items) > 0 {
+        // Validate item count
+        if len(items) > max_items {
+            response.errors = [sprintf("Too many items: %d (max: %d)", len(items), max_items)]
+            return response
+        }
+        
+        // Process each item
+        processed := []
+        validate_required := processing_rules.get("validate_required", ["id", "type"])
+        
+        for i, item := range items {
+            processedItem := {
+                "original": item,
+                "index": i
+            }
+            
+            // Validate required fields
+            valid := true
+            for _, field := range validate_required {
+                if item.get(field) == nil {
+                    processedItem.error = sprintf("Missing required field: %s", field)
+                    valid = false
+                    break
+                }
+            }
+            
+            if valid {
+                // Transform item
+                processedItem.transformed = {
+                    "id": item.get("id"),
+                    "type": item.get("type"),
+                    "name": item.get("name", "unknown"),
+                    "source": "firelynx-processor",
+                    "timestamp": time.Now().Format(time.RFC3339)
+                }
+            }
+            
+            processed = processed + [processedItem]
+        }
+        
+        // Count processing results
+        successful := 0
+        errors := 0
+        for _, item := range processed {
+            if item.get("error") != nil {
+                errors = errors + 1
+            } else {
+                successful = successful + 1
+            }
+        }
+        
+        response.processed_items = processed
+        response.processing_summary = {
+            "total_items": len(items),
+            "processed_successfully": successful,
+            "processing_errors": errors
+        }
+    } else {
+        // No JSON body - return info about the endpoint
+        response.processing_summary = {
+            "message": "Send POST request with JSON body containing 'items' array",
+            "example": {
+                "items": [
+                    {"id": 1, "type": "user", "name": "Alice"},
+                    {"id": 2, "type": "order", "name": "Order #123"}
+                ]
+            },
+            "max_items": max_items
+        }
+    }
+    
+    return response
+}
+
+// Call function and return result
+process()
+'''

@@ -1,0 +1,92 @@
+# Starlark Script App Example Configuration
+# Demonstrates how to use inline Starlark scripts for dynamic request processing.
+#
+# Starlark is a Python-like scripting language that's deterministic and safe.
+# This example shows a simple script that returns JSON with request information.
+
+version = "v1"
+
+# HTTP Listener Configuration
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+# Endpoint Configuration
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+# Route Configuration - all requests to /api/starlark go to our script
+[[endpoints.routes]]
+app_id = "starlark-demo"
+[endpoints.routes.http]
+path_prefix = "/api/starlark"
+
+# Starlark Script Application
+[[apps]]
+id = "starlark-demo"
+
+[apps.script]
+# Static data available to the script
+[apps.script.static_data]
+service_name = "firelynx-starlark-demo"
+version = "1.0.0"
+features = ["json", "http", "time"]
+
+# Starlark evaluator configuration
+[apps.script.starlark]
+timeout = "10s"
+
+# Inline Starlark script code
+# This script has access to:
+# - Static data defined above (service_name, version, features)
+# - Request data (method, path, headers, body if JSON)
+code = '''
+# Starlark script with proper data access patterns
+def process_data():
+    # Access static data from config with fallbacks
+    service_name = ctx.get("service_name", "unknown")
+    version = ctx.get("version", "1.0.0")
+    features = ctx.get("features", [])
+    
+    # Access request data if available
+    request = ctx.get("request", {})
+    method = ""
+    path = ""
+    user_agent = ""
+    
+    if request:
+        method = request.get("Method", "")
+        url = request.get("URL", {})
+        if url:
+            path = url.get("Path", "")
+        headers = request.get("Header", {})
+        if headers:
+            user_agent_list = headers.get("User-Agent", [])
+            if user_agent_list:
+                user_agent = user_agent_list[0]
+    
+    # Build response using Starlark syntax
+    result = {
+        "message": "Hello from Starlark!",
+        "service": service_name,
+        "version": version,
+        "features": features,
+        "request_info": {
+            "method": method,
+            "path": path,
+            "user_agent": user_agent
+        },
+        "script_language": "starlark"
+    }
+    
+    return result
+
+# Process data and assign to underscore variable for return
+_ = process_data()
+'''
