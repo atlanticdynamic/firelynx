@@ -1,16 +1,17 @@
 package script
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"maps"
 	"net/http"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/robbyt/go-polyscript/platform"
 )
 
@@ -34,7 +35,7 @@ func New(id string, config *scripts.AppScript, logger *slog.Logger) (*ScriptApp,
 	}
 
 	// Create and compile the go-polyscript evaluator at instantiation time
-	evaluator, err := createPolyscriptEvaluator(config, logger)
+	evaluator, err := getPolyscriptEvaluator(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create and compile go-polyscript evaluator: %w", err)
 	}
@@ -64,23 +65,13 @@ func (s *ScriptApp) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	staticData map[string]any,
+	routeStaticData map[string]any,
 ) error {
-	timeout := getEvaluatorTimeout(s.config.Evaluator)
+	timeout := s.config.Evaluator.GetTimeout()
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Prepare runtime data with the actual request object at top level
-	// According to go-polyscript data system, all data should be at top level of ctx
-	runtimeData := map[string]any{
-		"request": r, // Pass the actual *http.Request at top level
-	}
-
-	// Merge static data from config and runtime data
-	if s.config.StaticData != nil {
-		maps.Copy(runtimeData, s.config.StaticData.Data)
-	}
-	maps.Copy(runtimeData, staticData)
+	runtimeData := s.prepareRuntimeData(r, routeStaticData)
 
 	enrichedCtx, err := s.evaluator.AddDataToContext(timeoutCtx, runtimeData)
 	if err != nil {
@@ -101,13 +92,14 @@ func (s *ScriptApp) HandleHTTP(
 
 		if timeoutCtx.Err() == context.DeadlineExceeded {
 			http.Error(w, "Script Execution Timeout", http.StatusGatewayTimeout)
-		} else {
-			http.Error(w, "Script Execution Error", http.StatusInternalServerError)
+			return err
 		}
+
+		http.Error(w, "Script Execution Error", http.StatusInternalServerError)
 		return err
 	}
 
-	s.logger.Info("Script executed successfully", "duration", duration)
+	s.logger.Debug("Script executed successfully", "duration", duration)
 
 	if err := handleScriptResult(w, result); err != nil {
 		s.logger.Error("Failed to handle script result", "error", err)
@@ -118,45 +110,55 @@ func (s *ScriptApp) HandleHTTP(
 	return nil
 }
 
-// createPolyscriptEvaluator gets the pre-compiled evaluator from domain validation
+// prepareRuntimeData creates runtime data for script execution following go-polyscript patterns
+func (s *ScriptApp) prepareRuntimeData(
+	r *http.Request,
+	routeStaticData map[string]any,
+) map[string]any {
+	// Start with the HTTP request for contextProvider to process
+	runtimeData := map[string]any{
+		"request": r,
+	}
+
+	// Add app-level static data from config
+	if s.config.StaticData != nil {
+		maps.Copy(runtimeData, s.config.StaticData.Data)
+	}
+
+	// Merge route-level static data (from endpoint config)
+	maps.Copy(runtimeData, routeStaticData)
+
+	// Extract JSON body fields for direct access by scripts (especially Extism)
+	// We read the body twice: once for JSON parsing, once for go-polyscript's contextProvider
+	// The contextProvider calls helpers.RequestToMap() which reads r.Body to create a "Body" field
+	if r.Header.Get("Content-Type") == "application/json" {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			s.logger.Error("Failed to read request body", "error", err)
+			return runtimeData // Return empty data if body read fails
+		}
+
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset for go-polyscript to read
+		var bodyData map[string]any
+		if json.Unmarshal(bodyBytes, &bodyData) == nil {
+			maps.Copy(runtimeData, bodyData)
+		}
+	}
+
+	return runtimeData
+}
+
+// getPolyscriptEvaluator extracts the pre-compiled evaluator from domain validation
 // All evaluators must be compiled during the Validate() phase in the domain layer
-func createPolyscriptEvaluator(
+func getPolyscriptEvaluator(
 	config *scripts.AppScript,
-	logger *slog.Logger,
 ) (platform.Evaluator, error) {
-	// All evaluators must be pre-compiled during domain validation
 	compiledEvaluator := config.Evaluator.GetCompiledEvaluator()
 	if compiledEvaluator == nil {
-		return nil, fmt.Errorf(
-			"evaluator not compiled during validation phase - this indicates a domain validation bug for evaluator type: %T",
-			config.Evaluator,
-		)
+		return nil, fmt.Errorf("evaluator is nil, was .Validate() run on the domain config")
 	}
 
 	return compiledEvaluator, nil
-}
-
-// getEvaluatorTimeout gets timeout from evaluator, with fallback
-func getEvaluatorTimeout(eval evaluators.Evaluator) time.Duration {
-	switch e := eval.(type) {
-	case *evaluators.RisorEvaluator:
-		if e.Timeout > 0 {
-			return e.Timeout
-		}
-		return 30 * time.Second
-	case *evaluators.StarlarkEvaluator:
-		if e.Timeout > 0 {
-			return e.Timeout
-		}
-		return 30 * time.Second
-	case *evaluators.ExtismEvaluator:
-		if e.Timeout > 0 {
-			return e.Timeout
-		}
-		return 60 * time.Second
-	default:
-		return 30 * time.Second
-	}
 }
 
 // handleScriptResult processes the script execution result and writes the HTTP response
