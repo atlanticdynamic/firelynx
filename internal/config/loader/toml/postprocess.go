@@ -512,26 +512,19 @@ func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []er
 				continue
 			}
 
-			// Process app based on type
+			// Process app based on type (explicit or inferred)
 			if typeVal, ok := appMap["type"].(string); ok {
 				// Set the type field
 				errs := processAppType(app, typeVal)
 				errList = append(errList, errs...)
-
-				// Process app-specific configuration
-				switch typeVal {
-				case "script":
-					errs := processScriptAppConfig(app, appMap)
-					errList = append(errList, errs...)
-				case "echo":
-					// Echo app doesn't need special post-processing
-				default:
-					errList = append(
-						errList,
-						fmt.Errorf("no post-processing handler for app type: %s", typeVal),
-					)
-				}
 			}
+
+			// Process app configurations based on which config sections are present
+			if _, hasScript := appMap["script"]; hasScript {
+				errs := processScriptAppConfig(app, appMap)
+				errList = append(errList, errs...)
+			}
+			// Echo and composite_script apps don't need special post-processing
 		}
 	}
 
@@ -559,6 +552,14 @@ func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
 	return errList
 }
 
+// processStaticDataField handles static_data conversion from TOML map to protobuf
+func processStaticDataField(staticData **pbSettings.StaticData, staticDataMap map[string]any) {
+	if *staticData == nil {
+		*staticData = &pbSettings.StaticData{}
+	}
+	(*staticData).Data = protobaggins.MapToStructValues(staticDataMap)
+}
+
 // processScriptAppConfig handles script app-specific configuration
 func processScriptAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) []error {
 	var errList []error
@@ -571,6 +572,11 @@ func processScriptAppConfig(app *pbSettings.AppDefinition, appMap map[string]any
 
 	// Get the script app config from the app
 	if scriptApp := app.GetScript(); scriptApp != nil {
+		// Process static_data for script app
+		if staticDataMap, ok := scriptConfig["static_data"].(map[string]any); ok {
+			processStaticDataField(&scriptApp.StaticData, staticDataMap)
+		}
+
 		// Process evaluator configurations
 		errs := processScriptEvaluators(scriptApp, scriptConfig)
 		errList = append(errList, errs...)

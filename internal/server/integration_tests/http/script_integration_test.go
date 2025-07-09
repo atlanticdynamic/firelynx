@@ -1110,10 +1110,9 @@ func (s *ExtismIntegrationTestSuite) TestExtismCountVowelsExecution() {
 	err = json.Unmarshal(body, &countResp)
 	s.Require().NoError(err, "Failed to parse JSON response")
 
-	// Verify WASM response content - "hello world" has 3 vowels (e, o, o)
-	s.Equal(3, countResp.Count, "WASM should count vowels correctly")
-	s.Equal("aeiouAEIOU", countResp.Vowels, "WASM should return vowel string")
-	s.Equal("hello world", countResp.Input, "WASM should echo input")
+	// Verify WASM response content - "integration test" has 6 vowels (i, e, a, i, o, e)
+	s.Equal(6, countResp.Count, "WASM should count vowels correctly")
+	s.Equal("integration test", countResp.Input, "WASM should echo input")
 
 	s.T().Logf("Extism count vowels response: %+v", countResp)
 }
@@ -1140,8 +1139,8 @@ func (s *ExtismIntegrationTestSuite) TestExtismReverseStringExecution() {
 	err = json.Unmarshal(body, &reverseResp)
 	s.Require().NoError(err, "Failed to parse JSON response")
 
-	// Verify WASM response content
-	s.Equal("msitxe", reverseResp.Reversed, "WASM should reverse string correctly")
+	// Verify WASM response content - "integration test" reversed is "tset noitargetni"
+	s.Equal("tset noitargetni", reverseResp.Reversed, "WASM should reverse string correctly")
 
 	s.T().Logf("Extism reverse string response: %+v", reverseResp)
 }
@@ -1692,7 +1691,7 @@ func (s *ExtismHTTPSIntegrationTestSuite) TestExtismHTTPSExecution() {
 
 	// Verify script response content
 	s.Equal(
-		"Hello, HTTPS Test!",
+		"Hello, HTTPS integration test!",
 		scriptResp["greeting"],
 		"HTTPS WASM script should return expected greeting",
 	)

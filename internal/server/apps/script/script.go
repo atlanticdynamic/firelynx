@@ -1,27 +1,28 @@
 package script
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"maps"
-	"mime"
 	"net/http"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/robbyt/go-polyscript/platform"
+	"github.com/robbyt/go-polyscript/platform/constants"
+	"github.com/robbyt/go-polyscript/platform/data"
 )
 
 // ScriptApp implements the server-side script application using go-polyscript
 type ScriptApp struct {
-	id        string
-	config    *scripts.AppScript
-	evaluator platform.Evaluator
-	logger    *slog.Logger
+	id                string
+	config            *scripts.AppScript
+	evaluator         platform.Evaluator
+	appStaticProvider data.Provider // Pre-created app-level static provider
+	logger            *slog.Logger
 }
 
 // New creates a new script app instance using go-polyscript
@@ -41,10 +42,18 @@ func New(id string, config *scripts.AppScript, logger *slog.Logger) (*ScriptApp,
 		return nil, fmt.Errorf("failed to create and compile go-polyscript evaluator: %w", err)
 	}
 
+	// Pre-create app-level static provider for performance
+	var appStaticData map[string]any
+	if config.StaticData != nil {
+		appStaticData = config.StaticData.Data
+	}
+	appStaticProvider := data.NewStaticProvider(appStaticData)
+
 	return &ScriptApp{
-		id:        id,
-		config:    config,
-		evaluator: evaluator,
+		id:                id,
+		config:            config,
+		evaluator:         evaluator,
+		appStaticProvider: appStaticProvider,
 		logger: logger.With(
 			"app_id",
 			id,
@@ -72,9 +81,17 @@ func (s *ScriptApp) HandleHTTP(
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	runtimeData := s.prepareRuntimeData(r, routeStaticData)
+	// Prepare script data with proper structure for WASM modules
+	scriptData, err := s.prepareScriptData(timeoutCtx, r, routeStaticData)
+	if err != nil {
+		s.logger.Error("Failed to prepare script data", "error", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return err
+	}
 
-	enrichedCtx, err := s.evaluator.AddDataToContext(timeoutCtx, runtimeData)
+	// Create context provider and add all merged data to context
+	contextProvider := data.NewContextProvider(constants.EvalData)
+	enrichedCtx, err := contextProvider.AddDataToContext(timeoutCtx, scriptData)
 	if err != nil {
 		s.logger.Error("Failed to add runtime data", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -111,45 +128,46 @@ func (s *ScriptApp) HandleHTTP(
 	return nil
 }
 
-// prepareRuntimeData creates runtime data for script execution following go-polyscript patterns
-func (s *ScriptApp) prepareRuntimeData(
+// prepareScriptData prepares data for script execution, structuring it appropriately
+// for the target script's expected format based on the evaluator type
+func (s *ScriptApp) prepareScriptData(
+	ctx context.Context,
 	r *http.Request,
 	routeStaticData map[string]any,
-) map[string]any {
-	// Start with the HTTP request for contextProvider to process
-	runtimeData := map[string]any{
-		"request": r,
+) (map[string]any, error) {
+	// Get app-level static data
+	appStaticData, err := s.appStaticProvider.GetData(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app static data: %w", err)
 	}
 
-	// Add app-level static data from config
-	if s.config.StaticData != nil {
-		maps.Copy(runtimeData, s.config.StaticData.Data)
-	}
+	// Merge app and route static data (route overrides app)
+	mergedStaticData := maps.Clone(appStaticData)
+	maps.Copy(mergedStaticData, routeStaticData)
 
-	// Merge route-level static data (from endpoint config)
-	maps.Copy(runtimeData, routeStaticData)
-
-	// Extract JSON body fields for direct access by scripts (especially Extism)
-	// We read the body twice: once for JSON parsing, once for go-polyscript's contextProvider
-	// The contextProvider calls helpers.RequestToMap() which reads r.Body to create a "Body" field
-	if mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type")); err == nil {
-		switch mediaType {
-		case "application/json":
-			bodyBytes, err := io.ReadAll(r.Body)
-			if err != nil {
-				s.logger.Error("Failed to read request body", "error", err)
-				return runtimeData // Return empty data if body read fails
-			}
-
-			r.Body = io.NopCloser(bytes.NewReader(bodyBytes)) // Reset for go-polyscript to read
-			var bodyData map[string]any
-			if json.Unmarshal(bodyBytes, &bodyData) == nil {
-				maps.Copy(runtimeData, bodyData)
-			}
+	// Structure data based on evaluator type
+	switch s.config.Evaluator.Type() {
+	case evaluators.EvaluatorTypeExtism:
+		// For WASM modules, handle static data appropriately
+		// If static data has a 'data' field, use that as the base
+		if dataField, ok := mergedStaticData["data"].(map[string]any); ok {
+			return maps.Clone(dataField), nil
 		}
-	}
+		// Otherwise use all static data
+		return maps.Clone(mergedStaticData), nil
 
-	return runtimeData
+	case evaluators.EvaluatorTypeRisor, evaluators.EvaluatorTypeStarlark:
+		// Risor/Starlark scripts expect flattened data accessible via ctx.get()
+		scriptData := maps.Clone(mergedStaticData)
+		scriptData["request"] = r
+		return scriptData, nil
+
+	default:
+		// Default to Risor/Starlark behavior for unknown types
+		scriptData := maps.Clone(mergedStaticData)
+		scriptData["request"] = r
+		return scriptData, nil
+	}
 }
 
 // getPolyscriptEvaluator extracts the pre-compiled evaluator from domain validation
