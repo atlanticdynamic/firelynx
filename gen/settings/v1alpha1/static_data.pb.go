@@ -23,69 +23,69 @@ const (
 )
 
 // Defines strategies for merging static data maps from different sources.
-type StaticDataMergeMode int32
+type StaticData_MergeMode int32
 
 const (
 	// Default, behavior might be defined by the consuming system (could default to FIRST or DEEP).
-	StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED StaticDataMergeMode = 0
+	StaticData_MERGE_MODE_UNSPECIFIED StaticData_MergeMode = 0
 	// 'last' strategy: Uses the last value found (highest priority source wins). Later static_data completely replaces earlier ones.
-	StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST StaticDataMergeMode = 1
+	StaticData_MERGE_MODE_LAST StaticData_MergeMode = 1
 	// 'unique' strategy: If a key exists in multiple sources, the values from the last key will replace earlier keys.
-	StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE StaticDataMergeMode = 2
+	StaticData_MERGE_MODE_UNIQUE StaticData_MergeMode = 2
 )
 
-// Enum value maps for StaticDataMergeMode.
+// Enum value maps for StaticData_MergeMode.
 var (
-	StaticDataMergeMode_name = map[int32]string{
-		0: "STATIC_DATA_MERGE_MODE_UNSPECIFIED",
-		1: "STATIC_DATA_MERGE_MODE_LAST",
-		2: "STATIC_DATA_MERGE_MODE_UNIQUE",
+	StaticData_MergeMode_name = map[int32]string{
+		0: "MERGE_MODE_UNSPECIFIED",
+		1: "MERGE_MODE_LAST",
+		2: "MERGE_MODE_UNIQUE",
 	}
-	StaticDataMergeMode_value = map[string]int32{
-		"STATIC_DATA_MERGE_MODE_UNSPECIFIED": 0,
-		"STATIC_DATA_MERGE_MODE_LAST":        1,
-		"STATIC_DATA_MERGE_MODE_UNIQUE":      2,
+	StaticData_MergeMode_value = map[string]int32{
+		"MERGE_MODE_UNSPECIFIED": 0,
+		"MERGE_MODE_LAST":        1,
+		"MERGE_MODE_UNIQUE":      2,
 	}
 )
 
-func (x StaticDataMergeMode) Enum() *StaticDataMergeMode {
-	p := new(StaticDataMergeMode)
+func (x StaticData_MergeMode) Enum() *StaticData_MergeMode {
+	p := new(StaticData_MergeMode)
 	*p = x
 	return p
 }
 
-func (x StaticDataMergeMode) String() string {
+func (x StaticData_MergeMode) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (StaticDataMergeMode) Descriptor() protoreflect.EnumDescriptor {
+func (StaticData_MergeMode) Descriptor() protoreflect.EnumDescriptor {
 	return file_settings_v1alpha1_static_data_proto_enumTypes[0].Descriptor()
 }
 
-func (StaticDataMergeMode) Type() protoreflect.EnumType {
+func (StaticData_MergeMode) Type() protoreflect.EnumType {
 	return &file_settings_v1alpha1_static_data_proto_enumTypes[0]
 }
 
-func (x StaticDataMergeMode) Number() protoreflect.EnumNumber {
+func (x StaticData_MergeMode) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use StaticDataMergeMode.Descriptor instead.
-func (StaticDataMergeMode) EnumDescriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_static_data_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use StaticData_MergeMode.Descriptor instead.
+func (StaticData_MergeMode) EnumDescriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_static_data_proto_rawDescGZIP(), []int{0, 0}
 }
 
 type StaticData struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Data          map[string]*structpb.Value `protobuf:"bytes,1,rep,name=data" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	MergeMode     *StaticDataMergeMode       `protobuf:"varint,2,opt,name=merge_mode,json=mergeMode,enum=settings.v1alpha1.StaticDataMergeMode,def=0" json:"merge_mode,omitempty"`
+	MergeMode     *StaticData_MergeMode      `protobuf:"varint,2,opt,name=merge_mode,json=mergeMode,enum=settings.v1alpha1.StaticData_MergeMode,def=0" json:"merge_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 // Default values for StaticData fields.
 const (
-	Default_StaticData_MergeMode = StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED
+	Default_StaticData_MergeMode = StaticData_MERGE_MODE_UNSPECIFIED
 )
 
 func (x *StaticData) Reset() {
@@ -125,7 +125,7 @@ func (x *StaticData) GetData() map[string]*structpb.Value {
 	return nil
 }
 
-func (x *StaticData) GetMergeMode() StaticDataMergeMode {
+func (x *StaticData) GetMergeMode() StaticData_MergeMode {
 	if x != nil && x.MergeMode != nil {
 		return *x.MergeMode
 	}
@@ -136,19 +136,19 @@ var File_settings_v1alpha1_static_data_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_static_data_proto_rawDesc = "" +
 	"\n" +
-	"#settings/v1alpha1/static_data.proto\x12\x11settings.v1alpha1\x1a\x1cgoogle/protobuf/struct.proto\"\x85\x02\n" +
+	"#settings/v1alpha1/static_data.proto\x12\x11settings.v1alpha1\x1a\x1cgoogle/protobuf/struct.proto\"\xcf\x02\n" +
 	"\n" +
 	"StaticData\x12;\n" +
-	"\x04data\x18\x01 \x03(\v2'.settings.v1alpha1.StaticData.DataEntryR\x04data\x12i\n" +
+	"\x04data\x18\x01 \x03(\v2'.settings.v1alpha1.StaticData.DataEntryR\x04data\x12^\n" +
 	"\n" +
-	"merge_mode\x18\x02 \x01(\x0e2&.settings.v1alpha1.StaticDataMergeMode:\"STATIC_DATA_MERGE_MODE_UNSPECIFIEDR\tmergeMode\x1aO\n" +
+	"merge_mode\x18\x02 \x01(\x0e2'.settings.v1alpha1.StaticData.MergeMode:\x16MERGE_MODE_UNSPECIFIEDR\tmergeMode\x1aO\n" +
 	"\tDataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
-	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01*\x81\x01\n" +
-	"\x13StaticDataMergeMode\x12&\n" +
-	"\"STATIC_DATA_MERGE_MODE_UNSPECIFIED\x10\x00\x12\x1f\n" +
-	"\x1bSTATIC_DATA_MERGE_MODE_LAST\x10\x01\x12!\n" +
-	"\x1dSTATIC_DATA_MERGE_MODE_UNIQUE\x10\x02B;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
+	"\x05value\x18\x02 \x01(\v2\x16.google.protobuf.ValueR\x05value:\x028\x01\"S\n" +
+	"\tMergeMode\x12\x1a\n" +
+	"\x16MERGE_MODE_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fMERGE_MODE_LAST\x10\x01\x12\x15\n" +
+	"\x11MERGE_MODE_UNIQUE\x10\x02B;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_static_data_proto_rawDescOnce sync.Once
@@ -165,14 +165,14 @@ func file_settings_v1alpha1_static_data_proto_rawDescGZIP() []byte {
 var file_settings_v1alpha1_static_data_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_settings_v1alpha1_static_data_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_settings_v1alpha1_static_data_proto_goTypes = []any{
-	(StaticDataMergeMode)(0), // 0: settings.v1alpha1.StaticDataMergeMode
-	(*StaticData)(nil),       // 1: settings.v1alpha1.StaticData
-	nil,                      // 2: settings.v1alpha1.StaticData.DataEntry
-	(*structpb.Value)(nil),   // 3: google.protobuf.Value
+	(StaticData_MergeMode)(0), // 0: settings.v1alpha1.StaticData.MergeMode
+	(*StaticData)(nil),        // 1: settings.v1alpha1.StaticData
+	nil,                       // 2: settings.v1alpha1.StaticData.DataEntry
+	(*structpb.Value)(nil),    // 3: google.protobuf.Value
 }
 var file_settings_v1alpha1_static_data_proto_depIdxs = []int32{
 	2, // 0: settings.v1alpha1.StaticData.data:type_name -> settings.v1alpha1.StaticData.DataEntry
-	0, // 1: settings.v1alpha1.StaticData.merge_mode:type_name -> settings.v1alpha1.StaticDataMergeMode
+	0, // 1: settings.v1alpha1.StaticData.merge_mode:type_name -> settings.v1alpha1.StaticData.MergeMode
 	3, // 2: settings.v1alpha1.StaticData.DataEntry.value:type_name -> google.protobuf.Value
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type

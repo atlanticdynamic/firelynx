@@ -43,6 +43,7 @@ package routes
 import (
 	"fmt"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
@@ -57,6 +58,7 @@ type RouteCollection []Route
 // Route represents a rule for directing traffic to an application
 type Route struct {
 	AppID       string
+	App         *apps.App
 	StaticData  map[string]any
 	Condition   conditions.Condition
 	Middlewares middleware.MiddlewareCollection
@@ -100,6 +102,7 @@ func (r RouteCollection) GetStructuredHTTPRoutes() []HTTPRoute {
 			PathPrefix: httpCond.PathPrefix,
 			Method:     httpCond.Method,
 			AppID:      route.AppID,
+			App:        route.App,
 			StaticData: route.StaticData,
 		}
 

@@ -74,4 +74,7 @@ var (
 
 	// ErrInvalidEndpointFormat is returned when an endpoint has invalid format
 	ErrInvalidEndpointFormat = errors.New("invalid endpoint format")
+
+	// ErrInvalidAppFormat is returned when an app has invalid format
+	ErrInvalidAppFormat = errors.New("invalid app format")
 )

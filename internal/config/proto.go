@@ -62,6 +62,8 @@ func fromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 			return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
 		}
 		config.Apps = appDefinitions
+		// Assign app instances to routes with merged static data
+		expandAppsForRoutes(config.Apps, config.Endpoints)
 	}
 
 	return config, nil

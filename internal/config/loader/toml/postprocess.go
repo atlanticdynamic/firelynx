@@ -26,6 +26,7 @@ import (
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	pbMiddleware "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
+	"github.com/robbyt/protobaggins"
 )
 
 // postProcessConfig handles special conversions after basic unmarshaling
@@ -44,6 +45,9 @@ func (l *TomlLoader) postProcessConfig(
 	errList = append(errList, errs...)
 
 	errs = processMiddlewares(config, configMap)
+	errList = append(errList, errs...)
+
+	errs = processApps(config, configMap)
 	errList = append(errList, errs...)
 
 	return errors.Join(errList...)
@@ -121,6 +125,26 @@ func processEndpoints(config *pbSettings.ServerConfig, configMap map[string]any)
 			// Set the listener_id field directly
 			if listenerId, ok := endpointMap["listener_id"].(string); ok {
 				endpoint.ListenerId = &listenerId
+			}
+
+			// Process routes array for static_data
+			if routesArray, ok := endpointMap["routes"].([]any); ok {
+				for j, routeObj := range routesArray {
+					if j >= len(endpoint.Routes) {
+						break
+					}
+
+					routeMap, ok := routeObj.(map[string]any)
+					if !ok {
+						continue
+					}
+
+					// Process static_data for this route
+					if staticDataMap, ok := routeMap["static_data"].(map[string]any); ok {
+						route := endpoint.Routes[j]
+						processStaticDataField(&route.StaticData, staticDataMap)
+					}
+				}
 			}
 
 			// Handle the single route object (older format)
@@ -466,4 +490,69 @@ func processDirectionConfig(
 	}
 
 	return errList
+}
+
+// processApps handles app-specific post-processing
+func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []error {
+	errList := []error{}
+
+	if appsArray, ok := configMap["apps"].([]any); ok {
+		for i, appObj := range appsArray {
+			if i >= len(config.Apps) {
+				break
+			}
+
+			app := config.Apps[i]
+			appMap, ok := appObj.(map[string]any)
+			if !ok {
+				errList = append(
+					errList,
+					fmt.Errorf("app at index %d: %w", i, errz.ErrInvalidAppFormat),
+				)
+				continue
+			}
+
+			// Process app based on type (explicit or inferred)
+			if typeVal, ok := appMap["type"].(string); ok {
+				// Set the type field
+				errs := processAppType(app, typeVal)
+				errList = append(errList, errs...)
+			}
+
+			// Process app configurations based on which config sections are present
+			// For now, we only process basic app structure
+			// Script-specific processing will be added later
+		}
+	}
+
+	return errList
+}
+
+// processAppType sets the app type from string to enum
+func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
+	var appType pbSettings.AppDefinition_Type
+	var errList []error
+
+	switch typeVal {
+	case "script":
+		appType = pbSettings.AppDefinition_TYPE_SCRIPT
+	case "composite_script":
+		appType = pbSettings.AppDefinition_TYPE_COMPOSITE_SCRIPT
+	case "echo":
+		appType = pbSettings.AppDefinition_TYPE_ECHO
+	default:
+		appType = pbSettings.AppDefinition_TYPE_UNSPECIFIED
+		errList = append(errList, fmt.Errorf("unsupported app type: %s", typeVal))
+	}
+	app.Type = &appType
+
+	return errList
+}
+
+// processStaticDataField handles static_data conversion from TOML map to protobuf
+func processStaticDataField(staticData **pbSettings.StaticData, staticDataMap map[string]any) {
+	if *staticData == nil {
+		*staticData = &pbSettings.StaticData{}
+	}
+	(*staticData).Data = protobaggins.MapToStructValues(staticDataMap)
 }

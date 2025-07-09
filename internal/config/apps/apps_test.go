@@ -11,6 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	validRisorCode42 = "func handler() { return 42 }\nhandler()"
+	validRisorCode43 = "func handler() { return 43 }\nhandler()"
+)
+
 func TestAppValidate(t *testing.T) {
 	t.Parallel()
 
@@ -25,7 +30,7 @@ func TestAppValidate(t *testing.T) {
 				ID: "valid-app",
 				Config: scripts.NewAppScript(
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					&evaluators.RisorEvaluator{Code: "return 42"},
+					&evaluators.RisorEvaluator{Code: validRisorCode42},
 				),
 			},
 			expectError: false,
@@ -36,7 +41,7 @@ func TestAppValidate(t *testing.T) {
 				ID: "",
 				Config: scripts.NewAppScript(
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					&evaluators.RisorEvaluator{Code: "return 42"},
+					&evaluators.RisorEvaluator{Code: validRisorCode42},
 				),
 			},
 			expectError: true,
@@ -85,14 +90,14 @@ func TestAppCollectionValidate(t *testing.T) {
 					ID: "app1",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-						&evaluators.RisorEvaluator{Code: "return 42"},
+						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
 				},
 				{
 					ID: "app2",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
-						&evaluators.RisorEvaluator{Code: "return 43"},
+						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),
 				},
 			},
@@ -105,14 +110,14 @@ func TestAppCollectionValidate(t *testing.T) {
 					ID: "app1",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-						&evaluators.RisorEvaluator{Code: "return 42"},
+						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
 				},
 				{
 					ID: "app1",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
-						&evaluators.RisorEvaluator{Code: "return 43"},
+						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),
 				},
 			},
@@ -125,7 +130,7 @@ func TestAppCollectionValidate(t *testing.T) {
 					ID: "script1",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-						&evaluators.RisorEvaluator{Code: "return 42"},
+						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
 				},
 				{

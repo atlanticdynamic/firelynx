@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
@@ -132,15 +133,37 @@ func (tx *ConfigTransaction) setStateInvalid(errs []error) {
 		"state", finitestate.StateInvalid)
 }
 
-// collectApps extracts app definitions from domain config
+// collectApps extracts app definitions from domain config, including expanded apps from routes
 func collectApps(cfg *config.Config) []serverApps.AppDefinition {
-	definitions := make([]serverApps.AppDefinition, 0, len(cfg.Apps))
+	// First collect unique apps from routes (these have merged static data)
+	uniqueApps := make(map[string]apps.App)
+
+	// Collect expanded apps from routes
+	for _, endpoint := range cfg.Endpoints {
+		for _, route := range endpoint.Routes {
+			if route.App != nil {
+				// Use the expanded app instance which has merged static data
+				uniqueApps[route.App.ID] = *route.App
+			}
+		}
+	}
+
+	// Add any apps that don't have routes (not expanded)
 	for _, app := range cfg.Apps {
+		if _, exists := uniqueApps[app.ID]; !exists {
+			uniqueApps[app.ID] = app
+		}
+	}
+
+	// Convert to app definitions
+	definitions := make([]serverApps.AppDefinition, 0, len(uniqueApps))
+	for _, app := range uniqueApps {
 		definitions = append(definitions, serverApps.AppDefinition{
 			ID:     app.ID,
 			Config: app.Config,
 		})
 	}
+
 	return definitions
 }
 
