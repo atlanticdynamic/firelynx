@@ -309,6 +309,158 @@ func TestPostProcessConfig(t *testing.T) {
 	})
 }
 
+// TestProcessAppType tests the processAppType function
+func TestProcessAppType(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		appType      string
+		expectError  bool
+		expectedEnum pbSettings.AppDefinition_Type
+	}{
+		{
+			name:         "ValidScriptType",
+			appType:      "script",
+			expectError:  false,
+			expectedEnum: pbSettings.AppDefinition_TYPE_SCRIPT,
+		},
+		{
+			name:         "ValidCompositeScriptType",
+			appType:      "composite_script",
+			expectError:  false,
+			expectedEnum: pbSettings.AppDefinition_TYPE_COMPOSITE_SCRIPT,
+		},
+		{
+			name:         "ValidEchoType",
+			appType:      "echo",
+			expectError:  false,
+			expectedEnum: pbSettings.AppDefinition_TYPE_ECHO,
+		},
+		{
+			name:         "InvalidType",
+			appType:      "unsupported_app_type",
+			expectError:  true,
+			expectedEnum: pbSettings.AppDefinition_TYPE_UNSPECIFIED,
+		},
+		{
+			name:         "EmptyType",
+			appType:      "",
+			expectError:  true,
+			expectedEnum: pbSettings.AppDefinition_TYPE_UNSPECIFIED,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &pbSettings.AppDefinition{
+				Id: proto.String("test-app"),
+			}
+
+			errs := processAppType(app, tt.appType)
+
+			if tt.expectError {
+				assert.NotEmpty(t, errs, "Should return errors for invalid app type")
+				if tt.appType != "" {
+					assert.Contains(
+						t,
+						errs[0].Error(),
+						"unsupported app type",
+						"Should contain expected error message",
+					)
+				}
+			} else {
+				assert.Empty(t, errs, "Should not return errors for valid app type")
+			}
+
+			assert.Equal(t, tt.expectedEnum, app.GetType(), "App type should be set correctly")
+		})
+	}
+}
+
+// TestProcessStaticDataField tests the processStaticDataField function
+func TestProcessStaticDataField(t *testing.T) {
+	t.Parallel()
+
+	t.Run("NilStaticDataPointer", func(t *testing.T) {
+		var staticData *pbSettings.StaticData
+
+		staticDataMap := map[string]any{
+			"key1": "value1",
+			"key2": 42,
+			"nested": map[string]any{
+				"inner": "value",
+			},
+		}
+
+		processStaticDataField(&staticData, staticDataMap)
+
+		require.NotNil(t, staticData, "Static data should be initialized")
+		require.NotNil(t, staticData.Data, "Static data Data field should be set")
+
+		// Verify the data was properly converted to protobuf struct
+		assert.Contains(t, staticData.Data, "key1", "Should contain key1")
+		assert.Contains(t, staticData.Data, "key2", "Should contain key2")
+		assert.Contains(t, staticData.Data, "nested", "Should contain nested key")
+	})
+
+	t.Run("ExistingStaticDataPointer", func(t *testing.T) {
+		// Pre-create static data with some existing data
+		existingData := &pbSettings.StaticData{}
+		staticData := existingData
+
+		staticDataMap := map[string]any{
+			"new_key": "new_value",
+		}
+
+		processStaticDataField(&staticData, staticDataMap)
+
+		require.NotNil(t, staticData, "Static data should remain non-nil")
+		require.NotNil(t, staticData.Data, "Static data Data field should be set")
+
+		// Should have the new data
+		assert.Contains(t, staticData.Data, "new_key", "Should contain new key")
+	})
+
+	t.Run("EmptyStaticDataMap", func(t *testing.T) {
+		var staticData *pbSettings.StaticData
+
+		staticDataMap := map[string]any{}
+
+		processStaticDataField(&staticData, staticDataMap)
+
+		require.NotNil(t, staticData, "Static data should be initialized even for empty map")
+		require.NotNil(t, staticData.Data, "Static data Data field should be set")
+		assert.Empty(t, staticData.Data, "Data should be empty for empty input map")
+	})
+
+	t.Run("ComplexNestedData", func(t *testing.T) {
+		var staticData *pbSettings.StaticData
+
+		staticDataMap := map[string]any{
+			"simple": "value",
+			"array":  []any{"item1", "item2", 42},
+			"nested": map[string]any{
+				"level2": map[string]any{
+					"level3": "deep_value",
+				},
+				"bool_val": true,
+				"null_val": nil,
+			},
+		}
+
+		processStaticDataField(&staticData, staticDataMap)
+
+		require.NotNil(t, staticData, "Static data should be initialized")
+		require.NotNil(t, staticData.Data, "Static data Data field should be set")
+
+		// Verify all top-level keys are present
+		assert.Contains(t, staticData.Data, "simple", "Should contain simple key")
+		assert.Contains(t, staticData.Data, "array", "Should contain array key")
+		assert.Contains(t, staticData.Data, "nested", "Should contain nested key")
+	})
+}
+
 // TestExtractSourceFromConfig tests the extractSourceFromConfig helper function
 func TestExtractSourceFromConfig(t *testing.T) {
 	t.Parallel()
@@ -389,5 +541,561 @@ func TestExtractSourceFromConfig(t *testing.T) {
 		assert.False(t, hasSource, "Should not have source for empty config")
 		assert.Empty(t, code, "Should return empty code")
 		assert.Empty(t, uri, "Should return empty uri")
+	})
+}
+
+// TestProcessScriptEvaluators tests the processScriptEvaluators function
+func TestProcessScriptEvaluators(t *testing.T) {
+	t.Parallel()
+
+	t.Run("RisorEvaluator", func(t *testing.T) {
+		scriptApp := &pbSettings.ScriptApp{
+			Evaluator: &pbSettings.ScriptApp_Risor{
+				Risor: &pbSettings.RisorEvaluator{},
+			},
+		}
+
+		scriptConfig := map[string]any{
+			"risor": map[string]any{
+				"code": "print('risor')",
+			},
+		}
+
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		assert.Empty(t, errs, "Should not return errors for valid evaluator")
+
+		// Verify Risor evaluator was processed
+		risorEval := scriptApp.GetRisor()
+		require.NotNil(t, risorEval, "Risor evaluator should be accessible")
+		risorSource := risorEval.Source.(*pbSettings.RisorEvaluator_Code)
+		assert.Equal(t, "print('risor')", risorSource.Code)
+	})
+
+	t.Run("StarlarkEvaluator", func(t *testing.T) {
+		scriptApp := &pbSettings.ScriptApp{
+			Evaluator: &pbSettings.ScriptApp_Starlark{
+				Starlark: &pbSettings.StarlarkEvaluator{},
+			},
+		}
+
+		scriptConfig := map[string]any{
+			"starlark": map[string]any{
+				"code": "result = 'starlark'",
+			},
+		}
+
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		assert.Empty(t, errs, "Should not return errors for valid evaluator")
+
+		// Verify Starlark evaluator was processed
+		starlarkEval := scriptApp.GetStarlark()
+		require.NotNil(t, starlarkEval, "Starlark evaluator should be accessible")
+		starlarkSource := starlarkEval.Source.(*pbSettings.StarlarkEvaluator_Code)
+		assert.Equal(t, "result = 'starlark'", starlarkSource.Code)
+	})
+
+	t.Run("ExtismEvaluator", func(t *testing.T) {
+		scriptApp := &pbSettings.ScriptApp{
+			Evaluator: &pbSettings.ScriptApp_Extism{
+				Extism: &pbSettings.ExtismEvaluator{},
+			},
+		}
+
+		scriptConfig := map[string]any{
+			"extism": map[string]any{
+				"code": "base64wasm",
+			},
+		}
+
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		assert.Empty(t, errs, "Should not return errors for valid evaluator")
+
+		// Verify Extism evaluator was processed
+		extismEval := scriptApp.GetExtism()
+		require.NotNil(t, extismEval, "Extism evaluator should be accessible")
+		extismSource := extismEval.Source.(*pbSettings.ExtismEvaluator_Code)
+		assert.Equal(t, "base64wasm", extismSource.Code)
+	})
+
+	t.Run("WithUriSource", func(t *testing.T) {
+		scriptApp := &pbSettings.ScriptApp{
+			Evaluator: &pbSettings.ScriptApp_Risor{
+				Risor: &pbSettings.RisorEvaluator{},
+			},
+		}
+
+		scriptConfig := map[string]any{
+			"risor": map[string]any{
+				"uri": "file://script.risor",
+			},
+		}
+
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		assert.Empty(t, errs, "Should not return errors for URI source")
+
+		risorEval := scriptApp.GetRisor()
+		require.NotNil(t, risorEval, "Risor evaluator should be accessible")
+		risorSource := risorEval.Source.(*pbSettings.RisorEvaluator_Uri)
+		assert.Equal(t, "file://script.risor", risorSource.Uri)
+	})
+
+	t.Run("NilEvaluators", func(t *testing.T) {
+		scriptApp := &pbSettings.ScriptApp{}
+
+		scriptConfig := map[string]any{
+			"risor": map[string]any{
+				"code": "print('risor')",
+			},
+			"starlark": map[string]any{
+				"code": "result = 'starlark'",
+			},
+			"extism": map[string]any{
+				"code": "base64wasm",
+			},
+		}
+
+		// Should not panic when evaluators are nil
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		assert.Empty(t, errs, "Should not return errors when evaluators are nil")
+
+		// All getters should return nil
+		assert.Nil(t, scriptApp.GetRisor(), "Risor should be nil")
+		assert.Nil(t, scriptApp.GetStarlark(), "Starlark should be nil")
+		assert.Nil(t, scriptApp.GetExtism(), "Extism should be nil")
+	})
+
+	t.Run("NoEvaluatorConfigs", func(t *testing.T) {
+		scriptApp := &pbSettings.ScriptApp{
+			Evaluator: &pbSettings.ScriptApp_Risor{
+				Risor: &pbSettings.RisorEvaluator{},
+			},
+		}
+
+		scriptConfig := map[string]any{
+			"timeout": "30s",
+		}
+
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		assert.Empty(t, errs, "Should not return errors when no evaluator configs present")
+
+		// Risor source should remain nil
+		risorEval := scriptApp.GetRisor()
+		require.NotNil(t, risorEval, "Risor evaluator should exist")
+		assert.Nil(t, risorEval.Source, "Source should remain nil when no config")
+	})
+
+	t.Run("InvalidConfigTypes", func(t *testing.T) {
+		scriptApp := &pbSettings.ScriptApp{
+			Evaluator: &pbSettings.ScriptApp_Risor{
+				Risor: &pbSettings.RisorEvaluator{},
+			},
+		}
+
+		scriptConfig := map[string]any{
+			"risor":    "not a map",
+			"starlark": 123,
+			"extism":   []string{"not", "a", "map"},
+		}
+
+		// Should not panic with invalid config types
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		assert.Empty(t, errs, "Should not return errors for invalid config types")
+
+		// Source should remain nil for invalid config
+		risorEval := scriptApp.GetRisor()
+		require.NotNil(t, risorEval, "Risor evaluator should exist")
+		assert.Nil(t, risorEval.Source, "Source should remain nil for invalid config")
+	})
+}
+
+// TestProcessDirectionConfig tests the processDirectionConfig function for better coverage
+func TestProcessDirectionConfig(t *testing.T) {
+	t.Parallel()
+
+	t.Run("AllFields", func(t *testing.T) {
+		config := &pbMiddleware.LogOptionsHTTP_DirectionConfig{}
+
+		directionMap := map[string]any{
+			"enabled":         true,
+			"body":            false,
+			"body_size":       true,
+			"headers":         false,
+			"max_body_size":   1024,
+			"include_headers": []any{"Content-Type", "Authorization"},
+			"exclude_headers": []any{"Cookie", "Set-Cookie"},
+		}
+
+		errs := processDirectionConfig(config, directionMap)
+		assert.Empty(t, errs, "Should not return errors for valid direction config")
+
+		assert.True(t, config.GetEnabled(), "Enabled should be set")
+		assert.False(t, config.GetBody(), "Body should be set")
+		assert.True(t, config.GetBodySize(), "BodySize should be set")
+		assert.False(t, config.GetHeaders(), "Headers should be set")
+		assert.Equal(t, int32(1024), config.GetMaxBodySize(), "MaxBodySize should be set")
+		assert.Equal(
+			t,
+			[]string{"Content-Type", "Authorization"},
+			config.IncludeHeaders,
+			"IncludeHeaders should be set",
+		)
+		assert.Equal(
+			t,
+			[]string{"Cookie", "Set-Cookie"},
+			config.ExcludeHeaders,
+			"ExcludeHeaders should be set",
+		)
+	})
+
+	t.Run("EmptyHeaderArrays", func(t *testing.T) {
+		config := &pbMiddleware.LogOptionsHTTP_DirectionConfig{}
+
+		directionMap := map[string]any{
+			"include_headers": []any{},
+			"exclude_headers": []any{},
+		}
+
+		errs := processDirectionConfig(config, directionMap)
+		assert.Empty(t, errs, "Should not return errors for empty header arrays")
+
+		assert.Empty(t, config.IncludeHeaders, "IncludeHeaders should be empty")
+		assert.Empty(t, config.ExcludeHeaders, "ExcludeHeaders should be empty")
+	})
+
+	t.Run("InvalidHeaderTypes", func(t *testing.T) {
+		config := &pbMiddleware.LogOptionsHTTP_DirectionConfig{}
+
+		directionMap := map[string]any{
+			"include_headers": []any{"valid", 123, true},
+			"exclude_headers": []any{456, "valid", false},
+		}
+
+		errs := processDirectionConfig(config, directionMap)
+		assert.Empty(t, errs, "Should not return errors for mixed type header arrays")
+
+		// Only valid string entries should be included
+		assert.Equal(
+			t,
+			[]string{"valid"},
+			config.IncludeHeaders,
+			"Only string headers should be included",
+		)
+		assert.Equal(
+			t,
+			[]string{"valid"},
+			config.ExcludeHeaders,
+			"Only string headers should be included",
+		)
+	})
+}
+
+// TestProcessEndpointsEdgeCases tests additional edge cases for processEndpoints
+func TestProcessEndpointsEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("RouteWithStaticData", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Endpoints: []*pbSettings.Endpoint{
+				{
+					Id: proto.String("endpoint1"),
+					Routes: []*pbSettings.Route{
+						{},
+					},
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"id":          "endpoint1",
+					"listener_id": "listener1",
+					"routes": []any{
+						map[string]any{
+							"static_data": map[string]any{
+								"key": "value",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		errs := processEndpoints(config, configMap)
+		assert.Empty(t, errs, "Should not return errors for valid routes with static data")
+
+		assert.Equal(t, "listener1", config.Endpoints[0].GetListenerId())
+		require.NotNil(t, config.Endpoints[0].Routes[0].StaticData)
+		assert.Contains(t, config.Endpoints[0].Routes[0].StaticData.Data, "key")
+	})
+
+	t.Run("InvalidEndpointFormat", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Endpoints: []*pbSettings.Endpoint{
+				{
+					Id: proto.String("endpoint1"),
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"endpoints": []any{
+				"not a map", // Invalid format
+			},
+		}
+
+		errs := processEndpoints(config, configMap)
+		require.NotEmpty(t, errs, "Should return errors for invalid endpoint format")
+		assert.Contains(t, errs[0].Error(), "endpoint at index 0")
+	})
+
+	t.Run("InvalidRouteFormat", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Endpoints: []*pbSettings.Endpoint{
+				{
+					Id: proto.String("endpoint1"),
+					Routes: []*pbSettings.Route{
+						{},
+					},
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"id": "endpoint1",
+					"routes": []any{
+						"not a map", // Invalid route format
+					},
+				},
+			},
+		}
+
+		errs := processEndpoints(config, configMap)
+		assert.Empty(t, errs, "Should not return errors but should skip invalid route formats")
+	})
+
+	t.Run("LegacySingleRouteFormat", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Endpoints: []*pbSettings.Endpoint{
+				{
+					Id: proto.String("endpoint1"),
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"id": "endpoint1",
+					"route": map[string]any{
+						"app_id": "test-app",
+						"http": map[string]any{
+							"path_prefix": "/api",
+						},
+					},
+				},
+			},
+		}
+
+		errs := processEndpoints(config, configMap)
+		assert.Empty(t, errs, "Should not return errors for legacy route format")
+
+		// Should create a new route
+		require.Len(t, config.Endpoints[0].Routes, 1)
+		assert.Equal(t, "test-app", config.Endpoints[0].Routes[0].GetAppId())
+
+		httpRule := config.Endpoints[0].Routes[0].GetHttp()
+		require.NotNil(t, httpRule)
+		assert.Equal(t, "/api", httpRule.GetPathPrefix())
+	})
+
+	t.Run("MoreEndpointsInMapThanConfig", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Endpoints: []*pbSettings.Endpoint{
+				{
+					Id: proto.String("endpoint1"),
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"id":          "endpoint1",
+					"listener_id": "listener1",
+				},
+				map[string]any{
+					"id":          "endpoint2",
+					"listener_id": "listener2",
+				},
+			},
+		}
+
+		errs := processEndpoints(config, configMap)
+		assert.Empty(t, errs, "Should not return errors when more endpoints in map than config")
+
+		// Should only process the first endpoint since config only has one
+		assert.Equal(t, "listener1", config.Endpoints[0].GetListenerId())
+	})
+
+	t.Run("MoreRoutesInMapThanConfig", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Endpoints: []*pbSettings.Endpoint{
+				{
+					Id: proto.String("endpoint1"),
+					Routes: []*pbSettings.Route{
+						{},
+					},
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"id": "endpoint1",
+					"routes": []any{
+						map[string]any{
+							"static_data": map[string]any{
+								"key1": "value1",
+							},
+						},
+						map[string]any{
+							"static_data": map[string]any{
+								"key2": "value2",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		errs := processEndpoints(config, configMap)
+		assert.Empty(t, errs, "Should not return errors when more routes in map than config")
+
+		// Should only process the first route since config only has one
+		require.NotNil(t, config.Endpoints[0].Routes[0].StaticData)
+		assert.Contains(t, config.Endpoints[0].Routes[0].StaticData.Data, "key1")
+	})
+}
+
+// TestProcessAppsEdgeCases tests additional edge cases for processApps
+func TestProcessAppsEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("InvalidAppFormat", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Apps: []*pbSettings.AppDefinition{
+				{
+					Id: proto.String("app1"),
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"apps": []any{
+				"not a map", // Invalid format
+			},
+		}
+
+		errs := processApps(config, configMap)
+		require.NotEmpty(t, errs, "Should return errors for invalid app format")
+		assert.Contains(t, errs[0].Error(), "app at index 0")
+	})
+
+	t.Run("NoAppsArray", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Apps: []*pbSettings.AppDefinition{
+				{
+					Id: proto.String("app1"),
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			// No apps key
+		}
+
+		errs := processApps(config, configMap)
+		assert.Empty(t, errs, "Should not return errors when no apps array")
+	})
+
+	t.Run("MoreAppsInMapThanConfig", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Apps: []*pbSettings.AppDefinition{
+				{
+					Id: proto.String("app1"),
+				},
+			},
+		}
+
+		configMap := map[string]any{
+			"apps": []any{
+				map[string]any{
+					"id":   "app1",
+					"type": "script",
+				},
+				map[string]any{
+					"id":   "app2",
+					"type": "echo",
+				},
+			},
+		}
+
+		errs := processApps(config, configMap)
+		assert.Empty(t, errs, "Should not return errors when more apps in map than config")
+
+		// Should only process the first app since config only has one
+		assert.Equal(t, pbSettings.AppDefinition_TYPE_SCRIPT, config.Apps[0].GetType())
+	})
+}
+
+// TestProcessScriptAppConfigEdgeCases tests additional edge cases for processScriptAppConfig
+func TestProcessScriptAppConfigEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("InvalidScriptConfig", func(t *testing.T) {
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("app1"),
+		}
+
+		appMap := map[string]any{
+			"script": "not a map", // Invalid format
+		}
+
+		errs := processScriptAppConfig(app, appMap)
+		assert.Empty(t, errs, "Should not return errors for invalid script config format")
+	})
+
+	t.Run("NoScriptConfig", func(t *testing.T) {
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("app1"),
+		}
+
+		appMap := map[string]any{
+			"type": "script",
+		}
+
+		errs := processScriptAppConfig(app, appMap)
+		assert.Empty(t, errs, "Should not return errors when no script config")
+	})
+
+	t.Run("NilScriptApp", func(t *testing.T) {
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("app1"),
+		}
+
+		appMap := map[string]any{
+			"script": map[string]any{
+				"static_data": map[string]any{
+					"key": "value",
+				},
+			},
+		}
+
+		errs := processScriptAppConfig(app, appMap)
+		assert.Empty(t, errs, "Should not return errors when script app is nil")
 	})
 }

@@ -14,4 +14,4 @@ name = "example"
   format = "cargo fmt"
 
   # xtp plugin init runs this script before running the format script
-  prepare = "bash prepare.sh"
+  prepare = "make setup"

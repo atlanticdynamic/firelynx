@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/robbyt/go-polyscript/engines/extism/wasmdata"
 	"github.com/stretchr/testify/assert"
@@ -107,26 +108,97 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
 		assert.ErrorIs(t, err, ErrEmptyEntrypoint)
 	})
+
+	t.Run("negative timeout", func(t *testing.T) {
+		wasmBase64 := base64.StdEncoding.EncodeToString(wasmdata.TestModule)
+		evaluator := &ExtismEvaluator{
+			Code:       wasmBase64,
+			Entrypoint: "handle_request",
+			Timeout:    -5 * time.Second,
+		}
+		err := evaluator.Validate()
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrNegativeTimeout)
+	})
+
+	t.Run("uri only valid", func(t *testing.T) {
+		evaluator := &ExtismEvaluator{
+			URI:        "file://test.wasm",
+			Entrypoint: "handle_request",
+		}
+		// This will fail at build stage due to file not existing
+		err := evaluator.Validate()
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrCompilationFailed)
+	})
+
+	t.Run("invalid base64 code", func(t *testing.T) {
+		evaluator := &ExtismEvaluator{
+			Code:       "invalid base64 !!!",
+			Entrypoint: "handle_request",
+		}
+		err := evaluator.Validate()
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrCompilationFailed)
+		assert.Contains(t, err.Error(), "failed to decode base64 WASM")
+	})
+
+	t.Run("invalid wasm bytes", func(t *testing.T) {
+		invalidWasm := base64.StdEncoding.EncodeToString([]byte("not a valid wasm module"))
+		evaluator := &ExtismEvaluator{
+			Code:       invalidWasm,
+			Entrypoint: "handle_request",
+		}
+		err := evaluator.Validate()
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrCompilationFailed)
+	})
 }
 
 func TestExtismEvaluator_GetCompiledEvaluator(t *testing.T) {
-	t.Run("nil evaluator", func(t *testing.T) {
-		evaluator := &ExtismEvaluator{}
+	t.Run("build error propagated", func(t *testing.T) {
+		evaluator := &ExtismEvaluator{
+			Code:       "invalid base64 !!!",
+			Entrypoint: "handle_request",
+		}
 		result, err := evaluator.GetCompiledEvaluator()
 		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrCompilationFailed)
 		assert.Nil(t, result)
 	})
 
-	t.Run("non-nil evaluator", func(t *testing.T) {
-		evaluator := &ExtismEvaluator{}
+	t.Run("successful build returns evaluator", func(t *testing.T) {
+		wasmBase64 := base64.StdEncoding.EncodeToString(wasmdata.TestModule)
+		evaluator := &ExtismEvaluator{
+			Code:       wasmBase64,
+			Entrypoint: wasmdata.EntrypointGreet,
+		}
 		result, err := evaluator.GetCompiledEvaluator()
-		assert.Error(t, err)
-		assert.Nil(t, result)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+}
 
-		// TODO: Add test for compiled evaluator when Phase 2.1 is implemented
-		// Test should verify:
-		// 1. After calling enhanced Validate() with valid WASM module, GetCompiledEvaluator() returns non-nil platform.Evaluator
-		// 2. After calling enhanced Validate() with invalid WASM module, Validate() returns error and GetCompiledEvaluator() returns nil
-		// 3. The returned evaluator can execute simple Extism/WASM modules (integration test with go-polyscript)
+func TestExtismEvaluator_GetTimeout(t *testing.T) {
+	t.Run("returns set timeout", func(t *testing.T) {
+		timeout := 10 * time.Second
+		evaluator := &ExtismEvaluator{
+			Timeout: timeout,
+		}
+		assert.Equal(t, timeout, evaluator.GetTimeout())
+	})
+
+	t.Run("returns default when zero", func(t *testing.T) {
+		evaluator := &ExtismEvaluator{
+			Timeout: 0,
+		}
+		assert.Equal(t, DefaultEvalTimeout, evaluator.GetTimeout())
+	})
+
+	t.Run("returns default when negative", func(t *testing.T) {
+		evaluator := &ExtismEvaluator{
+			Timeout: -5 * time.Second,
+		}
+		assert.Equal(t, DefaultEvalTimeout, evaluator.GetTimeout())
 	})
 }

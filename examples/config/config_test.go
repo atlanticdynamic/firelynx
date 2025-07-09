@@ -21,13 +21,13 @@ func TestLoadingAllExampleConfigs(t *testing.T) {
 	t.Logf("Found %d example files", len(entries))
 
 	for _, entry := range entries {
-        name := entry.Name()
-        if entry.IsDir() || strings.HasPrefix(name, ".") || !strings.HasSuffix(name, ".toml") {
-            t.Logf("Skipping: %s", name)
-            continue
-        }
+		name := entry.Name()
+		if entry.IsDir() || strings.HasPrefix(name, ".") || !strings.HasSuffix(name, ".toml") {
+			t.Logf("Skipping: %s", name)
+			continue
+		}
 
-        t.Run(name, func(t *testing.T) {
+		t.Run(name, func(t *testing.T) {
 			data, err := exampleFiles.ReadFile(name)
 			require.NoError(t, err, "Failed to read embedded file: %s", name)
 

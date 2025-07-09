@@ -5,6 +5,14 @@ VERSION := 0.1.0
 .PHONY: all
 all: help
 
+## setup: Check dependencies and install required WASM targets
+.PHONY: setup
+setup:
+	@command -v cargo >/dev/null 2>&1 || { echo "Error: cargo not found. Install Rust from https://rustup.rs/"; exit 1; }
+	@command -v rustup >/dev/null 2>&1 || { echo "Error: rustup not found. Check Rust installation."; exit 1; }
+	@rustup target list --installed | grep -q '^wasm32-wasip1$$' || rustup target add wasm32-wasip1
+	@rustup target list --installed | grep -q '^wasm32-unknown-unknown$$' || rustup target add wasm32-unknown-unknown
+
 ## help: Display this help message
 .PHONY: help
 help: Makefile
@@ -16,7 +24,7 @@ help: Makefile
 
 ## build: Build the WASM plugin
 .PHONY: build
-build:
+build: setup
 	xtp plugin build
 
 ## format: Format the Rust code
@@ -37,7 +45,6 @@ test: build
 		echo "Visit: https://docs.xtp.dylibso.com/docs/install"; \
 		exit 1; \
 	fi
-	rustup target add wasm32-unknown-unknown
 	cd test && cargo build --target wasm32-unknown-unknown --release
 	xtp plugin test target/wasm32-wasip1/release/$(PLUGIN_NAME).wasm \
 		--with test/target/wasm32-unknown-unknown/release/test.wasm
@@ -50,7 +57,6 @@ test-verbose: build
 		echo "Visit: https://docs.xtp.dylibso.com/docs/install"; \
 		exit 1; \
 	fi
-	rustup target add wasm32-unknown-unknown
 	cd test && cargo build --target wasm32-unknown-unknown --release
 	xtp plugin test target/wasm32-wasip1/release/$(PLUGIN_NAME).wasm \
 		--with test/target/wasm32-unknown-unknown/release/test.wasm \

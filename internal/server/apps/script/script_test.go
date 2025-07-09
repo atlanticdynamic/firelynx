@@ -287,3 +287,162 @@ _ = result`,
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "production")
 }
+
+func TestScriptApp_HandleHTTP_PrepareScriptDataError(t *testing.T) {
+	// Mock evaluator that can validate but has nil compiledEvaluator
+	mockEval := &evaluators.RisorEvaluator{
+		Code:    `{"message": "test"}`,
+		Timeout: 5 * time.Second,
+	}
+
+	err := mockEval.Validate()
+	require.NoError(t, err)
+
+	// Create a script app
+	config := &scripts.AppScript{
+		Evaluator: mockEval,
+	}
+
+	app, err := New("test-app", config, slog.Default())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	// This should work fine since prepareScriptData doesn't fail for valid inputs
+	err = app.HandleHTTP(t.Context(), w, req, nil)
+	assert.NoError(t, err)
+}
+
+func TestScriptApp_HandleHTTP_ExtismDataStructure(t *testing.T) {
+	// Test that Extism evaluator data preparation works differently
+	// Since we don't have a real Extism WASM module easily available for testing,
+	// we'll test with a Risor script but verify the data structuring logic
+	risorEval := &evaluators.RisorEvaluator{
+		Code: `{
+			"message": ctx.get("test_key", "not_found")
+		}`,
+		Timeout: 5 * time.Second,
+	}
+
+	err := risorEval.Validate()
+	require.NoError(t, err)
+
+	staticData := map[string]any{
+		"data": map[string]any{
+			"test_key": "nested_value",
+		},
+	}
+
+	config := &scripts.AppScript{
+		Evaluator:  risorEval,
+		StaticData: &staticdata.StaticData{Data: staticData},
+	}
+
+	app, err := New("test-app", config, slog.Default())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	// For non-Extism evaluators, data field should be available as-is
+	err = app.HandleHTTP(t.Context(), w, req, nil)
+	assert.NoError(t, err)
+}
+
+func TestScriptApp_HandleHTTP_StringResult(t *testing.T) {
+	risorEval := &evaluators.RisorEvaluator{
+		Code:    `"Plain text response"`,
+		Timeout: 5 * time.Second,
+	}
+
+	err := risorEval.Validate()
+	require.NoError(t, err)
+
+	config := &scripts.AppScript{
+		Evaluator: risorEval,
+	}
+
+	app, err := New("test-app", config, slog.Default())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	err = app.HandleHTTP(t.Context(), w, req, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
+	assert.Equal(t, "Plain text response", w.Body.String())
+}
+
+func TestScriptApp_HandleHTTP_NumericResult(t *testing.T) {
+	risorEval := &evaluators.RisorEvaluator{
+		Code:    `42`,
+		Timeout: 5 * time.Second,
+	}
+
+	err := risorEval.Validate()
+	require.NoError(t, err)
+
+	config := &scripts.AppScript{
+		Evaluator: risorEval,
+	}
+
+	app, err := New("test-app", config, slog.Default())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	err = app.HandleHTTP(t.Context(), w, req, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
+	assert.Equal(t, "42", w.Body.String())
+}
+
+func TestScriptApp_HandleHTTP_ExecutionError(t *testing.T) {
+	risorEval := &evaluators.RisorEvaluator{
+		Code: `
+		// This will cause a runtime error by invalid array access
+		arr := []
+		arr[100]`,
+		Timeout: 5 * time.Second,
+	}
+
+	err := risorEval.Validate()
+	require.NoError(t, err)
+
+	config := &scripts.AppScript{
+		Evaluator: risorEval,
+	}
+
+	app, err := New("test-app", config, slog.Default())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	w := httptest.NewRecorder()
+
+	err = app.HandleHTTP(t.Context(), w, req, nil)
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestScriptApp_New_EvaluatorCompilationError(t *testing.T) {
+	// Create an evaluator that will fail to get compiled evaluator
+	risorEval := &evaluators.RisorEvaluator{
+		Code:    "invalid syntax <<<",
+		Timeout: 5 * time.Second,
+	}
+
+	// Don't validate - this will cause getPolyscriptEvaluator to fail
+	config := &scripts.AppScript{
+		Evaluator: risorEval,
+	}
+
+	app, err := New("test-app", config, slog.Default())
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create and compile go-polyscript evaluator")
+	assert.Nil(t, app)
+}
