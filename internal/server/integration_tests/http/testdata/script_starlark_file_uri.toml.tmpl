@@ -1,0 +1,26 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{.Port}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "file-script-app"
+[endpoints.routes.http]
+path_prefix = "/file-script"
+
+[[apps]]
+id = "file-script-app"
+[apps.script]
+[apps.script.starlark]
+uri = "file://{{.ScriptPath}}"
+timeout = "5s"

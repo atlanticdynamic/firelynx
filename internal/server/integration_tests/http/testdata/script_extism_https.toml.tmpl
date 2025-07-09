@@ -1,0 +1,29 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{.Port}}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+[[endpoints.routes]]
+app_id = "extism-https-app"
+[endpoints.routes.http]
+path_prefix = "/execute"
+
+[[apps]]
+id = "extism-https-app"
+[apps.script]
+[apps.script.static_data]
+data = { input = "HTTPS integration test" }
+[apps.script.extism]
+uri = "{{.ScriptURL}}"
+entrypoint = "greet"
+timeout = "10s"

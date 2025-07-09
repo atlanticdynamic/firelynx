@@ -104,7 +104,7 @@ func TestFromProtoConversions(t *testing.T) {
 				Script: &pb.ScriptApp{
 					Evaluator: &pb.ScriptApp_Risor{
 						Risor: &pb.RisorEvaluator{
-							Code:    proto.String("return 'hello'"),
+							Source:  &pb.RisorEvaluator_Code{Code: "return 'hello'"},
 							Timeout: durationpb.New(5 * time.Second),
 						},
 					},
@@ -195,7 +195,7 @@ func TestFromProtoConversions(t *testing.T) {
 				Script: &pb.ScriptApp{
 					Evaluator: &pb.ScriptApp_Risor{
 						Risor: &pb.RisorEvaluator{
-							Code: proto.String("return 'hello'"),
+							Source: &pb.RisorEvaluator_Code{Code: "return 'hello'"},
 						},
 					},
 				},
@@ -239,7 +239,7 @@ func TestFromProtoConversions(t *testing.T) {
 					Script: &pb.ScriptApp{
 						Evaluator: &pb.ScriptApp_Risor{
 							Risor: &pb.RisorEvaluator{
-								Code: proto.String("return 'script'"),
+								Source: &pb.RisorEvaluator_Code{Code: "return 'script'"},
 							},
 						},
 					},

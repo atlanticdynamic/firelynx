@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://xtp.dylibso.com/assets/wasm/schema.json
+# Learn more at https://docs.xtp.dylibso.com/docs/concepts/xtp-schema
+version: v1-draft
+exports: 
+  CountCharacters:
+      input: 
+          type: object
+          contentType: application/json
+      output:
+          $ref: "#/components/schemas/CharacterReport"
+          contentType: application/json
+components:
+  schemas:
+    CharacterReport:
+      description: The result of counting configurable characters in the request input.
+      properties:
+        count:
+          type: integer
+          format: int32
+          description: The count of matching characters found in the input string.
+        characters:
+          type: string
+          description: The set of characters used for matching, e.g. "aAeEiIoOuU", "0123456789", etc.

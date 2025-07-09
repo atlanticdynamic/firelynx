@@ -1,0 +1,14 @@
+# XTP Test Configuration
+[test]
+name = "Character Counter Tests"
+description = "Test suite for the configurable character counting WASM plugin"
+
+# Test plugin configuration
+[[test.plugins]]
+name = "char-counter"
+path = "../target/wasm32-wasip1/release/plugin.wasm"
+
+# Test runner configuration  
+[[test.runners]]
+name = "char-counter-test"
+path = "./target/wasm32-unknown-unknown/release/test.wasm"

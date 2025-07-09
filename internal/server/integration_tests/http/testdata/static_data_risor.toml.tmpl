@@ -1,0 +1,54 @@
+version = "v1"
+
+[[listeners]]
+id = "api"
+type = "http"
+address = "127.0.0.1:{{ .Port }}"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+[[endpoints]]
+id = "api-endpoint"
+listener_id = "api"
+
+# Route 1: Override route_value to "from_route1"
+[[endpoints.routes]]
+app_id = "static-test"
+[endpoints.routes.http]
+path_prefix = "/api/route1"
+[endpoints.routes.static_data]
+route_value = "from_route1"
+
+# Route 2: Override route_value to "from_route2"  
+[[endpoints.routes]]
+app_id = "static-test"
+[endpoints.routes.http]
+path_prefix = "/api/route2"
+[endpoints.routes.static_data]
+route_value = "from_route2"
+
+# Route 3: No route-level static data (should use app default)
+[[endpoints.routes]]
+app_id = "static-test"
+[endpoints.routes.http]
+path_prefix = "/api/route3"
+
+[[apps]]
+id = "static-test"
+
+[apps.script]
+[apps.script.static_data]
+app_value = "from_app"
+route_value = "default_route_value"
+
+[apps.script.risor]
+code = '''
+{
+    "app_value": ctx.get("app_value", "MISSING"),
+    "route_value": ctx.get("route_value", "MISSING"),
+    "timestamp": time.now().format("2006-01-02T15:04:05Z07:00")
+}
+'''
+timeout = "5s"

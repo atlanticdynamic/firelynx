@@ -19,10 +19,19 @@ func RisorEvaluatorFromProto(proto *settingsv1alpha1.RisorEvaluator) *RisorEvalu
 		timeout = proto.Timeout.AsDuration()
 	}
 
-	return &RisorEvaluator{
-		Code:    protobaggins.StringFromProto(proto.Code),
+	risor := &RisorEvaluator{
 		Timeout: timeout,
 	}
+
+	// Handle the oneof source field
+	switch source := proto.Source.(type) {
+	case *settingsv1alpha1.RisorEvaluator_Code:
+		risor.Code = source.Code
+	case *settingsv1alpha1.RisorEvaluator_Uri:
+		risor.URI = source.Uri
+	}
+
+	return risor
 }
 
 // ToProto converts a RisorEvaluator to its protocol buffer representation.
@@ -36,10 +45,22 @@ func (r *RisorEvaluator) ToProto() *settingsv1alpha1.RisorEvaluator {
 		timeout = durationpb.New(r.Timeout)
 	}
 
-	return &settingsv1alpha1.RisorEvaluator{
-		Code:    protobaggins.StringToProto(r.Code),
+	proto := &settingsv1alpha1.RisorEvaluator{
 		Timeout: timeout,
 	}
+
+	// Handle the oneof source field - prioritize code over URI
+	if r.Code != "" {
+		proto.Source = &settingsv1alpha1.RisorEvaluator_Code{
+			Code: r.Code,
+		}
+	} else if r.URI != "" {
+		proto.Source = &settingsv1alpha1.RisorEvaluator_Uri{
+			Uri: r.URI,
+		}
+	}
+
+	return proto
 }
 
 // StarlarkEvaluatorFromProto creates a StarlarkEvaluator from its protocol buffer representation.
@@ -53,10 +74,19 @@ func StarlarkEvaluatorFromProto(proto *settingsv1alpha1.StarlarkEvaluator) *Star
 		timeout = proto.Timeout.AsDuration()
 	}
 
-	return &StarlarkEvaluator{
-		Code:    protobaggins.StringFromProto(proto.Code),
+	starlark := &StarlarkEvaluator{
 		Timeout: timeout,
 	}
+
+	// Handle the oneof source field
+	switch source := proto.Source.(type) {
+	case *settingsv1alpha1.StarlarkEvaluator_Code:
+		starlark.Code = source.Code
+	case *settingsv1alpha1.StarlarkEvaluator_Uri:
+		starlark.URI = source.Uri
+	}
+
+	return starlark
 }
 
 // ToProto converts a StarlarkEvaluator to its protocol buffer representation.
@@ -70,10 +100,22 @@ func (s *StarlarkEvaluator) ToProto() *settingsv1alpha1.StarlarkEvaluator {
 		timeout = durationpb.New(s.Timeout)
 	}
 
-	return &settingsv1alpha1.StarlarkEvaluator{
-		Code:    protobaggins.StringToProto(s.Code),
+	proto := &settingsv1alpha1.StarlarkEvaluator{
 		Timeout: timeout,
 	}
+
+	// Handle the oneof source field - prioritize code over URI
+	if s.Code != "" {
+		proto.Source = &settingsv1alpha1.StarlarkEvaluator_Code{
+			Code: s.Code,
+		}
+	} else if s.URI != "" {
+		proto.Source = &settingsv1alpha1.StarlarkEvaluator_Uri{
+			Uri: s.URI,
+		}
+	}
+
+	return proto
 }
 
 // ExtismEvaluatorFromProto creates an ExtismEvaluator from its protocol buffer representation.
@@ -82,10 +124,25 @@ func ExtismEvaluatorFromProto(proto *settingsv1alpha1.ExtismEvaluator) *ExtismEv
 		return nil
 	}
 
-	return &ExtismEvaluator{
-		Code:       protobaggins.StringFromProto(proto.Code),
-		Entrypoint: protobaggins.StringFromProto(proto.Entrypoint),
+	var timeout time.Duration
+	if proto.Timeout != nil {
+		timeout = proto.Timeout.AsDuration()
 	}
+
+	extism := &ExtismEvaluator{
+		Entrypoint: protobaggins.StringFromProto(proto.Entrypoint),
+		Timeout:    timeout,
+	}
+
+	// Handle the oneof source field
+	switch source := proto.Source.(type) {
+	case *settingsv1alpha1.ExtismEvaluator_Code:
+		extism.Code = source.Code
+	case *settingsv1alpha1.ExtismEvaluator_Uri:
+		extism.URI = source.Uri
+	}
+
+	return extism
 }
 
 // ToProto converts an ExtismEvaluator to its protocol buffer representation.
@@ -94,10 +151,28 @@ func (e *ExtismEvaluator) ToProto() *settingsv1alpha1.ExtismEvaluator {
 		return nil
 	}
 
-	return &settingsv1alpha1.ExtismEvaluator{
-		Code:       protobaggins.StringToProto(e.Code),
-		Entrypoint: protobaggins.StringToProto(e.Entrypoint),
+	var timeout *durationpb.Duration
+	if e.Timeout > 0 {
+		timeout = durationpb.New(e.Timeout)
 	}
+
+	proto := &settingsv1alpha1.ExtismEvaluator{
+		Entrypoint: protobaggins.StringToProto(e.Entrypoint),
+		Timeout:    timeout,
+	}
+
+	// Handle the oneof source field - prioritize code over URI
+	if e.Code != "" {
+		proto.Source = &settingsv1alpha1.ExtismEvaluator_Code{
+			Code: e.Code,
+		}
+	} else if e.URI != "" {
+		proto.Source = &settingsv1alpha1.ExtismEvaluator_Uri{
+			Uri: e.URI,
+		}
+	}
+
+	return proto
 }
 
 // EvaluatorFromProto creates an appropriate Evaluator from its protocol buffer representation.

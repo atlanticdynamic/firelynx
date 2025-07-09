@@ -520,8 +520,11 @@ func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []er
 			}
 
 			// Process app configurations based on which config sections are present
-			// For now, we only process basic app structure
-			// Script-specific processing will be added later
+			if _, hasScript := appMap["script"]; hasScript {
+				errs := processScriptAppConfig(app, appMap)
+				errList = append(errList, errs...)
+			}
+			// Echo and composite_script apps don't need special post-processing
 		}
 	}
 
@@ -555,4 +558,104 @@ func processStaticDataField(staticData **pbSettings.StaticData, staticDataMap ma
 		*staticData = &pbSettings.StaticData{}
 	}
 	(*staticData).Data = protobaggins.MapToStructValues(staticDataMap)
+}
+
+// processScriptAppConfig handles script app-specific configuration
+func processScriptAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) []error {
+	var errList []error
+
+	// Get the script configuration
+	scriptConfig, ok := appMap["script"].(map[string]any)
+	if !ok {
+		return errList
+	}
+
+	// Get the script app config from the app
+	if scriptApp := app.GetScript(); scriptApp != nil {
+		// Process static_data for script app
+		if staticDataMap, ok := scriptConfig["static_data"].(map[string]any); ok {
+			processStaticDataField(&scriptApp.StaticData, staticDataMap)
+		}
+
+		// Process evaluator configurations
+		errs := processScriptEvaluators(scriptApp, scriptConfig)
+		errList = append(errList, errs...)
+	}
+
+	return errList
+}
+
+// extractSourceFromConfig extracts code or uri from TOML config map.
+// Returns the extracted values and whether any source was found.
+// Code takes precedence over uri if both are present.
+func extractSourceFromConfig(config map[string]any) (code string, uri string, hasSource bool) {
+	if codeVal, hasCode := config["code"].(string); hasCode && codeVal != "" {
+		return codeVal, "", true
+	} else if uriVal, hasURI := config["uri"].(string); hasURI && uriVal != "" {
+		return "", uriVal, true
+	}
+	return "", "", false
+}
+
+// processScriptEvaluators handles script evaluator-specific configuration
+func processScriptEvaluators(scriptApp *pbSettings.ScriptApp, scriptConfig map[string]any) []error {
+	var errList []error
+
+	// Process each evaluator type
+	if risorConfig, ok := scriptConfig["risor"].(map[string]any); ok {
+		processRisorSource(scriptApp.GetRisor(), risorConfig)
+	}
+	if starlarkConfig, ok := scriptConfig["starlark"].(map[string]any); ok {
+		processStarlarkSource(scriptApp.GetStarlark(), starlarkConfig)
+	}
+	if extismConfig, ok := scriptConfig["extism"].(map[string]any); ok {
+		processExtismSource(scriptApp.GetExtism(), extismConfig)
+	}
+
+	return errList
+}
+
+func processRisorSource(eval *pbSettings.RisorEvaluator, config map[string]any) {
+	if eval == nil {
+		return
+	}
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.RisorEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.RisorEvaluator_Uri{Uri: uri}
+	}
+}
+
+func processStarlarkSource(eval *pbSettings.StarlarkEvaluator, config map[string]any) {
+	if eval == nil {
+		return
+	}
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.StarlarkEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.StarlarkEvaluator_Uri{Uri: uri}
+	}
+}
+
+func processExtismSource(eval *pbSettings.ExtismEvaluator, config map[string]any) {
+	if eval == nil {
+		return
+	}
+	code, uri, hasSource := extractSourceFromConfig(config)
+	if !hasSource {
+		return
+	}
+	if code != "" {
+		eval.Source = &pbSettings.ExtismEvaluator_Code{Code: code}
+	} else {
+		eval.Source = &pbSettings.ExtismEvaluator_Uri{Uri: uri}
+	}
 }

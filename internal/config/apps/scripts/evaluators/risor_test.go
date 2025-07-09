@@ -66,7 +66,7 @@ func TestRisorEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyCode))
+		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
 	})
 
 	t.Run("negative timeout", func(t *testing.T) {
@@ -86,7 +86,87 @@ func TestRisorEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyCode))
+		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
 		assert.True(t, errors.Is(err, ErrNegativeTimeout))
+	})
+
+	t.Run("both code and uri", func(t *testing.T) {
+		evaluator := &RisorEvaluator{
+			Code:    "print('hello')",
+			URI:     "file://script.risor",
+			Timeout: 5 * time.Second,
+		}
+		err := evaluator.Validate()
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrBothCodeAndURI)
+	})
+
+	t.Run("uri only valid", func(t *testing.T) {
+		evaluator := &RisorEvaluator{
+			URI:     "file://script.risor",
+			Timeout: 5 * time.Second,
+		}
+		// This will fail at build stage due to invalid URI, but basic validation should pass
+		err := evaluator.Validate()
+		// build() will be called and will fail because the file doesn't exist
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrCompilationFailed)
+	})
+
+	t.Run("compilation failure with invalid code", func(t *testing.T) {
+		evaluator := &RisorEvaluator{
+			Code:    "invalid risor syntax <<<",
+			Timeout: 5 * time.Second,
+		}
+		err := evaluator.Validate()
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrCompilationFailed)
+	})
+}
+
+func TestRisorEvaluator_GetCompiledEvaluator(t *testing.T) {
+	t.Run("build error propagated", func(t *testing.T) {
+		evaluator := &RisorEvaluator{
+			Code:    "invalid risor syntax <<<",
+			Timeout: 5 * time.Second,
+		}
+		result, err := evaluator.GetCompiledEvaluator()
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrCompilationFailed)
+		assert.Nil(t, result)
+	})
+
+	t.Run("successful build returns evaluator", func(t *testing.T) {
+		evaluator := &RisorEvaluator{
+			Code:    "1 + 1",
+			Timeout: 5 * time.Second,
+		}
+		result, err := evaluator.GetCompiledEvaluator()
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+}
+
+func TestRisorEvaluator_GetTimeout(t *testing.T) {
+	t.Run("returns set timeout", func(t *testing.T) {
+		timeout := 10 * time.Second
+		evaluator := &RisorEvaluator{
+			Timeout: timeout,
+		}
+		assert.Equal(t, timeout, evaluator.GetTimeout())
+	})
+
+	t.Run("returns default when zero", func(t *testing.T) {
+		evaluator := &RisorEvaluator{
+			Timeout: 0,
+		}
+		assert.Equal(t, DefaultEvalTimeout, evaluator.GetTimeout())
+	})
+
+	t.Run("returns default when negative", func(t *testing.T) {
+		evaluator := &RisorEvaluator{
+			Timeout: -5 * time.Second,
+		}
+		assert.Equal(t, DefaultEvalTimeout, evaluator.GetTimeout())
 	})
 }

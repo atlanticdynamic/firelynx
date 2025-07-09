@@ -1,0 +1,94 @@
+# Risor Script App Example Configuration
+# Demonstrates how to use inline Risor scripts for dynamic request processing.
+#
+# Risor is a Go-like scripting language that's fast and familiar to Go developers.
+# This example shows a simple script that returns JSON with request information.
+
+version = "v1"
+
+# HTTP Listener Configuration
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[listeners.http]
+read_timeout = "30s"
+write_timeout = "30s"
+
+# Endpoint Configuration
+[[endpoints]]
+id = "main"
+listener_id = "http"
+
+# Route Configuration - all requests to /api/risor go to our script
+[[endpoints.routes]]
+app_id = "risor-demo"
+[endpoints.routes.http]
+path_prefix = "/api/risor"
+
+# Risor Script Application
+[[apps]]
+id = "risor-demo"
+
+[apps.script]
+# Static data available to the script
+[apps.script.static_data]
+service_name = "firelynx-risor-demo"
+version = "1.0.0"
+environment = "example"
+
+# Risor evaluator configuration
+[apps.script.risor]
+timeout = "10s"
+
+# Inline Risor script code
+# This script has access to:
+# - Static data defined above (service_name, version, environment)
+# - Request data (method, path, headers, body if JSON)
+code = '''
+// Risor script with proper data access patterns
+func process() {
+    // Access static data from config with fallbacks
+    service_name := ctx.get("service_name", "unknown")
+    version := ctx.get("version", "1.0.0")
+    environment := ctx.get("environment", "example")
+    
+    // Access request data if available
+    request := ctx.get("request", {})
+    method := ""
+    path := ""
+    user_agent := ""
+    
+    if len(request) > 0 {
+        method = request.get("Method", "")
+        url := request.get("URL", {})
+        if len(url) > 0 {
+            path = url.get("Path", "")
+        }
+        headers := request.get("Header", {})
+        if len(headers) > 0 {
+            user_agent = headers.get("User-Agent", [""])[0]
+        }
+    }
+    
+    // Build response
+    result := {
+        "message": "Hello from Risor!",
+        "service": service_name,
+        "version": version,
+        "environment": environment,
+        "request_info": {
+            "method": method,
+            "path": path,
+            "user_agent": user_agent
+        },
+        "timestamp": time.Now().Format(time.RFC3339)
+    }
+    
+    return result
+}
+
+// Call function and return result
+process()
+'''

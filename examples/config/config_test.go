@@ -28,7 +28,6 @@ func TestLoadingAllExampleConfigs(t *testing.T) {
 		}
 
 		t.Run(name, func(t *testing.T) {
-			// Read example config file
 			data, err := exampleFiles.ReadFile(name)
 			require.NoError(t, err, "Failed to read embedded file: %s", name)
 

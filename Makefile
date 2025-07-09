@@ -77,6 +77,22 @@ lint-fix: protogen
 	golangci-lint fmt
 	golangci-lint run --fix ./...
 
+## wasm-char-counter: Build the char counter WASM plugin
+.PHONY: wasm-char-counter
+wasm-char-counter:
+	$(MAKE) -C examples/wasm/rust/char_counter build
+
+## update-extism-config: Build char counter WASM and update example config with base64
+.PHONY: update-extism-config
+update-extism-config:
+	@TMPDIR=$$(mktemp -d) && \
+	$(MAKE) -s -C examples/wasm/rust/char_counter build >/dev/null 2>&1 && \
+	base64 -i examples/wasm/rust/char_counter/target/wasm32-wasip1/release/plugin.wasm > $$TMPDIR/wasm.base64 && \
+	awk '/^uri = / {print "code = \"" code "\""; next} /^code = / {print "code = \"" code "\""; next} {print}' \
+		code="$$(cat $$TMPDIR/wasm.base64)" examples/config/script-extism-basic.toml > $$TMPDIR/new.toml && \
+	mv $$TMPDIR/new.toml examples/config/script-extism-basic.toml && \
+	rm -rf $$TMPDIR
+
 ## clean: Clean build artifacts
 .PHONY: clean
 clean:

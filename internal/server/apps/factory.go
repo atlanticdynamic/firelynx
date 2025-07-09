@@ -14,8 +14,8 @@ type AppFactory struct {
 func NewAppFactory() *AppFactory {
 	return &AppFactory{
 		creators: map[string]Instantiator{
-			"echo": createEchoApp,
-			// Add other app types here as they are implemented
+			"echo":   createEchoApp,
+			"script": createScriptApp,
 		},
 	}
 }
