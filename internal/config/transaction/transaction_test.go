@@ -550,10 +550,22 @@ func TestConvertToAppDefinitions(t *testing.T) {
 
 			require.Len(t, result, len(tt.expected))
 
-			for i, def := range result {
-				assert.Equal(t, tt.expected[i].ID, def.ID)
-				assert.Equal(t, tt.expected[i].Config, def.Config)
+			// Create a map of expected apps for order-independent comparison
+			expectedMap := make(map[string]serverApps.AppDefinition)
+			for _, exp := range tt.expected {
+				expectedMap[exp.ID] = exp
 			}
+
+			// Check that all results are in the expected set
+			for _, def := range result {
+				expected, ok := expectedMap[def.ID]
+				require.True(t, ok, "unexpected app ID: %s", def.ID)
+				assert.Equal(t, expected.Config, def.Config)
+				delete(expectedMap, def.ID)
+			}
+
+			// Ensure all expected apps were found
+			assert.Empty(t, expectedMap, "missing expected apps: %v", expectedMap)
 		})
 	}
 }
