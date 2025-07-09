@@ -21,19 +21,21 @@ func TestLoadingAllExampleConfigs(t *testing.T) {
 	t.Logf("Found %d example files", len(entries))
 
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".toml") {
+		name := entry.Name()
+		if entry.IsDir() || strings.HasPrefix(name, ".") || !strings.HasSuffix(name, ".toml") {
+			t.Logf("Skipping: %s", name)
 			continue
 		}
 
-		t.Run(entry.Name(), func(t *testing.T) {
-			// Setup common test data
-			data, err := exampleFiles.ReadFile(entry.Name())
-			require.NoError(t, err, "Failed to read embedded file: %s", entry.Name())
+		t.Run(name, func(t *testing.T) {
+			// Read example config file
+			data, err := exampleFiles.ReadFile(name)
+			require.NoError(t, err, "Failed to read embedded file: %s", name)
 
 			tmpDir := t.TempDir()
-			tmpFile := filepath.Join(tmpDir, entry.Name())
+			tmpFile := filepath.Join(tmpDir, name)
 			err = os.WriteFile(tmpFile, data, 0o644)
-			require.NoError(t, err, "Failed to write temp file for %s", entry.Name())
+			require.NoError(t, err, "Failed to write temp file for %s", name)
 
 			t.Run("NewConfigFromBytes", func(t *testing.T) {
 				cfg, err := config.NewConfigFromBytes(data)
