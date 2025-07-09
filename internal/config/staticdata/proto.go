@@ -42,29 +42,29 @@ func FromProto(proto *settingsv1alpha1.StaticData) (*StaticData, error) {
 }
 
 // staticDataMergeModeToProto converts a StaticDataMergeMode to its protocol buffer representation.
-func staticDataMergeModeToProto(mode StaticDataMergeMode) *settingsv1alpha1.StaticDataMergeMode {
-	var protoMode settingsv1alpha1.StaticDataMergeMode
+func staticDataMergeModeToProto(mode StaticDataMergeMode) *settingsv1alpha1.StaticData_MergeMode {
+	var protoMode settingsv1alpha1.StaticData_MergeMode
 	switch mode {
 	case StaticDataMergeModeUnspecified:
-		protoMode = settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED
+		protoMode = settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED
 	case StaticDataMergeModeLast:
-		protoMode = settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST
+		protoMode = settingsv1alpha1.StaticData_MERGE_MODE_LAST
 	case StaticDataMergeModeUnique:
-		protoMode = settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE
+		protoMode = settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE
 	default:
-		protoMode = settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED
+		protoMode = settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED
 	}
 	return &protoMode
 }
 
 // protoToStaticDataMergeMode converts a protocol buffer StaticDataMergeMode to its domain model representation.
-func protoToStaticDataMergeMode(mode settingsv1alpha1.StaticDataMergeMode) StaticDataMergeMode {
+func protoToStaticDataMergeMode(mode settingsv1alpha1.StaticData_MergeMode) StaticDataMergeMode {
 	switch mode {
-	case settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED:
+	case settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED:
 		return StaticDataMergeModeUnspecified
-	case settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST:
+	case settingsv1alpha1.StaticData_MERGE_MODE_LAST:
 		return StaticDataMergeModeLast
-	case settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE:
+	case settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE:
 		return StaticDataMergeModeUnique
 	default:
 		return StaticDataMergeModeUnspecified

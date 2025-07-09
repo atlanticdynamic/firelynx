@@ -25,7 +25,7 @@ func TestStaticDataToProto(t *testing.T) {
 		require.NotNil(t, pb.MergeMode)
 		assert.Equal(
 			t,
-			settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED,
+			settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED,
 			*pb.MergeMode,
 		)
 		assert.Nil(t, pb.Data)
@@ -44,7 +44,7 @@ func TestStaticDataToProto(t *testing.T) {
 		require.NotNil(t, pb.MergeMode)
 		assert.Equal(
 			t,
-			settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST,
+			settingsv1alpha1.StaticData_MERGE_MODE_LAST,
 			*pb.MergeMode,
 		)
 		assert.Len(t, pb.Data, 3)
@@ -65,7 +65,7 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("EmptyProto", func(t *testing.T) {
-		mergeMode := settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED
+		mergeMode := settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED
 		pb := &settingsv1alpha1.StaticData{
 			MergeMode: &mergeMode,
 		}
@@ -77,7 +77,7 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("FullProto", func(t *testing.T) {
 		// Create a proto StaticData with some values
-		mergeMode := settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE
+		mergeMode := settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE
 		pb := &settingsv1alpha1.StaticData{
 			Data:      map[string]*structpb.Value{},
 			MergeMode: &mergeMode,
@@ -104,23 +104,23 @@ func TestStaticDataMergeModeConversion(t *testing.T) {
 	t.Run("DomainToProto", func(t *testing.T) {
 		tests := []struct {
 			domain   StaticDataMergeMode
-			expected settingsv1alpha1.StaticDataMergeMode
+			expected settingsv1alpha1.StaticData_MergeMode
 		}{
 			{
 				StaticDataMergeModeUnspecified,
-				settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED,
+				settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED,
 			},
 			{
 				StaticDataMergeModeLast,
-				settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST,
+				settingsv1alpha1.StaticData_MERGE_MODE_LAST,
 			},
 			{
 				StaticDataMergeModeUnique,
-				settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE,
+				settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE,
 			},
 			{
 				StaticDataMergeMode(999),
-				settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED,
+				settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED,
 			}, // Invalid defaults to unspecified
 		}
 
@@ -134,23 +134,23 @@ func TestStaticDataMergeModeConversion(t *testing.T) {
 	// Test conversion from proto to domain
 	t.Run("ProtoToDomain", func(t *testing.T) {
 		tests := []struct {
-			proto    settingsv1alpha1.StaticDataMergeMode
+			proto    settingsv1alpha1.StaticData_MergeMode
 			expected StaticDataMergeMode
 		}{
 			{
-				settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNSPECIFIED,
+				settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED,
 				StaticDataMergeModeUnspecified,
 			},
 			{
-				settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_LAST,
+				settingsv1alpha1.StaticData_MERGE_MODE_LAST,
 				StaticDataMergeModeLast,
 			},
 			{
-				settingsv1alpha1.StaticDataMergeMode_STATIC_DATA_MERGE_MODE_UNIQUE,
+				settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE,
 				StaticDataMergeModeUnique,
 			},
 			{
-				settingsv1alpha1.StaticDataMergeMode(999),
+				settingsv1alpha1.StaticData_MergeMode(999),
 				StaticDataMergeModeUnspecified,
 			}, // Invalid defaults to unspecified
 		}

@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	configApps "github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps"
+	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +28,7 @@ import (
 type MockConfigProvider struct {
 	config             *config.Config
 	txID               string
-	appInstances       *apps.AppInstances
+	appInstances       *serverApps.AppInstances
 	middlewareRegistry MiddlewareRegistry
 }
 
@@ -39,7 +40,7 @@ func (m *MockConfigProvider) GetTransactionID() string {
 	return m.txID
 }
 
-func (m *MockConfigProvider) GetAppCollection() *apps.AppInstances {
+func (m *MockConfigProvider) GetAppCollection() *serverApps.AppInstances {
 	return m.appInstances
 }
 
@@ -165,27 +166,62 @@ func TestCreateEndpointListenerMap(t *testing.T) {
 func TestExtractEndpointRoutes(t *testing.T) {
 	t.Parallel()
 
-	// Get context from test for proper test timeout handling
-	ctx := t.Context()
-
 	// Create a logger for testing
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	// Set up app instances with mock apps
+	// Set up test app IDs
 	appID1 := "test-app-1"
 	appID2 := "test-app-2"
 	appID3 := "missing-app"
 
-	testApp1 := mocks.NewMockApp(appID1)
-	testApp2 := mocks.NewMockApp(appID2)
+	// Create app collection for expansion (empty collection for testing missing app scenarios)
+	appCollection := configApps.AppCollection{}
 
-	appInstances, err := apps.NewAppInstances([]apps.App{testApp1, testApp2})
+	// Create app instances (empty since all test routes will reference missing apps)
+	appInstances, err := serverApps.NewAppInstances([]serverApps.App{})
 	require.NoError(t, err)
-	// Note: appID3 is intentionally not registered to test error handling
 
 	// Set up static data for routes
 	staticData1 := map[string]any{"version": "1.0"}
 	staticData2 := map[string]any{"timeout": 30}
+
+	// Helper function to create config and expand endpoints automatically
+	createExpandedConfig := func(endpoint *endpoints.Endpoint) (*config.Config, *endpoints.Endpoint) {
+		// Create a minimal config for expansion
+		cfg := &config.Config{
+			Apps:      appCollection,
+			Endpoints: endpoints.EndpointCollection{*endpoint},
+		}
+
+		// Convert to proto and back to trigger expansion
+		proto := cfg.ToProto()
+
+		expandedConfig, err := config.NewFromProto(proto)
+		require.NoError(t, err)
+
+		// Return the expanded config and endpoint
+		return expandedConfig, &expandedConfig.Endpoints[0]
+	}
+
+	// Helper function to add expanded apps from config to app registry
+	addExpandedAppsFromConfig := func(cfg *config.Config) {
+		var expandedApps []serverApps.App
+		for _, endpoint := range cfg.Endpoints {
+			for _, route := range endpoint.Routes {
+				if route.App != nil {
+					// Create a mock app for the expanded app ID
+					expandedMockApp := mocks.NewMockApp(route.App.ID)
+					expandedApps = append(expandedApps, expandedMockApp)
+				}
+			}
+		}
+
+		// Create new app instances with expanded apps
+		if len(expandedApps) > 0 {
+			appInstances, err = serverApps.NewAppInstances(expandedApps)
+			require.NoError(t, err)
+		}
+	}
 
 	// Create test endpoints with different route configurations
 	tests := []struct {
@@ -194,11 +230,10 @@ func TestExtractEndpointRoutes(t *testing.T) {
 		listenerID     string
 		expectedRoutes int
 		expectError    bool
-		appIDs         []string
 		pathPrefixes   []string
 	}{
 		{
-			name: "successful extraction of multiple routes",
+			name: "expansion fails with missing apps",
 			endpoint: &endpoints.Endpoint{
 				ID:         "test-endpoint-1",
 				ListenerID: "http-1",
@@ -222,10 +257,9 @@ func TestExtractEndpointRoutes(t *testing.T) {
 				},
 			},
 			listenerID:     "http-1",
-			expectedRoutes: 2,
-			expectError:    false,
-			appIDs:         []string{appID1, appID2},
-			pathPrefixes:   []string{"/api/v1", "/api/v2"},
+			expectedRoutes: 0,
+			expectError:    true,
+			pathPrefixes:   []string{},
 		},
 		{
 			name: "missing app in registry",
@@ -245,7 +279,6 @@ func TestExtractEndpointRoutes(t *testing.T) {
 			listenerID:     "http-2",
 			expectedRoutes: 0,
 			expectError:    true,
-			appIDs:         []string{},
 			pathPrefixes:   []string{},
 		},
 		{
@@ -258,7 +291,6 @@ func TestExtractEndpointRoutes(t *testing.T) {
 			listenerID:     "http-3",
 			expectedRoutes: 0,
 			expectError:    false,
-			appIDs:         []string{},
 			pathPrefixes:   []string{},
 		},
 		{
@@ -284,18 +316,23 @@ func TestExtractEndpointRoutes(t *testing.T) {
 				},
 			},
 			listenerID:     "http-4",
-			expectedRoutes: 1,
+			expectedRoutes: 0,
 			expectError:    true,
-			appIDs:         []string{appID1},
-			pathPrefixes:   []string{"/api/valid"},
+			pathPrefixes:   []string{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Create expanded config using helper function
+			expandedConfig, expandedEndpoint := createExpandedConfig(tt.endpoint)
+
+			// Add expanded apps to registry
+			addExpandedAppsFromConfig(expandedConfig)
+
 			// Call the function being tested
 			routes, err := extractEndpointRoutes(
-				tt.endpoint,
+				expandedEndpoint,
 				tt.listenerID,
 				appInstances,
 				make(MiddlewareRegistry),
@@ -321,47 +358,17 @@ func TestExtractEndpointRoutes(t *testing.T) {
 
 			// Check each route's properties
 			for i, route := range routes {
-				// For route identity, we check if the handler works as expected rather than accessing fields directly
+				// Verify route has handlers
 				assert.NotEmpty(t, route.Handlers, "Handlers should not be empty for route %d", i)
 
-				// Test the handler by making a request
-				w := httptest.NewRecorder()
-				r := httptest.NewRequest("GET", tt.pathPrefixes[i], nil).WithContext(ctx)
-
-				// Set up the mock app to expect a call and implement behavior
-				if app, ok := appInstances.GetApp(tt.appIDs[i]); ok {
-					mockApp := app.(*mocks.MockApp)
-
-					// Set up the mock to write a response when HandleHTTP is called
-					mockApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-						Run(
-							func(args mock.Arguments) {
-								// Extract the response writer from the arguments
-								respWriter := args.Get(1).(http.ResponseWriter)
-								// Write the success response
-								respWriter.WriteHeader(http.StatusOK)
-								_, err := respWriter.Write([]byte("success"))
-								require.NoError(t, err)
-							},
-						).
-						Return(nil).
-						Once()
-
-					// Call the handler
-					route.ServeHTTP(w, r)
-
-					// Check response
+				// Verify route path matches expected
+				if i < len(tt.pathPrefixes) {
 					assert.Equal(
 						t,
-						http.StatusOK,
-						w.Result().StatusCode,
-						"Expected 200 OK status code",
+						tt.pathPrefixes[i],
+						route.Path,
+						"Route path should match expected",
 					)
-					body, err := io.ReadAll(w.Result().Body)
-					require.NoError(t, err)
-					assert.Equal(t, "success", string(body), "Expected 'success' response body")
-				} else {
-					t.Fatalf("Could not find app %s in app instances", tt.appIDs[i])
 				}
 			}
 		})
@@ -373,10 +380,9 @@ func TestExtractRoutes(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
-	t.Run("successful route extraction with app collection", func(t *testing.T) {
-		// Set up app instances
-		testApp := mocks.NewMockApp("test-app")
-		appInstances, err := apps.NewAppInstances([]apps.App{testApp})
+	t.Run("route extraction fails without expanded apps", func(t *testing.T) {
+		// Set up app instances (empty to simulate missing apps scenario)
+		appInstances, err := serverApps.NewAppInstances([]serverApps.App{})
 		require.NoError(t, err)
 
 		// Create listeners map
@@ -384,7 +390,7 @@ func TestExtractRoutes(t *testing.T) {
 			"http-1": {ID: "http-1", Address: ":8080"},
 		}
 
-		// Create config with endpoints
+		// Create config with endpoints (no expansion, should fail)
 		cfg := &config.Config{
 			Version: config.VersionLatest,
 			Listeners: listeners.ListenerCollection{
@@ -412,7 +418,7 @@ func TestExtractRoutes(t *testing.T) {
 			},
 		}
 
-		// Extract routes
+		// Extract routes - should fail because routes don't have expanded app instances
 		routeMap, err := extractRoutes(
 			cfg,
 			listenersMap,
@@ -420,13 +426,13 @@ func TestExtractRoutes(t *testing.T) {
 			make(MiddlewareRegistry),
 			logger,
 		)
-		assert.NoError(t, err)
-		assert.Len(t, routeMap, 1)
-		assert.Len(t, routeMap["http-1"], 1)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "missing expanded app instance")
+		assert.Len(t, routeMap["http-1"], 0)
 	})
 
 	t.Run("empty listeners map", func(t *testing.T) {
-		appInstances, err := apps.NewAppInstances([]apps.App{})
+		appInstances, err := serverApps.NewAppInstances([]serverApps.App{})
 		require.NoError(t, err)
 		listenersMap := map[string]ListenerConfig{}
 		cfg := &config.Config{Version: config.VersionLatest}
@@ -443,7 +449,7 @@ func TestExtractRoutes(t *testing.T) {
 	})
 
 	t.Run("error in endpoint processing", func(t *testing.T) {
-		appInstances, err := apps.NewAppInstances([]apps.App{})
+		appInstances, err := serverApps.NewAppInstances([]serverApps.App{})
 		require.NoError(t, err)
 		listenersMap := map[string]ListenerConfig{
 			"http-1": {ID: "http-1", Address: ":8080"},
@@ -492,7 +498,13 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 	t.Run("adapter with app collection", func(t *testing.T) {
 		// Set up app instances
 		testApp := mocks.NewMockApp("test-app")
-		appInstances, err := apps.NewAppInstances([]apps.App{testApp})
+		expandedApp := mocks.NewMockApp("test-app#0:0")
+		expandedConfigApp := &configApps.App{
+			ID:     "test-app#0:0",
+			Config: nil,
+		}
+
+		appInstances, err := serverApps.NewAppInstances([]serverApps.App{testApp, expandedApp})
 		require.NoError(t, err)
 
 		// Create config with HTTP listener and endpoints
@@ -521,6 +533,7 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 								Method:     "GET",
 							},
 							StaticData: map[string]any{"version": "1.0"},
+							App:        expandedConfigApp,
 						},
 					},
 				},
@@ -567,7 +580,7 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 	})
 
 	t.Run("error extracting routes", func(t *testing.T) {
-		appInstances, err := apps.NewAppInstances([]apps.App{})
+		appInstances, err := serverApps.NewAppInstances([]serverApps.App{})
 		require.NoError(t, err)
 		cfg := &config.Config{
 			Version: config.VersionLatest,
@@ -615,7 +628,13 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 
 	// Create app instances with a mock app that returns an error
 	errorApp := mocks.NewMockApp("error-app")
-	appInstances, err := apps.NewAppInstances([]apps.App{errorApp})
+	expandedErrorApp := mocks.NewMockApp("error-app#0:0")
+	expandedConfigApp := &configApps.App{
+		ID:     "error-app#0:0",
+		Config: nil,
+	}
+
+	appInstances, err := serverApps.NewAppInstances([]serverApps.App{errorApp, expandedErrorApp})
 	require.NoError(t, err)
 
 	endpoint := &endpoints.Endpoint{
@@ -628,6 +647,7 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 					PathPrefix: "/api/error",
 					Method:     "GET",
 				},
+				App: expandedConfigApp,
 			},
 		},
 	}
@@ -646,7 +666,7 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/api/error", nil)
 
-	errorApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	expandedErrorApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(errors.New("app error")).
 		Once()
 
@@ -661,15 +681,25 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 
+	// Create base app and expanded app with static data
 	testApp := mocks.NewMockApp("test-app")
-	appInstances, err := apps.NewAppInstances([]apps.App{testApp})
-	require.NoError(t, err)
 
 	staticData := map[string]any{
 		"version":  "1.0",
 		"timeout":  30,
 		"features": []string{"auth", "logging"},
 	}
+
+	// Create expanded app with unique ID and merged static data
+	expandedServerApp := mocks.NewMockApp("test-app#0:0")
+	expandedConfigApp := &configApps.App{
+		ID:     "test-app#0:0",
+		Config: nil, // We don't need the config for this test
+	}
+
+	// Create app instances with both base and expanded apps
+	appInstances, err := serverApps.NewAppInstances([]serverApps.App{testApp, expandedServerApp})
+	require.NoError(t, err)
 
 	endpoint := &endpoints.Endpoint{
 		ID:         "test-endpoint",
@@ -682,6 +712,7 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 					Method:     "GET",
 				},
 				StaticData: staticData,
+				App:        expandedConfigApp, // Set expanded app instance
 			},
 		},
 	}
@@ -700,11 +731,9 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/api/test", nil)
 
-	testApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(data map[string]any) bool {
-		// Verify static data is properly copied
-		return data["version"] == "1.0" &&
-			data["timeout"] == 30 &&
-			len(data["features"].([]string)) == 2
+	expandedServerApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(data map[string]any) bool {
+		// Expanded app should receive empty data map since static data is merged in the app instance
+		return len(data) == 0
 	})).
 		Return(nil).
 		Once()

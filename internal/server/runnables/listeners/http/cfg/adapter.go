@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
 	"net/http"
 	"sort"
 	"time"
@@ -204,15 +203,28 @@ func extractEndpointRoutes(
 		// Create a unique ID for the route by combining listener and app IDs
 		routeID := fmt.Sprintf("%s:%s", listenerID, httpRoute.AppID)
 
-		// Get the app instance from the registry
-		app, exists := appRegistry.GetApp(httpRoute.AppID)
-		if !exists {
-			logger.Error("App not found in registry",
+		// Get the expanded app instance from route
+		if httpRoute.App == nil {
+			logger.Error("Route missing expanded app instance",
 				"app_id", httpRoute.AppID,
 				"route_id", routeID)
 			errz = append(
 				errz,
-				fmt.Errorf("app not found for route %s: %s", routeID, httpRoute.AppID),
+				fmt.Errorf("route %s missing expanded app instance", routeID),
+			)
+			continue
+		}
+
+		expandedAppID := httpRoute.App.ID
+		app, exists := appRegistry.GetApp(expandedAppID)
+		if !exists {
+			logger.Error("Expanded app not found in registry",
+				"expanded_app_id", expandedAppID,
+				"original_app_id", httpRoute.AppID,
+				"route_id", routeID)
+			errz = append(
+				errz,
+				fmt.Errorf("expanded app not found for route %s: %s", routeID, expandedAppID),
 			)
 			continue
 		}
@@ -225,13 +237,8 @@ func extractEndpointRoutes(
 
 		// Create a handler function for this route
 		handlerFunc := func(w http.ResponseWriter, r *http.Request) {
-			// Create data map for the app
+			// Expanded app already has merged static data
 			data := make(map[string]any)
-
-			// Copy static data using maps package
-			if httpRoute.StaticData != nil {
-				maps.Copy(data, httpRoute.StaticData)
-			}
 
 			// Call the app handler
 			err := app.HandleHTTP(r.Context(), w, r, data)

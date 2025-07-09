@@ -111,6 +111,8 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 			appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
 		} else {
 			config.Apps = appDefinitions
+			// Assign app instances to routes with merged static data
+			expandAppsForRoutes(config.Apps, config.Endpoints)
 		}
 	}
 

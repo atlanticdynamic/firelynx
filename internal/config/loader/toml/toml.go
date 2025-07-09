@@ -3,6 +3,8 @@ package toml
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
+	"time"
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
@@ -78,6 +80,9 @@ func (l *TomlLoader) LoadProto() (*pbSettings.ServerConfig, error) {
 		return nil, fmt.Errorf("%w: %w", ErrParseToml, err)
 	}
 
+	// Convert Go duration strings to protobuf-compatible format
+	convertDurationStrings(configMap)
+
 	// Convert the map to JSON
 	jsonData, err := json.Marshal(configMap)
 	if err != nil {
@@ -117,4 +122,43 @@ func (l *TomlLoader) GetProtoConfig() *pbSettings.ServerConfig {
 func (l *TomlLoader) validate() error {
 	// Validate the protobuf config
 	return ValidateConfig(l.protoConfig)
+}
+
+// convertDurationStrings recursively converts Go duration strings to protobuf-compatible format
+// This allows formats like "1ms" and "1000ms" to work with protobuf JSON unmarshaling
+// Only processes exact duration field names defined in protobuf schema
+func convertDurationStrings(configMap map[string]any) {
+	// Exact duration field names from protobuf schema - see proto/settings/v1alpha1/
+	// HttpListenerOptions: read_timeout, write_timeout, idle_timeout, drain_timeout
+	// Script evaluators: timeout (RisorEvaluator, StarlarkEvaluator, ExtismEvaluator)
+	durationFields := []string{
+		"timeout",
+		"read_timeout",
+		"write_timeout",
+		"idle_timeout",
+		"drain_timeout",
+	}
+
+	for key, value := range configMap {
+		switch v := value.(type) {
+		case map[string]any:
+			// Recursively process nested maps
+			convertDurationStrings(v)
+		case []any:
+			// Process arrays of maps (like apps, listeners, etc.)
+			for _, item := range v {
+				if itemMap, ok := item.(map[string]any); ok {
+					convertDurationStrings(itemMap)
+				}
+			}
+		case string:
+			// Convert only exact duration fields from protobuf schema
+			if slices.Contains(durationFields, key) {
+				if duration, err := time.ParseDuration(v); err == nil {
+					// Convert to protobuf format (seconds with fractional part)
+					configMap[key] = fmt.Sprintf("%.9fs", duration.Seconds())
+				}
+			}
+		}
+	}
 }
