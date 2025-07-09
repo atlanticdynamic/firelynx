@@ -56,6 +56,11 @@ test-verbose: build
 		--with test/target/wasm32-unknown-unknown/release/test.wasm \
 		--verbose
 
+## build-base64: Build WASM and output base64 encoding
+.PHONY: build-base64
+build-base64: build
+	@base64 -i target/wasm32-wasip1/release/$(PLUGIN_NAME).wasm 2>/dev/null
+
 ## clean: Clean build artifacts
 .PHONY: clean
 clean:

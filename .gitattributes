@@ -16,3 +16,6 @@ Makefile text eol=lf
 
 # Scripts
 *.sh text eol=lf
+
+# Suppress diffs for base64-heavy example config file
+examples/config/script-extism-basic.toml -diff
