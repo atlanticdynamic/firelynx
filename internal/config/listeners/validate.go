@@ -6,14 +6,15 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
+	"github.com/atlanticdynamic/firelynx/internal/config/validation"
 )
 
 // Validate performs validation for a Listener
 func (l *Listener) Validate() error {
 	var errs []error
 
-	if l.ID == "" {
-		errs = append(errs, fmt.Errorf("%w: listener ID", errz.ErrEmptyID))
+	if err := validation.ValidateID(l.ID, "listener ID"); err != nil {
+		errs = append(errs, err)
 	}
 
 	if l.Address == "" {

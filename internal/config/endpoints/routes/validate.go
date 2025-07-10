@@ -3,6 +3,8 @@ package routes
 import (
 	"errors"
 	"fmt"
+
+	"github.com/atlanticdynamic/firelynx/internal/config/validation"
 )
 
 // Validate performs validation for a Route
@@ -10,8 +12,8 @@ func (r *Route) Validate() error {
 	var errs []error
 
 	// Validate AppID
-	if r.AppID == "" {
-		errs = append(errs, fmt.Errorf("%w: route app ID", ErrEmptyID))
+	if err := validation.ValidateID(r.AppID, "route app ID"); err != nil {
+		errs = append(errs, err)
 	}
 
 	// Validate Condition

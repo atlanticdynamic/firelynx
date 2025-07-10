@@ -246,6 +246,7 @@ func (s *MemoryStorage) Clear(keepLast int) (int, error) {
 
 	s.transactions = newTransactions
 
-	s.logger.WithGroup("Clear").Info("Cleared transactions", "cleared", deleted, "remaining", len(s.transactions))
+	s.logger.WithGroup("Clear").
+		Info("Cleared transactions", "cleared", deleted, "remaining", len(s.transactions))
 	return deleted, nil
 }

@@ -3,9 +3,6 @@ package middleware
 import "errors"
 
 var (
-	// ErrEmptyID indicates that a middleware ID is empty
-	ErrEmptyID = errors.New("empty ID")
-
 	// ErrDuplicateID indicates that a middleware ID is duplicated
 	ErrDuplicateID = errors.New("duplicate ID")
 
