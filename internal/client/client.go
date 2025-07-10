@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"strings"
 
@@ -399,28 +400,15 @@ func (c *Client) ClearConfigTransactions(ctx context.Context, keepLast int32) (i
 func (c *Client) connect(_ context.Context) (*grpc.ClientConn, error) {
 	// For now, we'll use insecure connections for simplicity
 	// In a production environment, you'd want to use TLS
-	addr := c.serverAddr
-	if !strings.Contains(addr, "://") {
-		addr = "tcp://" + addr
-	}
 
-	// Parse the address to get the network and address components
-	parts := strings.SplitN(addr, "://", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidAddressFormat, c.serverAddr)
+	network, address, err := c.parseServerAddr(c.serverAddr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid server address: %w", err)
 	}
-
-	network := parts[0]
-	address := parts[1]
 
 	// Support for both TCP and Unix socket
 	switch network {
 	case "tcp":
-		// Validate the address format for TCP
-		if strings.Count(address, ":") != 1 || !strings.Contains(address, ":") {
-			return nil, fmt.Errorf("%w: %s", ErrInvalidTCPFormat, c.serverAddr)
-		}
-
 		c.logger.Debug("Connecting to server via TCP", "address", address)
 		return grpc.NewClient(
 			address,
@@ -441,4 +429,53 @@ func (c *Client) connect(_ context.Context) (*grpc.ClientConn, error) {
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedNetwork, network)
 	}
+}
+
+// parseServerAddr parses a server address string and returns network and address.
+// Similar to server's parseListenAddr but for client connections.
+func (c *Client) parseServerAddr(serverAddr string) (network string, address string, err error) {
+	// Handle empty string as error for client
+	if serverAddr == "" {
+		return "", "", fmt.Errorf("server address cannot be empty")
+	}
+
+	// Handle URL schemes with ://
+	if strings.Contains(serverAddr, "://") {
+		u, err := url.Parse(serverAddr)
+		if err != nil {
+			return "", "", fmt.Errorf("invalid URL format: %w", err)
+		}
+
+		switch u.Scheme {
+		case "tcp":
+			if u.Host == "" {
+				return "", "", fmt.Errorf("tcp scheme requires host:port after tcp://")
+			}
+			return "tcp", u.Host, nil
+
+		case "unix":
+			if u.Path == "" {
+				return "", "", fmt.Errorf("unix scheme requires path after unix://")
+			}
+			return "unix", u.Path, nil
+
+		default:
+			return "", "", fmt.Errorf("%w: %s", ErrUnsupportedNetwork, u.Scheme)
+		}
+	}
+
+	// Handle legacy "unix:" prefix (without //)
+	if strings.HasPrefix(serverAddr, "unix:") {
+		address = strings.TrimPrefix(serverAddr, "unix:")
+		if address == "" {
+			return "", "", fmt.Errorf("unix scheme requires path after unix")
+		}
+		return "unix", address, nil
+	}
+
+	// No scheme, assume TCP - but validate format
+	if strings.Count(serverAddr, ":") != 1 || !strings.Contains(serverAddr, ":") {
+		return "", "", fmt.Errorf("%w: %s", ErrInvalidTCPFormat, serverAddr)
+	}
+	return "tcp", serverAddr, nil
 }

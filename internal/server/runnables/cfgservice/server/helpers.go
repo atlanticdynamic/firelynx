@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 
@@ -11,26 +13,69 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// Sentinel errors for parseListenAddr
+var (
+	ErrInvalidURLFormat       = errors.New("invalid URL format")
+	ErrTCPSchemeRequiresHost  = errors.New("tcp scheme requires host:port after tcp://")
+	ErrUnixSchemeRequiresPath = errors.New("unix scheme requires path after unix://")
+	ErrUnixColonRequiresPath  = errors.New("unix scheme requires path after unix")
+	ErrUnsupportedURLScheme   = errors.New("unsupported URL scheme")
+)
+
 // parseListenAddr determines the network type and address from a listen string.
-// It requires "unix:/path/to/socket.sock" for Unix sockets.
-// All other non-empty strings are assumed to be TCP addresses ("host:port", ":port", etc.).
-// An empty string is also treated as TCP (likely defaulting to ":0").
+// Supports URL schemes: tcp://, unix://, unix:, or no scheme (defaults to TCP).
+// Does not validate file system state - only parses address format.
+// Examples:
+//   - "tcp://localhost:8080" → network="tcp", address="localhost:8080"
+//   - "unix:///tmp/socket" → network="unix", address="/tmp/socket"
+//   - "unix:/tmp/socket" → network="unix", address="/tmp/socket"
+//   - "localhost:8080" → network="tcp", address="localhost:8080"
+//   - "" → network="tcp", address=""
 func parseListenAddr(listenAddr string) (network string, address string, err error) {
-	if strings.HasPrefix(listenAddr, "unix:") {
-		network = "unix"
-		address = strings.TrimPrefix(listenAddr, "unix:")
-		if address == "" {
-			// Handle the case like "unix:" which is invalid.
+	// Handle empty string as TCP with default port
+	if listenAddr == "" {
+		return "tcp", "", nil
+	}
+
+	// Handle URL schemes with ://
+	if strings.Contains(listenAddr, "://") {
+		u, err := url.Parse(listenAddr)
+		if err != nil {
+			return "", "", fmt.Errorf("%w: %w", ErrInvalidURLFormat, err)
+		}
+
+		switch u.Scheme {
+		case "tcp":
+			if u.Host == "" {
+				return "", "", ErrTCPSchemeRequiresHost
+			}
+			return "tcp", u.Host, nil
+
+		case "unix":
+			if u.Path == "" {
+				return "", "", ErrUnixSchemeRequiresPath
+			}
+			return "unix", u.Path, nil
+
+		default:
 			return "", "", fmt.Errorf(
-				"invalid unix socket address: path cannot be empty after 'unix:' prefix",
+				"%w: %s (supported: tcp, unix)",
+				ErrUnsupportedURLScheme,
+				u.Scheme,
 			)
 		}
-	} else {
-		// Assume TCP for everything else. Let net.Listen handle validation like format checks.
-		network = "tcp"
-		address = listenAddr
 	}
-	return network, address, nil
+
+	// Handle legacy "unix:" prefix (without //)
+	if address, ok := strings.CutPrefix(listenAddr, "unix:"); ok {
+		if address == "" {
+			return "", "", ErrUnixColonRequiresPath
+		}
+		return "unix", address, nil
+	}
+
+	// No scheme, assume TCP
+	return "tcp", listenAddr, nil
 }
 
 // cleanupUnixSocket removes the specified file path if it exists.

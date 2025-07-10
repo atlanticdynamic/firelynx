@@ -15,65 +15,97 @@ import (
 
 func TestParseListenAddr(t *testing.T) {
 	tests := []struct {
-		name           string
-		listenAddr     string
-		expectedNet    string
-		expectedAddr   string
-		expectError    bool
-		expectedErrMsg string
+		name         string
+		listenAddr   string
+		expectedNet  string
+		expectedAddr string
+		expectedErr  error
 	}{
 		{
 			name:         "empty string",
 			listenAddr:   "",
 			expectedNet:  "tcp",
 			expectedAddr: "",
-			expectError:  false,
+			expectedErr:  nil,
 		},
 		{
 			name:         "tcp address with port",
 			listenAddr:   "localhost:8080",
 			expectedNet:  "tcp",
 			expectedAddr: "localhost:8080",
-			expectError:  false,
+			expectedErr:  nil,
 		},
 		{
 			name:         "tcp address with only port",
 			listenAddr:   ":8080",
 			expectedNet:  "tcp",
 			expectedAddr: ":8080",
-			expectError:  false,
+			expectedErr:  nil,
 		},
 		{
 			name:         "unix socket address",
 			listenAddr:   "unix:/tmp/test.sock",
 			expectedNet:  "unix",
 			expectedAddr: "/tmp/test.sock",
-			expectError:  false,
+			expectedErr:  nil,
 		},
 		{
-			name:           "invalid unix socket (empty path)",
-			listenAddr:     "unix:",
-			expectedNet:    "",
-			expectedAddr:   "",
-			expectError:    true,
-			expectedErrMsg: "invalid unix socket address: path cannot be empty after 'unix:' prefix",
+			name:         "tcp scheme with address",
+			listenAddr:   "tcp://localhost:8080",
+			expectedNet:  "tcp",
+			expectedAddr: "localhost:8080",
+			expectedErr:  nil,
+		},
+		{
+			name:         "tcp scheme with port only",
+			listenAddr:   "tcp://:8080",
+			expectedNet:  "tcp",
+			expectedAddr: ":8080",
+			expectedErr:  nil,
+		},
+		{
+			name:         "unix scheme with absolute path",
+			listenAddr:   "unix:///tmp/test.sock",
+			expectedNet:  "unix",
+			expectedAddr: "/tmp/test.sock",
+			expectedErr:  nil,
+		},
+		{
+			name:         "invalid unix socket (empty path with colon)",
+			listenAddr:   "unix:",
+			expectedNet:  "",
+			expectedAddr: "",
+			expectedErr:  ErrUnixColonRequiresPath,
+		},
+		{
+			name:         "invalid tcp scheme (empty address)",
+			listenAddr:   "tcp://",
+			expectedNet:  "",
+			expectedAddr: "",
+			expectedErr:  ErrTCPSchemeRequiresHost,
+		},
+		{
+			name:         "invalid unix scheme (empty path with scheme)",
+			listenAddr:   "unix://",
+			expectedNet:  "",
+			expectedAddr: "",
+			expectedErr:  ErrUnixSchemeRequiresPath,
+		},
+		{
+			name:         "unsupported scheme",
+			listenAddr:   "slop://invalid",
+			expectedNet:  "",
+			expectedAddr: "",
+			expectedErr:  ErrUnsupportedURLScheme,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			network, address, err := parseListenAddr(tc.listenAddr)
-
-			if tc.expectError {
-				assert.Error(t, err)
-				if tc.expectedErrMsg != "" {
-					assert.Contains(t, err.Error(), tc.expectedErrMsg)
-				}
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedNet, network)
-				assert.Equal(t, tc.expectedAddr, address)
-			}
+			require.ErrorIs(t, err, tc.expectedErr)
+			assert.Equal(t, tc.expectedNet, network)
+			assert.Equal(t, tc.expectedAddr, address)
 		})
 	}
 }
