@@ -160,7 +160,7 @@ func (c *Client) ApplyConfig(ctx context.Context, configLoader loader.Loader) er
 		return fmt.Errorf("%w: %s", ErrConfigRejected, errorMsg)
 	}
 
-	c.logger.Info("Configuration applied successfully")
+	c.logger.Info("Configuration validated and queued for activation")
 	return nil
 }
 
