@@ -268,16 +268,24 @@ func TestFromProto(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "Invalid listener with missing protocol options",
+			name: "Listener with missing protocol options gets defaults",
 			pbListeners: []*pb.Listener{
 				{
-					Id:      proto.String("invalid-listener"),
+					Id:      proto.String("listener-with-defaults"),
 					Address: proto.String("127.0.0.1:8080"),
-					// No protocol options set
+					Type:    pb.Listener_TYPE_HTTP.Enum(),
+					// No protocol options set - should get defaults
 				},
 			},
-			expected:      nil,
-			expectedError: true,
+			expected: ListenerCollection{
+				{
+					ID:      "listener-with-defaults",
+					Address: "127.0.0.1:8080",
+					Type:    TypeHTTP,
+					Options: options.NewHTTP(), // Default HTTP options
+				},
+			},
+			expectedError: false,
 		},
 		{
 			name: "Nil ID and address",

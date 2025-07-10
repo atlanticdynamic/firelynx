@@ -23,9 +23,6 @@ id = "http"
 address = ":8080"         # Listen on all interfaces, port 8080
 type = "http"             # HTTP protocol listener
 
-[listeners.http]
-read_timeout = "30s"      # Maximum time to read the entire request
-write_timeout = "30s"     # Maximum time to write the response
 
 # Endpoint Configuration
 # Connects the HTTP listener to routes and middleware

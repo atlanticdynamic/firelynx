@@ -51,6 +51,19 @@ listener := cfg.Listeners.FindByID("public-http")
 
 The rest of the server interacts with configuration exclusively through this API, allowing the TOML and protobuf schemas to evolve without touching runtime code.
 
+## Default Value Pattern
+
+Configuration types should provide reasonable defaults when users omit optional fields:
+
+1. **Define constants** with `Default` prefix for all configurable values
+2. **Constructor** applies all defaults (e.g., `NewHTTP()`)
+3. **FromProto conversion** always starts with defaults, only overrides when protobuf fields are provided
+4. **Parent conversion** always calls FromProto, even when protobuf fields are nil
+
+This ensures users get reasonable defaults even when configuration sections are completely omitted. See `internal/config/listeners/options/http.go` for the reference implementation.
+
+**Note**: Protobuf Duration fields cannot have default values in the schema, so defaults must be implemented in the Go conversion layer.
+
 ## Environment Variable Interpolation
 
 Config fields can support environment variable interpolation using `${VAR_NAME}` syntax. To add this to new fields:
@@ -58,9 +71,3 @@ Config fields can support environment variable interpolation using `${VAR_NAME}`
 1. **Protobuf**: Add field comment documenting interpolation support
 2. **Domain conversion**: Use `interpolation.ExpandEnvVars()` when converting from protobuf
 3. **Validation**: Validate the expanded value, not the raw template
-
-Example protobuf field:
-```protobuf
-// Output destination (supports environment variable interpolation with ${VAR_NAME})
-string output = 3 [default = "stdout"];
-```

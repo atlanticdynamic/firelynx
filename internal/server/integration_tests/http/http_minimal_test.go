@@ -144,10 +144,6 @@ version = "v1"
 id = "http-1"
 type = "http"
 address = "127.0.0.1:0"
-
-[listeners.http]
-read_timeout = "30s"
-write_timeout = "30s"
 `
 	config2, err := config.NewConfigFromBytes([]byte(config2Data))
 	require.NoError(t, err)

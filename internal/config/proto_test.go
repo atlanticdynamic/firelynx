@@ -17,7 +17,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestEmptyConfigToProto(t *testing.T) {
@@ -276,24 +275,6 @@ func TestConfigWithInvalidComponents(t *testing.T) {
 		createProto func() *pb.ServerConfig
 		errSubstr   string
 	}{
-		{
-			name: "Invalid Listener Options",
-			createProto: func() *pb.ServerConfig {
-				version := "v1alpha1"
-				listenerID := "invalid-listener"
-				return &pb.ServerConfig{
-					Version: &version,
-					Listeners: []*pb.Listener{
-						{
-							Id:      &listenerID,
-							Address: proto.String("127.0.0.1:8080"),
-							// No protocol options set, which is invalid
-						},
-					},
-				}
-			},
-			errSubstr: "protocol options",
-		},
 		{
 			name: "Invalid App Config",
 			createProto: func() *pb.ServerConfig {
