@@ -5,6 +5,3 @@ id = "bad-listener"
 type = "http"
 address = "not-a-valid-address"
 
-[listeners.http]
-read_timeout = "30s"
-write_timeout = "30s"

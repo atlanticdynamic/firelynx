@@ -5,11 +5,6 @@ id = "http_listener"
 address = ":8080"
 type = "http"
 
-[listeners.http]
-read_timeout = "1s"
-write_timeout = "1s"
-idle_timeout = "1s"
-drain_timeout = "1s"
 
 [[endpoints]]
 id = "echo_endpoint"

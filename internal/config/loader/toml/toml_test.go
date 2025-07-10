@@ -113,6 +113,12 @@ type = "http"
 [listeners.http]
 read_timeout = "45s"
 write_timeout = "45s"
+
+[[listeners]]
+id = "http_listener_3"
+address = ":8082"
+type = "http"
+# No timeout configuration - should get defaults
 `))
 
 	config, err := loader.LoadProto()
@@ -120,7 +126,7 @@ write_timeout = "45s"
 	require.NotNil(t, config, "Config should not be nil")
 
 	// Check the listeners
-	require.Len(t, config.Listeners, 2, "Expected 2 listeners")
+	require.Len(t, config.Listeners, 3, "Expected 3 listeners")
 
 	// First listener (protocol_options style) - should NOT work
 	assert.Equal(t, "http_listener_1", config.Listeners[0].GetId(), "Expected first listener ID")
@@ -143,6 +149,18 @@ write_timeout = "45s"
 	assert.NotNil(t, http2, "Second listener's HTTP options should be set")
 	assert.Equal(t, int64(45), http2.GetReadTimeout().GetSeconds(), "Expected 45s read timeout")
 	assert.Equal(t, int64(45), http2.GetWriteTimeout().GetSeconds(), "Expected 45s write timeout")
+
+	// Third listener (no timeout config) - should work and get defaults applied by domain layer
+	assert.Equal(t, "http_listener_3", config.Listeners[2].GetId(), "Expected third listener ID")
+	assert.Equal(t, ":8082", config.Listeners[2].GetAddress(), "Expected third listener address")
+
+	// Check if HTTP options were set - should be nil at proto level (defaults applied in domain conversion)
+	http3 := config.Listeners[2].GetHttp()
+	assert.Nil(
+		t,
+		http3,
+		"Third listener's HTTP options should be nil at proto level (defaults applied during domain conversion)",
+	)
 }
 
 // TestTomlLoader_RouteHandling tests the different route handling scenarios
@@ -326,10 +344,6 @@ func TestRouteDuplication(t *testing.T) {
 	id = "http_listener"
 	address = ":8080"
 	type = "http"
-
-	[listeners.http]
-	read_timeout = "1s"
-	write_timeout = "1s"
 
 	[[endpoints]]
 	id = "echo_endpoint"
@@ -517,6 +531,54 @@ version = "v1"
 			"Error should indicate missing app ID",
 		)
 	})
+}
+
+// TestTomlLoader_HTTPTimeoutDefaults tests that HTTP listeners work without explicit timeout configuration
+func TestTomlLoader_HTTPTimeoutDefaults(t *testing.T) {
+	// Create a config with HTTP listener but no timeout configuration
+	loader := NewTomlLoader([]byte(`
+version = "v1"
+
+[[listeners]]
+id = "http_default"
+address = ":8080"
+type = "http"
+# No [listeners.http] section - should work with defaults
+
+[[endpoints]]
+id = "test_endpoint"
+listener_id = "http_default"
+
+[[endpoints.routes]]
+app_id = "test_app"
+[endpoints.routes.http]
+path_prefix = "/test"
+
+[[apps]]
+id = "test_app"
+[apps.echo]
+response = "Hello with defaults"
+`))
+
+	// Should load successfully
+	config, err := loader.LoadProto()
+	require.NoError(t, err, "Config should load without HTTP timeout configuration")
+	require.NotNil(t, config, "Config should not be nil")
+
+	// Verify the listener
+	require.Len(t, config.Listeners, 1, "Should have 1 listener")
+	listener := config.Listeners[0]
+	assert.Equal(t, "http_default", listener.GetId(), "Expected listener ID")
+	assert.Equal(t, ":8080", listener.GetAddress(), "Expected listener address")
+	assert.Equal(t, pbSettings.Listener_TYPE_HTTP, listener.GetType(), "Expected HTTP type")
+
+	// HTTP options should be nil at proto level (defaults applied during domain conversion)
+	httpOpts := listener.GetHttp()
+	assert.Nil(t, httpOpts, "HTTP options should be nil at proto level when not specified")
+
+	// Validate should pass (domain layer will apply defaults)
+	err = ValidateConfig(config)
+	assert.NoError(t, err, "Validation should pass with default HTTP timeouts")
 }
 
 // TestTomlLoader_LoadProtoErrors tests error scenarios in the LoadProto method

@@ -2,8 +2,6 @@
 package listeners
 
 import (
-	"fmt"
-
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/robbyt/protobaggins"
@@ -59,11 +57,8 @@ func FromProto(pbListeners []*pb.Listener) (ListenerCollection, error) {
 		}
 
 		// Convert protocol-specific options
-		if http := l.GetHttp(); http != nil {
-			listenerObj.Options = options.HTTPFromProto(http)
-		} else {
-			return nil, fmt.Errorf("listener '%s' has unknown protocol options", listenerObj.ID)
-		}
+		// HTTPFromProto handles nil gracefully and applies defaults
+		listenerObj.Options = options.HTTPFromProto(l.GetHttp())
 
 		listeners = append(listeners, listenerObj)
 	}

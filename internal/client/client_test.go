@@ -502,8 +502,14 @@ func (m *mockApplyConfigFromTransactionClient) ApplyConfigFromTransaction(
 	}
 
 	// Convert protobuf to domain config for validation
-	_, err = config.NewFromProto(pbConfig)
+	domainConfig, err := config.NewFromProto(pbConfig)
 	if err != nil {
+		return fmt.Errorf("failed to convert protobuf to domain config: %w", err)
+	}
+
+	// Call Validate() explicitly since the client doesn't use the transaction layer
+	// This allows the test to verify that invalid configs are caught during validation
+	if err := domainConfig.Validate(); err != nil {
 		return fmt.Errorf("failed to convert protobuf to domain config: %w", err)
 	}
 

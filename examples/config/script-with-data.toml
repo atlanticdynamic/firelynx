@@ -13,9 +13,6 @@ id = "http"
 address = ":8080"
 type = "http"
 
-[listeners.http]
-read_timeout = "30s"
-write_timeout = "30s"
 
 # Endpoint Configuration
 [[endpoints]]
