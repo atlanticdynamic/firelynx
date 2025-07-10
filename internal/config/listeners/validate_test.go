@@ -3,7 +3,6 @@ package listeners
 import (
 	"testing"
 
-	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/stretchr/testify/assert"
@@ -49,8 +48,8 @@ func TestListener_Validate(t *testing.T) {
 				Options: options.HTTP{},
 			},
 			wantError:   true,
-			errIs:       errz.ErrEmptyID,
-			errContains: "listener ID",
+			errIs:       nil, // No longer checking for specific error type
+			errContains: "listener ID cannot be empty",
 		},
 		{
 			name: "Empty Address",
@@ -188,12 +187,12 @@ func TestListener_ValidateMultipleErrors(t *testing.T) {
 	require.Error(t, err)
 
 	// Check if all expected errors are present
-	assert.Contains(t, err.Error(), "empty ID")
+	assert.Contains(t, err.Error(), "listener ID cannot be empty")
 	assert.Contains(t, err.Error(), "address for listener")
 	assert.Contains(t, err.Error(), "unknown options type")
 
 	// Test errors.Is behavior with joined errors
-	assert.ErrorIs(t, err, errz.ErrEmptyID)
+	// Note: No longer checking for errz.ErrEmptyID since validation.ValidateID returns a different error type
 	assert.ErrorIs(t, err, ErrInvalidListenerType)
 }
 
@@ -215,6 +214,6 @@ func TestListener_ErrorJoining(t *testing.T) {
 	// Check that multiple validation errors are returned
 	// We can verify this by checking for both error messages
 	errStr := err.Error()
-	assert.Contains(t, errStr, "empty ID")
+	assert.Contains(t, errStr, "listener ID cannot be empty")
 	assert.Contains(t, errStr, "address for listener")
 }

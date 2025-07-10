@@ -40,6 +40,14 @@ func TestMiddleware_Validate(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "Invalid ID with spaces",
+			middleware: Middleware{
+				ID:     "invalid id with spaces",
+				Config: logger.NewConsoleLogger(),
+			},
+			expectError: true,
+		},
 	}
 
 	for _, tt := range tests {

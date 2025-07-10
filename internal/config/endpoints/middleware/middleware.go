@@ -35,6 +35,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/validation"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
@@ -60,9 +61,9 @@ type MiddlewareConfig interface {
 func (m Middleware) Validate() error {
 	var errs []error
 
-	// ID is required
-	if m.ID == "" {
-		errs = append(errs, ErrEmptyID)
+	// Validate ID
+	if err := validation.ValidateID(m.ID, "middleware ID"); err != nil {
+		errs = append(errs, err)
 	}
 
 	// Config validation
@@ -138,8 +139,8 @@ func (mc MiddlewareCollection) Validate() error {
 
 	// First pass: Validate IDs and check for duplicates
 	for _, middleware := range mc {
-		if middleware.ID == "" {
-			errs = append(errs, fmt.Errorf("%w: middleware ID", ErrEmptyID))
+		if err := validation.ValidateID(middleware.ID, "middleware ID"); err != nil {
+			errs = append(errs, err)
 			continue
 		}
 
@@ -153,8 +154,8 @@ func (mc MiddlewareCollection) Validate() error {
 
 	// Second pass: Validate each middleware individually
 	for i, middleware := range mc {
-		// Skip middlewares with empty IDs as those are already reported
-		if middleware.ID == "" {
+		// Skip middlewares with invalid IDs as those are already reported
+		if err := validation.ValidateID(middleware.ID, "middleware ID"); err != nil {
 			continue
 		}
 

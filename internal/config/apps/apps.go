@@ -38,6 +38,7 @@ import (
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
+	"github.com/atlanticdynamic/firelynx/internal/config/validation"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
@@ -63,9 +64,9 @@ type AppConfig interface {
 func (a App) Validate() error {
 	var errs []error
 
-	// ID is required
-	if a.ID == "" {
-		errs = append(errs, ErrEmptyID)
+	// Validate ID
+	if err := validation.ValidateID(a.ID, "app ID"); err != nil {
+		errs = append(errs, err)
 	}
 
 	// Config validation
@@ -103,8 +104,8 @@ func (a AppCollection) Validate() error {
 
 	// First pass: Validate IDs and check for duplicates
 	for _, app := range a {
-		if app.ID == "" {
-			errs = append(errs, fmt.Errorf("%w: app ID", ErrEmptyID))
+		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
+			errs = append(errs, err)
 			continue
 		}
 
@@ -118,8 +119,8 @@ func (a AppCollection) Validate() error {
 
 	// Second pass: Validate each app individually and handle cross-references
 	for i, app := range a {
-		// Skip apps with empty IDs as those are already reported
-		if app.ID == "" {
+		// Skip apps with invalid IDs as those are already reported
+		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
 			continue
 		}
 
@@ -133,9 +134,11 @@ func (a AppCollection) Validate() error {
 		if comp, isComposite := app.Config.(*composite.CompositeScript); isComposite {
 			// Validate all referenced script apps exist
 			for _, scriptAppID := range comp.ScriptAppIDs {
-				if scriptAppID == "" {
-					errs = append(errs, fmt.Errorf("%w: in app '%s' composite script reference",
-						ErrEmptyID, app.ID))
+				if err := validation.ValidateID(scriptAppID, "script app ID"); err != nil {
+					errs = append(
+						errs,
+						fmt.Errorf("in app '%s' composite script reference: %w", app.ID, err),
+					)
 					continue
 				}
 

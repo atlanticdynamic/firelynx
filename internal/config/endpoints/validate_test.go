@@ -48,7 +48,7 @@ func TestEndpoint_Validate(t *testing.T) {
 				Routes:     []routes.Route{},
 			},
 			errExpected: true,
-			errContains: "empty ID",
+			errContains: "endpoint ID cannot be empty",
 		},
 		{
 			name: "Empty listener ID",
@@ -58,7 +58,7 @@ func TestEndpoint_Validate(t *testing.T) {
 				Routes:     []routes.Route{},
 			},
 			errExpected: true,
-			errContains: "empty listener ID",
+			errContains: "listener ID cannot be empty",
 		},
 		{
 			name: "Route with missing app ID",
@@ -73,7 +73,7 @@ func TestEndpoint_Validate(t *testing.T) {
 				},
 			},
 			errExpected: true,
-			errContains: "empty ID",
+			errContains: "route app ID cannot be empty",
 		},
 		{
 			name: "Route with missing condition",

@@ -3,6 +3,8 @@ package endpoints
 import (
 	"errors"
 	"fmt"
+
+	"github.com/atlanticdynamic/firelynx/internal/config/validation"
 )
 
 // Validate performs validation for an Endpoint
@@ -10,14 +12,13 @@ func (e *Endpoint) Validate() error {
 	var errs []error
 
 	// Validate ID
-	if e.ID == "" {
-		errs = append(errs, fmt.Errorf("%w: endpoint ID", ErrEmptyID))
+	if err := validation.ValidateID(e.ID, "endpoint ID"); err != nil {
+		errs = append(errs, err)
 	}
 
 	// Validate Listener ID
-	if e.ListenerID == "" {
-		errs = append(errs, fmt.Errorf("%w: endpoint '%s' has empty listener ID",
-			ErrMissingRequiredField, e.ID))
+	if err := validation.ValidateID(e.ListenerID, "listener ID"); err != nil {
+		errs = append(errs, fmt.Errorf("endpoint '%s' has invalid listener ID: %w", e.ID, err))
 	}
 
 	// Note: We can't validate listener references here because we don't have the context
