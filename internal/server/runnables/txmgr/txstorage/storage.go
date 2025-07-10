@@ -83,7 +83,7 @@ func (s *MemoryStorage) Add(tx *transaction.ConfigTransaction) error {
 	if tx == nil {
 		return nil
 	}
-	s.logger.Debug("Adding transaction", "id", tx.ID.String())
+	s.logger.WithGroup("Add").Debug("Adding transaction", "id", tx.ID.String())
 
 	s.mu.Lock()
 	s.transactions = append(s.transactions, tx)
@@ -101,14 +101,15 @@ func (s *MemoryStorage) Add(tx *transaction.ConfigTransaction) error {
 
 // SetCurrent sets the current active transaction
 func (s *MemoryStorage) SetCurrent(tx *transaction.ConfigTransaction) {
+	logger := s.logger.WithGroup("SetCurrent")
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.current = tx
 
 	if tx != nil {
-		s.logger.Debug("Setting current transaction", "id", tx.ID.String())
+		logger.Debug("Setting current transaction", "id", tx.ID.String())
 	} else {
-		s.logger.Debug("Clearing current transaction")
+		logger.Debug("Clearing current transaction")
 	}
 }
 
@@ -170,15 +171,15 @@ func (s *MemoryStorage) signalCleanup() {
 
 // cleanup applies the cleanup function to the transactions
 func (s *MemoryStorage) cleanup() {
+	logger := s.logger.WithGroup("cleanup")
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.logger.Debug("Starting cleanup", "transactions", len(s.transactions))
-
+	logger.Debug("Starting cleanup", "transactions", len(s.transactions))
 	if s.cleanupFunc != nil {
 		s.transactions = s.cleanupFunc(s.transactions)
 	}
-	s.logger.Debug("Finished cleanup", "transactions", len(s.transactions))
+	logger.Debug("Finished cleanup", "transactions", len(s.transactions))
 }
 
 // cleanupWorker runs cleanup operations asynchronously
@@ -245,6 +246,6 @@ func (s *MemoryStorage) Clear(keepLast int) (int, error) {
 
 	s.transactions = newTransactions
 
-	s.logger.Info("Cleared transactions", "cleared", deleted, "remaining", len(s.transactions))
+	s.logger.WithGroup("Clear").Info("Cleared transactions", "cleared", deleted, "remaining", len(s.transactions))
 	return deleted, nil
 }
