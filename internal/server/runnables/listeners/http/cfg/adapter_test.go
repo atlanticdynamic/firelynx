@@ -240,7 +240,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 				Routes: routes.RouteCollection{
 					{
 						AppID: appID1,
-						Condition: conditions.HTTP{
+						Condition: &conditions.HTTP{
 							PathPrefix: "/api/v1",
 							Method:     "GET",
 						},
@@ -248,7 +248,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 					},
 					{
 						AppID: appID2,
-						Condition: conditions.HTTP{
+						Condition: &conditions.HTTP{
 							PathPrefix: "/api/v2",
 							Method:     "POST",
 						},
@@ -269,7 +269,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 				Routes: routes.RouteCollection{
 					{
 						AppID: appID3, // This app doesn't exist in the registry
-						Condition: conditions.HTTP{
+						Condition: &conditions.HTTP{
 							PathPrefix: "/api/missing",
 							Method:     "GET",
 						},
@@ -301,14 +301,14 @@ func TestExtractEndpointRoutes(t *testing.T) {
 				Routes: routes.RouteCollection{
 					{
 						AppID: appID1,
-						Condition: conditions.HTTP{
+						Condition: &conditions.HTTP{
 							PathPrefix: "/api/valid",
 							Method:     "GET",
 						},
 					},
 					{
 						AppID: appID3, // This app doesn't exist in the registry
-						Condition: conditions.HTTP{
+						Condition: &conditions.HTTP{
 							PathPrefix: "/api/invalid",
 							Method:     "GET",
 						},
@@ -407,7 +407,7 @@ func TestExtractRoutes(t *testing.T) {
 					Routes: routes.RouteCollection{
 						routes.Route{
 							AppID: "test-app",
-							Condition: conditions.HTTP{
+							Condition: &conditions.HTTP{
 								PathPrefix: "/api/test",
 								Method:     "GET",
 							},
@@ -471,7 +471,7 @@ func TestExtractRoutes(t *testing.T) {
 					Routes: routes.RouteCollection{
 						routes.Route{
 							AppID: "missing-app",
-							Condition: conditions.HTTP{
+							Condition: &conditions.HTTP{
 								PathPrefix: "/api/test",
 								Method:     "GET",
 							},
@@ -528,7 +528,7 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 					Routes: routes.RouteCollection{
 						routes.Route{
 							AppID: "test-app",
-							Condition: conditions.HTTP{
+							Condition: &conditions.HTTP{
 								PathPrefix: "/api/v1",
 								Method:     "GET",
 							},
@@ -598,7 +598,7 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 					Routes: routes.RouteCollection{
 						routes.Route{
 							AppID: "missing-app",
-							Condition: conditions.HTTP{
+							Condition: &conditions.HTTP{
 								PathPrefix: "/api/test",
 								Method:     "GET",
 							},
@@ -643,7 +643,7 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 		Routes: routes.RouteCollection{
 			routes.Route{
 				AppID: "error-app",
-				Condition: conditions.HTTP{
+				Condition: &conditions.HTTP{
 					PathPrefix: "/api/error",
 					Method:     "GET",
 				},
@@ -707,7 +707,7 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 		Routes: routes.RouteCollection{
 			routes.Route{
 				AppID: "test-app",
-				Condition: conditions.HTTP{
+				Condition: &conditions.HTTP{
 					PathPrefix: "/api/test",
 					Method:     "GET",
 				},

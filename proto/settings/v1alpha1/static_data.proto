@@ -19,6 +19,11 @@ message StaticData {
     MERGE_MODE_UNIQUE = 2;
   }
 
+  // Key-value pairs of static data
+  // env_interpolation: n/a (non-string)
   map<string, google.protobuf.Value> data = 1;
+  
+  // Strategy for merging static data from different sources
+  // env_interpolation: n/a (non-string)
   MergeMode merge_mode = 2 [default = MERGE_MODE_UNSPECIFIED];
 }

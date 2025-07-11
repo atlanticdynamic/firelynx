@@ -19,18 +19,18 @@ type ConsoleLogger struct {
 	Fields  LogOptionsHTTP    `json:"fields"  toml:"fields"`
 
 	// Output destination (supports environment variable interpolation)
-	Output string `json:"output" toml:"output"`
+	Output string `json:"output" toml:"output" env_interpolation:"yes"`
 
 	// Preset configuration (applied before custom field overrides)
 	Preset Preset `json:"preset" toml:"preset"`
 
 	// Path filtering - paths are matched as prefixes
-	IncludeOnlyPaths []string `json:"includeOnlyPaths" toml:"include_only_paths"`
-	ExcludePaths     []string `json:"excludePaths"     toml:"exclude_paths"`
+	IncludeOnlyPaths []string `json:"includeOnlyPaths" toml:"include_only_paths" env_interpolation:"yes"`
+	ExcludePaths     []string `json:"excludePaths"     toml:"exclude_paths"      env_interpolation:"yes"`
 
 	// Method filtering
-	IncludeOnlyMethods []string `json:"includeOnlyMethods" toml:"include_only_methods"`
-	ExcludeMethods     []string `json:"excludeMethods"     toml:"exclude_methods"`
+	IncludeOnlyMethods []string `json:"includeOnlyMethods" toml:"include_only_methods" env_interpolation:"yes"`
+	ExcludeMethods     []string `json:"excludeMethods"     toml:"exclude_methods"      env_interpolation:"yes"`
 }
 
 // LogOptionsGeneral represents general logging configuration
@@ -66,8 +66,8 @@ type DirectionConfig struct {
 	MaxBodySize    int32    `json:"maxBodySize"    toml:"max_body_size"`
 	BodySize       bool     `json:"bodySize"       toml:"body_size"`
 	Headers        bool     `json:"headers"        toml:"headers"`
-	IncludeHeaders []string `json:"includeHeaders" toml:"include_headers"`
-	ExcludeHeaders []string `json:"excludeHeaders" toml:"exclude_headers"`
+	IncludeHeaders []string `json:"includeHeaders" toml:"include_headers" env_interpolation:"yes"`
+	ExcludeHeaders []string `json:"excludeHeaders" toml:"exclude_headers" env_interpolation:"yes"`
 }
 
 // Format represents logging format options
@@ -191,6 +191,11 @@ func (c *ConsoleLogger) Type() string {
 // Validate validates the console logger configuration
 func (c *ConsoleLogger) Validate() error {
 	var errs []error
+
+	// Interpolate all tagged fields
+	if err := interpolation.InterpolateStruct(c); err != nil {
+		errs = append(errs, fmt.Errorf("interpolation failed for console logger: %w", err))
+	}
 
 	// Validate format
 	if c.Options.Format != "" {

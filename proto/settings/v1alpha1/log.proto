@@ -16,8 +16,19 @@ message LogRecord {
     LEVEL_FATAL = 5; // Fatal error log
   }
 
-  google.protobuf.Timestamp time = 1; // Timestamp of when the log was created
-  Level level = 2 [default = LEVEL_UNSPECIFIED]; // Log level
-  string message = 3; // Log message content
-  map<string, google.protobuf.Value> attrs = 4; // Structured attributes from slog
+  // Timestamp of when the log was created
+  // env_interpolation: n/a (non-string)
+  google.protobuf.Timestamp time = 1;
+  
+  // Log level
+  // env_interpolation: n/a (non-string)
+  Level level = 2 [default = LEVEL_UNSPECIFIED];
+  
+  // Log message content
+  // env_interpolation: yes
+  string message = 3;
+  
+  // Structured attributes from slog
+  // env_interpolation: n/a (non-string)
+  map<string, google.protobuf.Value> attrs = 4;
 }

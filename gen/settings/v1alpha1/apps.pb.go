@@ -77,9 +77,13 @@ func (AppDefinition_Type) EnumDescriptor() ([]byte, []int) {
 // App definitions (reusable across endpoints)
 type AppDefinition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                                      // The unique name or identifier for the app
-	Type  *AppDefinition_Type    `protobuf:"varint,2,opt,name=type,enum=settings.v1alpha1.AppDefinition_Type,def=0" json:"type,omitempty"` // The type of app
-	// The configuration for the app
+	// Unique identifier for the application
+	// env_interpolation: no (ID field)
+	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	// Application type
+	// env_interpolation: n/a (non-string)
+	Type *AppDefinition_Type `protobuf:"varint,2,opt,name=type,enum=settings.v1alpha1.AppDefinition_Type,def=0" json:"type,omitempty"`
+	// Application-specific configuration
 	//
 	// Types that are valid to be assigned to Config:
 	//
@@ -179,14 +183,20 @@ type isAppDefinition_Config interface {
 }
 
 type AppDefinition_Script struct {
+	// Script application configuration
+	// env_interpolation: n/a (non-string)
 	Script *ScriptApp `protobuf:"bytes,3,opt,name=script,oneof"`
 }
 
 type AppDefinition_CompositeScript struct {
+	// Composite script application configuration
+	// env_interpolation: n/a (non-string)
 	CompositeScript *CompositeScriptApp `protobuf:"bytes,4,opt,name=composite_script,json=compositeScript,oneof"`
 }
 
 type AppDefinition_Echo struct {
+	// Echo application configuration
+	// env_interpolation: n/a (non-string)
 	Echo *EchoApp `protobuf:"bytes,5,opt,name=echo,oneof"`
 }
 
@@ -198,8 +208,12 @@ func (*AppDefinition_Echo) isAppDefinition_Config() {}
 
 // Individual script application
 type ScriptApp struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	StaticData *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Static data available to the script
+	// env_interpolation: n/a (non-string)
+	StaticData *StaticData `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
+	// Script evaluator configuration
+	//
 	// Types that are valid to be assigned to Evaluator:
 	//
 	//	*ScriptApp_Risor
@@ -286,14 +300,20 @@ type isScriptApp_Evaluator interface {
 }
 
 type ScriptApp_Risor struct {
+	// Risor evaluator configuration
+	// env_interpolation: n/a (non-string)
 	Risor *RisorEvaluator `protobuf:"bytes,3,opt,name=risor,oneof"`
 }
 
 type ScriptApp_Starlark struct {
+	// Starlark evaluator configuration
+	// env_interpolation: n/a (non-string)
 	Starlark *StarlarkEvaluator `protobuf:"bytes,4,opt,name=starlark,oneof"`
 }
 
 type ScriptApp_Extism struct {
+	// Extism evaluator configuration
+	// env_interpolation: n/a (non-string)
 	Extism *ExtismEvaluator `protobuf:"bytes,5,opt,name=extism,oneof"`
 }
 
@@ -305,12 +325,16 @@ func (*ScriptApp_Extism) isScriptApp_Evaluator() {}
 
 type RisorEvaluator struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Script source configuration
+	//
 	// Types that are valid to be assigned to Source:
 	//
 	//	*RisorEvaluator_Code
 	//	*RisorEvaluator_Uri
-	Source        isRisorEvaluator_Source `protobuf_oneof:"source"`
-	Timeout       *durationpb.Duration    `protobuf:"bytes,3,opt,name=timeout" json:"timeout,omitempty"`
+	Source isRisorEvaluator_Source `protobuf_oneof:"source"`
+	// Script execution timeout
+	// env_interpolation: n/a (non-string)
+	Timeout       *durationpb.Duration `protobuf:"bytes,3,opt,name=timeout" json:"timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -382,10 +406,14 @@ type isRisorEvaluator_Source interface {
 }
 
 type RisorEvaluator_Code struct {
+	// Inline script code
+	// env_interpolation: no (code content)
 	Code string `protobuf:"bytes,1,opt,name=code,oneof"`
 }
 
 type RisorEvaluator_Uri struct {
+	// URI to script source
+	// env_interpolation: yes (URI field)
 	Uri string `protobuf:"bytes,2,opt,name=uri,oneof"`
 }
 
@@ -395,12 +423,16 @@ func (*RisorEvaluator_Uri) isRisorEvaluator_Source() {}
 
 type StarlarkEvaluator struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Script source configuration
+	//
 	// Types that are valid to be assigned to Source:
 	//
 	//	*StarlarkEvaluator_Code
 	//	*StarlarkEvaluator_Uri
-	Source        isStarlarkEvaluator_Source `protobuf_oneof:"source"`
-	Timeout       *durationpb.Duration       `protobuf:"bytes,3,opt,name=timeout" json:"timeout,omitempty"`
+	Source isStarlarkEvaluator_Source `protobuf_oneof:"source"`
+	// Script execution timeout
+	// env_interpolation: n/a (non-string)
+	Timeout       *durationpb.Duration `protobuf:"bytes,3,opt,name=timeout" json:"timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -472,10 +504,14 @@ type isStarlarkEvaluator_Source interface {
 }
 
 type StarlarkEvaluator_Code struct {
+	// Inline script code
+	// env_interpolation: no (code content)
 	Code string `protobuf:"bytes,1,opt,name=code,oneof"`
 }
 
 type StarlarkEvaluator_Uri struct {
+	// URI to script source
+	// env_interpolation: yes (URI field)
 	Uri string `protobuf:"bytes,2,opt,name=uri,oneof"`
 }
 
@@ -485,13 +521,19 @@ func (*StarlarkEvaluator_Uri) isStarlarkEvaluator_Source() {}
 
 type ExtismEvaluator struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Script source configuration
+	//
 	// Types that are valid to be assigned to Source:
 	//
 	//	*ExtismEvaluator_Code
 	//	*ExtismEvaluator_Uri
-	Source        isExtismEvaluator_Source `protobuf_oneof:"source"`
-	Entrypoint    *string                  `protobuf:"bytes,3,opt,name=entrypoint" json:"entrypoint,omitempty"`
-	Timeout       *durationpb.Duration     `protobuf:"bytes,4,opt,name=timeout" json:"timeout,omitempty"`
+	Source isExtismEvaluator_Source `protobuf_oneof:"source"`
+	// Function entrypoint name
+	// env_interpolation: yes
+	Entrypoint *string `protobuf:"bytes,3,opt,name=entrypoint" json:"entrypoint,omitempty"`
+	// Script execution timeout
+	// env_interpolation: n/a (non-string)
+	Timeout       *durationpb.Duration `protobuf:"bytes,4,opt,name=timeout" json:"timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -570,10 +612,14 @@ type isExtismEvaluator_Source interface {
 }
 
 type ExtismEvaluator_Code struct {
+	// Inline script code
+	// env_interpolation: no (code content)
 	Code string `protobuf:"bytes,1,opt,name=code,oneof"`
 }
 
 type ExtismEvaluator_Uri struct {
+	// URI to script source
+	// env_interpolation: yes (URI field)
 	Uri string `protobuf:"bytes,2,opt,name=uri,oneof"`
 }
 
@@ -583,9 +629,13 @@ func (*ExtismEvaluator_Uri) isExtismEvaluator_Source() {}
 
 // Composite script that combines multiple scripts
 type CompositeScriptApp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ScriptAppIds  []string               `protobuf:"bytes,1,rep,name=script_app_ids,json=scriptAppIds" json:"script_app_ids,omitempty"` // IDs of ScriptApp to run in sequence
-	StaticData    *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IDs of script applications to run in sequence
+	// env_interpolation: no (ID field)
+	ScriptAppIds []string `protobuf:"bytes,1,rep,name=script_app_ids,json=scriptAppIds" json:"script_app_ids,omitempty"`
+	// Static data available to all scripts
+	// env_interpolation: n/a (non-string)
+	StaticData    *StaticData `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -636,8 +686,10 @@ func (x *CompositeScriptApp) GetStaticData() *StaticData {
 
 // Echo app
 type EchoApp struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Response      *string                `protobuf:"bytes,1,opt,name=response" json:"response,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Response text to echo back
+	// env_interpolation: yes
+	Response      *string `protobuf:"bytes,1,opt,name=response" json:"response,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

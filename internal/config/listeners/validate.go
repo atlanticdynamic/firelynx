@@ -7,11 +7,17 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/config/validation"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 )
 
 // Validate performs validation for a Listener
 func (l *Listener) Validate() error {
 	var errs []error
+
+	// Interpolate all tagged fields
+	if err := interpolation.InterpolateStruct(l); err != nil {
+		errs = append(errs, fmt.Errorf("interpolation failed for listener '%s': %w", l.ID, err))
+	}
 
 	if err := validation.ValidateID(l.ID, "listener ID"); err != nil {
 		errs = append(errs, err)

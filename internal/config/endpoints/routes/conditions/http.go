@@ -5,27 +5,28 @@ import (
 	"strings"
 
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 )
 
 // HTTP contains HTTP-specific route condition configuration
 type HTTP struct {
-	PathPrefix string
-	Method     string
+	PathPrefix string `env_interpolation:"yes"`
+	Method     string `env_interpolation:"no"`
 }
 
 // NewHTTP creates a new HTTP path condition
-func NewHTTP(pathPrefix string, method string) HTTP {
-	return HTTP{
+func NewHTTP(pathPrefix string, method string) *HTTP {
+	return &HTTP{
 		PathPrefix: pathPrefix,
 		Method:     method,
 	}
 }
 
 // Type returns the condition type
-func (h HTTP) Type() Type { return TypeHTTP }
+func (h *HTTP) Type() Type { return TypeHTTP }
 
 // Value returns a representative value
-func (h HTTP) Value() string {
+func (h *HTTP) Value() string {
 	if h.Method != "" {
 		return h.PathPrefix + " (" + h.Method + ")"
 	}
@@ -33,13 +34,17 @@ func (h HTTP) Value() string {
 }
 
 // Validate checks if the HTTP condition is valid
-func (h HTTP) Validate() error {
+func (h *HTTP) Validate() error {
+	// Interpolate environment variables first
+	if err := interpolation.InterpolateStruct(h); err != nil {
+		return fmt.Errorf("condition interpolation failed: %w", err)
+	}
+
 	if h.PathPrefix == "" {
 		return fmt.Errorf("%w: %w", ErrInvalidHTTPCondition, ErrEmptyValue)
 	}
 
-	// Additional validation logic can be added here
-	// For example, check if the path starts with '/'
+	// Check if the path starts with '/'
 	if !strings.HasPrefix(h.PathPrefix, "/") {
 		return fmt.Errorf("%w: path must start with '/'", ErrInvalidHTTPCondition)
 	}
@@ -48,7 +53,7 @@ func (h HTTP) Validate() error {
 }
 
 // String returns a string representation of the HTTP condition
-func (h HTTP) String() string {
+func (h *HTTP) String() string {
 	if h.Method != "" {
 		return fmt.Sprintf("HTTP: %s %s", h.Method, h.PathPrefix)
 	}
@@ -56,7 +61,7 @@ func (h HTTP) String() string {
 }
 
 // ToTree returns a tree representation of the HTTP condition
-func (h HTTP) ToTree() *fancy.ComponentTree {
+func (h *HTTP) ToTree() *fancy.ComponentTree {
 	tree := fancy.NewComponentTree("HTTP Rule")
 	tree.AddChild(fmt.Sprintf("Path Prefix: %s", h.PathPrefix))
 	if h.Method != "" {

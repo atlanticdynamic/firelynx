@@ -63,8 +63,8 @@ type ListenerCollection []Listener
 
 // Listener represents a network listener configuration
 type Listener struct {
-	ID      string
-	Address string
+	ID      string `env_interpolation:"no"`
+	Address string `env_interpolation:"yes"`
 	Type    Type
 	Options options.Options
 }

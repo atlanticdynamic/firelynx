@@ -11,9 +11,20 @@ option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
 // Server configuration root message
 message ServerConfig {
+  // Configuration version identifier
+  // env_interpolation: yes
   string version = 1 [default = "v1"];
+  
+  // Network listeners configuration
+  // env_interpolation: n/a (non-string)
   repeated Listener listeners = 2;
+  
+  // HTTP endpoints configuration
+  // env_interpolation: n/a (non-string)
   repeated Endpoint endpoints = 3;
+  
+  // Application definitions
+  // env_interpolation: n/a (non-string)
   repeated AppDefinition apps = 4;
 }
 
@@ -25,43 +36,92 @@ message Listener {
     TYPE_HTTP = 1;
   }
 
-  string id = 1; // unique name for this listener
-  string address = 2; // ":8080", "unix:/tmp/sock.sock", etc.
-  Type type = 3 [default = TYPE_HTTP]; // type of listener
+  // Unique identifier for this listener
+  // env_interpolation: no (ID field)
+  string id = 1;
+  
+  // Listener bind address (":8080", "unix:/tmp/sock.sock", etc.)
+  // env_interpolation: yes (address field)
+  string address = 2;
+  
+  // Protocol type for this listener
+  // env_interpolation: n/a (non-string)
+  Type type = 3 [default = TYPE_HTTP];
 
-  // Protocol-specific options
+  // Protocol-specific configuration options
   oneof protocol_options {
+    // HTTP listener configuration
+    // env_interpolation: n/a (non-string)
     HttpListenerOptions http = 4;
   }
 }
 
 // HTTP listener specific options
 message HttpListenerOptions {
+  // Maximum time to read request headers and body
+  // env_interpolation: n/a (non-string)
   google.protobuf.Duration read_timeout = 1;
+  
+  // Maximum time to write response
+  // env_interpolation: n/a (non-string)
   google.protobuf.Duration write_timeout = 2;
+  
+  // Maximum time for keep-alive connections
+  // env_interpolation: n/a (non-string)
   google.protobuf.Duration idle_timeout = 3;
+  
+  // Time to wait for connections to close during shutdown
+  // env_interpolation: n/a (non-string)
   google.protobuf.Duration drain_timeout = 4;
 }
 
 // Endpoint connects: listener -> routes -> apps
 message Endpoint {
-  string id = 1; // unique name for this endpoint
-  string listener_id = 2; // listener this endpoint is attached to
-  repeated Route routes = 3; // routes that direct traffic to apps
-  repeated settings.v1alpha1.middleware.v1.Middleware middlewares = 4; // middlewares layers to apply to requests/responses
+  // Unique identifier for this endpoint
+  // env_interpolation: no (ID field)
+  string id = 1;
+  
+  // ID of the listener this endpoint is attached to
+  // env_interpolation: no (ID field)
+  string listener_id = 2;
+  
+  // Routes that direct traffic to applications
+  // env_interpolation: n/a (non-string)
+  repeated Route routes = 3;
+  
+  // Middleware layers to apply to requests/responses
+  // env_interpolation: n/a (non-string)
+  repeated settings.v1alpha1.middleware.v1.Middleware middlewares = 4;
 }
 
 // Route defines a rule for directing traffic from an endpoint to an app
 message Route {
-  string app_id = 1; // the app name this route directs traffic to
-  StaticData static_data = 2; // static data to pass to the app
-  repeated settings.v1alpha1.middleware.v1.Middleware middlewares = 3; // middlewares layers to apply to requests/responses
+  // ID of the application this route directs traffic to
+  // env_interpolation: no (ID field)
+  string app_id = 1;
+  
+  // Static data to pass to the application
+  // env_interpolation: n/a (non-string)
+  StaticData static_data = 2;
+  
+  // Middleware layers to apply to requests/responses
+  // env_interpolation: n/a (non-string)
+  repeated settings.v1alpha1.middleware.v1.Middleware middlewares = 3;
+  
+  // Routing rule configuration
   oneof rule {
+    // HTTP-specific routing rule
+    // env_interpolation: n/a (non-string)
     HttpRule http = 100;
   }
 }
 
 message HttpRule {
+  // HTTP path prefix to match against requests
+  // env_interpolation: yes
   string path_prefix = 1;
+  
+  // HTTP method to match (GET, POST, etc.)
+  // env_interpolation: yes
   string method = 2;
 }

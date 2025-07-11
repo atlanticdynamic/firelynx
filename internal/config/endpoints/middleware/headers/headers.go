@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 	"golang.org/x/net/http/httpguts"
 )
 
@@ -14,13 +15,13 @@ const HeadersType = "headers"
 // HeaderOperations represents header manipulation operations
 type HeaderOperations struct {
 	// Headers to set (replace existing values)
-	SetHeaders map[string]string `json:"setHeaders" toml:"set_headers"`
+	SetHeaders map[string]string `json:"setHeaders" toml:"set_headers" env_interpolation:"yes"`
 
 	// Headers to add (append to existing values)
-	AddHeaders map[string]string `json:"addHeaders" toml:"add_headers"`
+	AddHeaders map[string]string `json:"addHeaders" toml:"add_headers" env_interpolation:"yes"`
 
 	// Header names to remove
-	RemoveHeaders []string `json:"removeHeaders" toml:"remove_headers"`
+	RemoveHeaders []string `json:"removeHeaders" toml:"remove_headers" env_interpolation:"yes"`
 }
 
 // Headers represents a headers middleware configuration
@@ -61,6 +62,11 @@ func (ho *HeaderOperations) Validate() error {
 	}
 
 	var errs []error
+
+	// Interpolate all tagged fields (map values)
+	if err := interpolation.InterpolateStruct(ho); err != nil {
+		errs = append(errs, fmt.Errorf("interpolation failed: %w", err))
+	}
 
 	// Validate set headers
 	for key, value := range ho.SetHeaders {

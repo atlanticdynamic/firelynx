@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 	"github.com/robbyt/go-polyscript/engines/starlark"
 	"github.com/robbyt/go-polyscript/engines/starlark/evaluator"
 	"github.com/robbyt/go-polyscript/platform"
@@ -17,9 +18,9 @@ var _ Evaluator = (*StarlarkEvaluator)(nil)
 // StarlarkEvaluator represents a Starlark script evaluator.
 type StarlarkEvaluator struct {
 	// Code contains the Starlark script source code.
-	Code string
+	Code string `env_interpolation:"no"`
 	// URI contains the location to load the script from (file://, https://, etc.)
-	URI string
+	URI string `env_interpolation:"yes"`
 	// Timeout is the maximum execution time allowed for the script.
 	Timeout time.Duration
 
@@ -47,6 +48,11 @@ func (s *StarlarkEvaluator) String() string {
 // Validate checks if the StarlarkEvaluator is valid and compiles the script.
 func (s *StarlarkEvaluator) Validate() error {
 	var errs []error
+
+	// Interpolate all tagged fields
+	if err := interpolation.InterpolateStruct(s); err != nil {
+		errs = append(errs, fmt.Errorf("interpolation failed for Starlark evaluator: %w", err))
+	}
 
 	// XOR validation: either code OR uri must be present, but not both and not neither
 	if s.Code == "" && s.URI == "" {

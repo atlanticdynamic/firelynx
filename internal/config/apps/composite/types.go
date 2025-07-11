@@ -8,10 +8,10 @@ import (
 // CompositeScript represents a composite script application that combines multiple scripts.
 type CompositeScript struct {
 	// ScriptAppIDs contains the IDs of script apps to run in sequence.
-	ScriptAppIDs []string
+	ScriptAppIDs []string `env_interpolation:"no"`
 
 	// StaticData contains configuration values passed to all scripts.
-	StaticData *staticdata.StaticData
+	StaticData *staticdata.StaticData `env_interpolation:"yes"`
 }
 
 // NewCompositeScript creates a new CompositeScript with the given script IDs and static data.

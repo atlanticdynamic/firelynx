@@ -93,7 +93,7 @@ func (r RouteCollection) GetStructuredHTTPRoutes() []HTTPRoute {
 		}
 
 		// Get the HTTP condition
-		httpCond, ok := route.Condition.(conditions.HTTP)
+		httpCond, ok := route.Condition.(*conditions.HTTP)
 		if !ok {
 			continue
 		}

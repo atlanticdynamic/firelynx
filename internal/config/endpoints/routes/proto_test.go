@@ -327,8 +327,8 @@ func TestFromProto(t *testing.T) {
 
 				// Compare based on condition type
 				switch cond := tc.expected.Condition.(type) {
-				case conditions.HTTP:
-					actualHttp, ok := actual.Condition.(conditions.HTTP)
+				case *conditions.HTTP:
+					actualHttp, ok := actual.Condition.(*conditions.HTTP)
 					assert.True(t, ok)
 					assert.Equal(t, cond.PathPrefix, actualHttp.PathPrefix)
 					assert.Equal(t, cond.Method, actualHttp.Method)

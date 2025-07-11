@@ -9,11 +9,12 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 )
 
 // EchoApp contains echo app-specific configuration
 type EchoApp struct {
-	Response string
+	Response string `env_interpolation:"yes"`
 }
 
 // New creates a new EchoApp configuration with the specified response string
@@ -28,7 +29,11 @@ func (e *EchoApp) Type() string { return "echo" }
 
 // Validate checks if the Echo app configuration is valid
 func (e *EchoApp) Validate() error {
-	// Echo apps require a response string
+	// Interpolate all tagged fields
+	if err := interpolation.InterpolateStruct(e); err != nil {
+		return fmt.Errorf("interpolation failed for echo app: %w", err)
+	}
+
 	if e.Response == "" {
 		return fmt.Errorf("%w: echo app response", errz.ErrMissingRequiredField)
 	}

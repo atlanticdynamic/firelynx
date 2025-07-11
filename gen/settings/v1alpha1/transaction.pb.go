@@ -76,16 +76,34 @@ func (ConfigTransaction_Source) EnumDescriptor() ([]byte, []int) {
 
 // ConfigTransaction represents an attempt to load a config, stored as a full transaction with details.
 type ConfigTransaction struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Id            *string                   `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                                                // Unique identifier for this transaction (UUID)
-	Source        *ConfigTransaction_Source `protobuf:"varint,2,opt,name=source,enum=settings.v1alpha1.ConfigTransaction_Source,def=0" json:"source,omitempty"` // Source of the config transaction
-	SourceDetail  *string                   `protobuf:"bytes,3,opt,name=source_detail,json=sourceDetail" json:"source_detail,omitempty"`                        // Additional details about the source (e.g., file path, API endpoint)
-	RequestId     *string                   `protobuf:"bytes,4,opt,name=request_id,json=requestId" json:"request_id,omitempty"`                                 // Correlation ID for API requests, empty for file sources
-	CreatedAt     *timestamppb.Timestamp    `protobuf:"bytes,5,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`                                 // Timestamp when the transaction was created
-	State         *string                   `protobuf:"bytes,6,opt,name=state" json:"state,omitempty"`                                                          // Current state of the transaction
-	IsValid       *bool                     `protobuf:"varint,7,opt,name=is_valid,json=isValid" json:"is_valid,omitempty"`                                      // Validation state of the transaction
-	Logs          []*LogRecord              `protobuf:"bytes,8,rep,name=logs" json:"logs,omitempty"`                                                            // Transaction log history
-	Config        *ServerConfig             `protobuf:"bytes,99,opt,name=config" json:"config,omitempty"`                                                       // The configuration associated with this transaction
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique identifier for this transaction (UUID)
+	// env_interpolation: no (ID field)
+	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	// Source of the config transaction
+	// env_interpolation: n/a (non-string)
+	Source *ConfigTransaction_Source `protobuf:"varint,2,opt,name=source,enum=settings.v1alpha1.ConfigTransaction_Source,def=0" json:"source,omitempty"`
+	// Additional details about the source (e.g., file path, API endpoint)
+	// env_interpolation: yes (path field)
+	SourceDetail *string `protobuf:"bytes,3,opt,name=source_detail,json=sourceDetail" json:"source_detail,omitempty"`
+	// Correlation ID for API requests, empty for file sources
+	// env_interpolation: no (ID field)
+	RequestId *string `protobuf:"bytes,4,opt,name=request_id,json=requestId" json:"request_id,omitempty"`
+	// Timestamp when the transaction was created
+	// env_interpolation: n/a (non-string)
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt" json:"created_at,omitempty"`
+	// Current state of the transaction
+	// env_interpolation: yes
+	State *string `protobuf:"bytes,6,opt,name=state" json:"state,omitempty"`
+	// Validation state of the transaction
+	// env_interpolation: n/a (non-string)
+	IsValid *bool `protobuf:"varint,7,opt,name=is_valid,json=isValid" json:"is_valid,omitempty"`
+	// Transaction log history
+	// env_interpolation: n/a (non-string)
+	Logs []*LogRecord `protobuf:"bytes,8,rep,name=logs" json:"logs,omitempty"`
+	// The configuration associated with this transaction
+	// env_interpolation: n/a (non-string)
+	Config        *ServerConfig `protobuf:"bytes,99,opt,name=config" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

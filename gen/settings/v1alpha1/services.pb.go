@@ -23,8 +23,10 @@ const (
 
 // ValidateConfigRequest is used to validate a server configuration
 type ValidateConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *ServerConfig          `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"` // The configuration to validate
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The configuration to validate
+	// env_interpolation: n/a (non-string)
+	Config        *ServerConfig `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -68,9 +70,13 @@ func (x *ValidateConfigRequest) GetConfig() *ServerConfig {
 
 // ValidateConfigResponse indicates whether the configuration is valid
 type ValidateConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Valid         *bool                  `protobuf:"varint,1,opt,name=valid" json:"valid,omitempty"` // True if the configuration is valid
-	Error         *string                `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`  // Error message if the configuration is invalid
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True if the configuration is valid
+	// env_interpolation: n/a (non-string)
+	Valid *bool `protobuf:"varint,1,opt,name=valid" json:"valid,omitempty"`
+	// Error message if the configuration is invalid
+	// env_interpolation: yes
+	Error         *string `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -121,8 +127,10 @@ func (x *ValidateConfigResponse) GetError() string {
 
 // Request to update the server configuration
 type UpdateConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *ServerConfig          `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Configuration to apply
+	// env_interpolation: n/a (non-string)
+	Config        *ServerConfig `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -166,11 +174,19 @@ func (x *UpdateConfigRequest) GetConfig() *ServerConfig {
 
 // Response to an update configuration request
 type UpdateConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       *bool                  `protobuf:"varint,1,opt,name=success" json:"success,omitempty"`
-	Error         *string                `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
-	Config        *ServerConfig          `protobuf:"bytes,3,opt,name=config" json:"config,omitempty"`                                    // Returns the active configuration after update
-	TransactionId *string                `protobuf:"bytes,4,opt,name=transaction_id,json=transactionId" json:"transaction_id,omitempty"` // ID of the transaction
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True if the configuration was applied successfully
+	// env_interpolation: n/a (non-string)
+	Success *bool `protobuf:"varint,1,opt,name=success" json:"success,omitempty"`
+	// Error message if the operation failed
+	// env_interpolation: yes
+	Error *string `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
+	// Returns the active configuration after update
+	// env_interpolation: n/a (non-string)
+	Config *ServerConfig `protobuf:"bytes,3,opt,name=config" json:"config,omitempty"`
+	// ID of the transaction
+	// env_interpolation: no (ID field)
+	TransactionId *string `protobuf:"bytes,4,opt,name=transaction_id,json=transactionId" json:"transaction_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,8 +288,10 @@ func (*GetConfigRequest) Descriptor() ([]byte, []int) {
 
 // Response to a get configuration request
 type GetConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *ServerConfig          `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current server configuration
+	// env_interpolation: n/a (non-string)
+	Config        *ServerConfig `protobuf:"bytes,1,opt,name=config" json:"config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -354,8 +372,10 @@ func (*GetCurrentConfigTransactionRequest) Descriptor() ([]byte, []int) {
 
 // Response containing the current configuration transaction
 type GetCurrentConfigTransactionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Transaction   *ConfigTransaction     `protobuf:"bytes,1,opt,name=transaction" json:"transaction,omitempty"` // The current configuration transaction, null if none exists
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The current configuration transaction, null if none exists
+	// env_interpolation: n/a (non-string)
+	Transaction   *ConfigTransaction `protobuf:"bytes,1,opt,name=transaction" json:"transaction,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -399,11 +419,19 @@ func (x *GetCurrentConfigTransactionResponse) GetTransaction() *ConfigTransactio
 
 // ListConfigTransactionsRequest is used to retrieve the history of configuration transactions
 type ListConfigTransactionsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageToken     *string                `protobuf:"bytes,1,opt,name=page_token,json=pageToken" json:"page_token,omitempty"`      // Token to retrieve a specific page of results
-	PageSize      *int32                 `protobuf:"varint,2,opt,name=page_size,json=pageSize,def=10" json:"page_size,omitempty"` // Number of transactions per page
-	State         *string                `protobuf:"bytes,3,opt,name=state" json:"state,omitempty"`                               // Optional filter to retrieve transactions in a specific state
-	Source        *string                `protobuf:"bytes,4,opt,name=source" json:"source,omitempty"`                             // Optional filter to retrieve transactions from a specific source
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Token to retrieve a specific page of results
+	// env_interpolation: yes
+	PageToken *string `protobuf:"bytes,1,opt,name=page_token,json=pageToken" json:"page_token,omitempty"`
+	// Number of transactions per page
+	// env_interpolation: n/a (non-string)
+	PageSize *int32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,def=10" json:"page_size,omitempty"`
+	// Optional filter to retrieve transactions in a specific state
+	// env_interpolation: yes
+	State *string `protobuf:"bytes,3,opt,name=state" json:"state,omitempty"`
+	// Optional filter to retrieve transactions from a specific source
+	// env_interpolation: yes
+	Source        *string `protobuf:"bytes,4,opt,name=source" json:"source,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -473,9 +501,13 @@ func (x *ListConfigTransactionsRequest) GetSource() string {
 
 // ListConfigTransactionsResponse contains the history of configuration transactions
 type ListConfigTransactionsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Transactions  []*ConfigTransaction   `protobuf:"bytes,1,rep,name=transactions" json:"transactions,omitempty"`                          // List of configuration transactions
-	NextPageToken *string                `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken" json:"next_page_token,omitempty"` // Token for retrieving the next page of results (empty if last page)
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// List of configuration transactions
+	// env_interpolation: n/a (non-string)
+	Transactions []*ConfigTransaction `protobuf:"bytes,1,rep,name=transactions" json:"transactions,omitempty"`
+	// Token for retrieving the next page of results (empty if last page)
+	// env_interpolation: yes
+	NextPageToken *string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -526,8 +558,10 @@ func (x *ListConfigTransactionsResponse) GetNextPageToken() string {
 
 // GetConfigTransactionRequest is used to retrieve a specific configuration transaction by ID
 type GetConfigTransactionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TransactionId *string                `protobuf:"bytes,1,opt,name=transaction_id,json=transactionId" json:"transaction_id,omitempty"` // ID of the transaction to retrieve
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the transaction to retrieve
+	// env_interpolation: no (ID field)
+	TransactionId *string `protobuf:"bytes,1,opt,name=transaction_id,json=transactionId" json:"transaction_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -571,8 +605,10 @@ func (x *GetConfigTransactionRequest) GetTransactionId() string {
 
 // GetConfigTransactionResponse contains the details of a specific configuration transaction
 type GetConfigTransactionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Transaction   *ConfigTransaction     `protobuf:"bytes,1,opt,name=transaction" json:"transaction,omitempty"` // The requested configuration transaction
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The requested configuration transaction
+	// env_interpolation: n/a (non-string)
+	Transaction   *ConfigTransaction `protobuf:"bytes,1,opt,name=transaction" json:"transaction,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -616,8 +652,10 @@ func (x *GetConfigTransactionResponse) GetTransaction() *ConfigTransaction {
 
 // ClearConfigTransactionsRequest is used to clear the history of configuration transactions which are in terminal state
 type ClearConfigTransactionsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	KeepLast      *int32                 `protobuf:"varint,1,opt,name=keep_last,json=keepLast,def=0" json:"keep_last,omitempty"` // Number of transactions to keep, 0 means clear all except current
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Number of transactions to keep, 0 means clear all except current
+	// env_interpolation: n/a (non-string)
+	KeepLast      *int32 `protobuf:"varint,1,opt,name=keep_last,json=keepLast,def=0" json:"keep_last,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -666,10 +704,16 @@ func (x *ClearConfigTransactionsRequest) GetKeepLast() int32 {
 
 // ClearConfigTransactionsResponse indicates the result of clearing configuration transactions
 type ClearConfigTransactionsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       *bool                  `protobuf:"varint,1,opt,name=success" json:"success,omitempty"`                               // True if the history was cleared successfully
-	Error         *string                `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`                                    // Error message if the operation failed
-	ClearedCount  *int32                 `protobuf:"varint,3,opt,name=cleared_count,json=clearedCount" json:"cleared_count,omitempty"` // Number of transactions cleared
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// True if the history was cleared successfully
+	// env_interpolation: n/a (non-string)
+	Success *bool `protobuf:"varint,1,opt,name=success" json:"success,omitempty"`
+	// Error message if the operation failed
+	// env_interpolation: yes
+	Error *string `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
+	// Number of transactions cleared
+	// env_interpolation: n/a (non-string)
+	ClearedCount  *int32 `protobuf:"varint,3,opt,name=cleared_count,json=clearedCount" json:"cleared_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

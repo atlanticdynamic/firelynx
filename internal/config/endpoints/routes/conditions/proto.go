@@ -36,7 +36,7 @@ func ToProto(cond Condition, route *pb.Route) {
 	}
 
 	switch c := cond.(type) {
-	case HTTP:
+	case *HTTP:
 		httpRule := &pb.HttpRule{
 			PathPrefix: &c.PathPrefix,
 		}
