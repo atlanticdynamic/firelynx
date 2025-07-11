@@ -16,59 +16,121 @@ message AppDefinition {
     TYPE_ECHO = 3;
   }
 
-  string id = 1; // The unique name or identifier for the app
-  Type type = 2 [default = TYPE_UNSPECIFIED]; // The type of app
+  // Unique identifier for the application
+  // env_interpolation: no (ID field)
+  string id = 1;
+  
+  // Application type
+  // env_interpolation: n/a (non-string)
+  Type type = 2 [default = TYPE_UNSPECIFIED];
 
-  // The configuration for the app
+  // Application-specific configuration
   oneof config {
+    // Script application configuration
+    // env_interpolation: n/a (non-string)
     ScriptApp script = 3;
+    
+    // Composite script application configuration
+    // env_interpolation: n/a (non-string)
     CompositeScriptApp composite_script = 4;
+    
+    // Echo application configuration
+    // env_interpolation: n/a (non-string)
     EchoApp echo = 5;
   }
 }
 
 // Individual script application
 message ScriptApp {
+  // Static data available to the script
+  // env_interpolation: n/a (non-string)
   StaticData static_data = 2;
+  
+  // Script evaluator configuration
   oneof evaluator {
+    // Risor evaluator configuration
+    // env_interpolation: n/a (non-string)
     RisorEvaluator risor = 3;
+    
+    // Starlark evaluator configuration
+    // env_interpolation: n/a (non-string)
     StarlarkEvaluator starlark = 4;
+    
+    // Extism evaluator configuration
+    // env_interpolation: n/a (non-string)
     ExtismEvaluator extism = 5;
   }
 }
 
 message RisorEvaluator {
+  // Script source configuration
   oneof source {
+    // Inline script code
+    // env_interpolation: no (code content)
     string code = 1;
+    
+    // URI to script source
+    // env_interpolation: yes (URI field)
     string uri = 2;
   }
+  
+  // Script execution timeout
+  // env_interpolation: n/a (non-string)
   google.protobuf.Duration timeout = 3;
 }
 
 message StarlarkEvaluator {
+  // Script source configuration
   oneof source {
+    // Inline script code
+    // env_interpolation: no (code content)
     string code = 1;
+    
+    // URI to script source
+    // env_interpolation: yes (URI field)
     string uri = 2;
   }
+  
+  // Script execution timeout
+  // env_interpolation: n/a (non-string)
   google.protobuf.Duration timeout = 3;
 }
 
 message ExtismEvaluator {
+  // Script source configuration
   oneof source {
+    // Inline script code
+    // env_interpolation: no (code content)
     string code = 1;
+    
+    // URI to script source
+    // env_interpolation: yes (URI field)
     string uri = 2;
   }
+  
+  // Function entrypoint name
+  // env_interpolation: yes
   string entrypoint = 3;
+  
+  // Script execution timeout
+  // env_interpolation: n/a (non-string)
   google.protobuf.Duration timeout = 4;
 }
 
 // Composite script that combines multiple scripts
 message CompositeScriptApp {
-  repeated string script_app_ids = 1; // IDs of ScriptApp to run in sequence
+  // IDs of script applications to run in sequence
+  // env_interpolation: no (ID field)
+  repeated string script_app_ids = 1;
+  
+  // Static data available to all scripts
+  // env_interpolation: n/a (non-string)
   StaticData static_data = 2;
 }
 
 // Echo app
 message EchoApp {
+  // Response text to echo back
+  // env_interpolation: yes
   string response = 1;
 }

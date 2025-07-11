@@ -185,9 +185,13 @@ func (ConsoleLoggerConfig_LogPreset) EnumDescriptor() ([]byte, []int) {
 }
 
 type LogOptionsGeneral struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Format        *LogOptionsGeneral_Format `protobuf:"varint,1,opt,name=format,enum=settings.v1alpha1.middleware.v1.LogOptionsGeneral_Format,def=0" json:"format,omitempty"`
-	Level         *LogOptionsGeneral_Level  `protobuf:"varint,2,opt,name=level,enum=settings.v1alpha1.middleware.v1.LogOptionsGeneral_Level,def=0" json:"level,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Log output format
+	// env_interpolation: n/a (non-string)
+	Format *LogOptionsGeneral_Format `protobuf:"varint,1,opt,name=format,enum=settings.v1alpha1.middleware.v1.LogOptionsGeneral_Format,def=0" json:"format,omitempty"`
+	// Minimum log level
+	// env_interpolation: n/a (non-string)
+	Level         *LogOptionsGeneral_Level `protobuf:"varint,2,opt,name=level,enum=settings.v1alpha1.middleware.v1.LogOptionsGeneral_Level,def=0" json:"level,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -245,19 +249,41 @@ func (x *LogOptionsGeneral) GetLevel() LogOptionsGeneral_Level {
 type LogOptionsHTTP struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Common fields available for any HTTP log entry
-	Method      *bool `protobuf:"varint,1,opt,name=method,def=1" json:"method,omitempty"`                        // include HTTP method (GET, POST, etc.)
-	Path        *bool `protobuf:"varint,2,opt,name=path,def=1" json:"path,omitempty"`                            // include request path
-	ClientIp    *bool `protobuf:"varint,3,opt,name=client_ip,json=clientIp" json:"client_ip,omitempty"`          // include client IP address
-	QueryParams *bool `protobuf:"varint,4,opt,name=query_params,json=queryParams" json:"query_params,omitempty"` // include query string parameters
-	Protocol    *bool `protobuf:"varint,5,opt,name=protocol" json:"protocol,omitempty"`                          // include protocol version (HTTP/1.1, HTTP/2, etc.)
-	Host        *bool `protobuf:"varint,6,opt,name=host" json:"host,omitempty"`                                  // include host from request (may differ from Host header)
-	Scheme      *bool `protobuf:"varint,7,opt,name=scheme" json:"scheme,omitempty"`                              // include request scheme (http, https)
+	// Include HTTP method (GET, POST, etc.)
+	// env_interpolation: n/a (non-string)
+	Method *bool `protobuf:"varint,1,opt,name=method,def=1" json:"method,omitempty"`
+	// Include request path
+	// env_interpolation: n/a (non-string)
+	Path *bool `protobuf:"varint,2,opt,name=path,def=1" json:"path,omitempty"`
+	// Include client IP address
+	// env_interpolation: n/a (non-string)
+	ClientIp *bool `protobuf:"varint,3,opt,name=client_ip,json=clientIp" json:"client_ip,omitempty"`
+	// Include query string parameters
+	// env_interpolation: n/a (non-string)
+	QueryParams *bool `protobuf:"varint,4,opt,name=query_params,json=queryParams" json:"query_params,omitempty"`
+	// Include protocol version (HTTP/1.1, HTTP/2, etc.)
+	// env_interpolation: n/a (non-string)
+	Protocol *bool `protobuf:"varint,5,opt,name=protocol" json:"protocol,omitempty"`
+	// Include host from request (may differ from Host header)
+	// env_interpolation: n/a (non-string)
+	Host *bool `protobuf:"varint,6,opt,name=host" json:"host,omitempty"`
+	// Include request scheme (http, https)
+	// env_interpolation: n/a (non-string)
+	Scheme *bool `protobuf:"varint,7,opt,name=scheme" json:"scheme,omitempty"`
 	// Response-specific fields (only available when response is present)
-	StatusCode *bool `protobuf:"varint,8,opt,name=status_code,json=statusCode,def=1" json:"status_code,omitempty"` // include HTTP response status code
-	Duration   *bool `protobuf:"varint,9,opt,name=duration" json:"duration,omitempty"`                             // include request processing time (only meaningful for response logging)
+	// Include HTTP response status code
+	// env_interpolation: n/a (non-string)
+	StatusCode *bool `protobuf:"varint,8,opt,name=status_code,json=statusCode,def=1" json:"status_code,omitempty"`
+	// Include request processing time (only meaningful for response logging)
+	// env_interpolation: n/a (non-string)
+	Duration *bool `protobuf:"varint,9,opt,name=duration" json:"duration,omitempty"`
 	// What to log for request and response
-	Request       *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,10,opt,name=request" json:"request,omitempty"`   // what to log for requests
-	Response      *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,11,opt,name=response" json:"response,omitempty"` // what to log for responses
+	// What to log for requests
+	// env_interpolation: n/a (non-string)
+	Request *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,10,opt,name=request" json:"request,omitempty"`
+	// What to log for responses
+	// env_interpolation: n/a (non-string)
+	Response      *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,11,opt,name=response" json:"response,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -378,22 +404,36 @@ func (x *LogOptionsHTTP) GetResponse() *LogOptionsHTTP_DirectionConfig {
 
 // Configuration for console logger middleware
 type ConsoleLoggerConfig struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Options *LogOptionsGeneral     `protobuf:"bytes,1,opt,name=options" json:"options,omitempty"` // general logging options (format, level)
-	Fields  *LogOptionsHTTP        `protobuf:"bytes,2,opt,name=fields" json:"fields,omitempty"`   // HTTP-specific field selection and formatting
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// General logging options (format, level)
+	// env_interpolation: n/a (non-string)
+	Options *LogOptionsGeneral `protobuf:"bytes,1,opt,name=options" json:"options,omitempty"`
+	// HTTP-specific field selection and formatting
+	// env_interpolation: n/a (non-string)
+	Fields *LogOptionsHTTP `protobuf:"bytes,2,opt,name=fields" json:"fields,omitempty"`
 	// Output destination (supports environment variable interpolation with ${VAR_NAME})
 	// Examples: "stdout", "stderr", "/var/log/app.log", "file:///var/log/app-${HOSTNAME}.log"
+	// env_interpolation: yes
 	Output *string `protobuf:"bytes,3,opt,name=output,def=stdout" json:"output,omitempty"`
 	// Preset configuration (applied before custom field overrides)
+	// env_interpolation: n/a (non-string)
 	Preset *ConsoleLoggerConfig_LogPreset `protobuf:"varint,4,opt,name=preset,enum=settings.v1alpha1.middleware.v1.ConsoleLoggerConfig_LogPreset,def=0" json:"preset,omitempty"`
 	// Path filtering - paths are matched as prefixes
-	IncludeOnlyPaths []string `protobuf:"bytes,5,rep,name=include_only_paths,json=includeOnlyPaths" json:"include_only_paths,omitempty"` // if set, only log requests matching these path prefixes
-	ExcludePaths     []string `protobuf:"bytes,6,rep,name=exclude_paths,json=excludePaths" json:"exclude_paths,omitempty"`               // exclude requests matching these path prefixes (e.g., "/health", "/metrics")
+	// If set, only log requests matching these path prefixes
+	// env_interpolation: yes
+	IncludeOnlyPaths []string `protobuf:"bytes,5,rep,name=include_only_paths,json=includeOnlyPaths" json:"include_only_paths,omitempty"`
+	// Exclude requests matching these path prefixes (e.g., "/health", "/metrics")
+	// env_interpolation: yes
+	ExcludePaths []string `protobuf:"bytes,6,rep,name=exclude_paths,json=excludePaths" json:"exclude_paths,omitempty"`
 	// Method filtering
-	IncludeOnlyMethods []string `protobuf:"bytes,7,rep,name=include_only_methods,json=includeOnlyMethods" json:"include_only_methods,omitempty"` // if set, only log these HTTP methods (e.g., ["GET", "POST"])
-	ExcludeMethods     []string `protobuf:"bytes,8,rep,name=exclude_methods,json=excludeMethods" json:"exclude_methods,omitempty"`               // exclude these HTTP methods from logging (e.g., ["OPTIONS"])
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// If set, only log these HTTP methods (e.g., ["GET", "POST"])
+	// env_interpolation: yes
+	IncludeOnlyMethods []string `protobuf:"bytes,7,rep,name=include_only_methods,json=includeOnlyMethods" json:"include_only_methods,omitempty"`
+	// Exclude these HTTP methods from logging (e.g., ["OPTIONS"])
+	// env_interpolation: yes
+	ExcludeMethods []string `protobuf:"bytes,8,rep,name=exclude_methods,json=excludeMethods" json:"exclude_methods,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 // Default values for ConsoleLoggerConfig fields.
@@ -490,14 +530,28 @@ func (x *ConsoleLoggerConfig) GetExcludeMethods() []string {
 
 // Configuration for what gets logged for request or response
 type LogOptionsHTTP_DirectionConfig struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Enabled        *bool                  `protobuf:"varint,1,opt,name=enabled,def=1" json:"enabled,omitempty"`                              // whether to log this direction at all
-	Body           *bool                  `protobuf:"varint,2,opt,name=body" json:"body,omitempty"`                                          // include the full body content
-	MaxBodySize    *int32                 `protobuf:"varint,3,opt,name=max_body_size,json=maxBodySize" json:"max_body_size,omitempty"`       // body content larger than this will be truncated (0 for no limit)
-	BodySize       *bool                  `protobuf:"varint,4,opt,name=body_size,json=bodySize" json:"body_size,omitempty"`                  // include the size of the body in bytes
-	Headers        *bool                  `protobuf:"varint,5,opt,name=headers" json:"headers,omitempty"`                                    // include headers
-	IncludeHeaders []string               `protobuf:"bytes,6,rep,name=include_headers,json=includeHeaders" json:"include_headers,omitempty"` // if set, only log these headers (e.g., ["Authorization", "X-Request-ID"])
-	ExcludeHeaders []string               `protobuf:"bytes,7,rep,name=exclude_headers,json=excludeHeaders" json:"exclude_headers,omitempty"` // headers to exclude from logging (e.g., ["Cookie", "Set-Cookie"])
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether to log this direction at all
+	// env_interpolation: n/a (non-string)
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,def=1" json:"enabled,omitempty"`
+	// Include the full body content
+	// env_interpolation: n/a (non-string)
+	Body *bool `protobuf:"varint,2,opt,name=body" json:"body,omitempty"`
+	// Body content larger than this will be truncated (0 for no limit)
+	// env_interpolation: n/a (non-string)
+	MaxBodySize *int32 `protobuf:"varint,3,opt,name=max_body_size,json=maxBodySize" json:"max_body_size,omitempty"`
+	// Include the size of the body in bytes
+	// env_interpolation: n/a (non-string)
+	BodySize *bool `protobuf:"varint,4,opt,name=body_size,json=bodySize" json:"body_size,omitempty"`
+	// Include headers
+	// env_interpolation: n/a (non-string)
+	Headers *bool `protobuf:"varint,5,opt,name=headers" json:"headers,omitempty"`
+	// If set, only log these headers (e.g., ["Authorization", "X-Request-ID"])
+	// env_interpolation: yes
+	IncludeHeaders []string `protobuf:"bytes,6,rep,name=include_headers,json=includeHeaders" json:"include_headers,omitempty"`
+	// Headers to exclude from logging (e.g., ["Cookie", "Set-Cookie"])
+	// env_interpolation: yes
+	ExcludeHeaders []string `protobuf:"bytes,7,rep,name=exclude_headers,json=excludeHeaders" json:"exclude_headers,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }

@@ -19,7 +19,7 @@ type ConsoleLogger struct {
 	Fields  LogOptionsHTTP    `json:"fields"  toml:"fields"`
 
 	// Output destination (supports environment variable interpolation)
-	Output string `json:"output" toml:"output"`
+	Output string `env_interpolation:"yes" json:"output" toml:"output"`
 
 	// Preset configuration (applied before custom field overrides)
 	Preset Preset `json:"preset" toml:"preset"`
@@ -191,6 +191,11 @@ func (c *ConsoleLogger) Type() string {
 // Validate validates the console logger configuration
 func (c *ConsoleLogger) Validate() error {
 	var errs []error
+
+	// Interpolate all tagged fields
+	if err := interpolation.InterpolateStruct(c); err != nil {
+		errs = append(errs, fmt.Errorf("interpolation failed for console logger: %w", err))
+	}
 
 	// Validate format
 	if c.Options.Format != "" {

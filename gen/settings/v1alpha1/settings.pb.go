@@ -72,11 +72,19 @@ func (Listener_Type) EnumDescriptor() ([]byte, []int) {
 
 // Server configuration root message
 type ServerConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Version       *string                `protobuf:"bytes,1,opt,name=version,def=v1" json:"version,omitempty"`
-	Listeners     []*Listener            `protobuf:"bytes,2,rep,name=listeners" json:"listeners,omitempty"`
-	Endpoints     []*Endpoint            `protobuf:"bytes,3,rep,name=endpoints" json:"endpoints,omitempty"`
-	Apps          []*AppDefinition       `protobuf:"bytes,4,rep,name=apps" json:"apps,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Configuration version identifier
+	// env_interpolation: yes
+	Version *string `protobuf:"bytes,1,opt,name=version,def=v1" json:"version,omitempty"`
+	// Network listeners configuration
+	// env_interpolation: n/a (non-string)
+	Listeners []*Listener `protobuf:"bytes,2,rep,name=listeners" json:"listeners,omitempty"`
+	// HTTP endpoints configuration
+	// env_interpolation: n/a (non-string)
+	Endpoints []*Endpoint `protobuf:"bytes,3,rep,name=endpoints" json:"endpoints,omitempty"`
+	// Application definitions
+	// env_interpolation: n/a (non-string)
+	Apps          []*AppDefinition `protobuf:"bytes,4,rep,name=apps" json:"apps,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -146,11 +154,17 @@ func (x *ServerConfig) GetApps() []*AppDefinition {
 
 // Listener configures a protocol/socket layer service (there could be multiple)
 type Listener struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Id      *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                                 // unique name for this listener
-	Address *string                `protobuf:"bytes,2,opt,name=address" json:"address,omitempty"`                                       // ":8080", "unix:/tmp/sock.sock", etc.
-	Type    *Listener_Type         `protobuf:"varint,3,opt,name=type,enum=settings.v1alpha1.Listener_Type,def=1" json:"type,omitempty"` // type of listener
-	// Protocol-specific options
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique identifier for this listener
+	// env_interpolation: no (ID field)
+	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	// Listener bind address (":8080", "unix:/tmp/sock.sock", etc.)
+	// env_interpolation: yes (address field)
+	Address *string `protobuf:"bytes,2,opt,name=address" json:"address,omitempty"`
+	// Protocol type for this listener
+	// env_interpolation: n/a (non-string)
+	Type *Listener_Type `protobuf:"varint,3,opt,name=type,enum=settings.v1alpha1.Listener_Type,def=1" json:"type,omitempty"`
+	// Protocol-specific configuration options
 	//
 	// Types that are valid to be assigned to ProtocolOptions:
 	//
@@ -237,6 +251,8 @@ type isListener_ProtocolOptions interface {
 }
 
 type Listener_Http struct {
+	// HTTP listener configuration
+	// env_interpolation: n/a (non-string)
 	Http *HttpListenerOptions `protobuf:"bytes,4,opt,name=http,oneof"`
 }
 
@@ -244,11 +260,19 @@ func (*Listener_Http) isListener_ProtocolOptions() {}
 
 // HTTP listener specific options
 type HttpListenerOptions struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ReadTimeout   *durationpb.Duration   `protobuf:"bytes,1,opt,name=read_timeout,json=readTimeout" json:"read_timeout,omitempty"`
-	WriteTimeout  *durationpb.Duration   `protobuf:"bytes,2,opt,name=write_timeout,json=writeTimeout" json:"write_timeout,omitempty"`
-	IdleTimeout   *durationpb.Duration   `protobuf:"bytes,3,opt,name=idle_timeout,json=idleTimeout" json:"idle_timeout,omitempty"`
-	DrainTimeout  *durationpb.Duration   `protobuf:"bytes,4,opt,name=drain_timeout,json=drainTimeout" json:"drain_timeout,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum time to read request headers and body
+	// env_interpolation: n/a (non-string)
+	ReadTimeout *durationpb.Duration `protobuf:"bytes,1,opt,name=read_timeout,json=readTimeout" json:"read_timeout,omitempty"`
+	// Maximum time to write response
+	// env_interpolation: n/a (non-string)
+	WriteTimeout *durationpb.Duration `protobuf:"bytes,2,opt,name=write_timeout,json=writeTimeout" json:"write_timeout,omitempty"`
+	// Maximum time for keep-alive connections
+	// env_interpolation: n/a (non-string)
+	IdleTimeout *durationpb.Duration `protobuf:"bytes,3,opt,name=idle_timeout,json=idleTimeout" json:"idle_timeout,omitempty"`
+	// Time to wait for connections to close during shutdown
+	// env_interpolation: n/a (non-string)
+	DrainTimeout  *durationpb.Duration `protobuf:"bytes,4,opt,name=drain_timeout,json=drainTimeout" json:"drain_timeout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -313,11 +337,19 @@ func (x *HttpListenerOptions) GetDrainTimeout() *durationpb.Duration {
 
 // Endpoint connects: listener -> routes -> apps
 type Endpoint struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`                                   // unique name for this endpoint
-	ListenerId    *string                `protobuf:"bytes,2,opt,name=listener_id,json=listenerId" json:"listener_id,omitempty"` // listener this endpoint is attached to
-	Routes        []*Route               `protobuf:"bytes,3,rep,name=routes" json:"routes,omitempty"`                           // routes that direct traffic to apps
-	Middlewares   []*v1.Middleware       `protobuf:"bytes,4,rep,name=middlewares" json:"middlewares,omitempty"`                 // middlewares layers to apply to requests/responses
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unique identifier for this endpoint
+	// env_interpolation: no (ID field)
+	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	// ID of the listener this endpoint is attached to
+	// env_interpolation: no (ID field)
+	ListenerId *string `protobuf:"bytes,2,opt,name=listener_id,json=listenerId" json:"listener_id,omitempty"`
+	// Routes that direct traffic to applications
+	// env_interpolation: n/a (non-string)
+	Routes []*Route `protobuf:"bytes,3,rep,name=routes" json:"routes,omitempty"`
+	// Middleware layers to apply to requests/responses
+	// env_interpolation: n/a (non-string)
+	Middlewares   []*v1.Middleware `protobuf:"bytes,4,rep,name=middlewares" json:"middlewares,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -382,10 +414,18 @@ func (x *Endpoint) GetMiddlewares() []*v1.Middleware {
 
 // Route defines a rule for directing traffic from an endpoint to an app
 type Route struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	AppId       *string                `protobuf:"bytes,1,opt,name=app_id,json=appId" json:"app_id,omitempty"`                // the app name this route directs traffic to
-	StaticData  *StaticData            `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"` // static data to pass to the app
-	Middlewares []*v1.Middleware       `protobuf:"bytes,3,rep,name=middlewares" json:"middlewares,omitempty"`                 // middlewares layers to apply to requests/responses
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the application this route directs traffic to
+	// env_interpolation: no (ID field)
+	AppId *string `protobuf:"bytes,1,opt,name=app_id,json=appId" json:"app_id,omitempty"`
+	// Static data to pass to the application
+	// env_interpolation: n/a (non-string)
+	StaticData *StaticData `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
+	// Middleware layers to apply to requests/responses
+	// env_interpolation: n/a (non-string)
+	Middlewares []*v1.Middleware `protobuf:"bytes,3,rep,name=middlewares" json:"middlewares,omitempty"`
+	// Routing rule configuration
+	//
 	// Types that are valid to be assigned to Rule:
 	//
 	//	*Route_Http
@@ -466,15 +506,21 @@ type isRoute_Rule interface {
 }
 
 type Route_Http struct {
+	// HTTP-specific routing rule
+	// env_interpolation: n/a (non-string)
 	Http *HttpRule `protobuf:"bytes,100,opt,name=http,oneof"`
 }
 
 func (*Route_Http) isRoute_Rule() {}
 
 type HttpRule struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PathPrefix    *string                `protobuf:"bytes,1,opt,name=path_prefix,json=pathPrefix" json:"path_prefix,omitempty"`
-	Method        *string                `protobuf:"bytes,2,opt,name=method" json:"method,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// HTTP path prefix to match against requests
+	// env_interpolation: yes
+	PathPrefix *string `protobuf:"bytes,1,opt,name=path_prefix,json=pathPrefix" json:"path_prefix,omitempty"`
+	// HTTP method to match (GET, POST, etc.)
+	// env_interpolation: yes
+	Method        *string `protobuf:"bytes,2,opt,name=method" json:"method,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

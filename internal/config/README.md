@@ -64,10 +64,40 @@ This ensures users get reasonable defaults even when configuration sections are 
 
 **Note**: Protobuf Duration fields cannot have default values in the schema, so defaults must be implemented in the Go conversion layer.
 
+## Validation Architecture
+
+Configuration validation follows a strict two-phase architecture:
+
+### Phase 1: Domain Creation
+- **`NewFromProto()`** - Converts protobuf to domain objects
+- **Applies defaults** - Sets reasonable defaults for omitted fields
+- **NO validation** - Only data transformation, never validates business rules
+
+### Phase 2: Validation
+- **`Validate()`** - Validates business rules and cross-object constraints
+- **Environment variable interpolation** - Expands `${VAR_NAME}` syntax during validation
+- **Error accumulation** - Collects all validation errors using `errors.Join()`
+
+### Timing
+- **Interpolation happens during validation** - Not during conversion from protobuf
+- **Validate interpolated values** - Business rules apply to expanded values, not templates
+- **Explicit validation required** - Callers must call `.Validate()` explicitly
+
 ## Environment Variable Interpolation
 
-Config fields can support environment variable interpolation using `${VAR_NAME}` syntax. To add this to new fields:
+Config fields support environment variable interpolation using `${VAR_NAME}` and `${VAR_NAME:default}` syntax.
 
-1. **Protobuf**: Add field comment documenting interpolation support
-2. **Domain conversion**: Use `interpolation.ExpandEnvVars()` when converting from protobuf
-3. **Validation**: Validate the expanded value, not the raw template
+### Implementation
+- **Tag-based control**: Use `env_interpolation:"yes"/"no"` struct tags
+- **Validation-time only**: Interpolation happens during `Validate()`, not conversion
+- **Fields without tags**: Default to NOT being interpolated
+
+### Supported Fields
+- **Paths and URIs**: File paths, URLs, addresses
+- **User content**: Messages, responses, configuration values
+- **Network**: Host names, ports, endpoints
+
+### Not Interpolated
+- **Identifiers**: App IDs, listener IDs, middleware IDs
+- **Code content**: Script source, function names, entrypoints
+- **Structured data**: JSON, YAML, or other parseable content

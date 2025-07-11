@@ -19,38 +19,93 @@ message LogOptionsGeneral {
     LEVEL_FATAL = 5;
   }
 
+  // Log output format
+  // env_interpolation: n/a (non-string)
   Format format = 1 [default = FORMAT_UNSPECIFIED];
+  
+  // Minimum log level
+  // env_interpolation: n/a (non-string)
   Level level = 2 [default = LEVEL_UNSPECIFIED];
 }
 
 message LogOptionsHTTP {
   // Configuration for what gets logged for request or response
   message DirectionConfig {
-    bool enabled = 1 [default = true]; // whether to log this direction at all
-    bool body = 2; // include the full body content
-    int32 max_body_size = 3; // body content larger than this will be truncated (0 for no limit)
-    bool body_size = 4; // include the size of the body in bytes
-    bool headers = 5; // include headers
-    repeated string include_headers = 6; // if set, only log these headers (e.g., ["Authorization", "X-Request-ID"])
-    repeated string exclude_headers = 7; // headers to exclude from logging (e.g., ["Cookie", "Set-Cookie"])
+    // Whether to log this direction at all
+    // env_interpolation: n/a (non-string)
+    bool enabled = 1 [default = true];
+    
+    // Include the full body content
+    // env_interpolation: n/a (non-string)
+    bool body = 2;
+    
+    // Body content larger than this will be truncated (0 for no limit)
+    // env_interpolation: n/a (non-string)
+    int32 max_body_size = 3;
+    
+    // Include the size of the body in bytes
+    // env_interpolation: n/a (non-string)
+    bool body_size = 4;
+    
+    // Include headers
+    // env_interpolation: n/a (non-string)
+    bool headers = 5;
+    
+    // If set, only log these headers (e.g., ["Authorization", "X-Request-ID"])
+    // env_interpolation: yes
+    repeated string include_headers = 6;
+    
+    // Headers to exclude from logging (e.g., ["Cookie", "Set-Cookie"])
+    // env_interpolation: yes
+    repeated string exclude_headers = 7;
   }
 
   // Common fields available for any HTTP log entry
-  bool method = 1 [default = true]; // include HTTP method (GET, POST, etc.)
-  bool path = 2 [default = true]; // include request path
-  bool client_ip = 3; // include client IP address
-  bool query_params = 4; // include query string parameters
-  bool protocol = 5; // include protocol version (HTTP/1.1, HTTP/2, etc.)
-  bool host = 6; // include host from request (may differ from Host header)
-  bool scheme = 7; // include request scheme (http, https)
+  // Include HTTP method (GET, POST, etc.)
+  // env_interpolation: n/a (non-string)
+  bool method = 1 [default = true];
+  
+  // Include request path
+  // env_interpolation: n/a (non-string)
+  bool path = 2 [default = true];
+  
+  // Include client IP address
+  // env_interpolation: n/a (non-string)
+  bool client_ip = 3;
+  
+  // Include query string parameters
+  // env_interpolation: n/a (non-string)
+  bool query_params = 4;
+  
+  // Include protocol version (HTTP/1.1, HTTP/2, etc.)
+  // env_interpolation: n/a (non-string)
+  bool protocol = 5;
+  
+  // Include host from request (may differ from Host header)
+  // env_interpolation: n/a (non-string)
+  bool host = 6;
+  
+  // Include request scheme (http, https)
+  // env_interpolation: n/a (non-string)
+  bool scheme = 7;
 
   // Response-specific fields (only available when response is present)
-  bool status_code = 8 [default = true]; // include HTTP response status code
-  bool duration = 9; // include request processing time (only meaningful for response logging)
+  // Include HTTP response status code
+  // env_interpolation: n/a (non-string)
+  bool status_code = 8 [default = true];
+  
+  // Include request processing time (only meaningful for response logging)
+  // env_interpolation: n/a (non-string)
+  bool duration = 9;
 
   // What to log for request and response
-  DirectionConfig request = 10; // what to log for requests
-  DirectionConfig response = 11; // what to log for responses
+  // What to log for requests
+  // env_interpolation: n/a (non-string)
+  DirectionConfig request = 10;
+  
+  // What to log for responses
+  // env_interpolation: n/a (non-string)
+  DirectionConfig response = 11;
 }
 
 // Configuration for console logger middleware
@@ -64,21 +119,38 @@ message ConsoleLoggerConfig {
     PRESET_DEBUG = 4; // Everything including request/response bodies
   }
 
-  LogOptionsGeneral options = 1; // general logging options (format, level)
-  LogOptionsHTTP fields = 2; // HTTP-specific field selection and formatting
+  // General logging options (format, level)
+  // env_interpolation: n/a (non-string)
+  LogOptionsGeneral options = 1;
+  
+  // HTTP-specific field selection and formatting
+  // env_interpolation: n/a (non-string)
+  LogOptionsHTTP fields = 2;
 
   // Output destination (supports environment variable interpolation with ${VAR_NAME})
   // Examples: "stdout", "stderr", "/var/log/app.log", "file:///var/log/app-${HOSTNAME}.log"
+  // env_interpolation: yes
   string output = 3 [default = "stdout"];
 
   // Preset configuration (applied before custom field overrides)
+  // env_interpolation: n/a (non-string)
   LogPreset preset = 4 [default = PRESET_UNSPECIFIED];
 
   // Path filtering - paths are matched as prefixes
-  repeated string include_only_paths = 5; // if set, only log requests matching these path prefixes
-  repeated string exclude_paths = 6; // exclude requests matching these path prefixes (e.g., "/health", "/metrics")
+  // If set, only log requests matching these path prefixes
+  // env_interpolation: yes
+  repeated string include_only_paths = 5;
+  
+  // Exclude requests matching these path prefixes (e.g., "/health", "/metrics")
+  // env_interpolation: yes
+  repeated string exclude_paths = 6;
 
   // Method filtering
-  repeated string include_only_methods = 7; // if set, only log these HTTP methods (e.g., ["GET", "POST"])
-  repeated string exclude_methods = 8; // exclude these HTTP methods from logging (e.g., ["OPTIONS"])
+  // If set, only log these HTTP methods (e.g., ["GET", "POST"])
+  // env_interpolation: yes
+  repeated string include_only_methods = 7;
+  
+  // Exclude these HTTP methods from logging (e.g., ["OPTIONS"])
+  // env_interpolation: yes
+  repeated string exclude_methods = 8;
 }

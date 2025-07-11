@@ -76,9 +76,13 @@ func (StaticData_MergeMode) EnumDescriptor() ([]byte, []int) {
 }
 
 type StaticData struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	Data          map[string]*structpb.Value `protobuf:"bytes,1,rep,name=data" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	MergeMode     *StaticData_MergeMode      `protobuf:"varint,2,opt,name=merge_mode,json=mergeMode,enum=settings.v1alpha1.StaticData_MergeMode,def=0" json:"merge_mode,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Key-value pairs of static data
+	// env_interpolation: n/a (non-string)
+	Data map[string]*structpb.Value `protobuf:"bytes,1,rep,name=data" json:"data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Strategy for merging static data from different sources
+	// env_interpolation: n/a (non-string)
+	MergeMode     *StaticData_MergeMode `protobuf:"varint,2,opt,name=merge_mode,json=mergeMode,enum=settings.v1alpha1.StaticData_MergeMode,def=0" json:"merge_mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

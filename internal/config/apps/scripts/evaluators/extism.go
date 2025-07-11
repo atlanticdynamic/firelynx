@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 	"github.com/robbyt/go-polyscript/engines/extism"
 	"github.com/robbyt/go-polyscript/engines/extism/evaluator"
 	"github.com/robbyt/go-polyscript/platform"
@@ -19,11 +20,11 @@ var _ Evaluator = (*ExtismEvaluator)(nil)
 // ExtismEvaluator represents an Extism WASM evaluator.
 type ExtismEvaluator struct {
 	// Code contains the WASM binary encoded as base64.
-	Code string
+	Code string `env_interpolation:"no"`
 	// URI contains the location to load the WASM module from (file://, https://, etc.)
-	URI string
+	URI string `env_interpolation:"yes"`
 	// Entrypoint is the name of the function to call within the WASM module.
-	Entrypoint string
+	Entrypoint string `env_interpolation:"no"`
 	// Timeout is the maximum execution time allowed for the script.
 	Timeout time.Duration
 
@@ -57,6 +58,11 @@ func (e *ExtismEvaluator) String() string {
 func (e *ExtismEvaluator) Validate() error {
 	var errs []error
 
+	// Interpolate all tagged fields
+	if err := interpolation.InterpolateStruct(e); err != nil {
+		errs = append(errs, fmt.Errorf("interpolation failed for Extism evaluator: %w", err))
+	}
+
 	// XOR validation: either code OR uri must be present, but not both and not neither
 	if e.Code == "" && e.URI == "" {
 		errs = append(errs, ErrMissingCodeAndURI)
@@ -65,7 +71,7 @@ func (e *ExtismEvaluator) Validate() error {
 		errs = append(errs, ErrBothCodeAndURI)
 	}
 
-	// Entrypoint must not be empty
+	// Entrypoint must not be empty (not interpolated as it's a function name)
 	if e.Entrypoint == "" {
 		errs = append(errs, ErrEmptyEntrypoint)
 	}

@@ -14,11 +14,22 @@ message Middleware {
     TYPE_HEADERS = 2;
   }
 
+  // Unique identifier for this middleware
+  // env_interpolation: no (ID field)
   string id = 1;
+  
+  // Middleware type
+  // env_interpolation: n/a (non-string)
   Type type = 2;
 
+  // Middleware-specific configuration
   oneof config {
+    // Console logger middleware configuration
+    // env_interpolation: n/a (non-string)
     ConsoleLoggerConfig console_logger = 100;
+    
+    // Headers middleware configuration
+    // env_interpolation: n/a (non-string)
     HeadersConfig headers = 101;
   }
 }

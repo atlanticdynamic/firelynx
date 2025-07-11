@@ -9,8 +9,8 @@ import (
 
 // HTTP contains HTTP-specific route condition configuration
 type HTTP struct {
-	PathPrefix string
-	Method     string
+	PathPrefix string `env_interpolation:"yes"`
+	Method     string `env_interpolation:"no"`
 }
 
 // NewHTTP creates a new HTTP path condition
@@ -38,8 +38,7 @@ func (h HTTP) Validate() error {
 		return fmt.Errorf("%w: %w", ErrInvalidHTTPCondition, ErrEmptyValue)
 	}
 
-	// Additional validation logic can be added here
-	// For example, check if the path starts with '/'
+	// Check if the path starts with '/'
 	if !strings.HasPrefix(h.PathPrefix, "/") {
 		return fmt.Errorf("%w: path must start with '/'", ErrInvalidHTTPCondition)
 	}

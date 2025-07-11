@@ -17,13 +17,39 @@ message ConfigTransaction {
     SOURCE_TEST = 99; // Config manually created or modified
   }
 
-  string id = 1; // Unique identifier for this transaction (UUID)
-  Source source = 2 [default = SOURCE_UNSPECIFIED]; // Source of the config transaction
-  string source_detail = 3; // Additional details about the source (e.g., file path, API endpoint)
-  string request_id = 4; // Correlation ID for API requests, empty for file sources
-  google.protobuf.Timestamp created_at = 5; // Timestamp when the transaction was created
-  string state = 6; // Current state of the transaction
-  bool is_valid = 7; // Validation state of the transaction
-  repeated LogRecord logs = 8; // Transaction log history
-  ServerConfig config = 99; // The configuration associated with this transaction
+  // Unique identifier for this transaction (UUID)
+  // env_interpolation: no (ID field)
+  string id = 1;
+  
+  // Source of the config transaction
+  // env_interpolation: n/a (non-string)
+  Source source = 2 [default = SOURCE_UNSPECIFIED];
+  
+  // Additional details about the source (e.g., file path, API endpoint)
+  // env_interpolation: yes (path field)
+  string source_detail = 3;
+  
+  // Correlation ID for API requests, empty for file sources
+  // env_interpolation: no (ID field)
+  string request_id = 4;
+  
+  // Timestamp when the transaction was created
+  // env_interpolation: n/a (non-string)
+  google.protobuf.Timestamp created_at = 5;
+  
+  // Current state of the transaction
+  // env_interpolation: yes
+  string state = 6;
+  
+  // Validation state of the transaction
+  // env_interpolation: n/a (non-string)
+  bool is_valid = 7;
+  
+  // Transaction log history
+  // env_interpolation: n/a (non-string)
+  repeated LogRecord logs = 8;
+  
+  // The configuration associated with this transaction
+  // env_interpolation: n/a (non-string)
+  ServerConfig config = 99;
 }

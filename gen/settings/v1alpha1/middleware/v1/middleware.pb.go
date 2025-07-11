@@ -73,8 +73,14 @@ func (Middleware_Type) EnumDescriptor() ([]byte, []int) {
 // Middleware defines a middleware component
 type Middleware struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Id    *string                `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	Type  *Middleware_Type       `protobuf:"varint,2,opt,name=type,enum=settings.v1alpha1.middleware.v1.Middleware_Type" json:"type,omitempty"`
+	// Unique identifier for this middleware
+	// env_interpolation: no (ID field)
+	Id *string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	// Middleware type
+	// env_interpolation: n/a (non-string)
+	Type *Middleware_Type `protobuf:"varint,2,opt,name=type,enum=settings.v1alpha1.middleware.v1.Middleware_Type" json:"type,omitempty"`
+	// Middleware-specific configuration
+	//
 	// Types that are valid to be assigned to Config:
 	//
 	//	*Middleware_ConsoleLogger
@@ -158,10 +164,14 @@ type isMiddleware_Config interface {
 }
 
 type Middleware_ConsoleLogger struct {
+	// Console logger middleware configuration
+	// env_interpolation: n/a (non-string)
 	ConsoleLogger *ConsoleLoggerConfig `protobuf:"bytes,100,opt,name=console_logger,json=consoleLogger,oneof"`
 }
 
 type Middleware_Headers struct {
+	// Headers middleware configuration
+	// env_interpolation: n/a (non-string)
 	Headers *HeadersConfig `protobuf:"bytes,101,opt,name=headers,oneof"`
 }
 

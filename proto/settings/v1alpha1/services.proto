@@ -33,26 +33,46 @@ service ConfigService {
 
 // ValidateConfigRequest is used to validate a server configuration
 message ValidateConfigRequest {
-  ServerConfig config = 1; // The configuration to validate
+  // The configuration to validate
+  // env_interpolation: n/a (non-string)
+  ServerConfig config = 1;
 }
 
 // ValidateConfigResponse indicates whether the configuration is valid
 message ValidateConfigResponse {
-  bool valid = 1; // True if the configuration is valid
-  string error = 2; // Error message if the configuration is invalid
+  // True if the configuration is valid
+  // env_interpolation: n/a (non-string)
+  bool valid = 1;
+  
+  // Error message if the configuration is invalid
+  // env_interpolation: yes
+  string error = 2;
 }
 
 // Request to update the server configuration
 message UpdateConfigRequest {
+  // Configuration to apply
+  // env_interpolation: n/a (non-string)
   ServerConfig config = 1;
 }
 
 // Response to an update configuration request
 message UpdateConfigResponse {
+  // True if the configuration was applied successfully
+  // env_interpolation: n/a (non-string)
   bool success = 1;
+  
+  // Error message if the operation failed
+  // env_interpolation: yes
   string error = 2;
-  ServerConfig config = 3; // Returns the active configuration after update
-  string transaction_id = 4; // ID of the transaction
+  
+  // Returns the active configuration after update
+  // env_interpolation: n/a (non-string)
+  ServerConfig config = 3;
+  
+  // ID of the transaction
+  // env_interpolation: no (ID field)
+  string transaction_id = 4;
 }
 
 // Request to get the current server configuration
@@ -60,6 +80,8 @@ message GetConfigRequest {}
 
 // Response to a get configuration request
 message GetConfigResponse {
+  // Current server configuration
+  // env_interpolation: n/a (non-string)
   ServerConfig config = 1;
 }
 
@@ -68,41 +90,73 @@ message GetCurrentConfigTransactionRequest {}
 
 // Response containing the current configuration transaction
 message GetCurrentConfigTransactionResponse {
-  ConfigTransaction transaction = 1; // The current configuration transaction, null if none exists
+  // The current configuration transaction, null if none exists
+  // env_interpolation: n/a (non-string)
+  ConfigTransaction transaction = 1;
 }
 
 // ListConfigTransactionsRequest is used to retrieve the history of configuration transactions
 message ListConfigTransactionsRequest {
-  string page_token = 1; // Token to retrieve a specific page of results
-  int32 page_size = 2 [default = 10]; // Number of transactions per page
-  string state = 3; // Optional filter to retrieve transactions in a specific state
-  string source = 4; // Optional filter to retrieve transactions from a specific source
+  // Token to retrieve a specific page of results
+  // env_interpolation: yes
+  string page_token = 1;
+  
+  // Number of transactions per page
+  // env_interpolation: n/a (non-string)
+  int32 page_size = 2 [default = 10];
+  
+  // Optional filter to retrieve transactions in a specific state
+  // env_interpolation: yes
+  string state = 3;
+  
+  // Optional filter to retrieve transactions from a specific source
+  // env_interpolation: yes
+  string source = 4;
 }
 
 // ListConfigTransactionsResponse contains the history of configuration transactions
 message ListConfigTransactionsResponse {
-  repeated ConfigTransaction transactions = 1; // List of configuration transactions
-  string next_page_token = 2; // Token for retrieving the next page of results (empty if last page)
+  // List of configuration transactions
+  // env_interpolation: n/a (non-string)
+  repeated ConfigTransaction transactions = 1;
+  
+  // Token for retrieving the next page of results (empty if last page)
+  // env_interpolation: yes
+  string next_page_token = 2;
 }
 
 // GetConfigTransactionRequest is used to retrieve a specific configuration transaction by ID
 message GetConfigTransactionRequest {
-  string transaction_id = 1; // ID of the transaction to retrieve
+  // ID of the transaction to retrieve
+  // env_interpolation: no (ID field)
+  string transaction_id = 1;
 }
 
 // GetConfigTransactionResponse contains the details of a specific configuration transaction
 message GetConfigTransactionResponse {
-  ConfigTransaction transaction = 1; // The requested configuration transaction
+  // The requested configuration transaction
+  // env_interpolation: n/a (non-string)
+  ConfigTransaction transaction = 1;
 }
 
 // ClearConfigTransactionsRequest is used to clear the history of configuration transactions which are in terminal state
 message ClearConfigTransactionsRequest {
-  int32 keep_last = 1 [default = 0]; // Number of transactions to keep, 0 means clear all except current
+  // Number of transactions to keep, 0 means clear all except current
+  // env_interpolation: n/a (non-string)
+  int32 keep_last = 1 [default = 0];
 }
 
 // ClearConfigTransactionsResponse indicates the result of clearing configuration transactions
 message ClearConfigTransactionsResponse {
-  bool success = 1; // True if the history was cleared successfully
-  string error = 2; // Error message if the operation failed
-  int32 cleared_count = 3; // Number of transactions cleared
+  // True if the history was cleared successfully
+  // env_interpolation: n/a (non-string)
+  bool success = 1;
+  
+  // Error message if the operation failed
+  // env_interpolation: yes
+  string error = 2;
+  
+  // Number of transactions cleared
+  // env_interpolation: n/a (non-string)
+  int32 cleared_count = 3;
 }

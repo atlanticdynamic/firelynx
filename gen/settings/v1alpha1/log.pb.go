@@ -82,11 +82,19 @@ func (LogRecord_Level) EnumDescriptor() ([]byte, []int) {
 }
 
 type LogRecord struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	Time          *timestamppb.Timestamp     `protobuf:"bytes,1,opt,name=time" json:"time,omitempty"`                                                                             // Timestamp of when the log was created
-	Level         *LogRecord_Level           `protobuf:"varint,2,opt,name=level,enum=settings.v1alpha1.LogRecord_Level,def=0" json:"level,omitempty"`                             // Log level
-	Message       *string                    `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`                                                                       // Log message content
-	Attrs         map[string]*structpb.Value `protobuf:"bytes,4,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Structured attributes from slog
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Timestamp of when the log was created
+	// env_interpolation: n/a (non-string)
+	Time *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=time" json:"time,omitempty"`
+	// Log level
+	// env_interpolation: n/a (non-string)
+	Level *LogRecord_Level `protobuf:"varint,2,opt,name=level,enum=settings.v1alpha1.LogRecord_Level,def=0" json:"level,omitempty"`
+	// Log message content
+	// env_interpolation: yes
+	Message *string `protobuf:"bytes,3,opt,name=message" json:"message,omitempty"`
+	// Structured attributes from slog
+	// env_interpolation: n/a (non-string)
+	Attrs         map[string]*structpb.Value `protobuf:"bytes,4,rep,name=attrs" json:"attrs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

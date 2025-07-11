@@ -25,8 +25,10 @@ const (
 type HeadersConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Operations to perform on request headers
+	// env_interpolation: n/a (non-string)
 	Request *HeadersConfig_HeaderOperations `protobuf:"bytes,1,opt,name=request" json:"request,omitempty"`
 	// Operations to perform on response headers
+	// env_interpolation: n/a (non-string)
 	Response      *HeadersConfig_HeaderOperations `protobuf:"bytes,2,opt,name=response" json:"response,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -80,10 +82,13 @@ func (x *HeadersConfig) GetResponse() *HeadersConfig_HeaderOperations {
 type HeadersConfig_HeaderOperations struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Headers to set (replace existing values)
+	// env_interpolation: yes
 	SetHeaders map[string]string `protobuf:"bytes,1,rep,name=set_headers,json=setHeaders" json:"set_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Headers to add (append to existing values)
+	// env_interpolation: yes
 	AddHeaders map[string]string `protobuf:"bytes,2,rep,name=add_headers,json=addHeaders" json:"add_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Header names to remove
+	// env_interpolation: yes
 	RemoveHeaders []string `protobuf:"bytes,3,rep,name=remove_headers,json=removeHeaders" json:"remove_headers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
