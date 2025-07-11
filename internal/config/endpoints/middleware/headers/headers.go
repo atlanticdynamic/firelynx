@@ -15,13 +15,13 @@ const HeadersType = "headers"
 // HeaderOperations represents header manipulation operations
 type HeaderOperations struct {
 	// Headers to set (replace existing values)
-	SetHeaders map[string]string `env_interpolation:"yes" json:"setHeaders" toml:"set_headers"`
+	SetHeaders map[string]string `json:"setHeaders" toml:"set_headers" env_interpolation:"yes"`
 
 	// Headers to add (append to existing values)
-	AddHeaders map[string]string `env_interpolation:"yes" json:"addHeaders" toml:"add_headers"`
+	AddHeaders map[string]string `json:"addHeaders" toml:"add_headers" env_interpolation:"yes"`
 
 	// Header names to remove
-	RemoveHeaders []string `env_interpolation:"yes" json:"removeHeaders" toml:"remove_headers"`
+	RemoveHeaders []string `json:"removeHeaders" toml:"remove_headers" env_interpolation:"yes"`
 }
 
 // Headers represents a headers middleware configuration

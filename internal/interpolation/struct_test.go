@@ -10,23 +10,23 @@ import (
 )
 
 type TestConfig struct {
-	ID       string `env_interpolation:"no"  json:"id"`
-	Name     string `env_interpolation:"yes" json:"name"`
-	Path     string `env_interpolation:"yes" json:"path"`
-	Host     string `env_interpolation:"yes" json:"host"`
-	Port     string `env_interpolation:"yes" json:"port"`
-	Code     string `env_interpolation:"no"  json:"code"`
-	Script   string `env_interpolation:"no"  json:"script"`
-	Content  string `env_interpolation:"no"  json:"content"`
-	Message  string `env_interpolation:"yes" json:"message"`
-	Value    string `env_interpolation:"yes" json:"value"`
-	SourceID string `env_interpolation:"no"  json:"source_id"`
+	ID       string `json:"id"       env_interpolation:"no"`
+	Name     string `json:"name"     env_interpolation:"yes"`
+	Path     string `json:"path"     env_interpolation:"yes"`
+	Host     string `json:"host"     env_interpolation:"yes"`
+	Port     string `json:"port"     env_interpolation:"yes"`
+	Code     string `json:"code"     env_interpolation:"no"`
+	Script   string `json:"script"   env_interpolation:"no"`
+	Content  string `json:"content"  env_interpolation:"no"`
+	Message  string `json:"message"  env_interpolation:"yes"`
+	Value    string `json:"value"    env_interpolation:"yes"`
+	SourceID string `json:"sourceId" env_interpolation:"no"`
 }
 
 type NestedConfig struct {
-	OuterName string      `env_interpolation:"yes" json:"outer_name"`
-	Config    TestConfig  `env_interpolation:"yes" json:"config"`
-	ConfigPtr *TestConfig `env_interpolation:"yes" json:"config_ptr"`
+	OuterName string      `json:"outerName" env_interpolation:"yes"`
+	Config    TestConfig  `json:"config"    env_interpolation:"yes"`
+	ConfigPtr *TestConfig `json:"configPtr" env_interpolation:"yes"`
 }
 
 func TestExpandEnvVarsWithDefaultsFunction(t *testing.T) {
@@ -226,10 +226,10 @@ func TestInterpolateStructWithSlices(t *testing.T) {
 	})
 
 	type SliceConfig struct {
-		StringSlice []string      `env_interpolation:"yes" json:"string_slice"`
-		NoTagSlice  []string      `                        json:"no_tag_slice"`
-		Configs     []TestConfig  `env_interpolation:"yes" json:"configs"`
-		PtrConfigs  []*TestConfig `env_interpolation:"yes" json:"ptr_configs"`
+		StringSlice []string      `json:"stringSlice" env_interpolation:"yes"`
+		NoTagSlice  []string      `json:"noTagSlice"`
+		Configs     []TestConfig  `json:"configs"     env_interpolation:"yes"`
+		PtrConfigs  []*TestConfig `json:"ptrConfigs"  env_interpolation:"yes"`
 	}
 
 	sliceConfig := &SliceConfig{
