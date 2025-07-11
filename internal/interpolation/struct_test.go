@@ -87,6 +87,7 @@ func TestExpandEnvVarsWithDefaultsFunction(t *testing.T) {
 			} else {
 				assert.NoError(t, err, "should successfully expand environment variables")
 			}
+
 			assert.Equal(t, tt.expected, result, "interpolated value should match expected result")
 		})
 	}
@@ -415,4 +416,271 @@ func TestInterpolationPerformanceWithLargeStructs(t *testing.T) {
 	assert.Equal(t, "config-performance_test", largeConfig.Configs[0].Name)
 	assert.Equal(t, "performance_test.example.com", largeConfig.Configs[500].Host)
 	assert.Equal(t, "/data/performance_test/logs", largeConfig.Configs[999].Path)
+}
+
+func TestInterpolateStructEdgeCases(t *testing.T) {
+	require.NoError(t, os.Setenv("TEST_VALUE", "interpolated"))
+	t.Cleanup(func() {
+		require.NoError(t, os.Unsetenv("TEST_VALUE"))
+	})
+
+	t.Run("unexported fields are skipped", func(t *testing.T) {
+		type ConfigWithUnexported struct {
+			Public  string `env_interpolation:"yes"`
+			private string `env_interpolation:"yes"`
+		}
+
+		config := &ConfigWithUnexported{
+			Public:  "${TEST_VALUE}",
+			private: "${TEST_VALUE}",
+		}
+
+		err := InterpolateStruct(config)
+		require.NoError(t, err)
+
+		assert.Equal(t, "interpolated", config.Public, "public field should be interpolated")
+		assert.Equal(t, "${TEST_VALUE}", config.private, "private field should not be interpolated")
+	})
+
+	t.Run("fields without env_interpolation tag", func(t *testing.T) {
+		type ConfigNoTags struct {
+			NoTag      string
+			WrongTag   string `env_interpolation:"no"`
+			InvalidTag string `env_interpolation:"invalid"`
+			EmptyTag   string `env_interpolation:""`
+			YesTag     string `env_interpolation:"yes"`
+			YesTagCaps string `env_interpolation:"YES"`
+		}
+
+		config := &ConfigNoTags{
+			NoTag:      "${TEST_VALUE}",
+			WrongTag:   "${TEST_VALUE}",
+			InvalidTag: "${TEST_VALUE}",
+			EmptyTag:   "${TEST_VALUE}",
+			YesTag:     "${TEST_VALUE}",
+			YesTagCaps: "${TEST_VALUE}",
+		}
+
+		err := InterpolateStruct(config)
+		require.NoError(t, err)
+
+		assert.Equal(
+			t,
+			"${TEST_VALUE}",
+			config.NoTag,
+			"field without tag should not be interpolated",
+		)
+		assert.Equal(
+			t,
+			"${TEST_VALUE}",
+			config.WrongTag,
+			"field with 'no' tag should not be interpolated",
+		)
+		assert.Equal(
+			t,
+			"${TEST_VALUE}",
+			config.InvalidTag,
+			"field with invalid tag should not be interpolated",
+		)
+		assert.Equal(
+			t,
+			"${TEST_VALUE}",
+			config.EmptyTag,
+			"field with empty tag should not be interpolated",
+		)
+		assert.Equal(
+			t,
+			"interpolated",
+			config.YesTag,
+			"field with 'yes' tag should be interpolated",
+		)
+		assert.Equal(
+			t,
+			"interpolated",
+			config.YesTagCaps,
+			"field with 'YES' tag should be interpolated (case insensitive)",
+		)
+	})
+
+	t.Run("map fields edge cases", func(t *testing.T) {
+		type ConfigWithMaps struct {
+			StringMap    map[string]string `env_interpolation:"yes"`
+			IntKeyMap    map[int]string    `env_interpolation:"yes"`
+			StringIntMap map[string]int    `env_interpolation:"yes"`
+			NilMap       map[string]string `env_interpolation:"yes"`
+			EmptyMap     map[string]string `env_interpolation:"yes"`
+			InterfaceMap map[string]any    `env_interpolation:"yes"`
+		}
+
+		config := &ConfigWithMaps{
+			StringMap: map[string]string{
+				"key1": "${TEST_VALUE}",
+				"key2": "no-${TEST_VALUE}-vars",
+			},
+			IntKeyMap: map[int]string{
+				1: "${TEST_VALUE}",
+			},
+			StringIntMap: map[string]int{
+				"key": 42,
+			},
+			NilMap:   nil,
+			EmptyMap: map[string]string{},
+			InterfaceMap: map[string]any{
+				"key": "${TEST_VALUE}",
+			},
+		}
+
+		err := InterpolateStruct(config)
+		require.NoError(t, err)
+
+		assert.Equal(
+			t,
+			"interpolated",
+			config.StringMap["key1"],
+			"string map values should be interpolated",
+		)
+		assert.Equal(
+			t,
+			"no-interpolated-vars",
+			config.StringMap["key2"],
+			"string map values should be interpolated",
+		)
+		assert.Equal(
+			t,
+			"${TEST_VALUE}",
+			config.IntKeyMap[1],
+			"map with non-string key should not be interpolated",
+		)
+		assert.Equal(
+			t,
+			42,
+			config.StringIntMap["key"],
+			"map with non-string value should not be interpolated",
+		)
+		assert.Nil(t, config.NilMap, "nil map should remain nil")
+		assert.Empty(t, config.EmptyMap, "empty map should remain empty")
+		assert.Equal(
+			t,
+			"${TEST_VALUE}",
+			config.InterfaceMap["key"],
+			"interface{} map should not be interpolated",
+		)
+	})
+
+	t.Run("nested struct with nil pointer", func(t *testing.T) {
+		type NestedWithNil struct {
+			Name      string      `env_interpolation:"yes"`
+			ConfigPtr *TestConfig `env_interpolation:"yes"`
+		}
+
+		config := &NestedWithNil{
+			Name:      "${TEST_VALUE}",
+			ConfigPtr: nil,
+		}
+
+		err := InterpolateStruct(config)
+		require.NoError(t, err)
+
+		assert.Equal(t, "interpolated", config.Name, "string field should be interpolated")
+		assert.Nil(t, config.ConfigPtr, "nil pointer should remain nil")
+	})
+
+	t.Run("empty string fields", func(t *testing.T) {
+		config := &TestConfig{
+			Name: "",
+			Host: "${TEST_VALUE}",
+			Path: "",
+		}
+
+		err := InterpolateStruct(config)
+		require.NoError(t, err)
+
+		assert.Empty(t, config.Name, "empty string should remain empty")
+		assert.Equal(t, "interpolated", config.Host, "non-empty string should be interpolated")
+		assert.Empty(t, config.Path, "empty string should remain empty")
+	})
+
+	t.Run("slice edge cases", func(t *testing.T) {
+		type SliceEdgeCases struct {
+			NilSlice       []string      `env_interpolation:"yes"`
+			EmptySlice     []string      `env_interpolation:"yes"`
+			IntSlice       []int         `env_interpolation:"yes"`
+			PtrStringSlice []*string     `env_interpolation:"yes"`
+			NilPtrSlice    []*TestConfig `env_interpolation:"yes"`
+		}
+
+		testStr := "${TEST_VALUE}"
+		config := &SliceEdgeCases{
+			NilSlice:       nil,
+			EmptySlice:     []string{},
+			IntSlice:       []int{1, 2, 3},
+			PtrStringSlice: []*string{&testStr, nil},
+			NilPtrSlice:    []*TestConfig{nil, nil},
+		}
+
+		err := InterpolateStruct(config)
+		require.NoError(t, err)
+
+		assert.Nil(t, config.NilSlice, "nil slice should remain nil")
+		assert.Empty(t, config.EmptySlice, "empty slice should remain empty")
+		assert.Equal(t, []int{1, 2, 3}, config.IntSlice, "int slice should not be modified")
+		// Slice of *string is not handled by InterpolateStruct
+		assert.Equal(
+			t,
+			"${TEST_VALUE}",
+			*config.PtrStringSlice[0],
+			"pointer to string in slice is not interpolated",
+		)
+		assert.Nil(t, config.PtrStringSlice[1], "nil pointer in slice should remain nil")
+		assert.Len(
+			t,
+			config.NilPtrSlice, 2,
+			"slice with nil pointers should maintain length",
+		)
+	})
+
+	t.Run("string slice with empty strings", func(t *testing.T) {
+		type StringSliceConfig struct {
+			Strings []string `env_interpolation:"yes"`
+		}
+
+		config := &StringSliceConfig{
+			Strings: []string{"", "${TEST_VALUE}", "", "plain"},
+		}
+
+		err := InterpolateStruct(config)
+		require.NoError(t, err)
+
+		assert.Empty(t, config.Strings[0], "empty string in slice should remain empty")
+		assert.Equal(
+			t,
+			"interpolated",
+			config.Strings[1],
+			"non-empty string should be interpolated",
+		)
+		assert.Empty(t, config.Strings[2], "empty string in slice should remain empty")
+		assert.Equal(t, "plain", config.Strings[3], "plain string should remain unchanged")
+	})
+
+	t.Run("interface type detection", func(t *testing.T) {
+		// This test documents that interface detection doesn't work as expected
+		// because reflect.ValueOf unwraps interfaces to their concrete type
+		var iface any = &TestConfig{
+			Name: "${TEST_VALUE}",
+		}
+
+		// This will NOT return an error as we might expect
+		// because reflect.ValueOf(iface).Kind() returns reflect.Ptr, not reflect.Interface
+		err := InterpolateStruct(iface)
+		require.NoError(t, err)
+
+		// The interpolation actually works on the concrete type
+		config := iface.(*TestConfig)
+		assert.Equal(
+			t,
+			"interpolated",
+			config.Name,
+			"interpolation works on concrete type behind interface",
+		)
+	})
 }
