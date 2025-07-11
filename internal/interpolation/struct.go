@@ -8,69 +8,42 @@ import (
 )
 
 // InterpolateStruct applies environment variable interpolation to fields tagged with `env_interpolation:"yes"`.
-// This function modifies the provided struct in place and builds detailed error context with field paths.
+// This function modifies the provided struct in place. It handles string fields, string maps, and string slices.
+// Interface types will return an error - each concrete type should call this function on itself.
 func InterpolateStruct(v any) error {
 	if v == nil {
 		return nil
 	}
 
 	val := reflect.ValueOf(v)
+
+	// Fail fast if passed an interface type
+	if val.Kind() == reflect.Interface {
+		return fmt.Errorf(
+			"InterpolateStruct cannot handle interface types, call from concrete type instead",
+		)
+	}
+
+	// Handle pointer to struct
 	if val.Kind() == reflect.Ptr {
 		if val.IsNil() {
 			return nil
 		}
-		return interpolateRecursive(val, "")
+		val = val.Elem()
 	}
 
-	// Handle non-pointer types by checking if they're structs
+	// Must be a struct at this point
 	if val.Kind() != reflect.Struct {
 		return fmt.Errorf("expected struct or pointer to struct, got %T", v)
 	}
 
-	// For struct values, check if addressable first
-	if !val.CanAddr() {
-		return fmt.Errorf("cannot interpolate non-addressable struct value, pass a pointer instead")
-	}
-
-	// For struct values, get address to pass as pointer
-	return interpolateRecursive(val.Addr(), "")
-}
-
-// interpolateRecursive handles the actual interpolation work with proper error context building
-func interpolateRecursive(val reflect.Value, fieldPath string) error {
-	// Dereference pointer to get the actual element
-	elem := val.Elem()
-	if elem.Kind() != reflect.Struct {
-		return fmt.Errorf("expected a struct, got %T", val.Interface())
-	}
-
-	typ := elem.Type()
+	typ := val.Type()
 	var errs []error
 
-	// Helper function to build field path for error context
-	buildFieldPath := func(fieldName string) string {
-		if fieldPath == "" {
-			return fieldName
-		}
-		return fieldPath + "." + fieldName
-	}
-
-	// Helper function to handle recursive calls with proper error context
-	processRecursively := func(fieldVal reflect.Value, currentPath string) error {
-		if fieldVal.Kind() == reflect.Ptr {
-			if fieldVal.IsNil() {
-				return nil
-			}
-			return interpolateRecursive(fieldVal, currentPath)
-		}
-		// For struct values, get address to pass as pointer
-		return interpolateRecursive(fieldVal.Addr(), currentPath)
-	}
-
-	for i := 0; i < elem.NumField(); i++ {
-		field := elem.Field(i)
+	// Process each field in the struct
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
 		fieldType := typ.Field(i)
-		currentPath := buildFieldPath(fieldType.Name)
 
 		// Skip unexported fields
 		if !field.CanSet() {
@@ -83,72 +56,98 @@ func interpolateRecursive(val reflect.Value, fieldPath string) error {
 			continue
 		}
 
+		// Handle different field types
 		switch field.Kind() {
 		case reflect.String:
-			if original := field.String(); original != "" {
-				interpolated, err := ExpandEnvVarsWithDefaults(original)
-				if err != nil {
-					errs = append(errs, fmt.Errorf("field %s: %w", currentPath, err))
-				} else {
-					field.SetString(interpolated)
-				}
+			original := field.String()
+			if original == "" {
+				continue
 			}
+
+			interpolated, err := ExpandEnvVarsWithDefaults(original)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("field %s: %w", fieldType.Name, err))
+				continue
+			}
+			field.SetString(interpolated)
 
 		case reflect.Map:
 			// Handle map[string]string fields
-			if field.Type().Key().Kind() == reflect.String &&
-				field.Type().Elem().Kind() == reflect.String && !field.IsNil() {
-				// Collect keys first to avoid modification during iteration
-				keys := field.MapKeys()
-				for _, key := range keys {
-					value := field.MapIndex(key)
-					interpolated, err := ExpandEnvVarsWithDefaults(value.String())
-					mapPath := fmt.Sprintf("%s[%s]", currentPath, key.String())
+			if field.Type().Key().Kind() != reflect.String ||
+				field.Type().Elem().Kind() != reflect.String ||
+				field.IsNil() {
+				continue
+			}
 
+			for _, key := range field.MapKeys() {
+				value := field.MapIndex(key)
+				interpolated, err := ExpandEnvVarsWithDefaults(value.String())
+				if err != nil {
+					errs = append(
+						errs,
+						fmt.Errorf("field %s[%s]: %w", fieldType.Name, key.String(), err),
+					)
+					continue
+				}
+				field.SetMapIndex(key, reflect.ValueOf(interpolated))
+			}
+
+		case reflect.Slice:
+			elemType := field.Type().Elem()
+
+			switch elemType.Kind() {
+			case reflect.String:
+				for j := 0; j < field.Len(); j++ {
+					elem := field.Index(j)
+					original := elem.String()
+					if original == "" {
+						continue
+					}
+
+					interpolated, err := ExpandEnvVarsWithDefaults(original)
 					if err != nil {
-						errs = append(errs, fmt.Errorf("field %s: %w", mapPath, err))
-					} else if interpolated != value.String() {
-						// Only update if value changed
-						field.SetMapIndex(key, reflect.ValueOf(interpolated))
+						errs = append(errs, fmt.Errorf("field %s[%d]: %w", fieldType.Name, j, err))
+						continue
+					}
+					elem.SetString(interpolated)
+				}
+
+			case reflect.Struct:
+				for j := 0; j < field.Len(); j++ {
+					elem := field.Index(j)
+					if err := InterpolateStruct(elem.Addr().Interface()); err != nil {
+						errs = append(errs, fmt.Errorf("field %s[%d]: %w", fieldType.Name, j, err))
+					}
+				}
+
+			case reflect.Ptr:
+				if elemType.Elem().Kind() == reflect.Struct {
+					for j := 0; j < field.Len(); j++ {
+						elem := field.Index(j)
+						if elem.IsNil() {
+							continue
+						}
+						if err := InterpolateStruct(elem.Interface()); err != nil {
+							errs = append(
+								errs,
+								fmt.Errorf("field %s[%d]: %w", fieldType.Name, j, err),
+							)
+						}
 					}
 				}
 			}
 
 		case reflect.Struct:
-			if err := processRecursively(field, currentPath); err != nil {
-				errs = append(errs, err)
+			// Handle nested struct fields
+			if err := InterpolateStruct(field.Addr().Interface()); err != nil {
+				errs = append(errs, fmt.Errorf("field %s: %w", fieldType.Name, err))
 			}
 
 		case reflect.Ptr:
+			// Handle *SomeStruct fields
 			if field.Type().Elem().Kind() == reflect.Struct && !field.IsNil() {
-				if err := processRecursively(field, currentPath); err != nil {
-					errs = append(errs, err)
-				}
-			}
-
-		case reflect.Slice:
-			for j := 0; j < field.Len(); j++ {
-				elem := field.Index(j)
-				slicePath := fmt.Sprintf("%s[%d]", currentPath, j)
-
-				if elem.Kind() == reflect.String {
-					if original := elem.String(); original != "" {
-						interpolated, err := ExpandEnvVarsWithDefaults(original)
-						if err != nil {
-							errs = append(errs, fmt.Errorf("field %s: %w", slicePath, err))
-						} else {
-							elem.SetString(interpolated)
-						}
-					}
-				} else if elem.Kind() == reflect.Struct {
-					if err := processRecursively(elem, slicePath); err != nil {
-						errs = append(errs, err)
-					}
-				} else if elem.Kind() == reflect.Ptr &&
-					elem.Type().Elem().Kind() == reflect.Struct && !elem.IsNil() {
-					if err := processRecursively(elem, slicePath); err != nil {
-						errs = append(errs, err)
-					}
+				if err := InterpolateStruct(field.Interface()); err != nil {
+					errs = append(errs, fmt.Errorf("field %s: %w", fieldType.Name, err))
 				}
 			}
 		}

@@ -150,31 +150,31 @@ func TestInterpolateStruct(t *testing.T) {
 			t,
 			"outer-server.example.com",
 			nested.OuterName,
-			"outer field with env_interpolation:'yes' should be interpolated",
+			"outer field should be interpolated",
 		)
 		assert.Equal(
 			t,
 			"inner-server.example.com",
 			nested.Config.Name,
-			"nested struct field with env_interpolation:'yes' should be interpolated",
+			"nested struct field should be interpolated",
 		)
 		assert.Equal(
 			t,
 			"server.example.com",
 			nested.Config.Host,
-			"nested struct field with env_interpolation:'yes' should be interpolated",
+			"nested struct field should be interpolated",
 		)
 		assert.Equal(
 			t,
 			"ptr-server.example.com",
 			nested.ConfigPtr.Name,
-			"pointer-to-struct field with env_interpolation:'yes' should be interpolated",
+			"pointer-to-struct field should be interpolated",
 		)
 		assert.Equal(
 			t,
 			"/data/server.example.com",
 			nested.ConfigPtr.Path,
-			"pointer-to-struct field with env_interpolation:'yes' should be interpolated",
+			"pointer-to-struct field should be interpolated",
 		)
 	})
 
@@ -225,11 +225,21 @@ func TestInterpolateStructWithSlices(t *testing.T) {
 	})
 
 	type SliceConfig struct {
-		Configs    []TestConfig  `env_interpolation:"yes" json:"configs"`
-		PtrConfigs []*TestConfig `env_interpolation:"yes" json:"ptr_configs"`
+		StringSlice []string      `env_interpolation:"yes" json:"string_slice"`
+		NoTagSlice  []string      `                        json:"no_tag_slice"`
+		Configs     []TestConfig  `env_interpolation:"yes" json:"configs"`
+		PtrConfigs  []*TestConfig `env_interpolation:"yes" json:"ptr_configs"`
 	}
 
 	sliceConfig := &SliceConfig{
+		StringSlice: []string{
+			"item1-${TEST_VALUE}",
+			"${TEST_VALUE}-item2",
+			"prefix-${TEST_VALUE}-suffix",
+		},
+		NoTagSlice: []string{
+			"no-${TEST_VALUE}-tag",
+		},
 		Configs: []TestConfig{
 			{Name: "config1-${TEST_VALUE}", Host: "${TEST_VALUE}"},
 			{Name: "config2-${TEST_VALUE}", Path: "/path/${TEST_VALUE}"},
@@ -243,15 +253,85 @@ func TestInterpolateStructWithSlices(t *testing.T) {
 	err := InterpolateStruct(sliceConfig)
 	require.NoError(t, err)
 
-	assert.Equal(t, "config1-interpolated", sliceConfig.Configs[0].Name)
-	assert.Equal(t, "interpolated", sliceConfig.Configs[0].Host)
-	assert.Equal(t, "config2-interpolated", sliceConfig.Configs[1].Name)
-	assert.Equal(t, "/path/interpolated", sliceConfig.Configs[1].Path)
+	// String slice should be interpolated
+	assert.Equal(
+		t,
+		"item1-interpolated",
+		sliceConfig.StringSlice[0],
+		"tagged string slice should be interpolated",
+	)
+	assert.Equal(
+		t,
+		"interpolated-item2",
+		sliceConfig.StringSlice[1],
+		"tagged string slice should be interpolated",
+	)
+	assert.Equal(
+		t,
+		"prefix-interpolated-suffix",
+		sliceConfig.StringSlice[2],
+		"tagged string slice should be interpolated",
+	)
 
-	assert.Equal(t, "ptr1-interpolated", sliceConfig.PtrConfigs[0].Name)
-	assert.Equal(t, "msg-interpolated", sliceConfig.PtrConfigs[0].Message)
-	assert.Equal(t, "ptr2-interpolated", sliceConfig.PtrConfigs[1].Name)
-	assert.Equal(t, "interpolated", sliceConfig.PtrConfigs[1].Value)
+	// Non-tagged slice should not be interpolated
+	assert.Equal(
+		t,
+		"no-${TEST_VALUE}-tag",
+		sliceConfig.NoTagSlice[0],
+		"non-tagged slice should not be interpolated",
+	)
+
+	// Struct slices should be recursively interpolated
+	assert.Equal(
+		t,
+		"config1-interpolated",
+		sliceConfig.Configs[0].Name,
+		"struct slice elements should be interpolated",
+	)
+	assert.Equal(
+		t,
+		"interpolated",
+		sliceConfig.Configs[0].Host,
+		"struct slice elements should be interpolated",
+	)
+	assert.Equal(
+		t,
+		"config2-interpolated",
+		sliceConfig.Configs[1].Name,
+		"struct slice elements should be interpolated",
+	)
+	assert.Equal(
+		t,
+		"/path/interpolated",
+		sliceConfig.Configs[1].Path,
+		"struct slice elements should be interpolated",
+	)
+
+	// Pointer-to-struct slices should be recursively interpolated
+	assert.Equal(
+		t,
+		"ptr1-interpolated",
+		sliceConfig.PtrConfigs[0].Name,
+		"pointer struct slice elements should be interpolated",
+	)
+	assert.Equal(
+		t,
+		"msg-interpolated",
+		sliceConfig.PtrConfigs[0].Message,
+		"pointer struct slice elements should be interpolated",
+	)
+	assert.Equal(
+		t,
+		"ptr2-interpolated",
+		sliceConfig.PtrConfigs[1].Name,
+		"pointer struct slice elements should be interpolated",
+	)
+	assert.Equal(
+		t,
+		"interpolated",
+		sliceConfig.PtrConfigs[1].Value,
+		"pointer struct slice elements should be interpolated",
+	)
 }
 
 func TestInterpolationValidationOrder(t *testing.T) {
