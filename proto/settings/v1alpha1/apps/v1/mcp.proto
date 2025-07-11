@@ -1,0 +1,158 @@
+edition = "2023";
+
+package settings.v1alpha1.apps.v1;
+
+import "settings/v1alpha1/data/v1/static_data.proto";
+import "settings/v1alpha1/apps/v1/risor.proto";
+import "settings/v1alpha1/apps/v1/starlark.proto";
+import "settings/v1alpha1/apps/v1/extism.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1";
+
+// MCP (Model Context Protocol) app
+message McpApp {
+  // MCP server implementation details
+  // env_interpolation: yes (server name)
+  string server_name = 1;
+  // env_interpolation: yes (server version)
+  string server_version = 2;
+  
+  // MCP transport configuration
+  // env_interpolation: n/a (non-string)
+  McpTransport transport = 3;
+  
+  // MCP tools configuration
+  // env_interpolation: n/a (non-string)
+  repeated McpTool tools = 4;
+  
+  // MCP resources configuration (future phases)
+  // env_interpolation: n/a (non-string)
+  repeated McpResource resources = 5;
+  
+  // MCP prompts configuration (future phases)
+  // env_interpolation: n/a (non-string)
+  repeated McpPrompt prompts = 6;
+  
+  // MCP SDK middleware configuration
+  // env_interpolation: n/a (non-string)
+  repeated McpMiddleware middlewares = 7;
+}
+
+// MCP transport configuration
+message McpTransport {
+  // Enable Server-Sent Events (SSE) support for MCP protocol
+  // env_interpolation: n/a (non-string)
+  bool sse_enabled = 1;
+  
+  // SSE endpoint path when SSE is enabled
+  // env_interpolation: yes (path field)
+  string sse_path = 2;
+}
+
+// MCP tool definition
+message McpTool {
+  // env_interpolation: no (tool name)
+  string name = 1;
+  // env_interpolation: yes (description text)
+  string description = 2;
+  
+  // Tool implementation using existing evaluator types
+  oneof handler {
+    McpScriptHandler script = 10;   // Script-based tool using evaluators
+    McpBuiltinHandler builtin = 11; // Built-in tool handlers
+  }
+}
+
+// Script handler reusing existing evaluator infrastructure
+message McpScriptHandler {
+  // Static data specific to this tool
+  // env_interpolation: n/a (non-string)
+  settings.v1alpha1.data.v1.StaticData static_data = 1;
+  
+  // Reuse existing evaluator types from script app
+  oneof evaluator {
+    RisorEvaluator risor = 2;     // Reuse existing evaluators
+    StarlarkEvaluator starlark = 3;
+    ExtismEvaluator extism = 4;
+  }
+}
+
+// Built-in handler for common operations
+message McpBuiltinHandler {
+  enum Type {
+    ECHO = 0;           // Simple echo tool for testing
+    CALCULATION = 1;    // Mathematical calculations  
+    FILE_READ = 2;      // File reading operations
+  }
+  // env_interpolation: n/a (non-string)
+  Type type = 1;
+  // env_interpolation: yes (config values may contain paths)
+  map<string, string> config = 2;
+}
+
+// MCP resource definition (future phases)
+message McpResource {
+  // env_interpolation: yes (URI field)
+  string uri = 1;
+  // env_interpolation: yes (name field)
+  string name = 2;
+  // env_interpolation: yes (description text)
+  string description = 3;
+  // env_interpolation: no (MIME type)
+  string mime_type = 4;
+  
+  oneof source {
+    // env_interpolation: yes (file path)
+    string file_path = 10;
+    // env_interpolation: no (static content)
+    string static_content = 11;
+    McpScriptResource script = 12;  // go-polyscript integration
+  }
+}
+
+message McpScriptResource {
+  // env_interpolation: n/a (non-string)
+  settings.v1alpha1.data.v1.StaticData static_data = 1;
+  oneof evaluator {
+    RisorEvaluator risor = 2;
+    StarlarkEvaluator starlark = 3;
+    ExtismEvaluator extism = 4;
+  }
+}
+
+// MCP prompt definition (future phases)
+message McpPrompt {
+  // env_interpolation: no (prompt name)
+  string name = 1;
+  // env_interpolation: yes (description text)
+  string description = 2;
+  
+  oneof source {
+    // env_interpolation: no (template content)
+    string template = 10;
+    McpScriptPrompt script = 11;  // go-polyscript generated prompts
+  }
+}
+
+message McpScriptPrompt {
+  // env_interpolation: n/a (non-string)
+  settings.v1alpha1.data.v1.StaticData static_data = 1;
+  oneof evaluator {
+    RisorEvaluator risor = 2;
+    StarlarkEvaluator starlark = 3;
+    ExtismEvaluator extism = 4;
+  }
+}
+
+// MCP SDK middleware configuration  
+message McpMiddleware {
+  enum Type {
+    RATE_LIMITING = 0;     // Native MCP rate limiting
+    MCP_LOGGING = 1;       // MCP-specific logging
+    MCP_AUTHENTICATION = 2; // MCP authentication
+  }
+  // env_interpolation: n/a (non-string)
+  Type type = 1;
+  // env_interpolation: yes (config values)
+  map<string, string> config = 2;
+}

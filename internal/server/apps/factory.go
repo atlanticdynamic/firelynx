@@ -16,6 +16,7 @@ func NewAppFactory() *AppFactory {
 		creators: map[string]Instantiator{
 			"echo":   createEchoApp,
 			"script": createScriptApp,
+			"mcp":    createMCPApp,
 		},
 	}
 }

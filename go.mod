@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/log v0.4.2
 	github.com/gofrs/uuid/v5 v5.3.2
+	github.com/modelcontextprotocol/go-sdk v0.2.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.4.1
 	github.com/robbyt/go-loglater v0.1.4
@@ -43,6 +44,7 @@ require (
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.0 // indirect
 	go.starlark.net v0.0.0-20250701195324-d457b4515e0e // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
