@@ -34,7 +34,7 @@ func TestFromProto(t *testing.T) {
 		assert.Equal(t, TypeHTTP, condition.Type(), "Condition should be HTTP type")
 
 		// Perform type assertion to ensure it's an HTTP condition
-		httpCond, ok := condition.(HTTP)
+		httpCond, ok := condition.(*HTTP)
 		assert.True(t, ok, "Condition should be of type HTTP")
 		assert.Equal(t, pathPrefix, httpCond.PathPrefix, "HTTP path prefix should match input")
 		assert.Equal(t, method, httpCond.Method, "HTTP method should match input")

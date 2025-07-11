@@ -117,7 +117,7 @@ func TestEndToEndInterpolation(t *testing.T) {
 		condition := conditions.FromProto(route)
 		require.NotNil(t, condition)
 
-		httpCond, ok := condition.(conditions.HTTP)
+		httpCond, ok := condition.(*conditions.HTTP)
 		require.True(t, ok)
 
 		assert.Equal(
@@ -128,16 +128,18 @@ func TestEndToEndInterpolation(t *testing.T) {
 		)
 
 		err := httpCond.Validate()
-		require.Error(
+		require.NoError(
 			t,
 			err,
-			"validation should fail on uninterpolated path that doesn't start with '/'",
+			"validation should succeed after interpolation to valid path",
 		)
-		assert.ErrorIs(
+
+		// Verify the path was interpolated correctly
+		assert.Equal(
 			t,
-			err,
-			conditions.ErrInvalidHTTPCondition,
-			"should return HTTP condition validation error",
+			"/api/v1/users",
+			httpCond.PathPrefix,
+			"path should be interpolated during validation",
 		)
 	})
 
@@ -266,7 +268,7 @@ func TestFieldRulesCompliance(t *testing.T) {
 		condition := conditions.FromProto(route)
 		require.NotNil(t, condition)
 
-		httpCond := condition.(conditions.HTTP)
+		httpCond := condition.(*conditions.HTTP)
 		assert.Equal(
 			t,
 			"/api/${TEST_VALUE}",
@@ -320,7 +322,7 @@ func TestProtobufRoundTripWithInterpolation(t *testing.T) {
 		condition := conditions.FromProto(route)
 		require.NotNil(t, condition)
 
-		httpCond, ok := condition.(conditions.HTTP)
+		httpCond, ok := condition.(*conditions.HTTP)
 		require.True(t, ok)
 
 		assert.Equal(

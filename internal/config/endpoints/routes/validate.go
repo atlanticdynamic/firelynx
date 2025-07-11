@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/validation"
-	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 )
 
 // Validate performs validation for a Route
@@ -21,10 +20,6 @@ func (r *Route) Validate() error {
 	if r.Condition == nil {
 		errs = append(errs, fmt.Errorf("%w: route condition", ErrMissingRequiredField))
 	} else {
-		// Apply interpolation to condition before validation
-		if err := interpolation.InterpolateStruct(r.Condition); err != nil {
-			errs = append(errs, fmt.Errorf("condition interpolation failed: %w", err))
-		}
 		// Use the condition's own validate method
 		if err := r.Condition.Validate(); err != nil {
 			errs = append(errs, fmt.Errorf("route condition: %w", err))
