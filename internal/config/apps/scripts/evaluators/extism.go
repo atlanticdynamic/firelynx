@@ -24,7 +24,7 @@ type ExtismEvaluator struct {
 	// URI contains the location to load the WASM module from (file://, https://, etc.)
 	URI string `env_interpolation:"yes"`
 	// Entrypoint is the name of the function to call within the WASM module.
-	Entrypoint string `env_interpolation:"no"`
+	Entrypoint string `env_interpolation:"yes"`
 	// Timeout is the maximum execution time allowed for the script.
 	Timeout time.Duration
 
@@ -71,7 +71,6 @@ func (e *ExtismEvaluator) Validate() error {
 		errs = append(errs, ErrBothCodeAndURI)
 	}
 
-	// Entrypoint must not be empty (not interpolated as it's a function name)
 	if e.Entrypoint == "" {
 		errs = append(errs, ErrEmptyEntrypoint)
 	}
@@ -86,7 +85,7 @@ func (e *ExtismEvaluator) Validate() error {
 		return errors.Join(errs...)
 	}
 
-	// Trigger compilation
+	// Trigger evaluator build to load the WASM module into the evaluator
 	e.build()
 	return e.buildErr
 }

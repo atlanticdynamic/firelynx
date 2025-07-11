@@ -66,8 +66,8 @@ type DirectionConfig struct {
 	MaxBodySize    int32    `json:"maxBodySize"    toml:"max_body_size"`
 	BodySize       bool     `json:"bodySize"       toml:"body_size"`
 	Headers        bool     `json:"headers"        toml:"headers"`
-	IncludeHeaders []string `env_interpolation:"yes" json:"includeHeaders" toml:"include_headers"`
-	ExcludeHeaders []string `env_interpolation:"yes" json:"excludeHeaders" toml:"exclude_headers"`
+	IncludeHeaders []string `json:"includeHeaders" toml:"include_headers" env_interpolation:"yes"`
+	ExcludeHeaders []string `json:"excludeHeaders" toml:"exclude_headers" env_interpolation:"yes"`
 }
 
 // Format represents logging format options
@@ -311,7 +311,7 @@ func (c *ConsoleLogger) ToTree() *fancy.ComponentTree {
 // validateOutputWritability checks if the output destination is writable
 func (c *ConsoleLogger) validateOutputWritability() error {
 	// Expand environment variables in the output path
-	expandedOutput, err := interpolation.ExpandEnvVars(c.Output)
+	expandedOutput, err := interpolation.ExpandEnvVarsWithDefaults(c.Output)
 	if err != nil {
 		return fmt.Errorf("environment variable expansion failed: %w", err)
 	}

@@ -72,7 +72,7 @@ func FromProto(pbConfig *pb.ConsoleLoggerConfig) (*ConsoleLogger, error) {
 
 	// Convert output with environment variable interpolation
 	// Empty string defaults to stdout in CreateWriter
-	expandedOutput, err := interpolation.ExpandEnvVars(pbConfig.GetOutput())
+	expandedOutput, err := interpolation.ExpandEnvVarsWithDefaults(pbConfig.GetOutput())
 	if err != nil {
 		return nil, fmt.Errorf("environment variable expansion failed: %w", err)
 	}
