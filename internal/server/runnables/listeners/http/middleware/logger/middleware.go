@@ -63,7 +63,7 @@ func NewConsoleLogger(id string, cfg *logger.ConsoleLogger) (*ConsoleLogger, err
 	filter := newLogFilter(&configCopy)
 
 	// Expand environment variables in output
-	expandedOutput, err := interpolation.ExpandEnvVarsWithDefaults(configCopy.Output)
+	expandedOutput, err := interpolation.ExpandEnvVars(configCopy.Output)
 	if err != nil {
 		return nil, fmt.Errorf("environment variable expansion failed: %w", err)
 	}

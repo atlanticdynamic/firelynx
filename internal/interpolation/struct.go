@@ -64,7 +64,7 @@ func InterpolateStruct(v any) error {
 				continue
 			}
 
-			interpolated, err := ExpandEnvVarsWithDefaults(original)
+			interpolated, err := ExpandEnvVars(original)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("field %s: %w", fieldType.Name, err))
 				continue
@@ -81,7 +81,7 @@ func InterpolateStruct(v any) error {
 
 			for _, key := range field.MapKeys() {
 				value := field.MapIndex(key)
-				interpolated, err := ExpandEnvVarsWithDefaults(value.String())
+				interpolated, err := ExpandEnvVars(value.String())
 				if err != nil {
 					errs = append(
 						errs,
@@ -104,7 +104,7 @@ func InterpolateStruct(v any) error {
 						continue
 					}
 
-					interpolated, err := ExpandEnvVarsWithDefaults(original)
+					interpolated, err := ExpandEnvVars(original)
 					if err != nil {
 						errs = append(errs, fmt.Errorf("field %s[%d]: %w", fieldType.Name, j, err))
 						continue

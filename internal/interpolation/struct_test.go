@@ -77,7 +77,7 @@ func TestExpandEnvVarsWithDefaultsFunction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ExpandEnvVarsWithDefaults(tt.value)
+			result, err := ExpandEnvVars(tt.value)
 			if tt.expectError {
 				assert.Error(
 					t,

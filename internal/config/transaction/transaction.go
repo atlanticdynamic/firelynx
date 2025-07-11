@@ -509,5 +509,5 @@ func validateConsoleLoggerFileConflicts(allMiddlewares middleware.MiddlewareColl
 
 // expandMiddlewareOutput expands environment variables in middleware output paths
 func expandMiddlewareOutput(output string) (string, error) {
-	return interpolation.ExpandEnvVarsWithDefaults(output)
+	return interpolation.ExpandEnvVars(output)
 }

@@ -61,7 +61,7 @@ func TestExpandEnvVarsPatternValidation(t *testing.T) {
 				}()
 			}
 
-			result, err := ExpandEnvVarsWithDefaults(tt.input)
+			result, err := ExpandEnvVars(tt.input)
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
@@ -191,7 +191,7 @@ func TestExpandEnvVarsWithDefaults(t *testing.T) {
 				}(key)
 			}
 
-			result, err := ExpandEnvVarsWithDefaults(tc.input)
+			result, err := ExpandEnvVars(tc.input)
 			if tc.expectError {
 				assert.Error(t, err)
 			} else {

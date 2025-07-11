@@ -10,13 +10,13 @@ import (
 // Pattern for ${VAR_NAME} and ${VAR_NAME:default} syntax - captures colon explicitly
 var envVarWithDefaultPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)(:)?([^}]*)\}`)
 
-// ExpandEnvVarsWithDefaults expands environment variables with default values in the format:
+// ExpandEnvVars expands environment variables with default values in the format:
 //
 // ${VAR_NAME:default_value}
 //
 // If the environment variable is not set, it uses the default value if provided. If no default is
 // provided and the variable is missing, it returns an error.
-func ExpandEnvVarsWithDefaults(input string) (string, error) {
+func ExpandEnvVars(input string) (string, error) {
 	if input == "" {
 		return "", nil
 	}
