@@ -94,10 +94,24 @@ func InterpolateStruct(v any) error {
 			}
 
 		case reflect.Slice:
-			// Process slices of structs
+			// Process slices of strings or structs
 			for j := 0; j < field.Len(); j++ {
 				elem := field.Index(j)
-				if elem.Kind() == reflect.Struct {
+				if elem.Kind() == reflect.String {
+					// Handle slice of strings
+					original := elem.String()
+					if original != "" {
+						interpolated, err := ExpandEnvVarsWithDefaults(original)
+						if err != nil {
+							errs = append(
+								errs,
+								fmt.Errorf("field %s[%d]: %w", fieldType.Name, j, err),
+							)
+						} else {
+							elem.SetString(interpolated)
+						}
+					}
+				} else if elem.Kind() == reflect.Struct {
 					if err := InterpolateStruct(elem.Addr().Interface()); err != nil {
 						errs = append(errs, fmt.Errorf("field %s[%d]: %w", fieldType.Name, j, err))
 					}

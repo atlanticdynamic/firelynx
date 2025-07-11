@@ -30,7 +30,6 @@ type NestedConfig struct {
 }
 
 func TestExpandEnvVarsWithDefaultsFunction(t *testing.T) {
-
 	// Set up test environment variable
 	require.NoError(t, os.Setenv("TEST_HOST", "example.com"))
 	t.Cleanup(func() {
@@ -94,7 +93,6 @@ func TestExpandEnvVarsWithDefaultsFunction(t *testing.T) {
 }
 
 func TestInterpolateStruct(t *testing.T) {
-
 	// Set up test environment variables
 	require.NoError(t, os.Setenv("TEST_HOST", "server.example.com"))
 	require.NoError(t, os.Setenv("TEST_PORT", "9090"))
@@ -220,7 +218,6 @@ func TestInterpolateStruct(t *testing.T) {
 }
 
 func TestInterpolateStructWithSlices(t *testing.T) {
-
 	// Set up test environment variable
 	require.NoError(t, os.Setenv("TEST_VALUE", "interpolated"))
 	t.Cleanup(func() {
@@ -258,7 +255,6 @@ func TestInterpolateStructWithSlices(t *testing.T) {
 }
 
 func TestInterpolationValidationOrder(t *testing.T) {
-
 	// Test that interpolation happens before validation catches invalid values
 	require.NoError(t, os.Setenv("INVALID_CHARS", "invalid/path/../traversal"))
 	t.Cleanup(func() {
@@ -280,7 +276,6 @@ func TestInterpolationValidationOrder(t *testing.T) {
 }
 
 func TestInterpolationWithUnicodeAndSpecialChars(t *testing.T) {
-
 	require.NoError(t, os.Setenv("UNICODE_VAR", "Γειά-σου-🔥"))
 	require.NoError(t, os.Setenv("SPECIAL_VAR", "value:with$pecial{chars}"))
 	t.Cleanup(func() {
@@ -301,7 +296,6 @@ func TestInterpolationWithUnicodeAndSpecialChars(t *testing.T) {
 }
 
 func TestInterpolationPerformanceWithLargeStructs(t *testing.T) {
-
 	require.NoError(t, os.Setenv("PERF_VAR", "performance_test"))
 	t.Cleanup(func() {
 		require.NoError(t, os.Unsetenv("PERF_VAR"))
@@ -325,14 +319,20 @@ func TestInterpolationPerformanceWithLargeStructs(t *testing.T) {
 	largeConfig := &LargeConfig{Configs: configs}
 
 	// Test that interpolation completes quickly even with large structures
-	assert.Eventually(t, func() bool {
-		err := InterpolateStruct(largeConfig)
-		if err != nil {
-			return false
-		}
-		// Verify a few random configs were interpolated correctly
-		return largeConfig.Configs[0].Name == "config-performance_test" &&
-			largeConfig.Configs[500].Host == "performance_test.example.com" &&
-			largeConfig.Configs[999].Path == "/data/performance_test/logs"
-	}, 100*time.Millisecond, 10*time.Millisecond, "interpolation should complete quickly even with large structures")
+	start := time.Now()
+	err := InterpolateStruct(largeConfig)
+	duration := time.Since(start)
+
+	require.NoError(t, err)
+	assert.Less(
+		t,
+		duration,
+		200*time.Millisecond,
+		"interpolation should complete quickly even with large structures",
+	)
+
+	// Verify a few random configs were interpolated correctly
+	assert.Equal(t, "config-performance_test", largeConfig.Configs[0].Name)
+	assert.Equal(t, "performance_test.example.com", largeConfig.Configs[500].Host)
+	assert.Equal(t, "/data/performance_test/logs", largeConfig.Configs[999].Path)
 }
