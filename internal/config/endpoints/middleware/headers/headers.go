@@ -21,7 +21,7 @@ type HeaderOperations struct {
 	AddHeaders map[string]string `env_interpolation:"yes" json:"addHeaders" toml:"add_headers"`
 
 	// Header names to remove
-	RemoveHeaders []string `json:"removeHeaders" toml:"remove_headers"`
+	RemoveHeaders []string `env_interpolation:"yes" json:"removeHeaders" toml:"remove_headers"`
 }
 
 // Headers represents a headers middleware configuration

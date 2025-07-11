@@ -2,6 +2,7 @@ package interpolation
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -127,9 +128,9 @@ func TestExpandEnvVarsPatternValidation(t *testing.T) {
 			expected: "$VAR",
 		},
 		{
-			name:     "invalid pattern no braces",
-			input:    "${var}",
-			expected: "${var}",
+			name:     "invalid pattern with hyphen",
+			input:    "${var-name}",
+			expected: "${var-name}",
 		},
 		{
 			name:     "invalid pattern number start",
@@ -253,6 +254,30 @@ func TestExpandEnvVarsWithDefaults(t *testing.T) {
 			input:    "${EMPTY_VAR:default}",
 			envVars:  map[string]string{"EMPTY_VAR": ""},
 			expected: "",
+		},
+		{
+			name:     "mixed case env var",
+			input:    "${Test_Var}",
+			envVars:  map[string]string{"Test_Var": "mixed_case_value"},
+			expected: "mixed_case_value",
+		},
+		{
+			name:     "lowercase env var",
+			input:    "${test_var}",
+			envVars:  map[string]string{"test_var": "lowercase_value"},
+			expected: "lowercase_value",
+		},
+		{
+			name:     "env var with special characters in value",
+			input:    "${SPECIAL_VAR}",
+			envVars:  map[string]string{"SPECIAL_VAR": "value:with$pecial{chars}"},
+			expected: "value:with$pecial{chars}",
+		},
+		{
+			name:     "very long env var value",
+			input:    "${LONG_VAR}",
+			envVars:  map[string]string{"LONG_VAR": strings.Repeat("a", 10000)},
+			expected: strings.Repeat("a", 10000),
 		},
 	}
 

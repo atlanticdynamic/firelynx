@@ -10,10 +10,10 @@ import (
 
 var (
 	// Original pattern for ${VAR_NAME} syntax (backward compatibility)
-	envVarPattern = regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)\}`)
+	envVarPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 
 	// Enhanced pattern for ${VAR_NAME:default} syntax
-	envVarWithDefaultPattern = regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*?)(?::([^}]*))?\}`)
+	envVarWithDefaultPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*?)(?::([^}]*))?\}`)
 )
 
 // ExpandEnvVars expands environment variables in the format ${VAR_NAME}

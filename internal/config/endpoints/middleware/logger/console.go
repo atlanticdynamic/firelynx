@@ -25,12 +25,12 @@ type ConsoleLogger struct {
 	Preset Preset `json:"preset" toml:"preset"`
 
 	// Path filtering - paths are matched as prefixes
-	IncludeOnlyPaths []string `json:"includeOnlyPaths" toml:"include_only_paths"`
-	ExcludePaths     []string `json:"excludePaths"     toml:"exclude_paths"`
+	IncludeOnlyPaths []string `env_interpolation:"yes" json:"includeOnlyPaths" toml:"include_only_paths"`
+	ExcludePaths     []string `env_interpolation:"yes" json:"excludePaths"     toml:"exclude_paths"`
 
 	// Method filtering
-	IncludeOnlyMethods []string `json:"includeOnlyMethods" toml:"include_only_methods"`
-	ExcludeMethods     []string `json:"excludeMethods"     toml:"exclude_methods"`
+	IncludeOnlyMethods []string `env_interpolation:"yes" json:"includeOnlyMethods" toml:"include_only_methods"`
+	ExcludeMethods     []string `env_interpolation:"yes" json:"excludeMethods"     toml:"exclude_methods"`
 }
 
 // LogOptionsGeneral represents general logging configuration
@@ -66,8 +66,8 @@ type DirectionConfig struct {
 	MaxBodySize    int32    `json:"maxBodySize"    toml:"max_body_size"`
 	BodySize       bool     `json:"bodySize"       toml:"body_size"`
 	Headers        bool     `json:"headers"        toml:"headers"`
-	IncludeHeaders []string `json:"includeHeaders" toml:"include_headers"`
-	ExcludeHeaders []string `json:"excludeHeaders" toml:"exclude_headers"`
+	IncludeHeaders []string `env_interpolation:"yes" json:"includeHeaders" toml:"include_headers"`
+	ExcludeHeaders []string `env_interpolation:"yes" json:"excludeHeaders" toml:"exclude_headers"`
 }
 
 // Format represents logging format options
