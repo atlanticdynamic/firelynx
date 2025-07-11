@@ -226,7 +226,7 @@ func (r *Runner) GetDomainConfig() config.Config {
 // pageToken represents the internal structure of a pagination token
 type pageToken struct {
 	Offset   int    `json:"offset"`
-	PageSize int    `json:"page_size"`
+	PageSize int    `json:"pageSize"`
 	State    string `json:"state,omitempty"`
 	Source   string `json:"source,omitempty"`
 }
