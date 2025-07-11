@@ -161,7 +161,7 @@ func ListTransactions(
 	case "json":
 		response := struct {
 			Transactions  any    `json:"transactions"`
-			NextPageToken string `json:"next_page_token,omitempty"`
+			NextPageToken string `json:"nextPageToken,omitempty"`
 		}{
 			Transactions:  transactions,
 			NextPageToken: nextPageToken,
