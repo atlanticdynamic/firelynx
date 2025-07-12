@@ -2,7 +2,6 @@ package logging
 
 import (
 	"bytes"
-	"context"
 	"log/slog"
 	"strings"
 	"testing"
@@ -380,7 +379,7 @@ func TestSetupLogger_Integration(t *testing.T) {
 	SetupLogger("debug")
 
 	// Use the default logger that was configured
-	ctx := context.Background()
+	ctx := t.Context()
 	slog.InfoContext(ctx, "integration test message",
 		"component", "logging",
 		"test", true)
