@@ -260,7 +260,7 @@ func TestWaitForCompletion(t *testing.T) {
 			{
 				name: "compensation path",
 				setupStates: func(tx *ConfigTransaction) error {
-					ctx := context.Background()
+					ctx := t.Context()
 					if err := tx.BeginValidation(); err != nil {
 						return err
 					}
