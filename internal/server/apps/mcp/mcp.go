@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	mcpconfig "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // App is an MCP (Model Context Protocol) application that serves MCP endpoints
@@ -25,7 +25,7 @@ func New(id string, config *mcpconfig.App) (*App, error) {
 	}
 
 	// Create HTTP handler using MCP SDK
-	handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server {
+	handler := mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server {
 		return server
 	}, nil)
 

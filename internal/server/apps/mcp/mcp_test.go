@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -113,7 +112,7 @@ func TestApp_HandleHTTP(t *testing.T) {
 		// Create test HTTP request
 		req := httptest.NewRequest(http.MethodPost, "/test", nil)
 		w := httptest.NewRecorder()
-		ctx := context.Background()
+		ctx := t.Context()
 		staticData := map[string]any{}
 
 		// HandleHTTP should not return an error (MCP SDK handles errors internally)
@@ -134,7 +133,7 @@ func TestApp_HandleHTTP(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/test", nil)
 		w := httptest.NewRecorder()
-		ctx := context.Background()
+		ctx := t.Context()
 		staticData := map[string]any{}
 
 		// Should panic with nil handler
@@ -185,7 +184,7 @@ func TestApp_Integration(t *testing.T) {
 		// Test HTTP handling
 		req := httptest.NewRequest(http.MethodPost, "/mcp/test", nil)
 		w := httptest.NewRecorder()
-		ctx := context.Background()
+		ctx := t.Context()
 
 		err = app.HandleHTTP(ctx, w, req, map[string]any{})
 		assert.NoError(t, err)

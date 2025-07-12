@@ -2,8 +2,12 @@
 package mcp
 
 import (
+	"fmt"
+
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/atlanticdynamic/firelynx/internal/fancy"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // App represents a Model Context Protocol (MCP) application.
@@ -30,7 +34,7 @@ type App struct {
 	Middlewares []*Middleware
 
 	// compiledServer is the pre-compiled MCP server (created during validation)
-	compiledServer *mcp.Server
+	compiledServer *mcpsdk.Server
 }
 
 // Transport configures MCP transport options.
@@ -58,7 +62,7 @@ type Tool struct {
 type ToolHandler interface {
 	Type() string
 	Validate() error
-	CreateMCPTool() (*mcp.Tool, mcp.ToolHandler, error)
+	CreateMCPTool() (*mcpsdk.Tool, mcpsdk.ToolHandler, error)
 }
 
 // ScriptToolHandler implements tools using script evaluators.
@@ -67,7 +71,7 @@ type ScriptToolHandler struct {
 	StaticData *staticdata.StaticData
 
 	// Evaluator is the script evaluator implementation
-	Evaluator interface{} // evaluators.Evaluator interface
+	Evaluator evaluators.Evaluator
 }
 
 // BuiltinToolHandler implements common built-in tools.
@@ -147,7 +151,7 @@ func (a *App) Type() string {
 }
 
 // GetCompiledServer returns the pre-compiled MCP server.
-func (a *App) GetCompiledServer() *mcp.Server {
+func (a *App) GetCompiledServer() *mcpsdk.Server {
 	return a.compiledServer
 }
 
@@ -187,4 +191,18 @@ func (t MiddlewareType) String() string {
 	default:
 		return "UNKNOWN"
 	}
+}
+
+// String returns a string representation of the MCP app.
+func (a *App) String() string {
+	return fmt.Sprintf("MCP App (server: %s v%s, tools: %d)", a.ServerName, a.ServerVersion, len(a.Tools))
+}
+
+// ToTree returns a tree representation of the MCP app.
+func (a *App) ToTree() *fancy.ComponentTree {
+	tree := fancy.NewComponentTree("MCP App")
+	tree.AddChild("Type: mcp")
+	tree.AddChild(fmt.Sprintf("Server: %s v%s", a.ServerName, a.ServerVersion))
+	tree.AddChild(fmt.Sprintf("Tools: %d configured", len(a.Tools)))
+	return tree
 }

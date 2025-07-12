@@ -1,0 +1,41 @@
+[[listeners]]
+id = "test-listener"
+address = ":{{.Port}}"
+type = "http"
+
+[[endpoints]]
+id = "test-endpoint"
+listener_id = "test-listener"
+
+[[endpoints.routes]]
+app_id = "test-mcp"
+[endpoints.routes.http]
+path_prefix = "/mcp"
+method = "*"
+
+[[apps]]
+id = "test-mcp"
+type = "mcp"
+
+[apps.mcp]
+server_name = "Test MCP Server"
+server_version = "1.0.0"
+
+[apps.mcp.transport]
+sse_enabled = false
+
+# Echo tool for basic testing
+[[apps.mcp.tools]]
+name = "echo"
+description = "Echo back the input"
+[apps.mcp.tools.builtin]
+type = "ECHO"
+
+# File read tool for file operations
+[[apps.mcp.tools]]
+name = "read_file"
+description = "Read file contents safely"
+[apps.mcp.tools.builtin]
+type = "FILE_READ"
+[apps.mcp.tools.builtin.config]
+base_directory = "/tmp"
