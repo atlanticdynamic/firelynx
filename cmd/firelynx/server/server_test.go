@@ -22,6 +22,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
+	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,9 +46,6 @@ func TestServerWithConfigFile(t *testing.T) {
 		t.Skip("Skipping in short mode")
 	}
 
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-
 	// Create a temp directory for the config file
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "test_config.toml")
@@ -63,12 +61,12 @@ func TestServerWithConfigFile(t *testing.T) {
 	require.NoError(t, err, "Failed to write config file")
 
 	// Create a logger
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelWarn,
-	}))
+	logging.SetupLogger("debug")
+	logger := slog.Default()
 
-	// Start the server in a goroutine
-	serverCtx, serverCancel := context.WithCancel(ctx)
+	// Start the server
+	serverCtx, serverCancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer serverCancel()
 	errCh := make(chan error, 1)
 	go func() {
 		err := Run(serverCtx, logger, configPath, "")
