@@ -1,0 +1,10 @@
+func process() {
+    args := ctx.get("args", {})
+    shouldError := args.get("error", false)
+    if shouldError {
+        return {"error": "Something went wrong"}
+    }
+    return {"text": "Success"}
+}
+
+process()

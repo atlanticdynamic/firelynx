@@ -29,6 +29,7 @@ const (
 	AppDefinition_TYPE_SCRIPT           AppDefinition_Type = 1
 	AppDefinition_TYPE_COMPOSITE_SCRIPT AppDefinition_Type = 2
 	AppDefinition_TYPE_ECHO             AppDefinition_Type = 3
+	AppDefinition_TYPE_MCP              AppDefinition_Type = 4
 )
 
 // Enum value maps for AppDefinition_Type.
@@ -38,12 +39,14 @@ var (
 		1: "TYPE_SCRIPT",
 		2: "TYPE_COMPOSITE_SCRIPT",
 		3: "TYPE_ECHO",
+		4: "TYPE_MCP",
 	}
 	AppDefinition_Type_value = map[string]int32{
 		"TYPE_UNSPECIFIED":      0,
 		"TYPE_SCRIPT":           1,
 		"TYPE_COMPOSITE_SCRIPT": 2,
 		"TYPE_ECHO":             3,
+		"TYPE_MCP":              4,
 	}
 )
 
@@ -74,6 +77,104 @@ func (AppDefinition_Type) EnumDescriptor() ([]byte, []int) {
 	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{0, 0}
 }
 
+type McpBuiltinHandler_Type int32
+
+const (
+	McpBuiltinHandler_ECHO        McpBuiltinHandler_Type = 0 // Simple echo tool for testing
+	McpBuiltinHandler_CALCULATION McpBuiltinHandler_Type = 1 // Mathematical calculations
+	McpBuiltinHandler_FILE_READ   McpBuiltinHandler_Type = 2 // File reading operations
+)
+
+// Enum value maps for McpBuiltinHandler_Type.
+var (
+	McpBuiltinHandler_Type_name = map[int32]string{
+		0: "ECHO",
+		1: "CALCULATION",
+		2: "FILE_READ",
+	}
+	McpBuiltinHandler_Type_value = map[string]int32{
+		"ECHO":        0,
+		"CALCULATION": 1,
+		"FILE_READ":   2,
+	}
+)
+
+func (x McpBuiltinHandler_Type) Enum() *McpBuiltinHandler_Type {
+	p := new(McpBuiltinHandler_Type)
+	*p = x
+	return p
+}
+
+func (x McpBuiltinHandler_Type) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (McpBuiltinHandler_Type) Descriptor() protoreflect.EnumDescriptor {
+	return file_settings_v1alpha1_apps_proto_enumTypes[1].Descriptor()
+}
+
+func (McpBuiltinHandler_Type) Type() protoreflect.EnumType {
+	return &file_settings_v1alpha1_apps_proto_enumTypes[1]
+}
+
+func (x McpBuiltinHandler_Type) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use McpBuiltinHandler_Type.Descriptor instead.
+func (McpBuiltinHandler_Type) EnumDescriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{11, 0}
+}
+
+type McpMiddleware_Type int32
+
+const (
+	McpMiddleware_RATE_LIMITING      McpMiddleware_Type = 0 // Native MCP rate limiting
+	McpMiddleware_MCP_LOGGING        McpMiddleware_Type = 1 // MCP-specific logging
+	McpMiddleware_MCP_AUTHENTICATION McpMiddleware_Type = 2 // MCP authentication
+)
+
+// Enum value maps for McpMiddleware_Type.
+var (
+	McpMiddleware_Type_name = map[int32]string{
+		0: "RATE_LIMITING",
+		1: "MCP_LOGGING",
+		2: "MCP_AUTHENTICATION",
+	}
+	McpMiddleware_Type_value = map[string]int32{
+		"RATE_LIMITING":      0,
+		"MCP_LOGGING":        1,
+		"MCP_AUTHENTICATION": 2,
+	}
+)
+
+func (x McpMiddleware_Type) Enum() *McpMiddleware_Type {
+	p := new(McpMiddleware_Type)
+	*p = x
+	return p
+}
+
+func (x McpMiddleware_Type) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (McpMiddleware_Type) Descriptor() protoreflect.EnumDescriptor {
+	return file_settings_v1alpha1_apps_proto_enumTypes[2].Descriptor()
+}
+
+func (McpMiddleware_Type) Type() protoreflect.EnumType {
+	return &file_settings_v1alpha1_apps_proto_enumTypes[2]
+}
+
+func (x McpMiddleware_Type) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use McpMiddleware_Type.Descriptor instead.
+func (McpMiddleware_Type) EnumDescriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{16, 0}
+}
+
 // App definitions (reusable across endpoints)
 type AppDefinition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -90,6 +191,7 @@ type AppDefinition struct {
 	//	*AppDefinition_Script
 	//	*AppDefinition_CompositeScript
 	//	*AppDefinition_Echo
+	//	*AppDefinition_Mcp
 	Config        isAppDefinition_Config `protobuf_oneof:"config"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -178,6 +280,15 @@ func (x *AppDefinition) GetEcho() *EchoApp {
 	return nil
 }
 
+func (x *AppDefinition) GetMcp() *McpApp {
+	if x != nil {
+		if x, ok := x.Config.(*AppDefinition_Mcp); ok {
+			return x.Mcp
+		}
+	}
+	return nil
+}
+
 type isAppDefinition_Config interface {
 	isAppDefinition_Config()
 }
@@ -200,11 +311,19 @@ type AppDefinition_Echo struct {
 	Echo *EchoApp `protobuf:"bytes,5,opt,name=echo,oneof"`
 }
 
+type AppDefinition_Mcp struct {
+	// MCP application configuration
+	// env_interpolation: n/a (non-string)
+	Mcp *McpApp `protobuf:"bytes,6,opt,name=mcp,oneof"`
+}
+
 func (*AppDefinition_Script) isAppDefinition_Config() {}
 
 func (*AppDefinition_CompositeScript) isAppDefinition_Config() {}
 
 func (*AppDefinition_Echo) isAppDefinition_Config() {}
+
+func (*AppDefinition_Mcp) isAppDefinition_Config() {}
 
 // Individual script application
 type ScriptApp struct {
@@ -731,22 +850,964 @@ func (x *EchoApp) GetResponse() string {
 	return ""
 }
 
+// MCP (Model Context Protocol) app
+type McpApp struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// MCP server implementation details
+	// env_interpolation: yes (server name)
+	ServerName *string `protobuf:"bytes,1,opt,name=server_name,json=serverName" json:"server_name,omitempty"`
+	// env_interpolation: yes (server version)
+	ServerVersion *string `protobuf:"bytes,2,opt,name=server_version,json=serverVersion" json:"server_version,omitempty"`
+	// MCP transport configuration
+	// env_interpolation: n/a (non-string)
+	Transport *McpTransport `protobuf:"bytes,3,opt,name=transport" json:"transport,omitempty"`
+	// MCP tools configuration
+	// env_interpolation: n/a (non-string)
+	Tools []*McpTool `protobuf:"bytes,4,rep,name=tools" json:"tools,omitempty"`
+	// MCP resources configuration (future phases)
+	// env_interpolation: n/a (non-string)
+	Resources []*McpResource `protobuf:"bytes,5,rep,name=resources" json:"resources,omitempty"`
+	// MCP prompts configuration (future phases)
+	// env_interpolation: n/a (non-string)
+	Prompts []*McpPrompt `protobuf:"bytes,6,rep,name=prompts" json:"prompts,omitempty"`
+	// MCP SDK middleware configuration
+	// env_interpolation: n/a (non-string)
+	Middlewares   []*McpMiddleware `protobuf:"bytes,7,rep,name=middlewares" json:"middlewares,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpApp) Reset() {
+	*x = McpApp{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpApp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpApp) ProtoMessage() {}
+
+func (x *McpApp) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpApp.ProtoReflect.Descriptor instead.
+func (*McpApp) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *McpApp) GetServerName() string {
+	if x != nil && x.ServerName != nil {
+		return *x.ServerName
+	}
+	return ""
+}
+
+func (x *McpApp) GetServerVersion() string {
+	if x != nil && x.ServerVersion != nil {
+		return *x.ServerVersion
+	}
+	return ""
+}
+
+func (x *McpApp) GetTransport() *McpTransport {
+	if x != nil {
+		return x.Transport
+	}
+	return nil
+}
+
+func (x *McpApp) GetTools() []*McpTool {
+	if x != nil {
+		return x.Tools
+	}
+	return nil
+}
+
+func (x *McpApp) GetResources() []*McpResource {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+func (x *McpApp) GetPrompts() []*McpPrompt {
+	if x != nil {
+		return x.Prompts
+	}
+	return nil
+}
+
+func (x *McpApp) GetMiddlewares() []*McpMiddleware {
+	if x != nil {
+		return x.Middlewares
+	}
+	return nil
+}
+
+// MCP transport configuration
+type McpTransport struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Enable Server-Sent Events (SSE) support for MCP protocol
+	// env_interpolation: n/a (non-string)
+	SseEnabled *bool `protobuf:"varint,1,opt,name=sse_enabled,json=sseEnabled" json:"sse_enabled,omitempty"`
+	// SSE endpoint path when SSE is enabled
+	// env_interpolation: yes (path field)
+	SsePath       *string `protobuf:"bytes,2,opt,name=sse_path,json=ssePath" json:"sse_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpTransport) Reset() {
+	*x = McpTransport{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpTransport) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpTransport) ProtoMessage() {}
+
+func (x *McpTransport) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpTransport.ProtoReflect.Descriptor instead.
+func (*McpTransport) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *McpTransport) GetSseEnabled() bool {
+	if x != nil && x.SseEnabled != nil {
+		return *x.SseEnabled
+	}
+	return false
+}
+
+func (x *McpTransport) GetSsePath() string {
+	if x != nil && x.SsePath != nil {
+		return *x.SsePath
+	}
+	return ""
+}
+
+// MCP tool definition
+type McpTool struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// env_interpolation: no (tool name)
+	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	// env_interpolation: yes (description text)
+	Description *string `protobuf:"bytes,2,opt,name=description" json:"description,omitempty"`
+	// Tool implementation using existing evaluator types
+	//
+	// Types that are valid to be assigned to Handler:
+	//
+	//	*McpTool_Script
+	//	*McpTool_Builtin
+	Handler       isMcpTool_Handler `protobuf_oneof:"handler"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpTool) Reset() {
+	*x = McpTool{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpTool) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpTool) ProtoMessage() {}
+
+func (x *McpTool) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpTool.ProtoReflect.Descriptor instead.
+func (*McpTool) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *McpTool) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *McpTool) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *McpTool) GetHandler() isMcpTool_Handler {
+	if x != nil {
+		return x.Handler
+	}
+	return nil
+}
+
+func (x *McpTool) GetScript() *McpScriptHandler {
+	if x != nil {
+		if x, ok := x.Handler.(*McpTool_Script); ok {
+			return x.Script
+		}
+	}
+	return nil
+}
+
+func (x *McpTool) GetBuiltin() *McpBuiltinHandler {
+	if x != nil {
+		if x, ok := x.Handler.(*McpTool_Builtin); ok {
+			return x.Builtin
+		}
+	}
+	return nil
+}
+
+type isMcpTool_Handler interface {
+	isMcpTool_Handler()
+}
+
+type McpTool_Script struct {
+	Script *McpScriptHandler `protobuf:"bytes,10,opt,name=script,oneof"` // Script-based tool using evaluators
+}
+
+type McpTool_Builtin struct {
+	Builtin *McpBuiltinHandler `protobuf:"bytes,11,opt,name=builtin,oneof"` // Built-in tool handlers
+}
+
+func (*McpTool_Script) isMcpTool_Handler() {}
+
+func (*McpTool_Builtin) isMcpTool_Handler() {}
+
+// Script handler reusing existing evaluator infrastructure
+type McpScriptHandler struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Static data specific to this tool
+	// env_interpolation: n/a (non-string)
+	StaticData *StaticData `protobuf:"bytes,1,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
+	// Reuse existing evaluator types from script app
+	//
+	// Types that are valid to be assigned to Evaluator:
+	//
+	//	*McpScriptHandler_Risor
+	//	*McpScriptHandler_Starlark
+	//	*McpScriptHandler_Extism
+	Evaluator     isMcpScriptHandler_Evaluator `protobuf_oneof:"evaluator"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpScriptHandler) Reset() {
+	*x = McpScriptHandler{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpScriptHandler) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpScriptHandler) ProtoMessage() {}
+
+func (x *McpScriptHandler) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpScriptHandler.ProtoReflect.Descriptor instead.
+func (*McpScriptHandler) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *McpScriptHandler) GetStaticData() *StaticData {
+	if x != nil {
+		return x.StaticData
+	}
+	return nil
+}
+
+func (x *McpScriptHandler) GetEvaluator() isMcpScriptHandler_Evaluator {
+	if x != nil {
+		return x.Evaluator
+	}
+	return nil
+}
+
+func (x *McpScriptHandler) GetRisor() *RisorEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptHandler_Risor); ok {
+			return x.Risor
+		}
+	}
+	return nil
+}
+
+func (x *McpScriptHandler) GetStarlark() *StarlarkEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptHandler_Starlark); ok {
+			return x.Starlark
+		}
+	}
+	return nil
+}
+
+func (x *McpScriptHandler) GetExtism() *ExtismEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptHandler_Extism); ok {
+			return x.Extism
+		}
+	}
+	return nil
+}
+
+type isMcpScriptHandler_Evaluator interface {
+	isMcpScriptHandler_Evaluator()
+}
+
+type McpScriptHandler_Risor struct {
+	Risor *RisorEvaluator `protobuf:"bytes,2,opt,name=risor,oneof"` // Reuse existing evaluators
+}
+
+type McpScriptHandler_Starlark struct {
+	Starlark *StarlarkEvaluator `protobuf:"bytes,3,opt,name=starlark,oneof"`
+}
+
+type McpScriptHandler_Extism struct {
+	Extism *ExtismEvaluator `protobuf:"bytes,4,opt,name=extism,oneof"`
+}
+
+func (*McpScriptHandler_Risor) isMcpScriptHandler_Evaluator() {}
+
+func (*McpScriptHandler_Starlark) isMcpScriptHandler_Evaluator() {}
+
+func (*McpScriptHandler_Extism) isMcpScriptHandler_Evaluator() {}
+
+// Built-in handler for common operations
+type McpBuiltinHandler struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// env_interpolation: n/a (non-string)
+	Type *McpBuiltinHandler_Type `protobuf:"varint,1,opt,name=type,enum=settings.v1alpha1.McpBuiltinHandler_Type" json:"type,omitempty"`
+	// env_interpolation: yes (config values may contain paths)
+	Config        map[string]string `protobuf:"bytes,2,rep,name=config" json:"config,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpBuiltinHandler) Reset() {
+	*x = McpBuiltinHandler{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpBuiltinHandler) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpBuiltinHandler) ProtoMessage() {}
+
+func (x *McpBuiltinHandler) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpBuiltinHandler.ProtoReflect.Descriptor instead.
+func (*McpBuiltinHandler) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *McpBuiltinHandler) GetType() McpBuiltinHandler_Type {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return McpBuiltinHandler_ECHO
+}
+
+func (x *McpBuiltinHandler) GetConfig() map[string]string {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+// MCP resource definition (future phases)
+type McpResource struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// env_interpolation: yes (URI field)
+	Uri *string `protobuf:"bytes,1,opt,name=uri" json:"uri,omitempty"`
+	// env_interpolation: yes (name field)
+	Name *string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	// env_interpolation: yes (description text)
+	Description *string `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
+	// env_interpolation: no (MIME type)
+	MimeType *string `protobuf:"bytes,4,opt,name=mime_type,json=mimeType" json:"mime_type,omitempty"`
+	// Types that are valid to be assigned to Source:
+	//
+	//	*McpResource_FilePath
+	//	*McpResource_StaticContent
+	//	*McpResource_Script
+	Source        isMcpResource_Source `protobuf_oneof:"source"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpResource) Reset() {
+	*x = McpResource{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpResource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpResource) ProtoMessage() {}
+
+func (x *McpResource) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpResource.ProtoReflect.Descriptor instead.
+func (*McpResource) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *McpResource) GetUri() string {
+	if x != nil && x.Uri != nil {
+		return *x.Uri
+	}
+	return ""
+}
+
+func (x *McpResource) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *McpResource) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *McpResource) GetMimeType() string {
+	if x != nil && x.MimeType != nil {
+		return *x.MimeType
+	}
+	return ""
+}
+
+func (x *McpResource) GetSource() isMcpResource_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *McpResource) GetFilePath() string {
+	if x != nil {
+		if x, ok := x.Source.(*McpResource_FilePath); ok {
+			return x.FilePath
+		}
+	}
+	return ""
+}
+
+func (x *McpResource) GetStaticContent() string {
+	if x != nil {
+		if x, ok := x.Source.(*McpResource_StaticContent); ok {
+			return x.StaticContent
+		}
+	}
+	return ""
+}
+
+func (x *McpResource) GetScript() *McpScriptResource {
+	if x != nil {
+		if x, ok := x.Source.(*McpResource_Script); ok {
+			return x.Script
+		}
+	}
+	return nil
+}
+
+type isMcpResource_Source interface {
+	isMcpResource_Source()
+}
+
+type McpResource_FilePath struct {
+	// env_interpolation: yes (file path)
+	FilePath string `protobuf:"bytes,10,opt,name=file_path,json=filePath,oneof"`
+}
+
+type McpResource_StaticContent struct {
+	// env_interpolation: no (static content)
+	StaticContent string `protobuf:"bytes,11,opt,name=static_content,json=staticContent,oneof"`
+}
+
+type McpResource_Script struct {
+	Script *McpScriptResource `protobuf:"bytes,12,opt,name=script,oneof"` // go-polyscript integration
+}
+
+func (*McpResource_FilePath) isMcpResource_Source() {}
+
+func (*McpResource_StaticContent) isMcpResource_Source() {}
+
+func (*McpResource_Script) isMcpResource_Source() {}
+
+type McpScriptResource struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// env_interpolation: n/a (non-string)
+	StaticData *StaticData `protobuf:"bytes,1,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
+	// Types that are valid to be assigned to Evaluator:
+	//
+	//	*McpScriptResource_Risor
+	//	*McpScriptResource_Starlark
+	//	*McpScriptResource_Extism
+	Evaluator     isMcpScriptResource_Evaluator `protobuf_oneof:"evaluator"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpScriptResource) Reset() {
+	*x = McpScriptResource{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpScriptResource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpScriptResource) ProtoMessage() {}
+
+func (x *McpScriptResource) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpScriptResource.ProtoReflect.Descriptor instead.
+func (*McpScriptResource) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *McpScriptResource) GetStaticData() *StaticData {
+	if x != nil {
+		return x.StaticData
+	}
+	return nil
+}
+
+func (x *McpScriptResource) GetEvaluator() isMcpScriptResource_Evaluator {
+	if x != nil {
+		return x.Evaluator
+	}
+	return nil
+}
+
+func (x *McpScriptResource) GetRisor() *RisorEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptResource_Risor); ok {
+			return x.Risor
+		}
+	}
+	return nil
+}
+
+func (x *McpScriptResource) GetStarlark() *StarlarkEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptResource_Starlark); ok {
+			return x.Starlark
+		}
+	}
+	return nil
+}
+
+func (x *McpScriptResource) GetExtism() *ExtismEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptResource_Extism); ok {
+			return x.Extism
+		}
+	}
+	return nil
+}
+
+type isMcpScriptResource_Evaluator interface {
+	isMcpScriptResource_Evaluator()
+}
+
+type McpScriptResource_Risor struct {
+	Risor *RisorEvaluator `protobuf:"bytes,2,opt,name=risor,oneof"`
+}
+
+type McpScriptResource_Starlark struct {
+	Starlark *StarlarkEvaluator `protobuf:"bytes,3,opt,name=starlark,oneof"`
+}
+
+type McpScriptResource_Extism struct {
+	Extism *ExtismEvaluator `protobuf:"bytes,4,opt,name=extism,oneof"`
+}
+
+func (*McpScriptResource_Risor) isMcpScriptResource_Evaluator() {}
+
+func (*McpScriptResource_Starlark) isMcpScriptResource_Evaluator() {}
+
+func (*McpScriptResource_Extism) isMcpScriptResource_Evaluator() {}
+
+// MCP prompt definition (future phases)
+type McpPrompt struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// env_interpolation: no (prompt name)
+	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	// env_interpolation: yes (description text)
+	Description *string `protobuf:"bytes,2,opt,name=description" json:"description,omitempty"`
+	// Types that are valid to be assigned to Source:
+	//
+	//	*McpPrompt_Template
+	//	*McpPrompt_Script
+	Source        isMcpPrompt_Source `protobuf_oneof:"source"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpPrompt) Reset() {
+	*x = McpPrompt{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpPrompt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpPrompt) ProtoMessage() {}
+
+func (x *McpPrompt) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpPrompt.ProtoReflect.Descriptor instead.
+func (*McpPrompt) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *McpPrompt) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *McpPrompt) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *McpPrompt) GetSource() isMcpPrompt_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *McpPrompt) GetTemplate() string {
+	if x != nil {
+		if x, ok := x.Source.(*McpPrompt_Template); ok {
+			return x.Template
+		}
+	}
+	return ""
+}
+
+func (x *McpPrompt) GetScript() *McpScriptPrompt {
+	if x != nil {
+		if x, ok := x.Source.(*McpPrompt_Script); ok {
+			return x.Script
+		}
+	}
+	return nil
+}
+
+type isMcpPrompt_Source interface {
+	isMcpPrompt_Source()
+}
+
+type McpPrompt_Template struct {
+	// env_interpolation: no (template content)
+	Template string `protobuf:"bytes,10,opt,name=template,oneof"`
+}
+
+type McpPrompt_Script struct {
+	Script *McpScriptPrompt `protobuf:"bytes,11,opt,name=script,oneof"` // go-polyscript generated prompts
+}
+
+func (*McpPrompt_Template) isMcpPrompt_Source() {}
+
+func (*McpPrompt_Script) isMcpPrompt_Source() {}
+
+type McpScriptPrompt struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// env_interpolation: n/a (non-string)
+	StaticData *StaticData `protobuf:"bytes,1,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
+	// Types that are valid to be assigned to Evaluator:
+	//
+	//	*McpScriptPrompt_Risor
+	//	*McpScriptPrompt_Starlark
+	//	*McpScriptPrompt_Extism
+	Evaluator     isMcpScriptPrompt_Evaluator `protobuf_oneof:"evaluator"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpScriptPrompt) Reset() {
+	*x = McpScriptPrompt{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpScriptPrompt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpScriptPrompt) ProtoMessage() {}
+
+func (x *McpScriptPrompt) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpScriptPrompt.ProtoReflect.Descriptor instead.
+func (*McpScriptPrompt) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *McpScriptPrompt) GetStaticData() *StaticData {
+	if x != nil {
+		return x.StaticData
+	}
+	return nil
+}
+
+func (x *McpScriptPrompt) GetEvaluator() isMcpScriptPrompt_Evaluator {
+	if x != nil {
+		return x.Evaluator
+	}
+	return nil
+}
+
+func (x *McpScriptPrompt) GetRisor() *RisorEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptPrompt_Risor); ok {
+			return x.Risor
+		}
+	}
+	return nil
+}
+
+func (x *McpScriptPrompt) GetStarlark() *StarlarkEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptPrompt_Starlark); ok {
+			return x.Starlark
+		}
+	}
+	return nil
+}
+
+func (x *McpScriptPrompt) GetExtism() *ExtismEvaluator {
+	if x != nil {
+		if x, ok := x.Evaluator.(*McpScriptPrompt_Extism); ok {
+			return x.Extism
+		}
+	}
+	return nil
+}
+
+type isMcpScriptPrompt_Evaluator interface {
+	isMcpScriptPrompt_Evaluator()
+}
+
+type McpScriptPrompt_Risor struct {
+	Risor *RisorEvaluator `protobuf:"bytes,2,opt,name=risor,oneof"`
+}
+
+type McpScriptPrompt_Starlark struct {
+	Starlark *StarlarkEvaluator `protobuf:"bytes,3,opt,name=starlark,oneof"`
+}
+
+type McpScriptPrompt_Extism struct {
+	Extism *ExtismEvaluator `protobuf:"bytes,4,opt,name=extism,oneof"`
+}
+
+func (*McpScriptPrompt_Risor) isMcpScriptPrompt_Evaluator() {}
+
+func (*McpScriptPrompt_Starlark) isMcpScriptPrompt_Evaluator() {}
+
+func (*McpScriptPrompt_Extism) isMcpScriptPrompt_Evaluator() {}
+
+// MCP SDK middleware configuration
+type McpMiddleware struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// env_interpolation: n/a (non-string)
+	Type *McpMiddleware_Type `protobuf:"varint,1,opt,name=type,enum=settings.v1alpha1.McpMiddleware_Type" json:"type,omitempty"`
+	// env_interpolation: yes (config values)
+	Config        map[string]string `protobuf:"bytes,2,rep,name=config" json:"config,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpMiddleware) Reset() {
+	*x = McpMiddleware{}
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpMiddleware) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpMiddleware) ProtoMessage() {}
+
+func (x *McpMiddleware) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpMiddleware.ProtoReflect.Descriptor instead.
+func (*McpMiddleware) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *McpMiddleware) GetType() McpMiddleware_Type {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return McpMiddleware_RATE_LIMITING
+}
+
+func (x *McpMiddleware) GetConfig() map[string]string {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
 var File_settings_v1alpha1_apps_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\n" +
-	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a#settings/v1alpha1/static_data.proto\"\x8d\x03\n" +
+	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a#settings/v1alpha1/static_data.proto\"\xca\x03\n" +
 	"\rAppDefinition\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12K\n" +
 	"\x04type\x18\x02 \x01(\x0e2%.settings.v1alpha1.AppDefinition.Type:\x10TYPE_UNSPECIFIEDR\x04type\x126\n" +
 	"\x06script\x18\x03 \x01(\v2\x1c.settings.v1alpha1.ScriptAppH\x00R\x06script\x12R\n" +
 	"\x10composite_script\x18\x04 \x01(\v2%.settings.v1alpha1.CompositeScriptAppH\x00R\x0fcompositeScript\x120\n" +
-	"\x04echo\x18\x05 \x01(\v2\x1a.settings.v1alpha1.EchoAppH\x00R\x04echo\"W\n" +
+	"\x04echo\x18\x05 \x01(\v2\x1a.settings.v1alpha1.EchoAppH\x00R\x04echo\x12-\n" +
+	"\x03mcp\x18\x06 \x01(\v2\x19.settings.v1alpha1.McpAppH\x00R\x03mcp\"e\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTYPE_SCRIPT\x10\x01\x12\x19\n" +
 	"\x15TYPE_COMPOSITE_SCRIPT\x10\x02\x12\r\n" +
-	"\tTYPE_ECHO\x10\x03B\b\n" +
+	"\tTYPE_ECHO\x10\x03\x12\f\n" +
+	"\bTYPE_MCP\x10\x04B\b\n" +
 	"\x06config\"\x95\x02\n" +
 	"\tScriptApp\x12>\n" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
@@ -778,7 +1839,85 @@ const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
 	"staticData\"%\n" +
 	"\aEchoApp\x12\x1a\n" +
-	"\bresponse\x18\x01 \x01(\tR\bresponseB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
+	"\bresponse\x18\x01 \x01(\tR\bresponse\"\xfb\x02\n" +
+	"\x06McpApp\x12\x1f\n" +
+	"\vserver_name\x18\x01 \x01(\tR\n" +
+	"serverName\x12%\n" +
+	"\x0eserver_version\x18\x02 \x01(\tR\rserverVersion\x12=\n" +
+	"\ttransport\x18\x03 \x01(\v2\x1f.settings.v1alpha1.McpTransportR\ttransport\x120\n" +
+	"\x05tools\x18\x04 \x03(\v2\x1a.settings.v1alpha1.McpToolR\x05tools\x12<\n" +
+	"\tresources\x18\x05 \x03(\v2\x1e.settings.v1alpha1.McpResourceR\tresources\x126\n" +
+	"\aprompts\x18\x06 \x03(\v2\x1c.settings.v1alpha1.McpPromptR\aprompts\x12B\n" +
+	"\vmiddlewares\x18\a \x03(\v2 .settings.v1alpha1.McpMiddlewareR\vmiddlewares\"J\n" +
+	"\fMcpTransport\x12\x1f\n" +
+	"\vsse_enabled\x18\x01 \x01(\bR\n" +
+	"sseEnabled\x12\x19\n" +
+	"\bsse_path\x18\x02 \x01(\tR\assePath\"\xcb\x01\n" +
+	"\aMcpTool\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12=\n" +
+	"\x06script\x18\n" +
+	" \x01(\v2#.settings.v1alpha1.McpScriptHandlerH\x00R\x06script\x12@\n" +
+	"\abuiltin\x18\v \x01(\v2$.settings.v1alpha1.McpBuiltinHandlerH\x00R\abuiltinB\t\n" +
+	"\ahandler\"\x9c\x02\n" +
+	"\x10McpScriptHandler\x12>\n" +
+	"\vstatic_data\x18\x01 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
+	"staticData\x129\n" +
+	"\x05risor\x18\x02 \x01(\v2!.settings.v1alpha1.RisorEvaluatorH\x00R\x05risor\x12B\n" +
+	"\bstarlark\x18\x03 \x01(\v2$.settings.v1alpha1.StarlarkEvaluatorH\x00R\bstarlark\x12<\n" +
+	"\x06extism\x18\x04 \x01(\v2\".settings.v1alpha1.ExtismEvaluatorH\x00R\x06extismB\v\n" +
+	"\tevaluator\"\x89\x02\n" +
+	"\x11McpBuiltinHandler\x12=\n" +
+	"\x04type\x18\x01 \x01(\x0e2).settings.v1alpha1.McpBuiltinHandler.TypeR\x04type\x12H\n" +
+	"\x06config\x18\x02 \x03(\v20.settings.v1alpha1.McpBuiltinHandler.ConfigEntryR\x06config\x1a9\n" +
+	"\vConfigEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"0\n" +
+	"\x04Type\x12\b\n" +
+	"\x04ECHO\x10\x00\x12\x0f\n" +
+	"\vCALCULATION\x10\x01\x12\r\n" +
+	"\tFILE_READ\x10\x02\"\x84\x02\n" +
+	"\vMcpResource\x12\x10\n" +
+	"\x03uri\x18\x01 \x01(\tR\x03uri\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1b\n" +
+	"\tmime_type\x18\x04 \x01(\tR\bmimeType\x12\x1d\n" +
+	"\tfile_path\x18\n" +
+	" \x01(\tH\x00R\bfilePath\x12'\n" +
+	"\x0estatic_content\x18\v \x01(\tH\x00R\rstaticContent\x12>\n" +
+	"\x06script\x18\f \x01(\v2$.settings.v1alpha1.McpScriptResourceH\x00R\x06scriptB\b\n" +
+	"\x06source\"\x9d\x02\n" +
+	"\x11McpScriptResource\x12>\n" +
+	"\vstatic_data\x18\x01 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
+	"staticData\x129\n" +
+	"\x05risor\x18\x02 \x01(\v2!.settings.v1alpha1.RisorEvaluatorH\x00R\x05risor\x12B\n" +
+	"\bstarlark\x18\x03 \x01(\v2$.settings.v1alpha1.StarlarkEvaluatorH\x00R\bstarlark\x12<\n" +
+	"\x06extism\x18\x04 \x01(\v2\".settings.v1alpha1.ExtismEvaluatorH\x00R\x06extismB\v\n" +
+	"\tevaluator\"\xa7\x01\n" +
+	"\tMcpPrompt\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1c\n" +
+	"\btemplate\x18\n" +
+	" \x01(\tH\x00R\btemplate\x12<\n" +
+	"\x06script\x18\v \x01(\v2\".settings.v1alpha1.McpScriptPromptH\x00R\x06scriptB\b\n" +
+	"\x06source\"\x9b\x02\n" +
+	"\x0fMcpScriptPrompt\x12>\n" +
+	"\vstatic_data\x18\x01 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
+	"staticData\x129\n" +
+	"\x05risor\x18\x02 \x01(\v2!.settings.v1alpha1.RisorEvaluatorH\x00R\x05risor\x12B\n" +
+	"\bstarlark\x18\x03 \x01(\v2$.settings.v1alpha1.StarlarkEvaluatorH\x00R\bstarlark\x12<\n" +
+	"\x06extism\x18\x04 \x01(\v2\".settings.v1alpha1.ExtismEvaluatorH\x00R\x06extismB\v\n" +
+	"\tevaluator\"\x8f\x02\n" +
+	"\rMcpMiddleware\x129\n" +
+	"\x04type\x18\x01 \x01(\x0e2%.settings.v1alpha1.McpMiddleware.TypeR\x04type\x12D\n" +
+	"\x06config\x18\x02 \x03(\v2,.settings.v1alpha1.McpMiddleware.ConfigEntryR\x06config\x1a9\n" +
+	"\vConfigEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"B\n" +
+	"\x04Type\x12\x11\n" +
+	"\rRATE_LIMITING\x10\x00\x12\x0f\n" +
+	"\vMCP_LOGGING\x10\x01\x12\x16\n" +
+	"\x12MCP_AUTHENTICATION\x10\x02B;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_apps_proto_rawDescOnce sync.Once
@@ -792,38 +1931,78 @@ func file_settings_v1alpha1_apps_proto_rawDescGZIP() []byte {
 	return file_settings_v1alpha1_apps_proto_rawDescData
 }
 
-var file_settings_v1alpha1_apps_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_settings_v1alpha1_apps_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_settings_v1alpha1_apps_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_settings_v1alpha1_apps_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_settings_v1alpha1_apps_proto_goTypes = []any{
 	(AppDefinition_Type)(0),     // 0: settings.v1alpha1.AppDefinition.Type
-	(*AppDefinition)(nil),       // 1: settings.v1alpha1.AppDefinition
-	(*ScriptApp)(nil),           // 2: settings.v1alpha1.ScriptApp
-	(*RisorEvaluator)(nil),      // 3: settings.v1alpha1.RisorEvaluator
-	(*StarlarkEvaluator)(nil),   // 4: settings.v1alpha1.StarlarkEvaluator
-	(*ExtismEvaluator)(nil),     // 5: settings.v1alpha1.ExtismEvaluator
-	(*CompositeScriptApp)(nil),  // 6: settings.v1alpha1.CompositeScriptApp
-	(*EchoApp)(nil),             // 7: settings.v1alpha1.EchoApp
-	(*StaticData)(nil),          // 8: settings.v1alpha1.StaticData
-	(*durationpb.Duration)(nil), // 9: google.protobuf.Duration
+	(McpBuiltinHandler_Type)(0), // 1: settings.v1alpha1.McpBuiltinHandler.Type
+	(McpMiddleware_Type)(0),     // 2: settings.v1alpha1.McpMiddleware.Type
+	(*AppDefinition)(nil),       // 3: settings.v1alpha1.AppDefinition
+	(*ScriptApp)(nil),           // 4: settings.v1alpha1.ScriptApp
+	(*RisorEvaluator)(nil),      // 5: settings.v1alpha1.RisorEvaluator
+	(*StarlarkEvaluator)(nil),   // 6: settings.v1alpha1.StarlarkEvaluator
+	(*ExtismEvaluator)(nil),     // 7: settings.v1alpha1.ExtismEvaluator
+	(*CompositeScriptApp)(nil),  // 8: settings.v1alpha1.CompositeScriptApp
+	(*EchoApp)(nil),             // 9: settings.v1alpha1.EchoApp
+	(*McpApp)(nil),              // 10: settings.v1alpha1.McpApp
+	(*McpTransport)(nil),        // 11: settings.v1alpha1.McpTransport
+	(*McpTool)(nil),             // 12: settings.v1alpha1.McpTool
+	(*McpScriptHandler)(nil),    // 13: settings.v1alpha1.McpScriptHandler
+	(*McpBuiltinHandler)(nil),   // 14: settings.v1alpha1.McpBuiltinHandler
+	(*McpResource)(nil),         // 15: settings.v1alpha1.McpResource
+	(*McpScriptResource)(nil),   // 16: settings.v1alpha1.McpScriptResource
+	(*McpPrompt)(nil),           // 17: settings.v1alpha1.McpPrompt
+	(*McpScriptPrompt)(nil),     // 18: settings.v1alpha1.McpScriptPrompt
+	(*McpMiddleware)(nil),       // 19: settings.v1alpha1.McpMiddleware
+	nil,                         // 20: settings.v1alpha1.McpBuiltinHandler.ConfigEntry
+	nil,                         // 21: settings.v1alpha1.McpMiddleware.ConfigEntry
+	(*StaticData)(nil),          // 22: settings.v1alpha1.StaticData
+	(*durationpb.Duration)(nil), // 23: google.protobuf.Duration
 }
 var file_settings_v1alpha1_apps_proto_depIdxs = []int32{
 	0,  // 0: settings.v1alpha1.AppDefinition.type:type_name -> settings.v1alpha1.AppDefinition.Type
-	2,  // 1: settings.v1alpha1.AppDefinition.script:type_name -> settings.v1alpha1.ScriptApp
-	6,  // 2: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.CompositeScriptApp
-	7,  // 3: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.EchoApp
-	8,  // 4: settings.v1alpha1.ScriptApp.static_data:type_name -> settings.v1alpha1.StaticData
-	3,  // 5: settings.v1alpha1.ScriptApp.risor:type_name -> settings.v1alpha1.RisorEvaluator
-	4,  // 6: settings.v1alpha1.ScriptApp.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
-	5,  // 7: settings.v1alpha1.ScriptApp.extism:type_name -> settings.v1alpha1.ExtismEvaluator
-	9,  // 8: settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
-	9,  // 9: settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
-	9,  // 10: settings.v1alpha1.ExtismEvaluator.timeout:type_name -> google.protobuf.Duration
-	8,  // 11: settings.v1alpha1.CompositeScriptApp.static_data:type_name -> settings.v1alpha1.StaticData
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	4,  // 1: settings.v1alpha1.AppDefinition.script:type_name -> settings.v1alpha1.ScriptApp
+	8,  // 2: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.CompositeScriptApp
+	9,  // 3: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.EchoApp
+	10, // 4: settings.v1alpha1.AppDefinition.mcp:type_name -> settings.v1alpha1.McpApp
+	22, // 5: settings.v1alpha1.ScriptApp.static_data:type_name -> settings.v1alpha1.StaticData
+	5,  // 6: settings.v1alpha1.ScriptApp.risor:type_name -> settings.v1alpha1.RisorEvaluator
+	6,  // 7: settings.v1alpha1.ScriptApp.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
+	7,  // 8: settings.v1alpha1.ScriptApp.extism:type_name -> settings.v1alpha1.ExtismEvaluator
+	23, // 9: settings.v1alpha1.RisorEvaluator.timeout:type_name -> google.protobuf.Duration
+	23, // 10: settings.v1alpha1.StarlarkEvaluator.timeout:type_name -> google.protobuf.Duration
+	23, // 11: settings.v1alpha1.ExtismEvaluator.timeout:type_name -> google.protobuf.Duration
+	22, // 12: settings.v1alpha1.CompositeScriptApp.static_data:type_name -> settings.v1alpha1.StaticData
+	11, // 13: settings.v1alpha1.McpApp.transport:type_name -> settings.v1alpha1.McpTransport
+	12, // 14: settings.v1alpha1.McpApp.tools:type_name -> settings.v1alpha1.McpTool
+	15, // 15: settings.v1alpha1.McpApp.resources:type_name -> settings.v1alpha1.McpResource
+	17, // 16: settings.v1alpha1.McpApp.prompts:type_name -> settings.v1alpha1.McpPrompt
+	19, // 17: settings.v1alpha1.McpApp.middlewares:type_name -> settings.v1alpha1.McpMiddleware
+	13, // 18: settings.v1alpha1.McpTool.script:type_name -> settings.v1alpha1.McpScriptHandler
+	14, // 19: settings.v1alpha1.McpTool.builtin:type_name -> settings.v1alpha1.McpBuiltinHandler
+	22, // 20: settings.v1alpha1.McpScriptHandler.static_data:type_name -> settings.v1alpha1.StaticData
+	5,  // 21: settings.v1alpha1.McpScriptHandler.risor:type_name -> settings.v1alpha1.RisorEvaluator
+	6,  // 22: settings.v1alpha1.McpScriptHandler.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
+	7,  // 23: settings.v1alpha1.McpScriptHandler.extism:type_name -> settings.v1alpha1.ExtismEvaluator
+	1,  // 24: settings.v1alpha1.McpBuiltinHandler.type:type_name -> settings.v1alpha1.McpBuiltinHandler.Type
+	20, // 25: settings.v1alpha1.McpBuiltinHandler.config:type_name -> settings.v1alpha1.McpBuiltinHandler.ConfigEntry
+	16, // 26: settings.v1alpha1.McpResource.script:type_name -> settings.v1alpha1.McpScriptResource
+	22, // 27: settings.v1alpha1.McpScriptResource.static_data:type_name -> settings.v1alpha1.StaticData
+	5,  // 28: settings.v1alpha1.McpScriptResource.risor:type_name -> settings.v1alpha1.RisorEvaluator
+	6,  // 29: settings.v1alpha1.McpScriptResource.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
+	7,  // 30: settings.v1alpha1.McpScriptResource.extism:type_name -> settings.v1alpha1.ExtismEvaluator
+	18, // 31: settings.v1alpha1.McpPrompt.script:type_name -> settings.v1alpha1.McpScriptPrompt
+	22, // 32: settings.v1alpha1.McpScriptPrompt.static_data:type_name -> settings.v1alpha1.StaticData
+	5,  // 33: settings.v1alpha1.McpScriptPrompt.risor:type_name -> settings.v1alpha1.RisorEvaluator
+	6,  // 34: settings.v1alpha1.McpScriptPrompt.starlark:type_name -> settings.v1alpha1.StarlarkEvaluator
+	7,  // 35: settings.v1alpha1.McpScriptPrompt.extism:type_name -> settings.v1alpha1.ExtismEvaluator
+	2,  // 36: settings.v1alpha1.McpMiddleware.type:type_name -> settings.v1alpha1.McpMiddleware.Type
+	21, // 37: settings.v1alpha1.McpMiddleware.config:type_name -> settings.v1alpha1.McpMiddleware.ConfigEntry
+	38, // [38:38] is the sub-list for method output_type
+	38, // [38:38] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_apps_proto_init() }
@@ -836,6 +2015,7 @@ func file_settings_v1alpha1_apps_proto_init() {
 		(*AppDefinition_Script)(nil),
 		(*AppDefinition_CompositeScript)(nil),
 		(*AppDefinition_Echo)(nil),
+		(*AppDefinition_Mcp)(nil),
 	}
 	file_settings_v1alpha1_apps_proto_msgTypes[1].OneofWrappers = []any{
 		(*ScriptApp_Risor)(nil),
@@ -854,13 +2034,41 @@ func file_settings_v1alpha1_apps_proto_init() {
 		(*ExtismEvaluator_Code)(nil),
 		(*ExtismEvaluator_Uri)(nil),
 	}
+	file_settings_v1alpha1_apps_proto_msgTypes[9].OneofWrappers = []any{
+		(*McpTool_Script)(nil),
+		(*McpTool_Builtin)(nil),
+	}
+	file_settings_v1alpha1_apps_proto_msgTypes[10].OneofWrappers = []any{
+		(*McpScriptHandler_Risor)(nil),
+		(*McpScriptHandler_Starlark)(nil),
+		(*McpScriptHandler_Extism)(nil),
+	}
+	file_settings_v1alpha1_apps_proto_msgTypes[12].OneofWrappers = []any{
+		(*McpResource_FilePath)(nil),
+		(*McpResource_StaticContent)(nil),
+		(*McpResource_Script)(nil),
+	}
+	file_settings_v1alpha1_apps_proto_msgTypes[13].OneofWrappers = []any{
+		(*McpScriptResource_Risor)(nil),
+		(*McpScriptResource_Starlark)(nil),
+		(*McpScriptResource_Extism)(nil),
+	}
+	file_settings_v1alpha1_apps_proto_msgTypes[14].OneofWrappers = []any{
+		(*McpPrompt_Template)(nil),
+		(*McpPrompt_Script)(nil),
+	}
+	file_settings_v1alpha1_apps_proto_msgTypes[15].OneofWrappers = []any{
+		(*McpScriptPrompt_Risor)(nil),
+		(*McpScriptPrompt_Starlark)(nil),
+		(*McpScriptPrompt_Extism)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_apps_proto_rawDesc), len(file_settings_v1alpha1_apps_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   7,
+			NumEnums:      3,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -5,8 +5,10 @@ import (
 	"log/slog"
 
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/script"
 )
 
@@ -36,4 +38,13 @@ func createScriptApp(id string, config any) (App, error) {
 	logger := slog.Default().With("app_type", "script", "app_id", id)
 
 	return script.New(id, scriptConfig, logger)
+}
+
+func createMCPApp(id string, config any) (App, error) {
+	mcpConfig, ok := config.(*configMCP.App)
+	if !ok {
+		return nil, fmt.Errorf("invalid config type for MCP app: %T", config)
+	}
+
+	return mcp.New(id, mcpConfig)
 }

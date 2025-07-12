@@ -1,0 +1,7 @@
+func process() {
+    args := ctx.get("args", {})
+    expression := args.get("expression", "")
+    return {"text": "Got expression: " + expression}
+}
+
+process()

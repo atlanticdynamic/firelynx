@@ -1,0 +1,105 @@
+// MCP Calculator Tool Script
+//
+// This Risor script implements a mathematical calculator for the MCP (Model Context Protocol)
+// integration. It demonstrates how to create script-based MCP tools that accept dynamic
+// runtime input and perform actual computations.
+//
+// Usage Context:
+// - Embedded in firelynx MCP app integration tests
+// - Loaded from external file via URI template variable
+// - Executed through go-polyscript Risor evaluator
+// - Arguments passed via MCP tool call parameters
+//
+// Supported Operations:
+// - Basic arithmetic: +, -, *, /, % (modulo)
+// - Exponentiation: ^ (power)
+// - Square root: sqrt(n)
+// - Floating point precision for accurate calculations
+//
+// Input Format:
+// - expression: String containing mathematical expression (e.g., "2 + 3", "sqrt(16)")
+//
+// Output Format:
+// - Success: {"text": "Result: <value>", "value": <numeric_result>}
+// - Error: {"error": "<error_message>"}
+//
+// Error Handling:
+// - Division by zero detection
+// - Invalid expressions
+// - Negative square roots
+// - Missing or empty expressions
+
+func calculate() {
+    args := ctx.get("args", {})
+    expression := args.get("expression", "")
+
+    if expression == "" {
+        return {"error": "Expression is required"}
+    }
+
+    // Normalize expression
+    expr := strings.trim_space(expression)
+    expr = strings.replace_all(expr, " ", "")
+
+    // Handle square root function
+    if strings.has_prefix(expr, "sqrt(") && strings.has_suffix(expr, ")") {
+        inner_val := expr[5:len(expr)-1]
+        num := strconv.parse_float(inner_val)
+        if num < 0 {
+            return {"error": "Cannot calculate square root of a negative number"}
+        }
+        result := math.sqrt(num)
+        return {"text": "Result: " + string(result), "value": result}
+    }
+
+    // Binary operators in order of precedence (processed left to right for same precedence)
+    operators := ["+", "-", "*", "/", "^", "%"]
+    
+    for _, op := range operators {
+        if strings.contains(expr, op) {
+            // Skip negative numbers (leading minus)
+            if op == "-" && strings.has_prefix(expr, "-") && strings.count(expr, "-") == 1 {
+                continue
+            }
+            
+            parts := strings.split(expr, op)
+            if len(parts) == 2 {
+                left_str := strings.trim_space(parts[0])
+                right_str := strings.trim_space(parts[1])
+                left_num := strconv.parse_float(left_str)
+                right_num := strconv.parse_float(right_str)
+                
+                switch op {
+                case "+": 
+                    result := left_num + right_num
+                    return {"text": "Result: " + string(result), "value": result}
+                case "-": 
+                    result := left_num - right_num
+                    return {"text": "Result: " + string(result), "value": result}
+                case "*": 
+                    result := left_num * right_num
+                    return {"text": "Result: " + string(result), "value": result}
+                case "/":
+                    if right_num == 0 { 
+                        return {"error": "Division by zero"} 
+                    }
+                    result := left_num / right_num
+                    return {"text": "Result: " + string(result), "value": result}
+                case "^": 
+                    result := math.pow(left_num, right_num)
+                    return {"text": "Result: " + string(result), "value": result}
+                case "%": 
+                    if right_num == 0 { 
+                        return {"error": "Modulo by zero"} 
+                    }
+                    result := math.mod(left_num, right_num)
+                    return {"text": "Result: " + string(result), "value": result}
+                }
+            }
+        }
+    }
+    
+    return {"error": "Unable to evaluate: " + expression}
+}
+
+calculate()
