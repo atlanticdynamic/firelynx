@@ -5,6 +5,7 @@ import (
 
 	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -122,8 +123,10 @@ func TestToProto(t *testing.T) {
 			Middlewares:   []*Middleware{},
 		}
 
-		proto := app.ToProto()
-		assert.NotNil(t, proto)
+		result := app.ToProto()
+		require.IsType(t, (*settingsv1alpha1.McpApp)(nil), result)
+		proto := result.(*settingsv1alpha1.McpApp)
+
 		assert.Equal(t, "Test Server", *proto.ServerName)
 		assert.Equal(t, "1.0.0", *proto.ServerVersion)
 		assert.NotNil(t, proto.Transport)
@@ -143,7 +146,9 @@ func TestToProto(t *testing.T) {
 			},
 		}
 
-		proto := app.ToProto()
+		result := app.ToProto()
+		require.IsType(t, (*settingsv1alpha1.McpApp)(nil), result)
+		proto := result.(*settingsv1alpha1.McpApp)
 		assert.NotNil(t, proto.Transport)
 		assert.True(t, *proto.Transport.SseEnabled)
 		assert.Equal(t, "/events", *proto.Transport.SsePath)
@@ -167,7 +172,10 @@ func TestToProto(t *testing.T) {
 			},
 		}
 
-		proto := app.ToProto()
+		result := app.ToProto()
+		require.IsType(t, (*settingsv1alpha1.McpApp)(nil), result)
+		proto := result.(*settingsv1alpha1.McpApp)
+
 		assert.Len(t, proto.Tools, 1)
 		assert.Equal(t, "echo", *proto.Tools[0].Name)
 		assert.Equal(t, "Echo tool", *proto.Tools[0].Description)

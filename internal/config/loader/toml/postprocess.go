@@ -551,6 +551,8 @@ func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
 		appType = pbSettings.AppDefinition_TYPE_COMPOSITE_SCRIPT
 	case "echo":
 		appType = pbSettings.AppDefinition_TYPE_ECHO
+	case "mcp":
+		appType = pbSettings.AppDefinition_TYPE_MCP
 	default:
 		appType = pbSettings.AppDefinition_TYPE_UNSPECIFIED
 		errList = append(errList, fmt.Errorf("unsupported app type: %s", typeVal))

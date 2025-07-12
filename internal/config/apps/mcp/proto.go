@@ -2,8 +2,10 @@ package mcp
 
 import (
 	"fmt"
+	"maps"
 
 	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 )
 
@@ -72,7 +74,7 @@ func FromProto(proto *settingsv1alpha1.McpApp) (*App, error) {
 }
 
 // ToProto converts an MCP App to its protocol buffer representation.
-func (a *App) ToProto() *settingsv1alpha1.McpApp {
+func (a *App) ToProto() any {
 	if a == nil {
 		return nil
 	}
@@ -244,15 +246,14 @@ func scriptHandlerFromProto(proto *settingsv1alpha1.McpScriptHandler) (*ScriptTo
 		handler.StaticData = staticData
 	}
 
-	// TODO: Parse evaluator when evaluator interface is properly defined
-	// For now, we'll store the protobuf evaluator type
-	switch proto.Evaluator.(type) {
+	// Parse evaluator from protobuf
+	switch e := proto.Evaluator.(type) {
 	case *settingsv1alpha1.McpScriptHandler_Risor:
-		// handler.Evaluator = risorEvaluatorFromProto(e.Risor)
+		handler.Evaluator = evaluators.RisorEvaluatorFromProto(e.Risor)
 	case *settingsv1alpha1.McpScriptHandler_Starlark:
-		// handler.Evaluator = starlarkEvaluatorFromProto(e.Starlark)
+		handler.Evaluator = evaluators.StarlarkEvaluatorFromProto(e.Starlark)
 	case *settingsv1alpha1.McpScriptHandler_Extism:
-		// handler.Evaluator = extismEvaluatorFromProto(e.Extism)
+		handler.Evaluator = evaluators.ExtismEvaluatorFromProto(e.Extism)
 	}
 
 	return handler, nil
@@ -299,9 +300,7 @@ func builtinHandlerFromProto(proto *settingsv1alpha1.McpBuiltinHandler) (*Builti
 	}
 
 	// Convert config
-	for k, v := range proto.Config {
-		handler.Config[k] = v
-	}
+	maps.Copy(handler.Config, proto.Config)
 
 	return handler, nil
 }
@@ -329,9 +328,7 @@ func (b *BuiltinToolHandler) toProto() *settingsv1alpha1.McpBuiltinHandler {
 	proto.Type = &protoType
 
 	// Convert config
-	for k, v := range b.Config {
-		proto.Config[k] = v
-	}
+	maps.Copy(proto.Config, b.Config)
 
 	return proto
 }
@@ -451,9 +448,7 @@ func middlewareFromProto(proto *settingsv1alpha1.McpMiddleware) (*Middleware, er
 	}
 
 	// Convert config
-	for k, v := range proto.Config {
-		middleware.Config[k] = v
-	}
+	maps.Copy(middleware.Config, proto.Config)
 
 	return middleware, nil
 }
@@ -481,9 +476,7 @@ func (m *Middleware) toProto() *settingsv1alpha1.McpMiddleware {
 	proto.Type = &protoType
 
 	// Convert config
-	for k, v := range m.Config {
-		proto.Config[k] = v
-	}
+	maps.Copy(proto.Config, m.Config)
 
 	return proto
 }

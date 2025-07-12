@@ -2,8 +2,11 @@ package mcp
 
 import (
 	"testing"
+	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
+	"github.com/robbyt/go-polyscript/platform"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -390,7 +393,7 @@ func TestBuiltinToolHandler_CreateMCPTool(t *testing.T) {
 }
 
 func TestScriptToolHandler_CreateMCPTool(t *testing.T) {
-	t.Run("script tool not implemented", func(t *testing.T) {
+	t.Run("script tool with mock evaluator error", func(t *testing.T) {
 		handler := &ScriptToolHandler{
 			Evaluator: &mockEvaluator{},
 		}
@@ -399,17 +402,37 @@ func TestScriptToolHandler_CreateMCPTool(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, tool)
 		assert.Nil(t, mcpHandler)
-		assert.Contains(t, err.Error(), "script tool handler not yet implemented")
+		assert.Contains(t, err.Error(), "compiled evaluator is nil")
+	})
+
+	t.Run("script tool with nil evaluator", func(t *testing.T) {
+		handler := &ScriptToolHandler{
+			Evaluator: nil,
+		}
+
+		tool, mcpHandler, err := handler.CreateMCPTool()
+		assert.Error(t, err)
+		assert.Nil(t, tool)
+		assert.Nil(t, mcpHandler)
+		assert.Contains(t, err.Error(), "script tool handler requires an evaluator")
 	})
 }
 
 // Mock evaluator for testing
 type mockEvaluator struct{}
 
-func (m *mockEvaluator) Type() string {
-	return "mock"
+func (m *mockEvaluator) Type() evaluators.EvaluatorType {
+	return evaluators.EvaluatorTypeRisor
 }
 
 func (m *mockEvaluator) Validate() error {
 	return nil
+}
+
+func (m *mockEvaluator) GetCompiledEvaluator() (platform.Evaluator, error) {
+	return nil, nil // Return nil to test error handling
+}
+
+func (m *mockEvaluator) GetTimeout() time.Duration {
+	return time.Minute
 }

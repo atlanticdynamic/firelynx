@@ -1,0 +1,37 @@
+[[listeners]]
+id = "test-listener"
+address = ":{{.Port}}"
+type = "http"
+
+[[endpoints]]
+id = "test-endpoint"
+listener_id = "test-listener"
+
+[[endpoints.routes]]
+app_id = "test-mcp"
+[endpoints.routes.http]
+path_prefix = "/mcp"
+method = "*"
+
+[[apps]]
+id = "test-mcp"
+type = "mcp"
+
+[apps.mcp]
+server_name = "Test MCP Script Server"
+server_version = "1.0.0"
+
+[apps.mcp.transport]
+sse_enabled = false
+
+# Script-based calculator tool
+[[apps.mcp.tools]]
+name = "calculator"
+description = "Calculate basic math expressions"
+[apps.mcp.tools.script]
+[apps.mcp.tools.script.static_data]
+max_value = 1000
+precision = "high"
+[apps.mcp.tools.script.risor]
+timeout = "5s"
+uri = "{{.CalculatorScriptPath}}"
