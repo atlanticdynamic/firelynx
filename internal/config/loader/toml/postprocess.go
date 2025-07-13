@@ -532,6 +532,10 @@ func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []er
 				errs := processScriptAppConfig(app, appMap)
 				errList = append(errList, errs...)
 			}
+			if _, hasMcp := appMap["mcp"]; hasMcp {
+				errs := processMcpAppConfig(app, appMap)
+				errList = append(errList, errs...)
+			}
 			// Echo and composite_script apps don't need special post-processing
 		}
 	}
@@ -620,7 +624,73 @@ func processScriptEvaluators(scriptApp *pbApps.ScriptApp, scriptConfig map[strin
 	return errList
 }
 
-func processRisorSource(eval *pbApps.RisorEvaluator, config map[string]any) {
+// processMcpAppConfig handles MCP app-specific configuration
+func processMcpAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) []error {
+	var errList []error
+
+	// Get the MCP configuration
+	mcpConfig, ok := appMap["mcp"].(map[string]any)
+	if !ok {
+		return errList
+	}
+
+	// Get the MCP app config from the app
+	if mcpApp := app.GetMcp(); mcpApp != nil {
+		// Process tools array
+		if toolsArray, ok := mcpConfig["tools"].([]any); ok {
+			for i, toolObj := range toolsArray {
+				if i >= len(mcpApp.Tools) {
+					break
+				}
+
+				toolMap, ok := toolObj.(map[string]any)
+				if !ok {
+					continue
+				}
+
+				tool := mcpApp.Tools[i]
+
+				// Process script handler if present (TOML flattens the oneof structure)
+				if scriptHandlerMap, ok := toolMap["script"].(map[string]any); ok {
+					// Process static_data for script tool handler
+					if staticDataMap, ok := scriptHandlerMap["static_data"].(map[string]any); ok {
+						if scriptHandler := tool.GetScript(); scriptHandler != nil {
+							processStaticDataField(&scriptHandler.StaticData, staticDataMap)
+						}
+					}
+
+					// Process evaluator configurations
+					if scriptHandler := tool.GetScript(); scriptHandler != nil {
+						errs := processMcpScriptEvaluators(scriptHandler, scriptHandlerMap)
+						errList = append(errList, errs...)
+					}
+				}
+			}
+		}
+	}
+
+	return errList
+}
+
+// processMcpScriptEvaluators handles script evaluator configuration for MCP tools
+func processMcpScriptEvaluators(scriptHandler *pbSettings.McpScriptHandler, scriptConfig map[string]any) []error {
+	var errList []error
+
+	// Process each evaluator type (reuse existing evaluator processing functions)
+	if risorConfig, ok := scriptConfig["risor"].(map[string]any); ok {
+		processRisorSource(scriptHandler.GetRisor(), risorConfig)
+	}
+	if starlarkConfig, ok := scriptConfig["starlark"].(map[string]any); ok {
+		processStarlarkSource(scriptHandler.GetStarlark(), starlarkConfig)
+	}
+	if extismConfig, ok := scriptConfig["extism"].(map[string]any); ok {
+		processExtismSource(scriptHandler.GetExtism(), extismConfig)
+	}
+
+	return errList
+}
+
+func processRisorSource(eval *pbSettings.RisorEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -629,13 +699,13 @@ func processRisorSource(eval *pbApps.RisorEvaluator, config map[string]any) {
 		return
 	}
 	if code != "" {
-		eval.Source = &pbApps.RisorEvaluator_Code{Code: code}
+		eval.Source = &pbSettings.RisorEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbApps.RisorEvaluator_Uri{Uri: uri}
+		eval.Source = &pbSettings.RisorEvaluator_Uri{Uri: uri}
 	}
 }
 
-func processStarlarkSource(eval *pbApps.StarlarkEvaluator, config map[string]any) {
+func processStarlarkSource(eval *pbSettings.StarlarkEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -644,13 +714,13 @@ func processStarlarkSource(eval *pbApps.StarlarkEvaluator, config map[string]any
 		return
 	}
 	if code != "" {
-		eval.Source = &pbApps.StarlarkEvaluator_Code{Code: code}
+		eval.Source = &pbSettings.StarlarkEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbApps.StarlarkEvaluator_Uri{Uri: uri}
+		eval.Source = &pbSettings.StarlarkEvaluator_Uri{Uri: uri}
 	}
 }
 
-func processExtismSource(eval *pbApps.ExtismEvaluator, config map[string]any) {
+func processExtismSource(eval *pbSettings.ExtismEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -659,8 +729,8 @@ func processExtismSource(eval *pbApps.ExtismEvaluator, config map[string]any) {
 		return
 	}
 	if code != "" {
-		eval.Source = &pbApps.ExtismEvaluator_Code{Code: code}
+		eval.Source = &pbSettings.ExtismEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbApps.ExtismEvaluator_Uri{Uri: uri}
+		eval.Source = &pbSettings.ExtismEvaluator_Uri{Uri: uri}
 	}
 }
