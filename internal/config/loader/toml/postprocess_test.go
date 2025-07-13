@@ -5,7 +5,6 @@ import (
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
-	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	pbMiddleware "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -378,89 +377,6 @@ func TestProcessAppType(t *testing.T) {
 			assert.Equal(t, tt.expectedEnum, app.GetType(), "App type should be set correctly")
 		})
 	}
-}
-
-// TestProcessStaticDataField tests the processStaticDataField function
-func TestProcessStaticDataField(t *testing.T) {
-	t.Parallel()
-
-	t.Run("NilStaticDataPointer", func(t *testing.T) {
-		var staticData *pbData.StaticData
-
-		staticDataMap := map[string]any{
-			"key1": "value1",
-			"key2": 42,
-			"nested": map[string]any{
-				"inner": "value",
-			},
-		}
-
-		processStaticDataField(&staticData, staticDataMap)
-
-		require.NotNil(t, staticData, "Static data should be initialized")
-		require.NotNil(t, staticData.Data, "Static data Data field should be set")
-
-		// Verify the data was properly converted to protobuf struct
-		assert.Contains(t, staticData.Data, "key1", "Should contain key1")
-		assert.Contains(t, staticData.Data, "key2", "Should contain key2")
-		assert.Contains(t, staticData.Data, "nested", "Should contain nested key")
-	})
-
-	t.Run("ExistingStaticDataPointer", func(t *testing.T) {
-		// Pre-create static data with some existing data
-		existingData := &pbData.StaticData{}
-		staticData := existingData
-
-		staticDataMap := map[string]any{
-			"new_key": "new_value",
-		}
-
-		processStaticDataField(&staticData, staticDataMap)
-
-		require.NotNil(t, staticData, "Static data should remain non-nil")
-		require.NotNil(t, staticData.Data, "Static data Data field should be set")
-
-		// Should have the new data
-		assert.Contains(t, staticData.Data, "new_key", "Should contain new key")
-	})
-
-	t.Run("EmptyStaticDataMap", func(t *testing.T) {
-		var staticData *pbData.StaticData
-
-		staticDataMap := map[string]any{}
-
-		processStaticDataField(&staticData, staticDataMap)
-
-		require.NotNil(t, staticData, "Static data should be initialized even for empty map")
-		require.NotNil(t, staticData.Data, "Static data Data field should be set")
-		assert.Empty(t, staticData.Data, "Data should be empty for empty input map")
-	})
-
-	t.Run("ComplexNestedData", func(t *testing.T) {
-		var staticData *pbData.StaticData
-
-		staticDataMap := map[string]any{
-			"simple": "value",
-			"array":  []any{"item1", "item2", 42},
-			"nested": map[string]any{
-				"level2": map[string]any{
-					"level3": "deep_value",
-				},
-				"bool_val": true,
-				"null_val": nil,
-			},
-		}
-
-		processStaticDataField(&staticData, staticDataMap)
-
-		require.NotNil(t, staticData, "Static data should be initialized")
-		require.NotNil(t, staticData.Data, "Static data Data field should be set")
-
-		// Verify all top-level keys are present
-		assert.Contains(t, staticData.Data, "simple", "Should contain simple key")
-		assert.Contains(t, staticData.Data, "array", "Should contain array key")
-		assert.Contains(t, staticData.Data, "nested", "Should contain nested key")
-	})
 }
 
 // TestExtractSourceFromConfig tests the extractSourceFromConfig helper function

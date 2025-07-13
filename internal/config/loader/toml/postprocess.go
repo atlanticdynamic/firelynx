@@ -144,7 +144,10 @@ func processEndpoints(config *pbSettings.ServerConfig, configMap map[string]any)
 					// Process static_data for this route
 					if staticDataMap, ok := routeMap["static_data"].(map[string]any); ok {
 						route := endpoint.Routes[j]
-						processStaticDataField(&route.StaticData, staticDataMap)
+						if route.StaticData == nil {
+							route.StaticData = &pbData.StaticData{}
+						}
+						route.StaticData.Data = protobaggins.MapToStructValues(staticDataMap)
 					}
 				}
 			}
@@ -554,14 +557,6 @@ func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
 	return errList
 }
 
-// processStaticDataField handles static_data conversion from TOML map to protobuf
-func processStaticDataField(staticData **pbData.StaticData, staticDataMap map[string]any) {
-	if *staticData == nil {
-		*staticData = &pbData.StaticData{}
-	}
-	(*staticData).Data = protobaggins.MapToStructValues(staticDataMap)
-}
-
 // processScriptAppConfig handles script app-specific configuration
 func processScriptAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) []error {
 	var errList []error
@@ -576,7 +571,10 @@ func processScriptAppConfig(app *pbSettings.AppDefinition, appMap map[string]any
 	if scriptApp := app.GetScript(); scriptApp != nil {
 		// Process static_data for script app
 		if staticDataMap, ok := scriptConfig["static_data"].(map[string]any); ok {
-			processStaticDataField(&scriptApp.StaticData, staticDataMap)
+			if scriptApp.StaticData == nil {
+				scriptApp.StaticData = &pbData.StaticData{}
+			}
+			scriptApp.StaticData.Data = protobaggins.MapToStructValues(staticDataMap)
 		}
 
 		// Process evaluator configurations
