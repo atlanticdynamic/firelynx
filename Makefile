@@ -54,7 +54,7 @@ test-short:
 ## test-e2e: Run end-to-end tests
 .PHONY: test-e2e
 test-e2e:
-	go test -race -timeout 3m -tags e2e ./...
+	go test -count 1 -race -timeout 3m -tags e2e ./...
 
 ## test-integration: Run integration tests
 .PHONY: test-integration
