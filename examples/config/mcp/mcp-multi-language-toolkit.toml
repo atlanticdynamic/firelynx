@@ -25,7 +25,7 @@ type = "mcp"
 
 [apps.mcp]
 server_name = "Firelynx Multi-Language Toolkit"
-server_version = "2.0.0"
+server_version = "1.0.0"
 
 [apps.mcp.transport]
 sse_enabled = false
@@ -41,22 +41,21 @@ description = "Convert between different units using Risor with built-in convers
 
 [apps.mcp.tools.script]
 [apps.mcp.tools.script.static_data]
-# Conversion factors to base units
 [apps.mcp.tools.script.static_data.length_conversions]
-mm = 0.001      # to meters
+mm = 0.001 # to meters
 cm = 0.01
 m = 1.0
 km = 1000.0
-"in" = 0.0254   # 'in' is a keyword, so quote it
+"in" = 0.0254 # 'in' is a keyword, so quote it
 ft = 0.3048
 yd = 0.9144
-mi = 1609.34
+mi = 1609.344
 
 [apps.mcp.tools.script.static_data.weight_conversions]
-g = 0.001       # to kilograms
+g = 0.001 # to kilograms
 kg = 1.0
-lb = 0.453592
-oz = 0.0283495
+lb = 0.45359237
+oz = 0.028349523125
 ton = 1000.0
 
 [apps.mcp.tools.script.risor]
@@ -90,8 +89,10 @@ func convertUnits() {
         return {"error": "Unknown category: " + category + ". Supported: length, weight"}
     }
     
-    fromFactor, fromOk := conversions[fromUnit]
-    toFactor, toOk := conversions[toUnit]
+    fromFactor := conversions.get(fromUnit, nil)
+    toFactor := conversions.get(toUnit, nil)
+    fromOk := fromFactor != nil
+    toOk := toFactor != nil
     
     if !fromOk {
         return {"error": "Unknown source unit: " + fromUnit}
@@ -99,13 +100,27 @@ func convertUnits() {
     if !toOk {
         return {"error": "Unknown target unit: " + toUnit}
     }
-    
+
     // Convert: input → base unit → target unit
     baseValue := value * fromFactor
     result := baseValue / toFactor
     
+    // Format result for display - round to 2 decimal places for most cases
+    displayResult := result
+    if result != math.round(result) {
+        // Round to 2 decimal places by multiplying by 100, rounding, then dividing
+        displayResult = math.round(result * 100) / 100
+    }
+
+    // Format input value for display
+    displayValue := value
+    if value >= 1000000 {
+        // Use scientific notation for large numbers
+        displayValue = value
+    }
+
     return {
-        "text": string(value) + " " + fromUnit + " = " + string(result) + " " + toUnit,
+        "text": string(displayValue) + " " + fromUnit + " = " + string(displayResult) + " " + toUnit,
         "value": result,
         "conversion": {
             "input": {"value": value, "unit": fromUnit},
@@ -127,7 +142,7 @@ convertUnits()
 # Advanced JSON Schema Validator
 [[apps.mcp.tools]]
 name = "validate_schema"
-description = "Validate JSON data against schemas using Starlark's flexible scripting"
+description = "Validate JSON data against schemas using Starlark"
 
 [apps.mcp.tools.script]
 [apps.mcp.tools.script.static_data]
