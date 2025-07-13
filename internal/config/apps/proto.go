@@ -142,7 +142,7 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 				Echo: pbEcho,
 			}
 		case *mcp.App:
-			pbMcp := cfg.ToProto().(*pb.McpApp)
+			pbMcp := cfg.ToProto().(*pbApps.McpApp)
 			app.Config = &pb.AppDefinition_Mcp{
 				Mcp: pbMcp,
 			}

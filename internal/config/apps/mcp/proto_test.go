@@ -3,7 +3,8 @@ package mcp
 import (
 	"testing"
 
-	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -17,7 +18,7 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("minimal valid proto", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpApp{
+		proto := &pbApps.McpApp{
 			ServerName:    stringPtr("Test Server"),
 			ServerVersion: stringPtr("1.0.0"),
 		}
@@ -35,10 +36,10 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("proto with transport", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpApp{
+		proto := &pbApps.McpApp{
 			ServerName:    stringPtr("Test Server"),
 			ServerVersion: stringPtr("1.0.0"),
-			Transport: &settingsv1alpha1.McpTransport{
+			Transport: &pbApps.McpTransport{
 				SseEnabled: boolPtr(true),
 				SsePath:    stringPtr("/events"),
 			},
@@ -52,16 +53,16 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("proto with builtin tool", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpApp{
+		proto := &pbApps.McpApp{
 			ServerName:    stringPtr("Test Server"),
 			ServerVersion: stringPtr("1.0.0"),
-			Tools: []*settingsv1alpha1.McpTool{
+			Tools: []*pbApps.McpTool{
 				{
 					Name:        stringPtr("echo"),
 					Description: stringPtr("Echo tool"),
-					Handler: &settingsv1alpha1.McpTool_Builtin{
-						Builtin: &settingsv1alpha1.McpBuiltinHandler{
-							Type: mcpBuiltinTypePtr(settingsv1alpha1.McpBuiltinHandler_ECHO),
+					Handler: &pbApps.McpTool_Builtin{
+						Builtin: &pbApps.McpBuiltinHandler{
+							Type: mcpBuiltinTypePtr(pbApps.McpBuiltinHandler_ECHO),
 							Config: map[string]string{
 								"key": "value",
 							},
@@ -84,12 +85,12 @@ func TestFromProto(t *testing.T) {
 	})
 
 	t.Run("proto with middleware", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpApp{
+		proto := &pbApps.McpApp{
 			ServerName:    stringPtr("Test Server"),
 			ServerVersion: stringPtr("1.0.0"),
-			Middlewares: []*settingsv1alpha1.McpMiddleware{
+			Middlewares: []*pbApps.McpMiddleware{
 				{
-					Type: mcpMiddlewareTypePtr(settingsv1alpha1.McpMiddleware_RATE_LIMITING),
+					Type: mcpMiddlewareTypePtr(pbApps.McpMiddleware_RATE_LIMITING),
 					Config: map[string]string{
 						"rate": "100",
 					},
@@ -124,8 +125,8 @@ func TestToProto(t *testing.T) {
 		}
 
 		result := app.ToProto()
-		require.IsType(t, (*settingsv1alpha1.McpApp)(nil), result)
-		proto := result.(*settingsv1alpha1.McpApp)
+		require.IsType(t, (*pbApps.McpApp)(nil), result)
+		proto := result.(*pbApps.McpApp)
 
 		assert.Equal(t, "Test Server", *proto.ServerName)
 		assert.Equal(t, "1.0.0", *proto.ServerVersion)
@@ -147,8 +148,8 @@ func TestToProto(t *testing.T) {
 		}
 
 		result := app.ToProto()
-		require.IsType(t, (*settingsv1alpha1.McpApp)(nil), result)
-		proto := result.(*settingsv1alpha1.McpApp)
+		require.IsType(t, (*pbApps.McpApp)(nil), result)
+		proto := result.(*pbApps.McpApp)
 		assert.NotNil(t, proto.Transport)
 		assert.True(t, *proto.Transport.SseEnabled)
 		assert.Equal(t, "/events", *proto.Transport.SsePath)
@@ -173,15 +174,15 @@ func TestToProto(t *testing.T) {
 		}
 
 		result := app.ToProto()
-		require.IsType(t, (*settingsv1alpha1.McpApp)(nil), result)
-		proto := result.(*settingsv1alpha1.McpApp)
+		require.IsType(t, (*pbApps.McpApp)(nil), result)
+		proto := result.(*pbApps.McpApp)
 
 		assert.Len(t, proto.Tools, 1)
 		assert.Equal(t, "echo", *proto.Tools[0].Name)
 		assert.Equal(t, "Echo tool", *proto.Tools[0].Description)
 
-		builtinHandler := proto.Tools[0].Handler.(*settingsv1alpha1.McpTool_Builtin)
-		assert.Equal(t, settingsv1alpha1.McpBuiltinHandler_ECHO, *builtinHandler.Builtin.Type)
+		builtinHandler := proto.Tools[0].Handler.(*pbApps.McpTool_Builtin)
+		assert.Equal(t, pbApps.McpBuiltinHandler_ECHO, *builtinHandler.Builtin.Type)
 		assert.Equal(t, "value", builtinHandler.Builtin.Config["key"])
 	})
 }
@@ -196,7 +197,7 @@ func TestTransportFromProto(t *testing.T) {
 	})
 
 	t.Run("SSE enabled", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpTransport{
+		proto := &pbApps.McpTransport{
 			SseEnabled: boolPtr(true),
 			SsePath:    stringPtr("/events"),
 		}
@@ -208,7 +209,7 @@ func TestTransportFromProto(t *testing.T) {
 	})
 
 	t.Run("SSE disabled", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpTransport{
+		proto := &pbApps.McpTransport{
 			SseEnabled: boolPtr(false),
 		}
 
@@ -258,12 +259,12 @@ func TestToolFromProto(t *testing.T) {
 	})
 
 	t.Run("builtin tool", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpTool{
+		proto := &pbApps.McpTool{
 			Name:        stringPtr("echo"),
 			Description: stringPtr("Echo tool"),
-			Handler: &settingsv1alpha1.McpTool_Builtin{
-				Builtin: &settingsv1alpha1.McpBuiltinHandler{
-					Type: mcpBuiltinTypePtr(settingsv1alpha1.McpBuiltinHandler_ECHO),
+			Handler: &pbApps.McpTool_Builtin{
+				Builtin: &pbApps.McpBuiltinHandler{
+					Type: mcpBuiltinTypePtr(pbApps.McpBuiltinHandler_ECHO),
 					Config: map[string]string{
 						"key": "value",
 					},
@@ -284,12 +285,12 @@ func TestToolFromProto(t *testing.T) {
 	})
 
 	t.Run("script tool", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpTool{
+		proto := &pbApps.McpTool{
 			Name:        stringPtr("script"),
 			Description: stringPtr("Script tool"),
-			Handler: &settingsv1alpha1.McpTool_Script{
-				Script: &settingsv1alpha1.McpScriptHandler{
-					StaticData: &settingsv1alpha1.StaticData{
+			Handler: &pbApps.McpTool_Script{
+				Script: &pbApps.McpScriptHandler{
+					StaticData: &pbData.StaticData{
 						Data: map[string]*structpb.Value{
 							"key": structpb.NewStringValue("value"),
 						},
@@ -310,7 +311,7 @@ func TestToolFromProto(t *testing.T) {
 	})
 
 	t.Run("no handler", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpTool{
+		proto := &pbApps.McpTool{
 			Name:        stringPtr("empty"),
 			Description: stringPtr("Empty tool"),
 		}
@@ -332,8 +333,8 @@ func TestBuiltinHandlerFromProto(t *testing.T) {
 	})
 
 	t.Run("echo handler", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpBuiltinHandler{
-			Type: mcpBuiltinTypePtr(settingsv1alpha1.McpBuiltinHandler_ECHO),
+		proto := &pbApps.McpBuiltinHandler{
+			Type: mcpBuiltinTypePtr(pbApps.McpBuiltinHandler_ECHO),
 			Config: map[string]string{
 				"key": "value",
 			},
@@ -347,8 +348,8 @@ func TestBuiltinHandlerFromProto(t *testing.T) {
 	})
 
 	t.Run("calculation handler", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpBuiltinHandler{
-			Type: mcpBuiltinTypePtr(settingsv1alpha1.McpBuiltinHandler_CALCULATION),
+		proto := &pbApps.McpBuiltinHandler{
+			Type: mcpBuiltinTypePtr(pbApps.McpBuiltinHandler_CALCULATION),
 		}
 
 		handler, err := builtinHandlerFromProto(proto)
@@ -357,8 +358,8 @@ func TestBuiltinHandlerFromProto(t *testing.T) {
 	})
 
 	t.Run("file read handler", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpBuiltinHandler{
-			Type: mcpBuiltinTypePtr(settingsv1alpha1.McpBuiltinHandler_FILE_READ),
+		proto := &pbApps.McpBuiltinHandler{
+			Type: mcpBuiltinTypePtr(pbApps.McpBuiltinHandler_FILE_READ),
 		}
 
 		handler, err := builtinHandlerFromProto(proto)
@@ -384,7 +385,7 @@ func TestBuiltinHandlerToProto(t *testing.T) {
 
 		proto := handler.toProto()
 		assert.NotNil(t, proto)
-		assert.Equal(t, settingsv1alpha1.McpBuiltinHandler_ECHO, *proto.Type)
+		assert.Equal(t, pbApps.McpBuiltinHandler_ECHO, *proto.Type)
 		assert.Equal(t, "value", proto.Config["key"])
 	})
 
@@ -396,7 +397,7 @@ func TestBuiltinHandlerToProto(t *testing.T) {
 
 		proto := handler.toProto()
 		assert.NotNil(t, proto)
-		assert.Equal(t, settingsv1alpha1.McpBuiltinHandler_CALCULATION, *proto.Type)
+		assert.Equal(t, pbApps.McpBuiltinHandler_CALCULATION, *proto.Type)
 	})
 
 	t.Run("file read handler", func(t *testing.T) {
@@ -407,7 +408,7 @@ func TestBuiltinHandlerToProto(t *testing.T) {
 
 		proto := handler.toProto()
 		assert.NotNil(t, proto)
-		assert.Equal(t, settingsv1alpha1.McpBuiltinHandler_FILE_READ, *proto.Type)
+		assert.Equal(t, pbApps.McpBuiltinHandler_FILE_READ, *proto.Type)
 	})
 }
 
@@ -420,8 +421,8 @@ func TestMiddlewareFromProto(t *testing.T) {
 	})
 
 	t.Run("rate limiting middleware", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpMiddleware{
-			Type: mcpMiddlewareTypePtr(settingsv1alpha1.McpMiddleware_RATE_LIMITING),
+		proto := &pbApps.McpMiddleware{
+			Type: mcpMiddlewareTypePtr(pbApps.McpMiddleware_RATE_LIMITING),
 			Config: map[string]string{
 				"rate": "100",
 			},
@@ -435,8 +436,8 @@ func TestMiddlewareFromProto(t *testing.T) {
 	})
 
 	t.Run("logging middleware", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpMiddleware{
-			Type: mcpMiddlewareTypePtr(settingsv1alpha1.McpMiddleware_MCP_LOGGING),
+		proto := &pbApps.McpMiddleware{
+			Type: mcpMiddlewareTypePtr(pbApps.McpMiddleware_MCP_LOGGING),
 		}
 
 		middleware, err := middlewareFromProto(proto)
@@ -445,8 +446,8 @@ func TestMiddlewareFromProto(t *testing.T) {
 	})
 
 	t.Run("authentication middleware", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpMiddleware{
-			Type: mcpMiddlewareTypePtr(settingsv1alpha1.McpMiddleware_MCP_AUTHENTICATION),
+		proto := &pbApps.McpMiddleware{
+			Type: mcpMiddlewareTypePtr(pbApps.McpMiddleware_MCP_AUTHENTICATION),
 		}
 
 		middleware, err := middlewareFromProto(proto)
@@ -463,7 +464,7 @@ func TestResourceFromProto(t *testing.T) {
 	})
 
 	t.Run("complete resource", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpResource{
+		proto := &pbApps.McpResource{
 			Uri:         stringPtr("test://resource"),
 			Name:        stringPtr("Test Resource"),
 			Description: stringPtr("A test resource"),
@@ -488,7 +489,7 @@ func TestPromptFromProto(t *testing.T) {
 	})
 
 	t.Run("complete prompt", func(t *testing.T) {
-		proto := &settingsv1alpha1.McpPrompt{
+		proto := &pbApps.McpPrompt{
 			Name:        stringPtr("Test Prompt"),
 			Description: stringPtr("A test prompt"),
 		}
@@ -510,10 +511,10 @@ func boolPtr(b bool) *bool {
 	return &b
 }
 
-func mcpBuiltinTypePtr(t settingsv1alpha1.McpBuiltinHandler_Type) *settingsv1alpha1.McpBuiltinHandler_Type {
+func mcpBuiltinTypePtr(t pbApps.McpBuiltinHandler_Type) *pbApps.McpBuiltinHandler_Type {
 	return &t
 }
 
-func mcpMiddlewareTypePtr(t settingsv1alpha1.McpMiddleware_Type) *settingsv1alpha1.McpMiddleware_Type {
+func mcpMiddlewareTypePtr(t pbApps.McpMiddleware_Type) *pbApps.McpMiddleware_Type {
 	return &t
 }

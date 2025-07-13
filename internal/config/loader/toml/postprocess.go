@@ -655,7 +655,10 @@ func processMcpAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) [
 					// Process static_data for script tool handler
 					if staticDataMap, ok := scriptHandlerMap["static_data"].(map[string]any); ok {
 						if scriptHandler := tool.GetScript(); scriptHandler != nil {
-							processStaticDataField(&scriptHandler.StaticData, staticDataMap)
+							if scriptHandler.StaticData == nil {
+								scriptHandler.StaticData = &pbData.StaticData{}
+							}
+							scriptHandler.StaticData.Data = protobaggins.MapToStructValues(staticDataMap)
 						}
 					}
 
@@ -673,7 +676,7 @@ func processMcpAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) [
 }
 
 // processMcpScriptEvaluators handles script evaluator configuration for MCP tools
-func processMcpScriptEvaluators(scriptHandler *pbSettings.McpScriptHandler, scriptConfig map[string]any) []error {
+func processMcpScriptEvaluators(scriptHandler *pbApps.McpScriptHandler, scriptConfig map[string]any) []error {
 	var errList []error
 
 	// Process each evaluator type (reuse existing evaluator processing functions)
@@ -690,7 +693,7 @@ func processMcpScriptEvaluators(scriptHandler *pbSettings.McpScriptHandler, scri
 	return errList
 }
 
-func processRisorSource(eval *pbSettings.RisorEvaluator, config map[string]any) {
+func processRisorSource(eval *pbApps.RisorEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -699,13 +702,13 @@ func processRisorSource(eval *pbSettings.RisorEvaluator, config map[string]any) 
 		return
 	}
 	if code != "" {
-		eval.Source = &pbSettings.RisorEvaluator_Code{Code: code}
+		eval.Source = &pbApps.RisorEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbSettings.RisorEvaluator_Uri{Uri: uri}
+		eval.Source = &pbApps.RisorEvaluator_Uri{Uri: uri}
 	}
 }
 
-func processStarlarkSource(eval *pbSettings.StarlarkEvaluator, config map[string]any) {
+func processStarlarkSource(eval *pbApps.StarlarkEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -714,13 +717,13 @@ func processStarlarkSource(eval *pbSettings.StarlarkEvaluator, config map[string
 		return
 	}
 	if code != "" {
-		eval.Source = &pbSettings.StarlarkEvaluator_Code{Code: code}
+		eval.Source = &pbApps.StarlarkEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbSettings.StarlarkEvaluator_Uri{Uri: uri}
+		eval.Source = &pbApps.StarlarkEvaluator_Uri{Uri: uri}
 	}
 }
 
-func processExtismSource(eval *pbSettings.ExtismEvaluator, config map[string]any) {
+func processExtismSource(eval *pbApps.ExtismEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -729,8 +732,8 @@ func processExtismSource(eval *pbSettings.ExtismEvaluator, config map[string]any
 		return
 	}
 	if code != "" {
-		eval.Source = &pbSettings.ExtismEvaluator_Code{Code: code}
+		eval.Source = &pbApps.ExtismEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbSettings.ExtismEvaluator_Uri{Uri: uri}
+		eval.Source = &pbApps.ExtismEvaluator_Uri{Uri: uri}
 	}
 }

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"maps"
 
-	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 )
 
 // FromProto creates an MCP App from its protocol buffer representation.
-func FromProto(proto *settingsv1alpha1.McpApp) (*App, error) {
+func FromProto(proto *pbApps.McpApp) (*App, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -79,7 +79,7 @@ func (a *App) ToProto() any {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.McpApp{}
+	proto := &pbApps.McpApp{}
 
 	// Server information
 	if a.ServerName != "" {
@@ -126,7 +126,7 @@ func (a *App) ToProto() any {
 }
 
 // transportFromProto converts protobuf transport to domain transport.
-func transportFromProto(proto *settingsv1alpha1.McpTransport) (*Transport, error) {
+func transportFromProto(proto *pbApps.McpTransport) (*Transport, error) {
 	if proto == nil {
 		return &Transport{}, nil
 	}
@@ -145,12 +145,12 @@ func transportFromProto(proto *settingsv1alpha1.McpTransport) (*Transport, error
 }
 
 // toProto converts transport to protobuf representation.
-func (t *Transport) toProto() *settingsv1alpha1.McpTransport {
+func (t *Transport) toProto() *pbApps.McpTransport {
 	if t == nil {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.McpTransport{
+	proto := &pbApps.McpTransport{
 		SseEnabled: &t.SSEEnabled,
 	}
 
@@ -162,7 +162,7 @@ func (t *Transport) toProto() *settingsv1alpha1.McpTransport {
 }
 
 // toolFromProto converts protobuf tool to domain tool.
-func toolFromProto(proto *settingsv1alpha1.McpTool) (*Tool, error) {
+func toolFromProto(proto *pbApps.McpTool) (*Tool, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -178,13 +178,13 @@ func toolFromProto(proto *settingsv1alpha1.McpTool) (*Tool, error) {
 
 	// Convert handler based on type
 	switch h := proto.Handler.(type) {
-	case *settingsv1alpha1.McpTool_Script:
+	case *pbApps.McpTool_Script:
 		handler, err := scriptHandlerFromProto(h.Script)
 		if err != nil {
 			return nil, fmt.Errorf("script handler conversion: %w", err)
 		}
 		tool.Handler = handler
-	case *settingsv1alpha1.McpTool_Builtin:
+	case *pbApps.McpTool_Builtin:
 		handler, err := builtinHandlerFromProto(h.Builtin)
 		if err != nil {
 			return nil, fmt.Errorf("builtin handler conversion: %w", err)
@@ -198,12 +198,12 @@ func toolFromProto(proto *settingsv1alpha1.McpTool) (*Tool, error) {
 }
 
 // toProto converts tool to protobuf representation.
-func (t *Tool) toProto() *settingsv1alpha1.McpTool {
+func (t *Tool) toProto() *pbApps.McpTool {
 	if t == nil {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.McpTool{}
+	proto := &pbApps.McpTool{}
 
 	if t.Name != "" {
 		proto.Name = &t.Name
@@ -216,11 +216,11 @@ func (t *Tool) toProto() *settingsv1alpha1.McpTool {
 	if t.Handler != nil {
 		switch h := t.Handler.(type) {
 		case *ScriptToolHandler:
-			proto.Handler = &settingsv1alpha1.McpTool_Script{
+			proto.Handler = &pbApps.McpTool_Script{
 				Script: h.toProto(),
 			}
 		case *BuiltinToolHandler:
-			proto.Handler = &settingsv1alpha1.McpTool_Builtin{
+			proto.Handler = &pbApps.McpTool_Builtin{
 				Builtin: h.toProto(),
 			}
 		}
@@ -230,7 +230,7 @@ func (t *Tool) toProto() *settingsv1alpha1.McpTool {
 }
 
 // scriptHandlerFromProto converts protobuf script handler to domain script handler.
-func scriptHandlerFromProto(proto *settingsv1alpha1.McpScriptHandler) (*ScriptToolHandler, error) {
+func scriptHandlerFromProto(proto *pbApps.McpScriptHandler) (*ScriptToolHandler, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -248,11 +248,11 @@ func scriptHandlerFromProto(proto *settingsv1alpha1.McpScriptHandler) (*ScriptTo
 
 	// Parse evaluator from protobuf
 	switch e := proto.Evaluator.(type) {
-	case *settingsv1alpha1.McpScriptHandler_Risor:
+	case *pbApps.McpScriptHandler_Risor:
 		handler.Evaluator = evaluators.RisorEvaluatorFromProto(e.Risor)
-	case *settingsv1alpha1.McpScriptHandler_Starlark:
+	case *pbApps.McpScriptHandler_Starlark:
 		handler.Evaluator = evaluators.StarlarkEvaluatorFromProto(e.Starlark)
-	case *settingsv1alpha1.McpScriptHandler_Extism:
+	case *pbApps.McpScriptHandler_Extism:
 		handler.Evaluator = evaluators.ExtismEvaluatorFromProto(e.Extism)
 	}
 
@@ -260,12 +260,12 @@ func scriptHandlerFromProto(proto *settingsv1alpha1.McpScriptHandler) (*ScriptTo
 }
 
 // toProto converts script handler to protobuf representation.
-func (s *ScriptToolHandler) toProto() *settingsv1alpha1.McpScriptHandler {
+func (s *ScriptToolHandler) toProto() *pbApps.McpScriptHandler {
 	if s == nil {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.McpScriptHandler{}
+	proto := &pbApps.McpScriptHandler{}
 
 	// Convert static data
 	if s.StaticData != nil {
@@ -278,7 +278,7 @@ func (s *ScriptToolHandler) toProto() *settingsv1alpha1.McpScriptHandler {
 }
 
 // builtinHandlerFromProto converts protobuf builtin handler to domain builtin handler.
-func builtinHandlerFromProto(proto *settingsv1alpha1.McpBuiltinHandler) (*BuiltinToolHandler, error) {
+func builtinHandlerFromProto(proto *pbApps.McpBuiltinHandler) (*BuiltinToolHandler, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -290,11 +290,11 @@ func builtinHandlerFromProto(proto *settingsv1alpha1.McpBuiltinHandler) (*Builti
 	// Convert type
 	if proto.Type != nil {
 		switch *proto.Type {
-		case settingsv1alpha1.McpBuiltinHandler_ECHO:
+		case pbApps.McpBuiltinHandler_ECHO:
 			handler.BuiltinType = BuiltinEcho
-		case settingsv1alpha1.McpBuiltinHandler_CALCULATION:
+		case pbApps.McpBuiltinHandler_CALCULATION:
 			handler.BuiltinType = BuiltinCalculation
-		case settingsv1alpha1.McpBuiltinHandler_FILE_READ:
+		case pbApps.McpBuiltinHandler_FILE_READ:
 			handler.BuiltinType = BuiltinFileRead
 		}
 	}
@@ -306,24 +306,24 @@ func builtinHandlerFromProto(proto *settingsv1alpha1.McpBuiltinHandler) (*Builti
 }
 
 // toProto converts builtin handler to protobuf representation.
-func (b *BuiltinToolHandler) toProto() *settingsv1alpha1.McpBuiltinHandler {
+func (b *BuiltinToolHandler) toProto() *pbApps.McpBuiltinHandler {
 	if b == nil {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.McpBuiltinHandler{
+	proto := &pbApps.McpBuiltinHandler{
 		Config: make(map[string]string),
 	}
 
 	// Convert type
-	var protoType settingsv1alpha1.McpBuiltinHandler_Type
+	var protoType pbApps.McpBuiltinHandler_Type
 	switch b.BuiltinType {
 	case BuiltinEcho:
-		protoType = settingsv1alpha1.McpBuiltinHandler_ECHO
+		protoType = pbApps.McpBuiltinHandler_ECHO
 	case BuiltinCalculation:
-		protoType = settingsv1alpha1.McpBuiltinHandler_CALCULATION
+		protoType = pbApps.McpBuiltinHandler_CALCULATION
 	case BuiltinFileRead:
-		protoType = settingsv1alpha1.McpBuiltinHandler_FILE_READ
+		protoType = pbApps.McpBuiltinHandler_FILE_READ
 	}
 	proto.Type = &protoType
 
@@ -334,7 +334,7 @@ func (b *BuiltinToolHandler) toProto() *settingsv1alpha1.McpBuiltinHandler {
 }
 
 // resourceFromProto converts protobuf resource to domain resource (future phases).
-func resourceFromProto(proto *settingsv1alpha1.McpResource) (*Resource, error) {
+func resourceFromProto(proto *pbApps.McpResource) (*Resource, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -360,12 +360,12 @@ func resourceFromProto(proto *settingsv1alpha1.McpResource) (*Resource, error) {
 }
 
 // toProto converts resource to protobuf representation (future phases).
-func (r *Resource) toProto() *settingsv1alpha1.McpResource {
+func (r *Resource) toProto() *pbApps.McpResource {
 	if r == nil {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.McpResource{}
+	proto := &pbApps.McpResource{}
 
 	if r.URI != "" {
 		proto.Uri = &r.URI
@@ -386,7 +386,7 @@ func (r *Resource) toProto() *settingsv1alpha1.McpResource {
 }
 
 // promptFromProto converts protobuf prompt to domain prompt (future phases).
-func promptFromProto(proto *settingsv1alpha1.McpPrompt) (*Prompt, error) {
+func promptFromProto(proto *pbApps.McpPrompt) (*Prompt, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -406,12 +406,12 @@ func promptFromProto(proto *settingsv1alpha1.McpPrompt) (*Prompt, error) {
 }
 
 // toProto converts prompt to protobuf representation (future phases).
-func (p *Prompt) toProto() *settingsv1alpha1.McpPrompt {
+func (p *Prompt) toProto() *pbApps.McpPrompt {
 	if p == nil {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.McpPrompt{}
+	proto := &pbApps.McpPrompt{}
 
 	if p.Name != "" {
 		proto.Name = &p.Name
@@ -426,7 +426,7 @@ func (p *Prompt) toProto() *settingsv1alpha1.McpPrompt {
 }
 
 // middlewareFromProto converts protobuf middleware to domain middleware.
-func middlewareFromProto(proto *settingsv1alpha1.McpMiddleware) (*Middleware, error) {
+func middlewareFromProto(proto *pbApps.McpMiddleware) (*Middleware, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -438,11 +438,11 @@ func middlewareFromProto(proto *settingsv1alpha1.McpMiddleware) (*Middleware, er
 	// Convert type
 	if proto.Type != nil {
 		switch *proto.Type {
-		case settingsv1alpha1.McpMiddleware_RATE_LIMITING:
+		case pbApps.McpMiddleware_RATE_LIMITING:
 			middleware.Type = MiddlewareRateLimiting
-		case settingsv1alpha1.McpMiddleware_MCP_LOGGING:
+		case pbApps.McpMiddleware_MCP_LOGGING:
 			middleware.Type = MiddlewareLogging
-		case settingsv1alpha1.McpMiddleware_MCP_AUTHENTICATION:
+		case pbApps.McpMiddleware_MCP_AUTHENTICATION:
 			middleware.Type = MiddlewareAuthentication
 		}
 	}
@@ -454,24 +454,24 @@ func middlewareFromProto(proto *settingsv1alpha1.McpMiddleware) (*Middleware, er
 }
 
 // toProto converts middleware to protobuf representation.
-func (m *Middleware) toProto() *settingsv1alpha1.McpMiddleware {
+func (m *Middleware) toProto() *pbApps.McpMiddleware {
 	if m == nil {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.McpMiddleware{
+	proto := &pbApps.McpMiddleware{
 		Config: make(map[string]string),
 	}
 
 	// Convert type
-	var protoType settingsv1alpha1.McpMiddleware_Type
+	var protoType pbApps.McpMiddleware_Type
 	switch m.Type {
 	case MiddlewareRateLimiting:
-		protoType = settingsv1alpha1.McpMiddleware_RATE_LIMITING
+		protoType = pbApps.McpMiddleware_RATE_LIMITING
 	case MiddlewareLogging:
-		protoType = settingsv1alpha1.McpMiddleware_MCP_LOGGING
+		protoType = pbApps.McpMiddleware_MCP_LOGGING
 	case MiddlewareAuthentication:
-		protoType = settingsv1alpha1.McpMiddleware_MCP_AUTHENTICATION
+		protoType = pbApps.McpMiddleware_MCP_AUTHENTICATION
 	}
 	proto.Type = &protoType
 
