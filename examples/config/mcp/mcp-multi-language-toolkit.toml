@@ -1,0 +1,409 @@
+# Multi-Language MCP Toolkit
+# This example demonstrates a comprehensive MCP service using multiple scripting languages:
+# - Risor for mathematical operations and string manipulation
+# - Starlark for data processing and JSON handling
+
+[[listeners]]
+id = "toolkit-listener"
+address = ":8083"
+type = "http"
+
+[[endpoints]]
+id = "toolkit-endpoint"
+listener_id = "toolkit-listener"
+
+[[endpoints.routes]]
+app_id = "multi-toolkit"
+[endpoints.routes.http]
+path_prefix = "/mcp"
+method = "*"
+
+# Multi-Language MCP Toolkit Application
+[[apps]]
+id = "multi-toolkit"
+type = "mcp"
+
+[apps.mcp]
+server_name = "Firelynx Multi-Language Toolkit"
+server_version = "2.0.0"
+
+[apps.mcp.transport]
+sse_enabled = false
+
+# =============================================================================
+# RISOR TOOLS - Mathematical and String Operations
+# =============================================================================
+
+# Advanced Calculator with Unit Conversion
+[[apps.mcp.tools]]
+name = "unit_converter"
+description = "Convert between different units using Risor with built-in conversion tables"
+
+[apps.mcp.tools.script]
+[apps.mcp.tools.script.static_data]
+# Conversion factors to base units
+[apps.mcp.tools.script.static_data.length_conversions]
+mm = 0.001      # to meters
+cm = 0.01
+m = 1.0
+km = 1000.0
+"in" = 0.0254   # 'in' is a keyword, so quote it
+ft = 0.3048
+yd = 0.9144
+mi = 1609.34
+
+[apps.mcp.tools.script.static_data.weight_conversions]
+g = 0.001       # to kilograms
+kg = 1.0
+lb = 0.453592
+oz = 0.0283495
+ton = 1000.0
+
+[apps.mcp.tools.script.risor]
+code = '''
+func convertUnits() {
+    args := ctx.get("args", {})
+    value := args.get("value", 0.0)
+    fromUnit := args.get("from", "")
+    toUnit := args.get("to", "")
+    category := args.get("category", "length")
+    
+    if value == 0.0 {
+        return {"error": "Please provide a numeric value to convert"}
+    }
+    
+    if fromUnit == "" || toUnit == "" {
+        return {"error": "Please specify both 'from' and 'to' units"}
+    }
+    
+    conversions := {}
+    unit := ""
+    
+    switch category {
+    case "length":
+        conversions = ctx.get("length_conversions", {})
+        unit = "meters"
+    case "weight":
+        conversions = ctx.get("weight_conversions", {})
+        unit = "kilograms"
+    default:
+        return {"error": "Unknown category: " + category + ". Supported: length, weight"}
+    }
+    
+    fromFactor, fromOk := conversions[fromUnit]
+    toFactor, toOk := conversions[toUnit]
+    
+    if !fromOk {
+        return {"error": "Unknown source unit: " + fromUnit}
+    }
+    if !toOk {
+        return {"error": "Unknown target unit: " + toUnit}
+    }
+    
+    // Convert: input → base unit → target unit
+    baseValue := value * fromFactor
+    result := baseValue / toFactor
+    
+    return {
+        "text": string(value) + " " + fromUnit + " = " + string(result) + " " + toUnit,
+        "value": result,
+        "conversion": {
+            "input": {"value": value, "unit": fromUnit},
+            "output": {"value": result, "unit": toUnit},
+            "category": category,
+            "base_value": baseValue,
+            "base_unit": unit
+        }
+    }
+}
+
+convertUnits()
+'''
+
+# =============================================================================
+# STARLARK TOOLS - Data Processing and Analysis
+# =============================================================================
+
+# Advanced JSON Schema Validator
+[[apps.mcp.tools]]
+name = "validate_schema"
+description = "Validate JSON data against schemas using Starlark's flexible scripting"
+
+[apps.mcp.tools.script]
+[apps.mcp.tools.script.static_data]
+[apps.mcp.tools.script.static_data.common_schemas.user]
+required_fields = ["id", "name", "email"]
+optional_fields = ["age", "address", "phone"]
+
+[apps.mcp.tools.script.static_data.common_schemas.user.field_types]
+id = "string"
+name = "string"
+email = "string"
+age = "number"
+phone = "string"
+
+[apps.mcp.tools.script.static_data.common_schemas.product]
+required_fields = ["id", "name", "price"]
+optional_fields = ["description", "category", "tags"]
+
+[apps.mcp.tools.script.static_data.common_schemas.product.field_types]
+id = "string"
+name = "string"
+price = "number"
+description = "string"
+category = "string"
+tags = "list"
+
+[apps.mcp.tools.script.starlark]
+code = '''
+def validate_schema():
+    """Validate JSON data against predefined or custom schemas"""
+    
+    args = ctx.get("args", {})
+    data = args.get("data", {})
+    schema_name = args.get("schema", "")
+    custom_schema = args.get("custom_schema", {})
+    
+    if not data:
+        return {"error": "No data provided for validation"}
+    
+    # Get schema definition
+    schema = None
+    if schema_name:
+        common_schemas = ctx.get("common_schemas", {})
+        if schema_name in common_schemas:
+            schema = common_schemas[schema_name]
+        else:
+            return {"error": "Unknown schema: {}. Available: {}".format(
+                schema_name, ", ".join(common_schemas.keys()))}
+    elif custom_schema:
+        schema = custom_schema
+    else:
+        return {"error": "Please specify either a 'schema' name or 'custom_schema' definition"}
+    
+    # Validation results
+    errors = []
+    warnings = []
+    missing_required = []
+    extra_fields = []
+    type_errors = []
+    
+    required_fields = schema.get("required_fields", [])
+    optional_fields = schema.get("optional_fields", [])
+    field_types = schema.get("field_types", {})
+    
+    all_allowed_fields = required_fields + optional_fields
+    
+    # Check required fields
+    for field in required_fields:
+        if field not in data:
+            missing_required.append(field)
+    
+    # Check for extra fields
+    for field in data.keys():
+        if field not in all_allowed_fields:
+            extra_fields.append(field)
+    
+    # Check field types
+    for field, expected_type in field_types.items():
+        if field in data:
+            actual_type = type(data[field])
+            
+            # Map Python types to schema types
+            type_mapping = {
+                "string": "string",
+                "int": "number",
+                "float": "number", 
+                "bool": "boolean",
+                "list": "list",
+                "dict": "object"
+            }
+            
+            mapped_type = type_mapping.get(actual_type, actual_type)
+            if mapped_type != expected_type:
+                type_errors.append({
+                    "field": field,
+                    "expected": expected_type,
+                    "actual": mapped_type,
+                    "value": str(data[field])[:50]  # Truncate long values
+                })
+    
+    # Compile validation results
+    if missing_required:
+        errors.append("Missing required fields: {}".format(", ".join(missing_required)))
+    
+    if type_errors:
+        for err in type_errors:
+            errors.append("Field '{}' should be {} but got {}: {}".format(
+                err["field"], err["expected"], err["actual"], err["value"]))
+    
+    if extra_fields:
+        warnings.append("Extra fields found: {}".format(", ".join(extra_fields)))
+    
+    # Generate result
+    is_valid = len(errors) == 0
+    
+    result = {
+        "valid": is_valid,
+        "errors": errors,
+        "warnings": warnings,
+        "summary": {
+            "total_fields": len(data),
+            "required_present": len(required_fields) - len(missing_required),
+            "required_total": len(required_fields),
+            "extra_fields": len(extra_fields),
+            "type_errors": len(type_errors)
+        }
+    }
+    
+    if is_valid:
+        result["text"] = "Schema validation passed successfully"
+    else:
+        result["text"] = "Schema validation failed with {} errors".format(len(errors))
+    
+    return result
+
+validate_schema()
+'''
+
+# =============================================================================
+# MIXED EXAMPLE - Combining Multiple Languages
+# =============================================================================
+
+# Comprehensive Data Pipeline Tool
+[[apps.mcp.tools]]
+name = "data_pipeline"
+description = "Process data through multiple stages using different scripting languages for optimal performance"
+
+[apps.mcp.tools.script]
+[apps.mcp.tools.script.static_data]
+pipeline_stages = ["validate", "transform", "analyze", "export"]
+max_pipeline_time = 60  # seconds
+default_format = "json"
+
+# This tool coordinates between multiple processing stages
+# In practice, each stage might use the most appropriate language:
+# - Starlark for data validation and transformation
+# - Risor for mathematical processing
+# For this example, we'll use Starlark to demonstrate the coordination
+[apps.mcp.tools.script.starlark]
+code = '''
+def data_pipeline():
+    """Coordinate a multi-stage data processing pipeline"""
+    
+    args = ctx.get("args", {})
+    data = args.get("data", {})
+    stages = args.get("stages", ["validate", "transform"])
+    config = args.get("config", {})
+    
+    if not data:
+        return {"error": "No input data provided"}
+    
+    # Pipeline execution tracking
+    results = {
+        "pipeline_id": "pipe_" + str(hash(str(data)))[:8],
+        "input_size": len(str(data)),
+        "stages_completed": [],
+        "stage_results": {},
+        "execution_time": 0,
+        "final_data": data
+    }
+    
+    current_data = data
+    
+    for stage in stages:
+        if stage == "validate":
+            # Data validation stage
+            if type(current_data) != "dict":
+                results["stage_results"][stage] = {"error": "Data must be an object for validation"}
+                break
+            
+            validation_result = {
+                "valid": True,
+                "field_count": len(current_data.keys()),
+                "has_id": "id" in current_data,
+                "has_timestamp": any(["time" in key.lower() for key in current_data.keys()])
+            }
+            results["stage_results"][stage] = validation_result
+            
+        elif stage == "transform":
+            # Data transformation stage
+            if type(current_data) == "dict":
+                # Add metadata
+                current_data["_processed"] = True
+                current_data["_pipeline_stage"] = "transform"
+                if "id" not in current_data:
+                    current_data["id"] = "auto_" + str(hash(str(current_data)))[:8]
+            
+            results["stage_results"][stage] = {
+                "transformations_applied": ["add_metadata", "ensure_id"],
+                "output_size": len(str(current_data))
+            }
+            
+        elif stage == "analyze":
+            # Analysis stage
+            analysis = {
+                "data_type": type(current_data),
+                "complexity_score": min(len(str(current_data)) / 100, 10),
+                "structure_depth": calculate_depth(current_data),
+                "estimated_memory": len(str(current_data)) * 4  # rough estimate
+            }
+            results["stage_results"][stage] = analysis
+            
+        elif stage == "export":
+            # Export preparation stage
+            export_format = config.get("format", ctx.get("default_format", "json"))
+            
+            if export_format == "json":
+                # Already in JSON-compatible format
+                export_result = {"format": "json", "ready": True}
+            elif export_format == "csv":
+                # Would convert to CSV format
+                export_result = {"format": "csv", "note": "CSV conversion would happen here"}
+            else:
+                export_result = {"error": "Unsupported export format: " + export_format}
+            
+            results["stage_results"][stage] = export_result
+        
+        else:
+            results["stage_results"][stage] = {"error": "Unknown pipeline stage: " + stage}
+            break
+        
+        results["stages_completed"].append(stage)
+    
+    results["final_data"] = current_data
+    results["success"] = len(results["stages_completed"]) == len(stages)
+    
+    if results["success"]:
+        results["text"] = "Pipeline completed successfully through {} stages".format(len(stages))
+    else:
+        results["text"] = "Pipeline failed at stage: {}".format(stage)
+    
+    return results
+
+def calculate_depth(obj, current_depth=0):
+    """Calculate the maximum nesting depth of a data structure"""
+    if current_depth > 20:  # Prevent infinite recursion
+        return current_depth
+    
+    if type(obj) == "dict":
+        if len(obj) == 0:
+            return current_depth
+        max_child_depth = current_depth
+        for value in obj.values():
+            child_depth = calculate_depth(value, current_depth + 1)
+            max_child_depth = max(max_child_depth, child_depth)
+        return max_child_depth
+    elif type(obj) == "list":
+        if len(obj) == 0:
+            return current_depth
+        max_child_depth = current_depth
+        for item in obj:
+            child_depth = calculate_depth(item, current_depth + 1)
+            max_child_depth = max(max_child_depth, child_depth)
+        return max_child_depth
+    else:
+        return current_depth
+
+data_pipeline()
+'''

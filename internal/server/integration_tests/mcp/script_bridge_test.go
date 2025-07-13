@@ -1,3 +1,5 @@
+//go:build integration
+
 package mcp
 
 import (
@@ -5,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
+	mcpapp "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -13,13 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Script fixtures
-//
 //go:embed testdata/echo_args.risor
 var echoArgsRisorScript string
-
-//go:embed testdata/mock_calculator.risor
-var calculatorRisorScript string
 
 //go:embed testdata/static_data_access.risor
 var staticDataAccessRisorScript string
@@ -56,7 +53,7 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		}
 
 		// Create script tool handler
-		handler := &mcp.ScriptToolHandler{
+		handler := &mcpapp.ScriptToolHandler{
 			Evaluator:  risorEval,
 			StaticData: staticData,
 		}
@@ -89,14 +86,14 @@ func TestScriptBridgeDirectly(t *testing.T) {
 
 	t.Run("risor tool with error", func(t *testing.T) {
 		risorEval := &evaluators.RisorEvaluator{
-			Code:    calculatorRisorScript,
+			Code:    string(calculatorRisorScript),
 			Timeout: 5 * time.Second,
 		}
 
 		err := risorEval.Validate()
 		require.NoError(t, err)
 
-		handler := &mcp.ScriptToolHandler{
+		handler := &mcpapp.ScriptToolHandler{
 			Evaluator: risorEval,
 		}
 
@@ -139,7 +136,7 @@ func TestScriptBridgeDirectly(t *testing.T) {
 			},
 		}
 
-		handler := &mcp.ScriptToolHandler{
+		handler := &mcpapp.ScriptToolHandler{
 			Evaluator:  starlarkEval,
 			StaticData: staticData,
 		}
@@ -190,7 +187,7 @@ func TestScriptBridgeDirectly(t *testing.T) {
 			},
 		}
 
-		handler := &mcp.ScriptToolHandler{
+		handler := &mcpapp.ScriptToolHandler{
 			Evaluator:  risorEval,
 			StaticData: staticData,
 		}
@@ -225,7 +222,7 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		err := risorEval.Validate()
 		require.NoError(t, err)
 
-		handler := &mcp.ScriptToolHandler{
+		handler := &mcpapp.ScriptToolHandler{
 			Evaluator: risorEval,
 		}
 
@@ -266,7 +263,7 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		err := risorEval.Validate()
 		require.NoError(t, err)
 
-		handler := &mcp.ScriptToolHandler{
+		handler := &mcpapp.ScriptToolHandler{
 			Evaluator: risorEval,
 		}
 
@@ -318,7 +315,7 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		err := risorEval.Validate()
 		require.NoError(t, err)
 
-		handler := &mcp.ScriptToolHandler{
+		handler := &mcpapp.ScriptToolHandler{
 			Evaluator: risorEval,
 		}
 
@@ -341,7 +338,7 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 	})
 
 	t.Run("nil evaluator", func(t *testing.T) {
-		handler := &mcp.ScriptToolHandler{
+		handler := &mcpapp.ScriptToolHandler{
 			Evaluator: nil,
 		}
 
