@@ -5,7 +5,7 @@ package settings.v1alpha1;
 import "google/protobuf/duration.proto";
 import "settings/v1alpha1/apps.proto";
 import "settings/v1alpha1/middleware/v1/middleware.proto";
-import "settings/v1alpha1/static_data.proto";
+import "settings/v1alpha1/data/v1/static_data.proto";
 
 option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
@@ -102,7 +102,7 @@ message Route {
   
   // Static data to pass to the application
   // env_interpolation: n/a (non-string)
-  StaticData static_data = 2;
+  settings.v1alpha1.data.v1.StaticData static_data = 2;
   
   // Middleware layers to apply to requests/responses
   // env_interpolation: n/a (non-string)

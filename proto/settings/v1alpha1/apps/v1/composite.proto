@@ -1,0 +1,17 @@
+edition = "2023";
+package settings.v1alpha1.apps.v1;
+
+import "settings/v1alpha1/data/v1/static_data.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1";
+
+// Composite script that combines multiple scripts
+message CompositeScriptApp {
+  // IDs of script applications to run in sequence
+  // env_interpolation: no (ID field)
+  repeated string script_app_ids = 1;
+
+  // Static data available to all scripts
+  // env_interpolation: n/a (non-string)
+  settings.v1alpha1.data.v1.StaticData static_data = 100;
+}

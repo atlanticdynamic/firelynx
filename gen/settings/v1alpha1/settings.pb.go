@@ -7,6 +7,7 @@
 package v1alpha1
 
 import (
+	v11 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	v1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -420,7 +421,7 @@ type Route struct {
 	AppId *string `protobuf:"bytes,1,opt,name=app_id,json=appId" json:"app_id,omitempty"`
 	// Static data to pass to the application
 	// env_interpolation: n/a (non-string)
-	StaticData *StaticData `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
+	StaticData *v11.StaticData `protobuf:"bytes,2,opt,name=static_data,json=staticData" json:"static_data,omitempty"`
 	// Middleware layers to apply to requests/responses
 	// env_interpolation: n/a (non-string)
 	Middlewares []*v1.Middleware `protobuf:"bytes,3,rep,name=middlewares" json:"middlewares,omitempty"`
@@ -471,7 +472,7 @@ func (x *Route) GetAppId() string {
 	return ""
 }
 
-func (x *Route) GetStaticData() *StaticData {
+func (x *Route) GetStaticData() *v11.StaticData {
 	if x != nil {
 		return x.StaticData
 	}
@@ -573,7 +574,7 @@ var File_settings_v1alpha1_settings_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\n" +
-	" settings/v1alpha1/settings.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1csettings/v1alpha1/apps.proto\x1a0settings/v1alpha1/middleware/v1/middleware.proto\x1a#settings/v1alpha1/static_data.proto\"\xd8\x01\n" +
+	" settings/v1alpha1/settings.proto\x12\x11settings.v1alpha1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1csettings/v1alpha1/apps.proto\x1a0settings/v1alpha1/middleware/v1/middleware.proto\x1a+settings/v1alpha1/data/v1/static_data.proto\"\xd8\x01\n" +
 	"\fServerConfig\x12\x1c\n" +
 	"\aversion\x18\x01 \x01(\t:\x02v1R\aversion\x129\n" +
 	"\tlisteners\x18\x02 \x03(\v2\x1b.settings.v1alpha1.ListenerR\tlisteners\x129\n" +
@@ -598,10 +599,10 @@ const file_settings_v1alpha1_settings_proto_rawDesc = "" +
 	"\vlistener_id\x18\x02 \x01(\tR\n" +
 	"listenerId\x120\n" +
 	"\x06routes\x18\x03 \x03(\v2\x18.settings.v1alpha1.RouteR\x06routes\x12M\n" +
-	"\vmiddlewares\x18\x04 \x03(\v2+.settings.v1alpha1.middleware.v1.MiddlewareR\vmiddlewares\"\xe8\x01\n" +
+	"\vmiddlewares\x18\x04 \x03(\v2+.settings.v1alpha1.middleware.v1.MiddlewareR\vmiddlewares\"\xf0\x01\n" +
 	"\x05Route\x12\x15\n" +
-	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12>\n" +
-	"\vstatic_data\x18\x02 \x01(\v2\x1d.settings.v1alpha1.StaticDataR\n" +
+	"\x06app_id\x18\x01 \x01(\tR\x05appId\x12F\n" +
+	"\vstatic_data\x18\x02 \x01(\v2%.settings.v1alpha1.data.v1.StaticDataR\n" +
 	"staticData\x12M\n" +
 	"\vmiddlewares\x18\x03 \x03(\v2+.settings.v1alpha1.middleware.v1.MiddlewareR\vmiddlewares\x121\n" +
 	"\x04http\x18d \x01(\v2\x1b.settings.v1alpha1.HttpRuleH\x00R\x04httpB\x06\n" +
@@ -636,7 +637,7 @@ var file_settings_v1alpha1_settings_proto_goTypes = []any{
 	(*AppDefinition)(nil),       // 7: settings.v1alpha1.AppDefinition
 	(*durationpb.Duration)(nil), // 8: google.protobuf.Duration
 	(*v1.Middleware)(nil),       // 9: settings.v1alpha1.middleware.v1.Middleware
-	(*StaticData)(nil),          // 10: settings.v1alpha1.StaticData
+	(*v11.StaticData)(nil),      // 10: settings.v1alpha1.data.v1.StaticData
 }
 var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
 	2,  // 0: settings.v1alpha1.ServerConfig.listeners:type_name -> settings.v1alpha1.Listener
@@ -650,7 +651,7 @@ var file_settings_v1alpha1_settings_proto_depIdxs = []int32{
 	8,  // 8: settings.v1alpha1.HttpListenerOptions.drain_timeout:type_name -> google.protobuf.Duration
 	5,  // 9: settings.v1alpha1.Endpoint.routes:type_name -> settings.v1alpha1.Route
 	9,  // 10: settings.v1alpha1.Endpoint.middlewares:type_name -> settings.v1alpha1.middleware.v1.Middleware
-	10, // 11: settings.v1alpha1.Route.static_data:type_name -> settings.v1alpha1.StaticData
+	10, // 11: settings.v1alpha1.Route.static_data:type_name -> settings.v1alpha1.data.v1.StaticData
 	9,  // 12: settings.v1alpha1.Route.middlewares:type_name -> settings.v1alpha1.middleware.v1.Middleware
 	6,  // 13: settings.v1alpha1.Route.http:type_name -> settings.v1alpha1.HttpRule
 	14, // [14:14] is the sub-list for method output_type
@@ -666,7 +667,6 @@ func file_settings_v1alpha1_settings_proto_init() {
 		return
 	}
 	file_settings_v1alpha1_apps_proto_init()
-	file_settings_v1alpha1_static_data_proto_init()
 	file_settings_v1alpha1_settings_proto_msgTypes[1].OneofWrappers = []any{
 		(*Listener_Http)(nil),
 	}

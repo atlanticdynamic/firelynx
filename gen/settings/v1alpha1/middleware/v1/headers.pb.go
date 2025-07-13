@@ -26,10 +26,10 @@ type HeadersConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Operations to perform on request headers
 	// env_interpolation: n/a (non-string)
-	Request *HeadersConfig_HeaderOperations `protobuf:"bytes,1,opt,name=request" json:"request,omitempty"`
+	Request *HeadersConfig_HeaderOperations `protobuf:"bytes,100,opt,name=request" json:"request,omitempty"`
 	// Operations to perform on response headers
 	// env_interpolation: n/a (non-string)
-	Response      *HeadersConfig_HeaderOperations `protobuf:"bytes,2,opt,name=response" json:"response,omitempty"`
+	Response      *HeadersConfig_HeaderOperations `protobuf:"bytes,101,opt,name=response" json:"response,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -151,8 +151,8 @@ const file_settings_v1alpha1_middleware_v1_headers_proto_rawDesc = "" +
 	"\n" +
 	"-settings/v1alpha1/middleware/v1/headers.proto\x12\x1fsettings.v1alpha1.middleware.v1\"\xe5\x04\n" +
 	"\rHeadersConfig\x12Y\n" +
-	"\arequest\x18\x01 \x01(\v2?.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperationsR\arequest\x12[\n" +
-	"\bresponse\x18\x02 \x01(\v2?.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperationsR\bresponse\x1a\x9b\x03\n" +
+	"\arequest\x18d \x01(\v2?.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperationsR\arequest\x12[\n" +
+	"\bresponse\x18e \x01(\v2?.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperationsR\bresponse\x1a\x9b\x03\n" +
 	"\x10HeaderOperations\x12p\n" +
 	"\vset_headers\x18\x01 \x03(\v2O.settings.v1alpha1.middleware.v1.HeadersConfig.HeaderOperations.SetHeadersEntryR\n" +
 	"setHeaders\x12p\n" +

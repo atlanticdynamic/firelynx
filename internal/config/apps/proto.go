@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
@@ -83,7 +84,7 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 		// Convert app config based on type
 		switch cfg := a.Config.(type) {
 		case *scripts.AppScript:
-			pbScript := &pb.ScriptApp{}
+			pbScript := &pbApps.ScriptApp{}
 
 			// Convert static data if present
 			if cfg.StaticData != nil {
@@ -94,15 +95,15 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 			if cfg.Evaluator != nil {
 				switch e := cfg.Evaluator.(type) {
 				case *evaluators.RisorEvaluator:
-					pbScript.Evaluator = &pb.ScriptApp_Risor{
+					pbScript.Evaluator = &pbApps.ScriptApp_Risor{
 						Risor: e.ToProto(),
 					}
 				case *evaluators.StarlarkEvaluator:
-					pbScript.Evaluator = &pb.ScriptApp_Starlark{
+					pbScript.Evaluator = &pbApps.ScriptApp_Starlark{
 						Starlark: e.ToProto(),
 					}
 				case *evaluators.ExtismEvaluator:
-					pbScript.Evaluator = &pb.ScriptApp_Extism{
+					pbScript.Evaluator = &pbApps.ScriptApp_Extism{
 						Extism: e.ToProto(),
 					}
 				}
@@ -113,7 +114,7 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 			}
 
 		case *composite.CompositeScript:
-			pbComposite := &pb.CompositeScriptApp{
+			pbComposite := &pbApps.CompositeScriptApp{
 				ScriptAppIds: cfg.ScriptAppIDs,
 			}
 
@@ -127,7 +128,7 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 			}
 
 		case *echo.EchoApp:
-			pbEcho := cfg.ToProto().(*pb.EchoApp)
+			pbEcho := cfg.ToProto().(*pbApps.EchoApp)
 			app.Config = &pb.AppDefinition_Echo{
 				Echo: pbEcho,
 			}

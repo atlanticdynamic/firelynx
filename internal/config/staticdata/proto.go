@@ -1,17 +1,17 @@
 package staticdata
 
 import (
-	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/robbyt/protobaggins"
 )
 
 // ToProto converts a StaticData to its protocol buffer representation.
-func (sd *StaticData) ToProto() *settingsv1alpha1.StaticData {
+func (sd *StaticData) ToProto() *pbData.StaticData {
 	if sd == nil {
 		return nil
 	}
 
-	proto := &settingsv1alpha1.StaticData{
+	proto := &pbData.StaticData{
 		MergeMode: staticDataMergeModeToProto(sd.MergeMode),
 	}
 
@@ -24,7 +24,7 @@ func (sd *StaticData) ToProto() *settingsv1alpha1.StaticData {
 }
 
 // FromProto creates a StaticData from its protocol buffer representation.
-func FromProto(proto *settingsv1alpha1.StaticData) (*StaticData, error) {
+func FromProto(proto *pbData.StaticData) (*StaticData, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -42,29 +42,29 @@ func FromProto(proto *settingsv1alpha1.StaticData) (*StaticData, error) {
 }
 
 // staticDataMergeModeToProto converts a StaticDataMergeMode to its protocol buffer representation.
-func staticDataMergeModeToProto(mode StaticDataMergeMode) *settingsv1alpha1.StaticData_MergeMode {
-	var protoMode settingsv1alpha1.StaticData_MergeMode
+func staticDataMergeModeToProto(mode StaticDataMergeMode) *pbData.StaticData_MergeMode {
+	var protoMode pbData.StaticData_MergeMode
 	switch mode {
 	case StaticDataMergeModeUnspecified:
-		protoMode = settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED
+		protoMode = pbData.StaticData_MERGE_MODE_UNSPECIFIED
 	case StaticDataMergeModeLast:
-		protoMode = settingsv1alpha1.StaticData_MERGE_MODE_LAST
+		protoMode = pbData.StaticData_MERGE_MODE_LAST
 	case StaticDataMergeModeUnique:
-		protoMode = settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE
+		protoMode = pbData.StaticData_MERGE_MODE_UNIQUE
 	default:
-		protoMode = settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED
+		protoMode = pbData.StaticData_MERGE_MODE_UNSPECIFIED
 	}
 	return &protoMode
 }
 
 // protoToStaticDataMergeMode converts a protocol buffer StaticDataMergeMode to its domain model representation.
-func protoToStaticDataMergeMode(mode settingsv1alpha1.StaticData_MergeMode) StaticDataMergeMode {
+func protoToStaticDataMergeMode(mode pbData.StaticData_MergeMode) StaticDataMergeMode {
 	switch mode {
-	case settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED:
+	case pbData.StaticData_MERGE_MODE_UNSPECIFIED:
 		return StaticDataMergeModeUnspecified
-	case settingsv1alpha1.StaticData_MERGE_MODE_LAST:
+	case pbData.StaticData_MERGE_MODE_LAST:
 		return StaticDataMergeModeLast
-	case settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE:
+	case pbData.StaticData_MERGE_MODE_UNIQUE:
 		return StaticDataMergeModeUnique
 	default:
 		return StaticDataMergeModeUnspecified

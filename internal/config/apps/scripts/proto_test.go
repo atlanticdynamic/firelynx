@@ -3,7 +3,7 @@ package scripts
 import (
 	"testing"
 
-	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +13,7 @@ import (
 func TestFromProto(t *testing.T) {
 	tests := []struct {
 		name    string
-		proto   *settingsv1alpha1.ScriptApp
+		proto   *pbApps.ScriptApp
 		want    *AppScript
 		wantErr bool
 	}{
@@ -25,15 +25,15 @@ func TestFromProto(t *testing.T) {
 		},
 		{
 			name:    "empty proto",
-			proto:   &settingsv1alpha1.ScriptApp{},
+			proto:   &pbApps.ScriptApp{},
 			wantErr: true, // Should fail due to missing evaluator
 		},
 		{
 			name: "proto with risor evaluator",
-			proto: &settingsv1alpha1.ScriptApp{
-				Evaluator: &settingsv1alpha1.ScriptApp_Risor{
-					Risor: &settingsv1alpha1.RisorEvaluator{
-						Source: &settingsv1alpha1.RisorEvaluator_Code{Code: "print('hello')"},
+			proto: &pbApps.ScriptApp{
+				Evaluator: &pbApps.ScriptApp_Risor{
+					Risor: &pbApps.RisorEvaluator{
+						Source: &pbApps.RisorEvaluator_Code{Code: "print('hello')"},
 					},
 				},
 			},
@@ -103,8 +103,8 @@ func TestAppScript_ToProto(t *testing.T) {
 		script := &AppScript{}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.ScriptApp)
-		assert.True(t, ok, "Expected *settingsv1alpha1.ScriptApp type")
+		got, ok := result.(*pbApps.ScriptApp)
+		assert.True(t, ok, "Expected *pbApps.ScriptApp type")
 		assert.NotNil(t, got, "Expected non-nil proto message")
 		assert.Nil(t, got.StaticData, "Expected nil static data")
 		assert.Nil(t, got.Evaluator, "Expected nil evaluator")
@@ -119,14 +119,14 @@ func TestAppScript_ToProto(t *testing.T) {
 		}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.ScriptApp)
-		assert.True(t, ok, "Expected *settingsv1alpha1.ScriptApp type")
+		got, ok := result.(*pbApps.ScriptApp)
+		assert.True(t, ok, "Expected *pbApps.ScriptApp type")
 		assert.NotNil(t, got, "Expected non-nil proto message")
 		assert.Nil(t, got.StaticData, "Expected nil static data")
 		assert.NotNil(t, got.Evaluator, "Expected non-nil evaluator")
 
 		// Check specific evaluator type
-		risor, ok := got.Evaluator.(*settingsv1alpha1.ScriptApp_Risor)
+		risor, ok := got.Evaluator.(*pbApps.ScriptApp_Risor)
 		assert.True(t, ok, "Expected Risor evaluator")
 		assert.Equal(t, "print('hello')", risor.Risor.GetCode())
 	})
@@ -140,14 +140,14 @@ func TestAppScript_ToProto(t *testing.T) {
 		}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.ScriptApp)
-		assert.True(t, ok, "Expected *settingsv1alpha1.ScriptApp type")
+		got, ok := result.(*pbApps.ScriptApp)
+		assert.True(t, ok, "Expected *pbApps.ScriptApp type")
 		assert.NotNil(t, got, "Expected non-nil proto message")
 		assert.Nil(t, got.StaticData, "Expected nil static data")
 		assert.NotNil(t, got.Evaluator, "Expected non-nil evaluator")
 
 		// Check specific evaluator type
-		starlark, ok := got.Evaluator.(*settingsv1alpha1.ScriptApp_Starlark)
+		starlark, ok := got.Evaluator.(*pbApps.ScriptApp_Starlark)
 		assert.True(t, ok, "Expected Starlark evaluator")
 		assert.Equal(t, "print('hello')", starlark.Starlark.GetCode())
 	})
@@ -162,14 +162,14 @@ func TestAppScript_ToProto(t *testing.T) {
 		}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.ScriptApp)
-		assert.True(t, ok, "Expected *settingsv1alpha1.ScriptApp type")
+		got, ok := result.(*pbApps.ScriptApp)
+		assert.True(t, ok, "Expected *pbApps.ScriptApp type")
 		assert.NotNil(t, got, "Expected non-nil proto message")
 		assert.Nil(t, got.StaticData, "Expected nil static data")
 		assert.NotNil(t, got.Evaluator, "Expected non-nil evaluator")
 
 		// Check specific evaluator type
-		extism, ok := got.Evaluator.(*settingsv1alpha1.ScriptApp_Extism)
+		extism, ok := got.Evaluator.(*pbApps.ScriptApp_Extism)
 		assert.True(t, ok, "Expected Extism evaluator")
 		assert.Equal(t, "base64content", extism.Extism.GetCode())
 		assert.Equal(t, "handle_request", extism.Extism.GetEntrypoint())
@@ -186,8 +186,8 @@ func TestAppScript_ToProto(t *testing.T) {
 		}
 		result := script.ToProto()
 
-		got, ok := result.(*settingsv1alpha1.ScriptApp)
-		assert.True(t, ok, "Expected *settingsv1alpha1.ScriptApp type")
+		got, ok := result.(*pbApps.ScriptApp)
+		assert.True(t, ok, "Expected *pbApps.ScriptApp type")
 		assert.NotNil(t, got, "Expected non-nil proto message")
 		assert.NotNil(t, got.StaticData, "Expected non-nil static data")
 		assert.Nil(t, got.Evaluator, "Expected nil evaluator")

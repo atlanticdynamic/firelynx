@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
@@ -194,7 +195,7 @@ func TestRoute_ToProto(t *testing.T) {
 						Method:     proto.String("POST"),
 					},
 				},
-				StaticData: &pb.StaticData{
+				StaticData: &pbData.StaticData{
 					Data: map[string]*structpb.Value{
 						"key1": structpb.NewStringValue("value1"),
 						"key2": structpb.NewNumberValue(42),
@@ -294,7 +295,7 @@ func TestFromProto(t *testing.T) {
 						Method:     proto.String("POST"),
 					},
 				},
-				StaticData: &pb.StaticData{
+				StaticData: &pbData.StaticData{
 					Data: map[string]*structpb.Value{
 						"key1": structpb.NewStringValue("value1"),
 						"key2": structpb.NewNumberValue(42),

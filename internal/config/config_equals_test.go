@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func createEchoConfig(t *testing.T, response string) *Config {
 			{
 				Id: proto.String("test_app"),
 				Config: &pb.AppDefinition_Echo{
-					Echo: &pb.EchoApp{
+					Echo: &pbApps.EchoApp{
 						Response: &echoResponse,
 					},
 				},

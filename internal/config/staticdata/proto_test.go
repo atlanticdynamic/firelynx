@@ -3,7 +3,7 @@ package staticdata
 import (
 	"testing"
 
-	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/robbyt/protobaggins"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +25,7 @@ func TestStaticDataToProto(t *testing.T) {
 		require.NotNil(t, pb.MergeMode)
 		assert.Equal(
 			t,
-			settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED,
+			pbData.StaticData_MERGE_MODE_UNSPECIFIED,
 			*pb.MergeMode,
 		)
 		assert.Nil(t, pb.Data)
@@ -44,7 +44,7 @@ func TestStaticDataToProto(t *testing.T) {
 		require.NotNil(t, pb.MergeMode)
 		assert.Equal(
 			t,
-			settingsv1alpha1.StaticData_MERGE_MODE_LAST,
+			pbData.StaticData_MERGE_MODE_LAST,
 			*pb.MergeMode,
 		)
 		assert.Len(t, pb.Data, 3)
@@ -58,15 +58,15 @@ func TestStaticDataToProto(t *testing.T) {
 
 func TestFromProto(t *testing.T) {
 	t.Run("NilProto", func(t *testing.T) {
-		var pb *settingsv1alpha1.StaticData
+		var pb *pbData.StaticData
 		sd, err := FromProto(pb)
 		require.NoError(t, err)
 		assert.Nil(t, sd)
 	})
 
 	t.Run("EmptyProto", func(t *testing.T) {
-		mergeMode := settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED
-		pb := &settingsv1alpha1.StaticData{
+		mergeMode := pbData.StaticData_MERGE_MODE_UNSPECIFIED
+		pb := &pbData.StaticData{
 			MergeMode: &mergeMode,
 		}
 		sd, err := FromProto(pb)
@@ -77,8 +77,8 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("FullProto", func(t *testing.T) {
 		// Create a proto StaticData with some values
-		mergeMode := settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE
-		pb := &settingsv1alpha1.StaticData{
+		mergeMode := pbData.StaticData_MERGE_MODE_UNIQUE
+		pb := &pbData.StaticData{
 			Data:      map[string]*structpb.Value{},
 			MergeMode: &mergeMode,
 		}
@@ -104,23 +104,23 @@ func TestStaticDataMergeModeConversion(t *testing.T) {
 	t.Run("DomainToProto", func(t *testing.T) {
 		tests := []struct {
 			domain   StaticDataMergeMode
-			expected settingsv1alpha1.StaticData_MergeMode
+			expected pbData.StaticData_MergeMode
 		}{
 			{
 				StaticDataMergeModeUnspecified,
-				settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED,
+				pbData.StaticData_MERGE_MODE_UNSPECIFIED,
 			},
 			{
 				StaticDataMergeModeLast,
-				settingsv1alpha1.StaticData_MERGE_MODE_LAST,
+				pbData.StaticData_MERGE_MODE_LAST,
 			},
 			{
 				StaticDataMergeModeUnique,
-				settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE,
+				pbData.StaticData_MERGE_MODE_UNIQUE,
 			},
 			{
 				StaticDataMergeMode(999),
-				settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED,
+				pbData.StaticData_MERGE_MODE_UNSPECIFIED,
 			}, // Invalid defaults to unspecified
 		}
 
@@ -134,23 +134,23 @@ func TestStaticDataMergeModeConversion(t *testing.T) {
 	// Test conversion from proto to domain
 	t.Run("ProtoToDomain", func(t *testing.T) {
 		tests := []struct {
-			proto    settingsv1alpha1.StaticData_MergeMode
+			proto    pbData.StaticData_MergeMode
 			expected StaticDataMergeMode
 		}{
 			{
-				settingsv1alpha1.StaticData_MERGE_MODE_UNSPECIFIED,
+				pbData.StaticData_MERGE_MODE_UNSPECIFIED,
 				StaticDataMergeModeUnspecified,
 			},
 			{
-				settingsv1alpha1.StaticData_MERGE_MODE_LAST,
+				pbData.StaticData_MERGE_MODE_LAST,
 				StaticDataMergeModeLast,
 			},
 			{
-				settingsv1alpha1.StaticData_MERGE_MODE_UNIQUE,
+				pbData.StaticData_MERGE_MODE_UNIQUE,
 				StaticDataMergeModeUnique,
 			},
 			{
-				settingsv1alpha1.StaticData_MergeMode(999),
+				pbData.StaticData_MergeMode(999),
 				StaticDataMergeModeUnspecified,
 			}, // Invalid defaults to unspecified
 		}

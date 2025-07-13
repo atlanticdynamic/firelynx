@@ -3,13 +3,13 @@ package evaluators
 import (
 	"time"
 
-	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/robbyt/protobaggins"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // RisorEvaluatorFromProto creates a RisorEvaluator from its protocol buffer representation.
-func RisorEvaluatorFromProto(proto *settingsv1alpha1.RisorEvaluator) *RisorEvaluator {
+func RisorEvaluatorFromProto(proto *pbApps.RisorEvaluator) *RisorEvaluator {
 	if proto == nil {
 		return nil
 	}
@@ -25,9 +25,9 @@ func RisorEvaluatorFromProto(proto *settingsv1alpha1.RisorEvaluator) *RisorEvalu
 
 	// Handle the oneof source field
 	switch source := proto.Source.(type) {
-	case *settingsv1alpha1.RisorEvaluator_Code:
+	case *pbApps.RisorEvaluator_Code:
 		risor.Code = source.Code
-	case *settingsv1alpha1.RisorEvaluator_Uri:
+	case *pbApps.RisorEvaluator_Uri:
 		risor.URI = source.Uri
 	}
 
@@ -35,7 +35,7 @@ func RisorEvaluatorFromProto(proto *settingsv1alpha1.RisorEvaluator) *RisorEvalu
 }
 
 // ToProto converts a RisorEvaluator to its protocol buffer representation.
-func (r *RisorEvaluator) ToProto() *settingsv1alpha1.RisorEvaluator {
+func (r *RisorEvaluator) ToProto() *pbApps.RisorEvaluator {
 	if r == nil {
 		return nil
 	}
@@ -45,17 +45,17 @@ func (r *RisorEvaluator) ToProto() *settingsv1alpha1.RisorEvaluator {
 		timeout = durationpb.New(r.Timeout)
 	}
 
-	proto := &settingsv1alpha1.RisorEvaluator{
+	proto := &pbApps.RisorEvaluator{
 		Timeout: timeout,
 	}
 
 	// Handle the oneof source field - prioritize code over URI
 	if r.Code != "" {
-		proto.Source = &settingsv1alpha1.RisorEvaluator_Code{
+		proto.Source = &pbApps.RisorEvaluator_Code{
 			Code: r.Code,
 		}
 	} else if r.URI != "" {
-		proto.Source = &settingsv1alpha1.RisorEvaluator_Uri{
+		proto.Source = &pbApps.RisorEvaluator_Uri{
 			Uri: r.URI,
 		}
 	}
@@ -64,7 +64,7 @@ func (r *RisorEvaluator) ToProto() *settingsv1alpha1.RisorEvaluator {
 }
 
 // StarlarkEvaluatorFromProto creates a StarlarkEvaluator from its protocol buffer representation.
-func StarlarkEvaluatorFromProto(proto *settingsv1alpha1.StarlarkEvaluator) *StarlarkEvaluator {
+func StarlarkEvaluatorFromProto(proto *pbApps.StarlarkEvaluator) *StarlarkEvaluator {
 	if proto == nil {
 		return nil
 	}
@@ -80,9 +80,9 @@ func StarlarkEvaluatorFromProto(proto *settingsv1alpha1.StarlarkEvaluator) *Star
 
 	// Handle the oneof source field
 	switch source := proto.Source.(type) {
-	case *settingsv1alpha1.StarlarkEvaluator_Code:
+	case *pbApps.StarlarkEvaluator_Code:
 		starlark.Code = source.Code
-	case *settingsv1alpha1.StarlarkEvaluator_Uri:
+	case *pbApps.StarlarkEvaluator_Uri:
 		starlark.URI = source.Uri
 	}
 
@@ -90,7 +90,7 @@ func StarlarkEvaluatorFromProto(proto *settingsv1alpha1.StarlarkEvaluator) *Star
 }
 
 // ToProto converts a StarlarkEvaluator to its protocol buffer representation.
-func (s *StarlarkEvaluator) ToProto() *settingsv1alpha1.StarlarkEvaluator {
+func (s *StarlarkEvaluator) ToProto() *pbApps.StarlarkEvaluator {
 	if s == nil {
 		return nil
 	}
@@ -100,17 +100,17 @@ func (s *StarlarkEvaluator) ToProto() *settingsv1alpha1.StarlarkEvaluator {
 		timeout = durationpb.New(s.Timeout)
 	}
 
-	proto := &settingsv1alpha1.StarlarkEvaluator{
+	proto := &pbApps.StarlarkEvaluator{
 		Timeout: timeout,
 	}
 
 	// Handle the oneof source field - prioritize code over URI
 	if s.Code != "" {
-		proto.Source = &settingsv1alpha1.StarlarkEvaluator_Code{
+		proto.Source = &pbApps.StarlarkEvaluator_Code{
 			Code: s.Code,
 		}
 	} else if s.URI != "" {
-		proto.Source = &settingsv1alpha1.StarlarkEvaluator_Uri{
+		proto.Source = &pbApps.StarlarkEvaluator_Uri{
 			Uri: s.URI,
 		}
 	}
@@ -119,7 +119,7 @@ func (s *StarlarkEvaluator) ToProto() *settingsv1alpha1.StarlarkEvaluator {
 }
 
 // ExtismEvaluatorFromProto creates an ExtismEvaluator from its protocol buffer representation.
-func ExtismEvaluatorFromProto(proto *settingsv1alpha1.ExtismEvaluator) *ExtismEvaluator {
+func ExtismEvaluatorFromProto(proto *pbApps.ExtismEvaluator) *ExtismEvaluator {
 	if proto == nil {
 		return nil
 	}
@@ -136,9 +136,9 @@ func ExtismEvaluatorFromProto(proto *settingsv1alpha1.ExtismEvaluator) *ExtismEv
 
 	// Handle the oneof source field
 	switch source := proto.Source.(type) {
-	case *settingsv1alpha1.ExtismEvaluator_Code:
+	case *pbApps.ExtismEvaluator_Code:
 		extism.Code = source.Code
-	case *settingsv1alpha1.ExtismEvaluator_Uri:
+	case *pbApps.ExtismEvaluator_Uri:
 		extism.URI = source.Uri
 	}
 
@@ -146,7 +146,7 @@ func ExtismEvaluatorFromProto(proto *settingsv1alpha1.ExtismEvaluator) *ExtismEv
 }
 
 // ToProto converts an ExtismEvaluator to its protocol buffer representation.
-func (e *ExtismEvaluator) ToProto() *settingsv1alpha1.ExtismEvaluator {
+func (e *ExtismEvaluator) ToProto() *pbApps.ExtismEvaluator {
 	if e == nil {
 		return nil
 	}
@@ -156,18 +156,18 @@ func (e *ExtismEvaluator) ToProto() *settingsv1alpha1.ExtismEvaluator {
 		timeout = durationpb.New(e.Timeout)
 	}
 
-	proto := &settingsv1alpha1.ExtismEvaluator{
+	proto := &pbApps.ExtismEvaluator{
 		Entrypoint: protobaggins.StringToProto(e.Entrypoint),
 		Timeout:    timeout,
 	}
 
 	// Handle the oneof source field - prioritize code over URI
 	if e.Code != "" {
-		proto.Source = &settingsv1alpha1.ExtismEvaluator_Code{
+		proto.Source = &pbApps.ExtismEvaluator_Code{
 			Code: e.Code,
 		}
 	} else if e.URI != "" {
-		proto.Source = &settingsv1alpha1.ExtismEvaluator_Uri{
+		proto.Source = &pbApps.ExtismEvaluator_Uri{
 			Uri: e.URI,
 		}
 	}
@@ -176,7 +176,7 @@ func (e *ExtismEvaluator) ToProto() *settingsv1alpha1.ExtismEvaluator {
 }
 
 // EvaluatorFromProto creates an appropriate Evaluator from its protocol buffer representation.
-func EvaluatorFromProto(proto *settingsv1alpha1.ScriptApp) (Evaluator, error) {
+func EvaluatorFromProto(proto *pbApps.ScriptApp) (Evaluator, error) {
 	if proto == nil {
 		return nil, nil
 	}
