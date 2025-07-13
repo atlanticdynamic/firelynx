@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
@@ -101,10 +102,10 @@ func TestFromProtoConversions(t *testing.T) {
 			Id:   proto.String("test-script-app"),
 			Type: &scriptType,
 			Config: &pb.AppDefinition_Script{
-				Script: &pb.ScriptApp{
-					Evaluator: &pb.ScriptApp_Risor{
-						Risor: &pb.RisorEvaluator{
-							Source:  &pb.RisorEvaluator_Code{Code: "return 'hello'"},
+				Script: &pbApps.ScriptApp{
+					Evaluator: &pbApps.ScriptApp_Risor{
+						Risor: &pbApps.RisorEvaluator{
+							Source:  &pbApps.RisorEvaluator_Code{Code: "return 'hello'"},
 							Timeout: durationpb.New(5 * time.Second),
 						},
 					},
@@ -138,7 +139,7 @@ func TestFromProtoConversions(t *testing.T) {
 			Id:   proto.String("test-composite-app"),
 			Type: &compositeType,
 			Config: &pb.AppDefinition_CompositeScript{
-				CompositeScript: &pb.CompositeScriptApp{
+				CompositeScript: &pbApps.CompositeScriptApp{
 					ScriptAppIds: []string{"script1", "script2"},
 				},
 			},
@@ -165,7 +166,7 @@ func TestFromProtoConversions(t *testing.T) {
 			Id:   proto.String("test-echo-app"),
 			Type: &echoType,
 			Config: &pb.AppDefinition_Echo{
-				Echo: &pb.EchoApp{
+				Echo: &pbApps.EchoApp{
 					Response: proto.String("Hello, world!"),
 				},
 			},
@@ -192,10 +193,10 @@ func TestFromProtoConversions(t *testing.T) {
 			Id:   proto.String("mismatched-app"),
 			Type: &echoType,
 			Config: &pb.AppDefinition_Script{
-				Script: &pb.ScriptApp{
-					Evaluator: &pb.ScriptApp_Risor{
-						Risor: &pb.RisorEvaluator{
-							Source: &pb.RisorEvaluator_Code{Code: "return 'hello'"},
+				Script: &pbApps.ScriptApp{
+					Evaluator: &pbApps.ScriptApp_Risor{
+						Risor: &pbApps.RisorEvaluator{
+							Source: &pbApps.RisorEvaluator_Code{Code: "return 'hello'"},
 						},
 					},
 				},
@@ -236,10 +237,10 @@ func TestFromProtoConversions(t *testing.T) {
 				Id:   proto.String("script-app"),
 				Type: &scriptType,
 				Config: &pb.AppDefinition_Script{
-					Script: &pb.ScriptApp{
-						Evaluator: &pb.ScriptApp_Risor{
-							Risor: &pb.RisorEvaluator{
-								Source: &pb.RisorEvaluator_Code{Code: "return 'script'"},
+					Script: &pbApps.ScriptApp{
+						Evaluator: &pbApps.ScriptApp_Risor{
+							Risor: &pbApps.RisorEvaluator{
+								Source: &pbApps.RisorEvaluator_Code{Code: "return 'script'"},
 							},
 						},
 					},
@@ -249,7 +250,7 @@ func TestFromProtoConversions(t *testing.T) {
 				Id:   proto.String("composite-app"),
 				Type: &compositeType,
 				Config: &pb.AppDefinition_CompositeScript{
-					CompositeScript: &pb.CompositeScriptApp{
+					CompositeScript: &pbApps.CompositeScriptApp{
 						ScriptAppIds: []string{"app1", "app2"},
 					},
 				},
@@ -258,7 +259,7 @@ func TestFromProtoConversions(t *testing.T) {
 				Id:   proto.String("echo-app"),
 				Type: &echoType,
 				Config: &pb.AppDefinition_Echo{
-					Echo: &pb.EchoApp{
+					Echo: &pbApps.EchoApp{
 						Response: proto.String("Echo response"),
 					},
 				},

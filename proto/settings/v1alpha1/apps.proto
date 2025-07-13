@@ -2,8 +2,9 @@ edition = "2023";
 
 package settings.v1alpha1;
 
-import "google/protobuf/duration.proto";
-import "settings/v1alpha1/static_data.proto";
+import "settings/v1alpha1/apps/v1/composite.proto";
+import "settings/v1alpha1/apps/v1/echo.proto";
+import "settings/v1alpha1/apps/v1/script.proto";
 
 option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
@@ -19,7 +20,7 @@ message AppDefinition {
   // Unique identifier for the application
   // env_interpolation: no (ID field)
   string id = 1;
-  
+
   // Application type
   // env_interpolation: n/a (non-string)
   Type type = 2 [default = TYPE_UNSPECIFIED];
@@ -28,109 +29,14 @@ message AppDefinition {
   oneof config {
     // Script application configuration
     // env_interpolation: n/a (non-string)
-    ScriptApp script = 3;
-    
+    settings.v1alpha1.apps.v1.ScriptApp script = 100;
+
     // Composite script application configuration
     // env_interpolation: n/a (non-string)
-    CompositeScriptApp composite_script = 4;
-    
+    settings.v1alpha1.apps.v1.CompositeScriptApp composite_script = 101;
+
     // Echo application configuration
     // env_interpolation: n/a (non-string)
-    EchoApp echo = 5;
+    settings.v1alpha1.apps.v1.EchoApp echo = 102;
   }
-}
-
-// Individual script application
-message ScriptApp {
-  // Static data available to the script
-  // env_interpolation: n/a (non-string)
-  StaticData static_data = 2;
-  
-  // Script evaluator configuration
-  oneof evaluator {
-    // Risor evaluator configuration
-    // env_interpolation: n/a (non-string)
-    RisorEvaluator risor = 3;
-    
-    // Starlark evaluator configuration
-    // env_interpolation: n/a (non-string)
-    StarlarkEvaluator starlark = 4;
-    
-    // Extism evaluator configuration
-    // env_interpolation: n/a (non-string)
-    ExtismEvaluator extism = 5;
-  }
-}
-
-message RisorEvaluator {
-  // Script source configuration
-  oneof source {
-    // Inline script code
-    // env_interpolation: no (code content)
-    string code = 1;
-    
-    // URI to script source
-    // env_interpolation: yes (URI field)
-    string uri = 2;
-  }
-  
-  // Script execution timeout
-  // env_interpolation: n/a (non-string)
-  google.protobuf.Duration timeout = 3;
-}
-
-message StarlarkEvaluator {
-  // Script source configuration
-  oneof source {
-    // Inline script code
-    // env_interpolation: no (code content)
-    string code = 1;
-    
-    // URI to script source
-    // env_interpolation: yes (URI field)
-    string uri = 2;
-  }
-  
-  // Script execution timeout
-  // env_interpolation: n/a (non-string)
-  google.protobuf.Duration timeout = 3;
-}
-
-message ExtismEvaluator {
-  // Script source configuration
-  oneof source {
-    // Inline script code
-    // env_interpolation: no (code content)
-    string code = 1;
-    
-    // URI to script source
-    // env_interpolation: yes (URI field)
-    string uri = 2;
-  }
-  
-  // Function entrypoint name
-  // env_interpolation: yes
-  string entrypoint = 3;
-  
-  // Script execution timeout
-  // env_interpolation: n/a (non-string)
-  google.protobuf.Duration timeout = 4;
-}
-
-// Composite script that combines multiple scripts
-message CompositeScriptApp {
-  // IDs of script applications to run in sequence
-  // env_interpolation: no (ID field)
-  repeated string script_app_ids = 1;
-  
-  // Static data available to all scripts
-  // env_interpolation: n/a (non-string)
-  StaticData static_data = 2;
-}
-
-// Echo app
-message EchoApp {
-  // Response text to echo back
-  // env_interpolation: yes
-  string response = 1;
 }

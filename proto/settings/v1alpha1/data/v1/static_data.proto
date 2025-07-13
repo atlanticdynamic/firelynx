@@ -1,10 +1,9 @@
 edition = "2023";
-
-package settings.v1alpha1;
+package settings.v1alpha1.data.v1;
 
 import "google/protobuf/struct.proto";
 
-option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1";
 
 message StaticData {
   // Defines strategies for merging static data maps from different sources.
@@ -22,7 +21,7 @@ message StaticData {
   // Key-value pairs of static data
   // env_interpolation: n/a (non-string)
   map<string, google.protobuf.Value> data = 1;
-  
+
   // Strategy for merging static data from different sources
   // env_interpolation: n/a (non-string)
   MergeMode merge_mode = 2 [default = MERGE_MODE_UNSPECIFIED];

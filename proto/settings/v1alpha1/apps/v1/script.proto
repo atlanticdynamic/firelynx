@@ -1,0 +1,31 @@
+edition = "2023";
+package settings.v1alpha1.apps.v1;
+
+import "settings/v1alpha1/apps/v1/extism.proto";
+import "settings/v1alpha1/apps/v1/risor.proto";
+import "settings/v1alpha1/apps/v1/starlark.proto";
+import "settings/v1alpha1/data/v1/static_data.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1";
+
+// Individual script application
+message ScriptApp {
+  // Script evaluator configuration
+  oneof evaluator {
+    // Risor evaluator configuration
+    // env_interpolation: n/a (non-string)
+    RisorEvaluator risor = 1;
+
+    // Starlark evaluator configuration
+    // env_interpolation: n/a (non-string)
+    StarlarkEvaluator starlark = 2;
+
+    // Extism evaluator configuration
+    // env_interpolation: n/a (non-string)
+    ExtismEvaluator extism = 3;
+  }
+
+  // Static data available to the script
+  // env_interpolation: n/a (non-string)
+  settings.v1alpha1.data.v1.StaticData static_data = 100;
+}

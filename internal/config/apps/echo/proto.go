@@ -4,11 +4,11 @@
 package echo
 
 import (
-	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 )
 
 // EchoFromProto creates an EchoApp configuration from its protocol buffer representation
-func EchoFromProto(proto *pb.EchoApp) *EchoApp {
+func EchoFromProto(proto *pbApps.EchoApp) *EchoApp {
 	if proto == nil {
 		return nil
 	}
@@ -19,7 +19,7 @@ func EchoFromProto(proto *pb.EchoApp) *EchoApp {
 
 // ToProto converts the EchoApp configuration to its protocol buffer representation
 func (e *EchoApp) ToProto() any {
-	return &pb.EchoApp{
+	return &pbApps.EchoApp{
 		Response: &e.Response,
 	}
 }

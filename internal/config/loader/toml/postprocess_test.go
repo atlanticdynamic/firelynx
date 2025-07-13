@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	pbMiddleware "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -383,7 +385,7 @@ func TestProcessStaticDataField(t *testing.T) {
 	t.Parallel()
 
 	t.Run("NilStaticDataPointer", func(t *testing.T) {
-		var staticData *pbSettings.StaticData
+		var staticData *pbData.StaticData
 
 		staticDataMap := map[string]any{
 			"key1": "value1",
@@ -406,7 +408,7 @@ func TestProcessStaticDataField(t *testing.T) {
 
 	t.Run("ExistingStaticDataPointer", func(t *testing.T) {
 		// Pre-create static data with some existing data
-		existingData := &pbSettings.StaticData{}
+		existingData := &pbData.StaticData{}
 		staticData := existingData
 
 		staticDataMap := map[string]any{
@@ -423,7 +425,7 @@ func TestProcessStaticDataField(t *testing.T) {
 	})
 
 	t.Run("EmptyStaticDataMap", func(t *testing.T) {
-		var staticData *pbSettings.StaticData
+		var staticData *pbData.StaticData
 
 		staticDataMap := map[string]any{}
 
@@ -435,7 +437,7 @@ func TestProcessStaticDataField(t *testing.T) {
 	})
 
 	t.Run("ComplexNestedData", func(t *testing.T) {
-		var staticData *pbSettings.StaticData
+		var staticData *pbData.StaticData
 
 		staticDataMap := map[string]any{
 			"simple": "value",
@@ -549,9 +551,9 @@ func TestProcessScriptEvaluators(t *testing.T) {
 	t.Parallel()
 
 	t.Run("RisorEvaluator", func(t *testing.T) {
-		scriptApp := &pbSettings.ScriptApp{
-			Evaluator: &pbSettings.ScriptApp_Risor{
-				Risor: &pbSettings.RisorEvaluator{},
+		scriptApp := &pbApps.ScriptApp{
+			Evaluator: &pbApps.ScriptApp_Risor{
+				Risor: &pbApps.RisorEvaluator{},
 			},
 		}
 
@@ -567,14 +569,14 @@ func TestProcessScriptEvaluators(t *testing.T) {
 		// Verify Risor evaluator was processed
 		risorEval := scriptApp.GetRisor()
 		require.NotNil(t, risorEval, "Risor evaluator should be accessible")
-		risorSource := risorEval.Source.(*pbSettings.RisorEvaluator_Code)
+		risorSource := risorEval.Source.(*pbApps.RisorEvaluator_Code)
 		assert.Equal(t, "print('risor')", risorSource.Code)
 	})
 
 	t.Run("StarlarkEvaluator", func(t *testing.T) {
-		scriptApp := &pbSettings.ScriptApp{
-			Evaluator: &pbSettings.ScriptApp_Starlark{
-				Starlark: &pbSettings.StarlarkEvaluator{},
+		scriptApp := &pbApps.ScriptApp{
+			Evaluator: &pbApps.ScriptApp_Starlark{
+				Starlark: &pbApps.StarlarkEvaluator{},
 			},
 		}
 
@@ -590,14 +592,14 @@ func TestProcessScriptEvaluators(t *testing.T) {
 		// Verify Starlark evaluator was processed
 		starlarkEval := scriptApp.GetStarlark()
 		require.NotNil(t, starlarkEval, "Starlark evaluator should be accessible")
-		starlarkSource := starlarkEval.Source.(*pbSettings.StarlarkEvaluator_Code)
+		starlarkSource := starlarkEval.Source.(*pbApps.StarlarkEvaluator_Code)
 		assert.Equal(t, "result = 'starlark'", starlarkSource.Code)
 	})
 
 	t.Run("ExtismEvaluator", func(t *testing.T) {
-		scriptApp := &pbSettings.ScriptApp{
-			Evaluator: &pbSettings.ScriptApp_Extism{
-				Extism: &pbSettings.ExtismEvaluator{},
+		scriptApp := &pbApps.ScriptApp{
+			Evaluator: &pbApps.ScriptApp_Extism{
+				Extism: &pbApps.ExtismEvaluator{},
 			},
 		}
 
@@ -613,14 +615,14 @@ func TestProcessScriptEvaluators(t *testing.T) {
 		// Verify Extism evaluator was processed
 		extismEval := scriptApp.GetExtism()
 		require.NotNil(t, extismEval, "Extism evaluator should be accessible")
-		extismSource := extismEval.Source.(*pbSettings.ExtismEvaluator_Code)
+		extismSource := extismEval.Source.(*pbApps.ExtismEvaluator_Code)
 		assert.Equal(t, "base64wasm", extismSource.Code)
 	})
 
 	t.Run("WithUriSource", func(t *testing.T) {
-		scriptApp := &pbSettings.ScriptApp{
-			Evaluator: &pbSettings.ScriptApp_Risor{
-				Risor: &pbSettings.RisorEvaluator{},
+		scriptApp := &pbApps.ScriptApp{
+			Evaluator: &pbApps.ScriptApp_Risor{
+				Risor: &pbApps.RisorEvaluator{},
 			},
 		}
 
@@ -635,12 +637,12 @@ func TestProcessScriptEvaluators(t *testing.T) {
 
 		risorEval := scriptApp.GetRisor()
 		require.NotNil(t, risorEval, "Risor evaluator should be accessible")
-		risorSource := risorEval.Source.(*pbSettings.RisorEvaluator_Uri)
+		risorSource := risorEval.Source.(*pbApps.RisorEvaluator_Uri)
 		assert.Equal(t, "file://script.risor", risorSource.Uri)
 	})
 
 	t.Run("NilEvaluators", func(t *testing.T) {
-		scriptApp := &pbSettings.ScriptApp{}
+		scriptApp := &pbApps.ScriptApp{}
 
 		scriptConfig := map[string]any{
 			"risor": map[string]any{
@@ -665,9 +667,9 @@ func TestProcessScriptEvaluators(t *testing.T) {
 	})
 
 	t.Run("NoEvaluatorConfigs", func(t *testing.T) {
-		scriptApp := &pbSettings.ScriptApp{
-			Evaluator: &pbSettings.ScriptApp_Risor{
-				Risor: &pbSettings.RisorEvaluator{},
+		scriptApp := &pbApps.ScriptApp{
+			Evaluator: &pbApps.ScriptApp_Risor{
+				Risor: &pbApps.RisorEvaluator{},
 			},
 		}
 
@@ -685,9 +687,9 @@ func TestProcessScriptEvaluators(t *testing.T) {
 	})
 
 	t.Run("InvalidConfigTypes", func(t *testing.T) {
-		scriptApp := &pbSettings.ScriptApp{
-			Evaluator: &pbSettings.ScriptApp_Risor{
-				Risor: &pbSettings.RisorEvaluator{},
+		scriptApp := &pbApps.ScriptApp{
+			Evaluator: &pbApps.ScriptApp_Risor{
+				Risor: &pbApps.RisorEvaluator{},
 			},
 		}
 

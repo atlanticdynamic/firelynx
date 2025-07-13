@@ -22,7 +22,7 @@ message LogOptionsGeneral {
   // Log output format
   // env_interpolation: n/a (non-string)
   Format format = 1 [default = FORMAT_UNSPECIFIED];
-  
+
   // Minimum log level
   // env_interpolation: n/a (non-string)
   Level level = 2 [default = LEVEL_UNSPECIFIED];
@@ -34,27 +34,27 @@ message LogOptionsHTTP {
     // Whether to log this direction at all
     // env_interpolation: n/a (non-string)
     bool enabled = 1 [default = true];
-    
+
     // Include the full body content
     // env_interpolation: n/a (non-string)
     bool body = 2;
-    
+
     // Body content larger than this will be truncated (0 for no limit)
     // env_interpolation: n/a (non-string)
     int32 max_body_size = 3;
-    
+
     // Include the size of the body in bytes
     // env_interpolation: n/a (non-string)
     bool body_size = 4;
-    
+
     // Include headers
     // env_interpolation: n/a (non-string)
     bool headers = 5;
-    
+
     // If set, only log these headers (e.g., ["Authorization", "X-Request-ID"])
     // env_interpolation: yes
     repeated string include_headers = 6;
-    
+
     // Headers to exclude from logging (e.g., ["Cookie", "Set-Cookie"])
     // env_interpolation: yes
     repeated string exclude_headers = 7;
@@ -63,49 +63,49 @@ message LogOptionsHTTP {
   // Common fields available for any HTTP log entry
   // Include HTTP method (GET, POST, etc.)
   // env_interpolation: n/a (non-string)
-  bool method = 1 [default = true];
-  
+  bool method = 100 [default = true];
+
   // Include request path
   // env_interpolation: n/a (non-string)
-  bool path = 2 [default = true];
-  
+  bool path = 101 [default = true];
+
   // Include client IP address
   // env_interpolation: n/a (non-string)
-  bool client_ip = 3;
-  
+  bool client_ip = 102;
+
   // Include query string parameters
   // env_interpolation: n/a (non-string)
-  bool query_params = 4;
-  
+  bool query_params = 103;
+
   // Include protocol version (HTTP/1.1, HTTP/2, etc.)
   // env_interpolation: n/a (non-string)
-  bool protocol = 5;
-  
+  bool protocol = 104;
+
   // Include host from request (may differ from Host header)
   // env_interpolation: n/a (non-string)
-  bool host = 6;
-  
+  bool host = 105;
+
   // Include request scheme (http, https)
   // env_interpolation: n/a (non-string)
-  bool scheme = 7;
+  bool scheme = 106;
 
   // Response-specific fields (only available when response is present)
   // Include HTTP response status code
   // env_interpolation: n/a (non-string)
-  bool status_code = 8 [default = true];
-  
+  bool status_code = 107 [default = true];
+
   // Include request processing time (only meaningful for response logging)
   // env_interpolation: n/a (non-string)
-  bool duration = 9;
+  bool duration = 108;
 
   // What to log for request and response
   // What to log for requests
   // env_interpolation: n/a (non-string)
-  DirectionConfig request = 10;
-  
+  DirectionConfig request = 109;
+
   // What to log for responses
   // env_interpolation: n/a (non-string)
-  DirectionConfig response = 11;
+  DirectionConfig response = 110;
 }
 
 // Configuration for console logger middleware
@@ -122,7 +122,7 @@ message ConsoleLoggerConfig {
   // General logging options (format, level)
   // env_interpolation: n/a (non-string)
   LogOptionsGeneral options = 1;
-  
+
   // HTTP-specific field selection and formatting
   // env_interpolation: n/a (non-string)
   LogOptionsHTTP fields = 2;
@@ -140,7 +140,7 @@ message ConsoleLoggerConfig {
   // If set, only log requests matching these path prefixes
   // env_interpolation: yes
   repeated string include_only_paths = 5;
-  
+
   // Exclude requests matching these path prefixes (e.g., "/health", "/metrics")
   // env_interpolation: yes
   repeated string exclude_paths = 6;
@@ -149,7 +149,7 @@ message ConsoleLoggerConfig {
   // If set, only log these HTTP methods (e.g., ["GET", "POST"])
   // env_interpolation: yes
   repeated string include_only_methods = 7;
-  
+
   // Exclude these HTTP methods from logging (e.g., ["OPTIONS"])
   // env_interpolation: yes
   repeated string exclude_methods = 8;

@@ -251,39 +251,39 @@ type LogOptionsHTTP struct {
 	// Common fields available for any HTTP log entry
 	// Include HTTP method (GET, POST, etc.)
 	// env_interpolation: n/a (non-string)
-	Method *bool `protobuf:"varint,1,opt,name=method,def=1" json:"method,omitempty"`
+	Method *bool `protobuf:"varint,100,opt,name=method,def=1" json:"method,omitempty"`
 	// Include request path
 	// env_interpolation: n/a (non-string)
-	Path *bool `protobuf:"varint,2,opt,name=path,def=1" json:"path,omitempty"`
+	Path *bool `protobuf:"varint,101,opt,name=path,def=1" json:"path,omitempty"`
 	// Include client IP address
 	// env_interpolation: n/a (non-string)
-	ClientIp *bool `protobuf:"varint,3,opt,name=client_ip,json=clientIp" json:"client_ip,omitempty"`
+	ClientIp *bool `protobuf:"varint,102,opt,name=client_ip,json=clientIp" json:"client_ip,omitempty"`
 	// Include query string parameters
 	// env_interpolation: n/a (non-string)
-	QueryParams *bool `protobuf:"varint,4,opt,name=query_params,json=queryParams" json:"query_params,omitempty"`
+	QueryParams *bool `protobuf:"varint,103,opt,name=query_params,json=queryParams" json:"query_params,omitempty"`
 	// Include protocol version (HTTP/1.1, HTTP/2, etc.)
 	// env_interpolation: n/a (non-string)
-	Protocol *bool `protobuf:"varint,5,opt,name=protocol" json:"protocol,omitempty"`
+	Protocol *bool `protobuf:"varint,104,opt,name=protocol" json:"protocol,omitempty"`
 	// Include host from request (may differ from Host header)
 	// env_interpolation: n/a (non-string)
-	Host *bool `protobuf:"varint,6,opt,name=host" json:"host,omitempty"`
+	Host *bool `protobuf:"varint,105,opt,name=host" json:"host,omitempty"`
 	// Include request scheme (http, https)
 	// env_interpolation: n/a (non-string)
-	Scheme *bool `protobuf:"varint,7,opt,name=scheme" json:"scheme,omitempty"`
+	Scheme *bool `protobuf:"varint,106,opt,name=scheme" json:"scheme,omitempty"`
 	// Response-specific fields (only available when response is present)
 	// Include HTTP response status code
 	// env_interpolation: n/a (non-string)
-	StatusCode *bool `protobuf:"varint,8,opt,name=status_code,json=statusCode,def=1" json:"status_code,omitempty"`
+	StatusCode *bool `protobuf:"varint,107,opt,name=status_code,json=statusCode,def=1" json:"status_code,omitempty"`
 	// Include request processing time (only meaningful for response logging)
 	// env_interpolation: n/a (non-string)
-	Duration *bool `protobuf:"varint,9,opt,name=duration" json:"duration,omitempty"`
+	Duration *bool `protobuf:"varint,108,opt,name=duration" json:"duration,omitempty"`
 	// What to log for request and response
 	// What to log for requests
 	// env_interpolation: n/a (non-string)
-	Request *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,10,opt,name=request" json:"request,omitempty"`
+	Request *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,109,opt,name=request" json:"request,omitempty"`
 	// What to log for responses
 	// env_interpolation: n/a (non-string)
-	Response      *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,11,opt,name=response" json:"response,omitempty"`
+	Response      *LogOptionsHTTP_DirectionConfig `protobuf:"bytes,110,opt,name=response" json:"response,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -663,19 +663,18 @@ const file_settings_v1alpha1_middleware_v1_logger_proto_rawDesc = "" +
 	"\vLEVEL_ERROR\x10\x04\x12\x0f\n" +
 	"\vLEVEL_FATAL\x10\x05\"\xc0\x05\n" +
 	"\x0eLogOptionsHTTP\x12\x1c\n" +
-	"\x06method\x18\x01 \x01(\b:\x04trueR\x06method\x12\x18\n" +
-	"\x04path\x18\x02 \x01(\b:\x04trueR\x04path\x12\x1b\n" +
-	"\tclient_ip\x18\x03 \x01(\bR\bclientIp\x12!\n" +
-	"\fquery_params\x18\x04 \x01(\bR\vqueryParams\x12\x1a\n" +
-	"\bprotocol\x18\x05 \x01(\bR\bprotocol\x12\x12\n" +
-	"\x04host\x18\x06 \x01(\bR\x04host\x12\x16\n" +
-	"\x06scheme\x18\a \x01(\bR\x06scheme\x12%\n" +
-	"\vstatus_code\x18\b \x01(\b:\x04trueR\n" +
+	"\x06method\x18d \x01(\b:\x04trueR\x06method\x12\x18\n" +
+	"\x04path\x18e \x01(\b:\x04trueR\x04path\x12\x1b\n" +
+	"\tclient_ip\x18f \x01(\bR\bclientIp\x12!\n" +
+	"\fquery_params\x18g \x01(\bR\vqueryParams\x12\x1a\n" +
+	"\bprotocol\x18h \x01(\bR\bprotocol\x12\x12\n" +
+	"\x04host\x18i \x01(\bR\x04host\x12\x16\n" +
+	"\x06scheme\x18j \x01(\bR\x06scheme\x12%\n" +
+	"\vstatus_code\x18k \x01(\b:\x04trueR\n" +
 	"statusCode\x12\x1a\n" +
-	"\bduration\x18\t \x01(\bR\bduration\x12Y\n" +
-	"\arequest\x18\n" +
-	" \x01(\v2?.settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfigR\arequest\x12[\n" +
-	"\bresponse\x18\v \x01(\v2?.settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfigR\bresponse\x1a\xf2\x01\n" +
+	"\bduration\x18l \x01(\bR\bduration\x12Y\n" +
+	"\arequest\x18m \x01(\v2?.settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfigR\arequest\x12[\n" +
+	"\bresponse\x18n \x01(\v2?.settings.v1alpha1.middleware.v1.LogOptionsHTTP.DirectionConfigR\bresponse\x1a\xf2\x01\n" +
 	"\x0fDirectionConfig\x12\x1e\n" +
 	"\aenabled\x18\x01 \x01(\b:\x04trueR\aenabled\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\bR\x04body\x12\"\n" +

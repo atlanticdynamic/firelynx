@@ -3,7 +3,7 @@ package toml
 import (
 	"testing"
 
-	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,34 +29,34 @@ func (p *StarlarkSourceProcessor) ProcessSource(evaluator interface{}, config ma
 		processStarlarkSource(nil, config)
 		return
 	}
-	processStarlarkSource(evaluator.(*pbSettings.StarlarkEvaluator), config)
+	processStarlarkSource(evaluator.(*pbApps.StarlarkEvaluator), config)
 }
 
 func (p *StarlarkSourceProcessor) CreateEvaluator() interface{} {
-	return &pbSettings.StarlarkEvaluator{}
+	return &pbApps.StarlarkEvaluator{}
 }
 
 func (p *StarlarkSourceProcessor) GetSource(evaluator interface{}) interface{} {
-	return evaluator.(*pbSettings.StarlarkEvaluator).Source
+	return evaluator.(*pbApps.StarlarkEvaluator).Source
 }
 
 func (p *StarlarkSourceProcessor) CreateCodeSource(code string) interface{} {
-	return &pbSettings.StarlarkEvaluator_Code{Code: code}
+	return &pbApps.StarlarkEvaluator_Code{Code: code}
 }
 
 func (p *StarlarkSourceProcessor) CreateUriSource(uri string) interface{} {
-	return &pbSettings.StarlarkEvaluator_Uri{Uri: uri}
+	return &pbApps.StarlarkEvaluator_Uri{Uri: uri}
 }
 
 func (p *StarlarkSourceProcessor) GetCodeFromSource(source interface{}) (string, bool) {
-	if codeSource, ok := source.(*pbSettings.StarlarkEvaluator_Code); ok {
+	if codeSource, ok := source.(*pbApps.StarlarkEvaluator_Code); ok {
 		return codeSource.Code, true
 	}
 	return "", false
 }
 
 func (p *StarlarkSourceProcessor) GetUriFromSource(source interface{}) (string, bool) {
-	if uriSource, ok := source.(*pbSettings.StarlarkEvaluator_Uri); ok {
+	if uriSource, ok := source.(*pbApps.StarlarkEvaluator_Uri); ok {
 		return uriSource.Uri, true
 	}
 	return "", false
@@ -82,34 +82,34 @@ func (p *ExtismSourceProcessor) ProcessSource(evaluator interface{}, config map[
 		processExtismSource(nil, config)
 		return
 	}
-	processExtismSource(evaluator.(*pbSettings.ExtismEvaluator), config)
+	processExtismSource(evaluator.(*pbApps.ExtismEvaluator), config)
 }
 
 func (p *ExtismSourceProcessor) CreateEvaluator() interface{} {
-	return &pbSettings.ExtismEvaluator{}
+	return &pbApps.ExtismEvaluator{}
 }
 
 func (p *ExtismSourceProcessor) GetSource(evaluator interface{}) interface{} {
-	return evaluator.(*pbSettings.ExtismEvaluator).Source
+	return evaluator.(*pbApps.ExtismEvaluator).Source
 }
 
 func (p *ExtismSourceProcessor) CreateCodeSource(code string) interface{} {
-	return &pbSettings.ExtismEvaluator_Code{Code: code}
+	return &pbApps.ExtismEvaluator_Code{Code: code}
 }
 
 func (p *ExtismSourceProcessor) CreateUriSource(uri string) interface{} {
-	return &pbSettings.ExtismEvaluator_Uri{Uri: uri}
+	return &pbApps.ExtismEvaluator_Uri{Uri: uri}
 }
 
 func (p *ExtismSourceProcessor) GetCodeFromSource(source interface{}) (string, bool) {
-	if codeSource, ok := source.(*pbSettings.ExtismEvaluator_Code); ok {
+	if codeSource, ok := source.(*pbApps.ExtismEvaluator_Code); ok {
 		return codeSource.Code, true
 	}
 	return "", false
 }
 
 func (p *ExtismSourceProcessor) GetUriFromSource(source interface{}) (string, bool) {
-	if uriSource, ok := source.(*pbSettings.ExtismEvaluator_Uri); ok {
+	if uriSource, ok := source.(*pbApps.ExtismEvaluator_Uri); ok {
 		return uriSource.Uri, true
 	}
 	return "", false
@@ -135,34 +135,34 @@ func (p *RisorSourceProcessor) ProcessSource(evaluator interface{}, config map[s
 		processRisorSource(nil, config)
 		return
 	}
-	processRisorSource(evaluator.(*pbSettings.RisorEvaluator), config)
+	processRisorSource(evaluator.(*pbApps.RisorEvaluator), config)
 }
 
 func (p *RisorSourceProcessor) CreateEvaluator() interface{} {
-	return &pbSettings.RisorEvaluator{}
+	return &pbApps.RisorEvaluator{}
 }
 
 func (p *RisorSourceProcessor) GetSource(evaluator interface{}) interface{} {
-	return evaluator.(*pbSettings.RisorEvaluator).Source
+	return evaluator.(*pbApps.RisorEvaluator).Source
 }
 
 func (p *RisorSourceProcessor) CreateCodeSource(code string) interface{} {
-	return &pbSettings.RisorEvaluator_Code{Code: code}
+	return &pbApps.RisorEvaluator_Code{Code: code}
 }
 
 func (p *RisorSourceProcessor) CreateUriSource(uri string) interface{} {
-	return &pbSettings.RisorEvaluator_Uri{Uri: uri}
+	return &pbApps.RisorEvaluator_Uri{Uri: uri}
 }
 
 func (p *RisorSourceProcessor) GetCodeFromSource(source interface{}) (string, bool) {
-	if codeSource, ok := source.(*pbSettings.RisorEvaluator_Code); ok {
+	if codeSource, ok := source.(*pbApps.RisorEvaluator_Code); ok {
 		return codeSource.Code, true
 	}
 	return "", false
 }
 
 func (p *RisorSourceProcessor) GetUriFromSource(source interface{}) (string, bool) {
-	if uriSource, ok := source.(*pbSettings.RisorEvaluator_Uri); ok {
+	if uriSource, ok := source.(*pbApps.RisorEvaluator_Uri); ok {
 		return uriSource.Uri, true
 	}
 	return "", false

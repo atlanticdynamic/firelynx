@@ -24,6 +24,8 @@ import (
 	"fmt"
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	pbMiddleware "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/robbyt/protobaggins"
@@ -553,9 +555,9 @@ func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
 }
 
 // processStaticDataField handles static_data conversion from TOML map to protobuf
-func processStaticDataField(staticData **pbSettings.StaticData, staticDataMap map[string]any) {
+func processStaticDataField(staticData **pbData.StaticData, staticDataMap map[string]any) {
 	if *staticData == nil {
-		*staticData = &pbSettings.StaticData{}
+		*staticData = &pbData.StaticData{}
 	}
 	(*staticData).Data = protobaggins.MapToStructValues(staticDataMap)
 }
@@ -598,7 +600,7 @@ func extractSourceFromConfig(config map[string]any) (code string, uri string, ha
 }
 
 // processScriptEvaluators handles script evaluator-specific configuration
-func processScriptEvaluators(scriptApp *pbSettings.ScriptApp, scriptConfig map[string]any) []error {
+func processScriptEvaluators(scriptApp *pbApps.ScriptApp, scriptConfig map[string]any) []error {
 	var errList []error
 
 	// Process each evaluator type
@@ -615,7 +617,7 @@ func processScriptEvaluators(scriptApp *pbSettings.ScriptApp, scriptConfig map[s
 	return errList
 }
 
-func processRisorSource(eval *pbSettings.RisorEvaluator, config map[string]any) {
+func processRisorSource(eval *pbApps.RisorEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -624,13 +626,13 @@ func processRisorSource(eval *pbSettings.RisorEvaluator, config map[string]any) 
 		return
 	}
 	if code != "" {
-		eval.Source = &pbSettings.RisorEvaluator_Code{Code: code}
+		eval.Source = &pbApps.RisorEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbSettings.RisorEvaluator_Uri{Uri: uri}
+		eval.Source = &pbApps.RisorEvaluator_Uri{Uri: uri}
 	}
 }
 
-func processStarlarkSource(eval *pbSettings.StarlarkEvaluator, config map[string]any) {
+func processStarlarkSource(eval *pbApps.StarlarkEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -639,13 +641,13 @@ func processStarlarkSource(eval *pbSettings.StarlarkEvaluator, config map[string
 		return
 	}
 	if code != "" {
-		eval.Source = &pbSettings.StarlarkEvaluator_Code{Code: code}
+		eval.Source = &pbApps.StarlarkEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbSettings.StarlarkEvaluator_Uri{Uri: uri}
+		eval.Source = &pbApps.StarlarkEvaluator_Uri{Uri: uri}
 	}
 }
 
-func processExtismSource(eval *pbSettings.ExtismEvaluator, config map[string]any) {
+func processExtismSource(eval *pbApps.ExtismEvaluator, config map[string]any) {
 	if eval == nil {
 		return
 	}
@@ -654,8 +656,8 @@ func processExtismSource(eval *pbSettings.ExtismEvaluator, config map[string]any
 		return
 	}
 	if code != "" {
-		eval.Source = &pbSettings.ExtismEvaluator_Code{Code: code}
+		eval.Source = &pbApps.ExtismEvaluator_Code{Code: code}
 	} else {
-		eval.Source = &pbSettings.ExtismEvaluator_Uri{Uri: uri}
+		eval.Source = &pbApps.ExtismEvaluator_Uri{Uri: uri}
 	}
 }

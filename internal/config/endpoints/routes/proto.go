@@ -2,6 +2,7 @@ package routes
 
 import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/robbyt/protobaggins"
@@ -15,7 +16,7 @@ func (r *Route) ToProto() *pb.Route {
 
 	// Convert static data if present
 	if r.StaticData != nil {
-		route.StaticData = &pb.StaticData{
+		route.StaticData = &pbData.StaticData{
 			Data: protobaggins.MapToStructValues(r.StaticData),
 		}
 	}

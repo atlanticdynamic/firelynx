@@ -10,21 +10,21 @@ message HeadersConfig {
     // Headers to set (replace existing values)
     // env_interpolation: yes
     map<string, string> set_headers = 1;
-    
+
     // Headers to add (append to existing values)
     // env_interpolation: yes
     map<string, string> add_headers = 2;
-    
+
     // Header names to remove
     // env_interpolation: yes
     repeated string remove_headers = 3;
   }
-  
+
   // Operations to perform on request headers
   // env_interpolation: n/a (non-string)
-  HeaderOperations request = 1;
-  
+  HeaderOperations request = 100;
+
   // Operations to perform on response headers
   // env_interpolation: n/a (non-string)
-  HeaderOperations response = 2;
+  HeaderOperations response = 101;
 }

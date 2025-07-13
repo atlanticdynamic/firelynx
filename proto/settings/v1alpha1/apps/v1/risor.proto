@@ -1,0 +1,23 @@
+edition = "2023";
+package settings.v1alpha1.apps.v1;
+
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1";
+
+message RisorEvaluator {
+  // Script source configuration
+  oneof source {
+    // Inline script code
+    // env_interpolation: no (code content)
+    string code = 1;
+
+    // URI to script source
+    // env_interpolation: yes (URI field)
+    string uri = 2;
+  }
+
+  // Script execution timeout
+  // env_interpolation: n/a (non-string)
+  google.protobuf.Duration timeout = 100;
+}

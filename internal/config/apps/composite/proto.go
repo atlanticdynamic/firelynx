@@ -3,12 +3,12 @@ package composite
 import (
 	"fmt"
 
-	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 )
 
 // FromProto creates a CompositeScript from its protocol buffer representation.
-func FromProto(proto *settingsv1alpha1.CompositeScriptApp) (*CompositeScript, error) {
+func FromProto(proto *pbApps.CompositeScriptApp) (*CompositeScript, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -33,7 +33,7 @@ func (s *CompositeScript) ToProto() any {
 	}
 
 	// Create the protobuf message
-	proto := &settingsv1alpha1.CompositeScriptApp{
+	proto := &pbApps.CompositeScriptApp{
 		ScriptAppIds: s.ScriptAppIDs,
 	}
 

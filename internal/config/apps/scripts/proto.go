@@ -3,13 +3,13 @@ package scripts
 import (
 	"fmt"
 
-	settingsv1alpha1 "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
+	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 )
 
 // FromProto creates an AppScript from its protocol buffer representation.
-func FromProto(proto *settingsv1alpha1.ScriptApp) (*AppScript, error) {
+func FromProto(proto *pbApps.ScriptApp) (*AppScript, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -42,7 +42,7 @@ func (s *AppScript) ToProto() any {
 	}
 
 	// Create the protobuf message
-	proto := &settingsv1alpha1.ScriptApp{}
+	proto := &pbApps.ScriptApp{}
 
 	// Convert static data if present
 	if s.StaticData != nil {
@@ -53,15 +53,15 @@ func (s *AppScript) ToProto() any {
 	if s.Evaluator != nil {
 		switch eval := s.Evaluator.(type) {
 		case *evaluators.RisorEvaluator:
-			proto.Evaluator = &settingsv1alpha1.ScriptApp_Risor{
+			proto.Evaluator = &pbApps.ScriptApp_Risor{
 				Risor: eval.ToProto(),
 			}
 		case *evaluators.StarlarkEvaluator:
-			proto.Evaluator = &settingsv1alpha1.ScriptApp_Starlark{
+			proto.Evaluator = &pbApps.ScriptApp_Starlark{
 				Starlark: eval.ToProto(),
 			}
 		case *evaluators.ExtismEvaluator:
-			proto.Evaluator = &settingsv1alpha1.ScriptApp_Extism{
+			proto.Evaluator = &pbApps.ScriptApp_Extism{
 				Extism: eval.ToProto(),
 			}
 		}
