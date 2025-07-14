@@ -1,5 +1,3 @@
-// Package apps provides types and functionality for application configuration
-// in the firelynx server.
 package apps
 
 import (
@@ -206,13 +204,13 @@ func TestFromProtoConversions(t *testing.T) {
 		// Conversion should fail due to type mismatch
 		_, err := fromProto(pbApp)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "has type echo but no echo config")
+		assert.ErrorIs(t, err, ErrTypeMismatch)
 	})
 
 	t.Run("NilApp", func(t *testing.T) {
 		_, err := fromProto(nil)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "app definition is nil")
+		assert.ErrorIs(t, err, ErrAppDefinitionNil)
 	})
 
 	t.Run("EmptyAppConfig", func(t *testing.T) {
@@ -223,7 +221,7 @@ func TestFromProtoConversions(t *testing.T) {
 
 		_, err := fromProto(pbApp)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown or empty config type")
+		assert.ErrorIs(t, err, ErrNoConfigSpecified)
 	})
 
 	t.Run("MultipleApps", func(t *testing.T) {
