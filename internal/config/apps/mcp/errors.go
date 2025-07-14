@@ -17,15 +17,23 @@ var (
 
 	// Tool errors
 	ErrMissingToolName        = errors.New("tool name is required")
-	ErrMissingToolDescription = errors.New("tool description is required")
 	ErrMissingToolHandler     = errors.New("tool handler is required")
 	ErrInvalidToolHandler     = errors.New("invalid tool handler")
+	ErrDuplicateToolName      = errors.New("duplicate tool name within server instance")
+	ErrInvalidJSONSchema      = errors.New("invalid JSON schema")
+	ErrDuplicatePromptArgName = errors.New("duplicate prompt argument name within prompt")
 
 	// Tool handler errors
 	ErrMissingEvaluator     = errors.New("evaluator is required for script tool handler")
 	ErrInvalidStaticData    = errors.New("invalid static data")
 	ErrMissingBaseDirectory = errors.New("base_directory is required for file_read builtin")
 	ErrUnknownBuiltinType   = errors.New("unknown builtin tool type")
+
+	// Prompt errors (future phases)
+	ErrInvalidPrompt             = errors.New("invalid prompt configuration")
+	ErrMissingPromptName         = errors.New("prompt name is required")
+	ErrDuplicatePromptName       = errors.New("duplicate prompt name within server instance")
+	ErrMissingPromptArgumentName = errors.New("prompt argument name is required")
 
 	// Middleware errors
 	ErrUnknownMiddlewareType = errors.New("unknown middleware type")

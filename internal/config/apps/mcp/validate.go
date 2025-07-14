@@ -41,10 +41,37 @@ func (a *App) Validate() error {
 		}
 	}
 
-	// Validate tools
+	// Validate tools and check for duplicate names
+	toolNames := make(map[string]int)
 	for i, tool := range a.Tools {
 		if err := tool.Validate(); err != nil {
 			errs = append(errs, fmt.Errorf("%w: tool %d: %w", ErrInvalidTool, i, err))
+		}
+
+		// Check for duplicate tool names within this server instance
+		if tool.Name != "" {
+			if existingIndex, exists := toolNames[tool.Name]; exists {
+				errs = append(errs, fmt.Errorf("%w: tool name '%s' used by both tool %d and tool %d", ErrDuplicateToolName, tool.Name, existingIndex, i))
+			} else {
+				toolNames[tool.Name] = i
+			}
+		}
+	}
+
+	// Validate prompts and check for duplicate names (future phases)
+	promptNames := make(map[string]int)
+	for i, prompt := range a.Prompts {
+		if err := prompt.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("%w: prompt %d: %w", ErrInvalidPrompt, i, err))
+		}
+
+		// Check for duplicate prompt names within this server instance
+		if prompt.Name != "" {
+			if existingIndex, exists := promptNames[prompt.Name]; exists {
+				errs = append(errs, fmt.Errorf("%w: prompt name '%s' used by both prompt %d and prompt %d", ErrDuplicatePromptName, prompt.Name, existingIndex, i))
+			} else {
+				promptNames[prompt.Name] = i
+			}
 		}
 	}
 
@@ -94,8 +121,19 @@ func (t *Tool) Validate() error {
 		errs = append(errs, ErrMissingToolName)
 	}
 
-	if t.Description == "" {
-		errs = append(errs, ErrMissingToolDescription)
+	// Description is RECOMMENDED but not required (per MCP protobuf spec)
+
+	// Validate JSON schemas if provided
+	if t.InputSchema != "" {
+		if err := validateJSONSchema(t.InputSchema); err != nil {
+			errs = append(errs, fmt.Errorf("%w: input_schema: %w", ErrInvalidJSONSchema, err))
+		}
+	}
+
+	if t.OutputSchema != "" {
+		if err := validateJSONSchema(t.OutputSchema); err != nil {
+			errs = append(errs, fmt.Errorf("%w: output_schema: %w", ErrInvalidJSONSchema, err))
+		}
 	}
 
 	// Validate handler
@@ -520,11 +558,51 @@ func (b *BuiltinToolHandler) createFileReadTool() (*mcpsdk.Tool, mcpsdk.ToolHand
 
 // validateJSONSchema validates that a string contains valid JSON Schema.
 func validateJSONSchema(schemaString string) error {
-	var schema interface{}
+	if schemaString == "" {
+		return fmt.Errorf("schema cannot be empty")
+	}
+
+	var schema map[string]any
 	if err := json.Unmarshal([]byte(schemaString), &schema); err != nil {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
-	// Additional schema validation could be added here
+
+	// Basic JSON Schema validation
+	if schemaType, ok := schema["type"]; ok {
+		if typeStr, ok := schemaType.(string); ok {
+			validTypes := map[string]bool{
+				"null": true, "boolean": true, "object": true, "array": true,
+				"number": true, "string": true, "integer": true,
+			}
+			if !validTypes[typeStr] {
+				return fmt.Errorf("invalid JSON Schema type: %s", typeStr)
+			}
+		} else {
+			return fmt.Errorf("JSON Schema 'type' must be a string")
+		}
+	}
+
+	// If it's an object type, validate properties structure
+	if schemaType, ok := schema["type"].(string); ok && schemaType == "object" {
+		if properties, ok := schema["properties"]; ok {
+			if _, ok := properties.(map[string]any); !ok {
+				return fmt.Errorf("JSON Schema 'properties' must be an object")
+			}
+		}
+
+		if required, ok := schema["required"]; ok {
+			if reqArray, ok := required.([]any); ok {
+				for i, req := range reqArray {
+					if _, ok := req.(string); !ok {
+						return fmt.Errorf("JSON Schema 'required' array element %d must be a string", i)
+					}
+				}
+			} else {
+				return fmt.Errorf("JSON Schema 'required' must be an array")
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -615,6 +693,57 @@ func getDefaultInputSchema(handler ToolHandler) (*mcpsdk_jsonschema.Schema, erro
 		Type:        "object",
 		Description: "Tool input parameters",
 	}, nil
+}
+
+// Validate checks if the Prompt configuration is valid.
+func (p *Prompt) Validate() error {
+	var errs []error
+
+	// Environment variable interpolation
+	if err := interpolation.InterpolateStruct(p); err != nil {
+		errs = append(errs, fmt.Errorf("prompt interpolation failed: %w", err))
+	}
+
+	// Basic validation
+	if p.Name == "" {
+		errs = append(errs, ErrMissingPromptName)
+	}
+
+	// Validate arguments and check for duplicate names within prompt
+	argNames := make(map[string]int)
+	for i, arg := range p.Arguments {
+		if err := arg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("argument %d: %w", i, err))
+		}
+
+		// Check for duplicate argument names within this prompt
+		if arg.Name != "" {
+			if existingIndex, exists := argNames[arg.Name]; exists {
+				errs = append(errs, fmt.Errorf("%w: argument name '%s' used by both argument %d and argument %d", ErrDuplicatePromptArgName, arg.Name, existingIndex, i))
+			} else {
+				argNames[arg.Name] = i
+			}
+		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// Validate checks if the PromptArgument configuration is valid.
+func (pa *PromptArgument) Validate() error {
+	var errs []error
+
+	// Environment variable interpolation
+	if err := interpolation.InterpolateStruct(pa); err != nil {
+		errs = append(errs, fmt.Errorf("prompt argument interpolation failed: %w", err))
+	}
+
+	// Basic validation - argument name is required for uniqueness
+	if pa.Name == "" {
+		errs = append(errs, ErrMissingPromptArgumentName)
+	}
+
+	return errors.Join(errs...)
 }
 
 // convertAnnotationsToMCPSDK converts domain annotations to MCP SDK format.

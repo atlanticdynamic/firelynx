@@ -144,6 +144,27 @@ type Prompt struct {
 
 	// Description describes the prompt
 	Description string `env_interpolation:"yes"`
+
+	// Title is the human-readable UI display title
+	Title string `env_interpolation:"yes"`
+
+	// Arguments contains the prompt arguments
+	Arguments []*PromptArgument
+}
+
+// PromptArgument represents a prompt argument definition.
+type PromptArgument struct {
+	// Name is the argument identifier
+	Name string `env_interpolation:"no"`
+
+	// Title is the human-readable UI display title
+	Title string `env_interpolation:"yes"`
+
+	// Description describes the argument
+	Description string `env_interpolation:"yes"`
+
+	// Required indicates if the argument must be provided
+	Required bool
 }
 
 // Middleware represents MCP SDK middleware configuration.
