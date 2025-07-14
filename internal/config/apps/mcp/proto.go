@@ -175,6 +175,22 @@ func toolFromProto(proto *pbApps.McpTool) (*Tool, error) {
 	if proto.Description != nil {
 		tool.Description = *proto.Description
 	}
+	if proto.Title != nil {
+		tool.Title = *proto.Title
+	}
+	if proto.InputSchema != nil {
+		tool.InputSchema = *proto.InputSchema
+	}
+	if proto.OutputSchema != nil {
+		tool.OutputSchema = *proto.OutputSchema
+	}
+	if proto.Annotations != nil {
+		annotations, err := toolAnnotationsFromProto(proto.Annotations)
+		if err != nil {
+			return nil, fmt.Errorf("annotations conversion: %w", err)
+		}
+		tool.Annotations = annotations
+	}
 
 	// Convert handler based on type
 	switch h := proto.Handler.(type) {
@@ -210,6 +226,18 @@ func (t *Tool) toProto() *pbApps.McpTool {
 	}
 	if t.Description != "" {
 		proto.Description = &t.Description
+	}
+	if t.Title != "" {
+		proto.Title = &t.Title
+	}
+	if t.InputSchema != "" {
+		proto.InputSchema = &t.InputSchema
+	}
+	if t.OutputSchema != "" {
+		proto.OutputSchema = &t.OutputSchema
+	}
+	if t.Annotations != nil {
+		proto.Annotations = t.Annotations.toProto()
 	}
 
 	// Convert handler based on type
@@ -477,6 +505,52 @@ func (m *Middleware) toProto() *pbApps.McpMiddleware {
 
 	// Convert config
 	maps.Copy(proto.Config, m.Config)
+
+	return proto
+}
+
+// toolAnnotationsFromProto converts protobuf tool annotations to domain tool annotations.
+func toolAnnotationsFromProto(proto *pbApps.McpToolAnnotations) (*ToolAnnotations, error) {
+	if proto == nil {
+		return nil, nil
+	}
+
+	annotations := &ToolAnnotations{}
+
+	if proto.Title != nil {
+		annotations.Title = *proto.Title
+	}
+	if proto.ReadOnlyHint != nil {
+		annotations.ReadOnlyHint = *proto.ReadOnlyHint
+	}
+	if proto.DestructiveHint != nil {
+		annotations.DestructiveHint = proto.DestructiveHint
+	}
+	if proto.IdempotentHint != nil {
+		annotations.IdempotentHint = *proto.IdempotentHint
+	}
+	if proto.OpenWorldHint != nil {
+		annotations.OpenWorldHint = proto.OpenWorldHint
+	}
+
+	return annotations, nil
+}
+
+// toProto converts tool annotations to protobuf representation.
+func (ta *ToolAnnotations) toProto() *pbApps.McpToolAnnotations {
+	if ta == nil {
+		return nil
+	}
+
+	proto := &pbApps.McpToolAnnotations{}
+
+	if ta.Title != "" {
+		proto.Title = &ta.Title
+	}
+	proto.ReadOnlyHint = &ta.ReadOnlyHint
+	proto.DestructiveHint = ta.DestructiveHint
+	proto.IdempotentHint = &ta.IdempotentHint
+	proto.OpenWorldHint = ta.OpenWorldHint
 
 	return proto
 }

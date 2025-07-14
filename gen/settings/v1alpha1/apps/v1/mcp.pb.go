@@ -68,7 +68,7 @@ func (x McpBuiltinHandler_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use McpBuiltinHandler_Type.Descriptor instead.
 func (McpBuiltinHandler_Type) EnumDescriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{4, 0}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{5, 0}
 }
 
 type McpMiddleware_Type int32
@@ -117,10 +117,15 @@ func (x McpMiddleware_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use McpMiddleware_Type.Descriptor instead.
 func (McpMiddleware_Type) EnumDescriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{9, 0}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{12, 0}
 }
 
 // MCP (Model Context Protocol) app
+// VALIDATION REQUIREMENTS:
+// - All tool names must be unique within the server instance (Server.AddTool replaces tools with same name)
+// - All prompt names must be unique within the server instance (Server.AddPrompt replaces prompts with same name)
+// - All resource URIs must be unique within the server instance (Server.AddResource replaces resources with same URI)
+// - Resource URIs must be absolute with a valid scheme (Server.AddResource panics on invalid URIs)
 type McpApp struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// MCP server implementation details
@@ -132,12 +137,19 @@ type McpApp struct {
 	// env_interpolation: n/a (non-string)
 	Transport *McpTransport `protobuf:"bytes,3,opt,name=transport" json:"transport,omitempty"`
 	// MCP tools configuration
+	// UNIQUENESS REQUIREMENT: All tool names must be unique within the server instance.
+	// The MCP SDK Server.AddTool method replaces tools with the same name.
 	// env_interpolation: n/a (non-string)
 	Tools []*McpTool `protobuf:"bytes,4,rep,name=tools" json:"tools,omitempty"`
 	// MCP resources configuration (future phases)
+	// UNIQUENESS REQUIREMENT: All resource URIs must be unique within the server instance.
+	// The MCP SDK Server.AddResource method replaces resources with the same URI.
+	// URI VALIDATION: All URIs must be absolute with a valid scheme (e.g., file://, http://, custom://)
 	// env_interpolation: n/a (non-string)
 	Resources []*McpResource `protobuf:"bytes,5,rep,name=resources" json:"resources,omitempty"`
 	// MCP prompts configuration (future phases)
+	// UNIQUENESS REQUIREMENT: All prompt names must be unique within the server instance.
+	// The MCP SDK Server.AddPrompt method replaces prompts with the same name.
 	// env_interpolation: n/a (non-string)
 	Prompts []*McpPrompt `protobuf:"bytes,6,rep,name=prompts" json:"prompts,omitempty"`
 	// MCP SDK middleware configuration
@@ -284,12 +296,37 @@ func (x *McpTransport) GetSsePath() string {
 }
 
 // MCP tool definition
+// Based on MCP Go SDK github.com/modelcontextprotocol/go-sdk/mcp.Tool
 type McpTool struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// REQUIRED: Programmatic tool identifier used for calling the tool.
+	// UNIQUENESS: Must be unique within the server instance - duplicate names will replace existing tools.
+	// This is the unique identifier for the tool within the server instance.
 	// env_interpolation: no (tool name)
 	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	// RECOMMENDED: Human-readable description of the tool's purpose.
+	// Used by LLMs to understand when to use the tool.
 	// env_interpolation: yes (description text)
 	Description *string `protobuf:"bytes,2,opt,name=description" json:"description,omitempty"`
+	// OPTIONAL: Human-readable title for UI display contexts.
+	// Display precedence: title > annotations.title > name
+	// If not provided, the name field will be used for display.
+	// env_interpolation: yes (UI display title)
+	Title *string `protobuf:"bytes,3,opt,name=title" json:"title,omitempty"`
+	// REQUIRED by MCP Go SDK: JSON Schema defining expected tool parameters.
+	// VALIDATION: The MCP SDK requires tool.InputSchema to be non-nil before calling Server.AddTool.
+	// If not provided during configuration, firelynx will auto-generate
+	// a default schema for built-in tools. Must be valid JSON Schema.
+	// env_interpolation: no (schema content)
+	InputSchema *string `protobuf:"bytes,4,opt,name=input_schema,json=inputSchema" json:"input_schema,omitempty"`
+	// OPTIONAL: JSON Schema defining tool output structure.
+	// Defines the structure returned in structuredContent field of CallToolResult.
+	// env_interpolation: no (schema content)
+	OutputSchema *string `protobuf:"bytes,5,opt,name=output_schema,json=outputSchema" json:"output_schema,omitempty"`
+	// OPTIONAL: Tool behavior annotations for LLM guidance.
+	// Provides hints about tool behavior (read-only, destructive, etc.)
+	// env_interpolation: n/a (non-string)
+	Annotations *McpToolAnnotations `protobuf:"bytes,6,opt,name=annotations" json:"annotations,omitempty"`
 	// Tool implementation using existing evaluator types
 	//
 	// Types that are valid to be assigned to Handler:
@@ -345,6 +382,34 @@ func (x *McpTool) GetDescription() string {
 	return ""
 }
 
+func (x *McpTool) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *McpTool) GetInputSchema() string {
+	if x != nil && x.InputSchema != nil {
+		return *x.InputSchema
+	}
+	return ""
+}
+
+func (x *McpTool) GetOutputSchema() string {
+	if x != nil && x.OutputSchema != nil {
+		return *x.OutputSchema
+	}
+	return ""
+}
+
+func (x *McpTool) GetAnnotations() *McpToolAnnotations {
+	if x != nil {
+		return x.Annotations
+	}
+	return nil
+}
+
 func (x *McpTool) GetHandler() isMcpTool_Handler {
 	if x != nil {
 		return x.Handler
@@ -386,6 +451,93 @@ func (*McpTool_Script) isMcpTool_Handler() {}
 
 func (*McpTool_Builtin) isMcpTool_Handler() {}
 
+// MCP tool behavior annotations for LLM guidance
+type McpToolAnnotations struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human-readable title for the tool (UI contexts)
+	// env_interpolation: yes (display text)
+	Title *string `protobuf:"bytes,1,opt,name=title" json:"title,omitempty"`
+	// Hint that tool only reads data, doesn't modify environment
+	// env_interpolation: n/a (non-string)
+	ReadOnlyHint *bool `protobuf:"varint,2,opt,name=read_only_hint,json=readOnlyHint" json:"read_only_hint,omitempty"`
+	// Hint that tool makes destructive changes (pointer type, default: true)
+	// env_interpolation: n/a (non-string)
+	DestructiveHint *bool `protobuf:"varint,3,opt,name=destructive_hint,json=destructiveHint" json:"destructive_hint,omitempty"`
+	// Hint that calling tool multiple times is safe
+	// env_interpolation: n/a (non-string)
+	IdempotentHint *bool `protobuf:"varint,4,opt,name=idempotent_hint,json=idempotentHint" json:"idempotent_hint,omitempty"`
+	// Hint that tool interacts with open world (pointer type, default: true)
+	// env_interpolation: n/a (non-string)
+	OpenWorldHint *bool `protobuf:"varint,5,opt,name=open_world_hint,json=openWorldHint" json:"open_world_hint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpToolAnnotations) Reset() {
+	*x = McpToolAnnotations{}
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpToolAnnotations) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpToolAnnotations) ProtoMessage() {}
+
+func (x *McpToolAnnotations) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpToolAnnotations.ProtoReflect.Descriptor instead.
+func (*McpToolAnnotations) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *McpToolAnnotations) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *McpToolAnnotations) GetReadOnlyHint() bool {
+	if x != nil && x.ReadOnlyHint != nil {
+		return *x.ReadOnlyHint
+	}
+	return false
+}
+
+func (x *McpToolAnnotations) GetDestructiveHint() bool {
+	if x != nil && x.DestructiveHint != nil {
+		return *x.DestructiveHint
+	}
+	return false
+}
+
+func (x *McpToolAnnotations) GetIdempotentHint() bool {
+	if x != nil && x.IdempotentHint != nil {
+		return *x.IdempotentHint
+	}
+	return false
+}
+
+func (x *McpToolAnnotations) GetOpenWorldHint() bool {
+	if x != nil && x.OpenWorldHint != nil {
+		return *x.OpenWorldHint
+	}
+	return false
+}
+
 // Script handler reusing existing evaluator infrastructure
 type McpScriptHandler struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -406,7 +558,7 @@ type McpScriptHandler struct {
 
 func (x *McpScriptHandler) Reset() {
 	*x = McpScriptHandler{}
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[3]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +570,7 @@ func (x *McpScriptHandler) String() string {
 func (*McpScriptHandler) ProtoMessage() {}
 
 func (x *McpScriptHandler) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[3]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +583,7 @@ func (x *McpScriptHandler) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use McpScriptHandler.ProtoReflect.Descriptor instead.
 func (*McpScriptHandler) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{3}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *McpScriptHandler) GetStaticData() *v1.StaticData {
@@ -510,7 +662,7 @@ type McpBuiltinHandler struct {
 
 func (x *McpBuiltinHandler) Reset() {
 	*x = McpBuiltinHandler{}
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[4]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -522,7 +674,7 @@ func (x *McpBuiltinHandler) String() string {
 func (*McpBuiltinHandler) ProtoMessage() {}
 
 func (x *McpBuiltinHandler) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[4]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -535,7 +687,7 @@ func (x *McpBuiltinHandler) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use McpBuiltinHandler.ProtoReflect.Descriptor instead.
 func (*McpBuiltinHandler) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{4}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *McpBuiltinHandler) GetType() McpBuiltinHandler_Type {
@@ -553,16 +705,37 @@ func (x *McpBuiltinHandler) GetConfig() map[string]string {
 }
 
 // MCP resource definition (future phases)
+// Based on MCP Go SDK github.com/modelcontextprotocol/go-sdk/mcp.Resource
 type McpResource struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// REQUIRED: The URI of this resource.
+	// UNIQUENESS: Must be unique within the server instance - duplicate URIs will replace existing resources.
+	// VALIDATION: Must be absolute with a valid scheme (e.g., file://, http://, custom://)
+	// The MCP SDK will panic if the URI is invalid or not absolute.
 	// env_interpolation: yes (URI field)
 	Uri *string `protobuf:"bytes,1,opt,name=uri" json:"uri,omitempty"`
+	// REQUIRED: Programmatic identifier for the resource.
+	// Used as display name if title is not provided.
 	// env_interpolation: yes (name field)
 	Name *string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
+	// RECOMMENDED: Description of what this resource represents.
+	// Used by LLMs to understand available resources.
 	// env_interpolation: yes (description text)
 	Description *string `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
+	// OPTIONAL: MIME type of the resource, if known.
 	// env_interpolation: no (MIME type)
 	MimeType *string `protobuf:"bytes,4,opt,name=mime_type,json=mimeType" json:"mime_type,omitempty"`
+	// OPTIONAL: Human-readable title for UI display.
+	// Display precedence: title > name
+	// env_interpolation: yes (UI display title)
+	Title *string `protobuf:"bytes,7,opt,name=title" json:"title,omitempty"`
+	// OPTIONAL: Size of the raw resource content in bytes.
+	// Used for display and context window estimation.
+	// env_interpolation: n/a (non-string)
+	Size *int64 `protobuf:"varint,8,opt,name=size" json:"size,omitempty"`
+	// OPTIONAL: Annotations for client guidance.
+	// env_interpolation: n/a (non-string)
+	Annotations *McpResourceAnnotations `protobuf:"bytes,9,opt,name=annotations" json:"annotations,omitempty"`
 	// Types that are valid to be assigned to Source:
 	//
 	//	*McpResource_FilePath
@@ -575,7 +748,7 @@ type McpResource struct {
 
 func (x *McpResource) Reset() {
 	*x = McpResource{}
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[5]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -587,7 +760,7 @@ func (x *McpResource) String() string {
 func (*McpResource) ProtoMessage() {}
 
 func (x *McpResource) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[5]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -600,7 +773,7 @@ func (x *McpResource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use McpResource.ProtoReflect.Descriptor instead.
 func (*McpResource) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{5}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *McpResource) GetUri() string {
@@ -629,6 +802,27 @@ func (x *McpResource) GetMimeType() string {
 		return *x.MimeType
 	}
 	return ""
+}
+
+func (x *McpResource) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *McpResource) GetSize() int64 {
+	if x != nil && x.Size != nil {
+		return *x.Size
+	}
+	return 0
+}
+
+func (x *McpResource) GetAnnotations() *McpResourceAnnotations {
+	if x != nil {
+		return x.Annotations
+	}
+	return nil
 }
 
 func (x *McpResource) GetSource() isMcpResource_Source {
@@ -705,7 +899,7 @@ type McpScriptResource struct {
 
 func (x *McpScriptResource) Reset() {
 	*x = McpScriptResource{}
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[6]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -717,7 +911,7 @@ func (x *McpScriptResource) String() string {
 func (*McpScriptResource) ProtoMessage() {}
 
 func (x *McpScriptResource) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[6]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -730,7 +924,7 @@ func (x *McpScriptResource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use McpScriptResource.ProtoReflect.Descriptor instead.
 func (*McpScriptResource) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{6}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *McpScriptResource) GetStaticData() *v1.StaticData {
@@ -796,13 +990,72 @@ func (*McpScriptResource_Starlark) isMcpScriptResource_Evaluator() {}
 
 func (*McpScriptResource_Extism) isMcpScriptResource_Evaluator() {}
 
+// MCP resource annotations (based on MCP SDK Annotations type)
+type McpResourceAnnotations struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human-readable title for the resource
+	// env_interpolation: yes (display text)
+	Title         *string `protobuf:"bytes,1,opt,name=title" json:"title,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpResourceAnnotations) Reset() {
+	*x = McpResourceAnnotations{}
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpResourceAnnotations) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpResourceAnnotations) ProtoMessage() {}
+
+func (x *McpResourceAnnotations) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpResourceAnnotations.ProtoReflect.Descriptor instead.
+func (*McpResourceAnnotations) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *McpResourceAnnotations) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
 // MCP prompt definition (future phases)
+// Based on MCP Go SDK github.com/modelcontextprotocol/go-sdk/mcp.Prompt
 type McpPrompt struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// REQUIRED: Programmatic identifier for the prompt.
+	// UNIQUENESS: Must be unique within the server instance - duplicate names will replace existing prompts.
+	// Used as display name if title is not provided.
 	// env_interpolation: no (prompt name)
 	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	// OPTIONAL: Description of what this prompt provides.
 	// env_interpolation: yes (description text)
 	Description *string `protobuf:"bytes,2,opt,name=description" json:"description,omitempty"`
+	// OPTIONAL: Human-readable title for UI display.
+	// Display precedence: title > name
+	// env_interpolation: yes (UI display title)
+	Title *string `protobuf:"bytes,3,opt,name=title" json:"title,omitempty"`
+	// OPTIONAL: List of arguments the prompt accepts.
+	// env_interpolation: n/a (non-string)
+	Arguments []*McpPromptArgument `protobuf:"bytes,4,rep,name=arguments" json:"arguments,omitempty"`
 	// Types that are valid to be assigned to Source:
 	//
 	//	*McpPrompt_Template
@@ -814,7 +1067,7 @@ type McpPrompt struct {
 
 func (x *McpPrompt) Reset() {
 	*x = McpPrompt{}
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[7]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -826,7 +1079,7 @@ func (x *McpPrompt) String() string {
 func (*McpPrompt) ProtoMessage() {}
 
 func (x *McpPrompt) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[7]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -839,7 +1092,7 @@ func (x *McpPrompt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use McpPrompt.ProtoReflect.Descriptor instead.
 func (*McpPrompt) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{7}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *McpPrompt) GetName() string {
@@ -854,6 +1107,20 @@ func (x *McpPrompt) GetDescription() string {
 		return *x.Description
 	}
 	return ""
+}
+
+func (x *McpPrompt) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *McpPrompt) GetArguments() []*McpPromptArgument {
+	if x != nil {
+		return x.Arguments
+	}
+	return nil
 }
 
 func (x *McpPrompt) GetSource() isMcpPrompt_Source {
@@ -898,6 +1165,88 @@ func (*McpPrompt_Template) isMcpPrompt_Source() {}
 
 func (*McpPrompt_Script) isMcpPrompt_Source() {}
 
+// MCP prompt argument definition
+// Based on MCP Go SDK github.com/modelcontextprotocol/go-sdk/mcp.PromptArgument
+type McpPromptArgument struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// REQUIRED: Programmatic identifier for the argument.
+	// UNIQUENESS: Must be unique within the prompt - duplicate argument names would cause conflicts.
+	// Used as display name if title is not provided.
+	// env_interpolation: no (argument name)
+	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	// OPTIONAL: Human-readable title for UI display.
+	// Display precedence: title > name
+	// env_interpolation: yes (UI display title)
+	Title *string `protobuf:"bytes,2,opt,name=title" json:"title,omitempty"`
+	// OPTIONAL: Human-readable description of the argument.
+	// env_interpolation: yes (description text)
+	Description *string `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
+	// OPTIONAL: Whether this argument must be provided.
+	// Defaults to false if not specified.
+	// env_interpolation: n/a (non-string)
+	Required      *bool `protobuf:"varint,4,opt,name=required" json:"required,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpPromptArgument) Reset() {
+	*x = McpPromptArgument{}
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpPromptArgument) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpPromptArgument) ProtoMessage() {}
+
+func (x *McpPromptArgument) ProtoReflect() protoreflect.Message {
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpPromptArgument.ProtoReflect.Descriptor instead.
+func (*McpPromptArgument) Descriptor() ([]byte, []int) {
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *McpPromptArgument) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *McpPromptArgument) GetTitle() string {
+	if x != nil && x.Title != nil {
+		return *x.Title
+	}
+	return ""
+}
+
+func (x *McpPromptArgument) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *McpPromptArgument) GetRequired() bool {
+	if x != nil && x.Required != nil {
+		return *x.Required
+	}
+	return false
+}
+
 type McpScriptPrompt struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// env_interpolation: n/a (non-string)
@@ -914,7 +1263,7 @@ type McpScriptPrompt struct {
 
 func (x *McpScriptPrompt) Reset() {
 	*x = McpScriptPrompt{}
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[8]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -926,7 +1275,7 @@ func (x *McpScriptPrompt) String() string {
 func (*McpScriptPrompt) ProtoMessage() {}
 
 func (x *McpScriptPrompt) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[8]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -939,7 +1288,7 @@ func (x *McpScriptPrompt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use McpScriptPrompt.ProtoReflect.Descriptor instead.
 func (*McpScriptPrompt) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{8}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *McpScriptPrompt) GetStaticData() *v1.StaticData {
@@ -1018,7 +1367,7 @@ type McpMiddleware struct {
 
 func (x *McpMiddleware) Reset() {
 	*x = McpMiddleware{}
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[9]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1030,7 +1379,7 @@ func (x *McpMiddleware) String() string {
 func (*McpMiddleware) ProtoMessage() {}
 
 func (x *McpMiddleware) ProtoReflect() protoreflect.Message {
-	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[9]
+	mi := &file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1043,7 +1392,7 @@ func (x *McpMiddleware) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use McpMiddleware.ProtoReflect.Descriptor instead.
 func (*McpMiddleware) Descriptor() ([]byte, []int) {
-	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{9}
+	return file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *McpMiddleware) GetType() McpMiddleware_Type {
@@ -1077,14 +1426,24 @@ const file_settings_v1alpha1_apps_v1_mcp_proto_rawDesc = "" +
 	"\fMcpTransport\x12\x1f\n" +
 	"\vsse_enabled\x18\x01 \x01(\bR\n" +
 	"sseEnabled\x12\x19\n" +
-	"\bsse_path\x18\x02 \x01(\tR\assePath\"\xdb\x01\n" +
+	"\bsse_path\x18\x02 \x01(\tR\assePath\"\x8a\x03\n" +
 	"\aMcpTool\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12E\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12!\n" +
+	"\finput_schema\x18\x04 \x01(\tR\vinputSchema\x12#\n" +
+	"\routput_schema\x18\x05 \x01(\tR\foutputSchema\x12O\n" +
+	"\vannotations\x18\x06 \x01(\v2-.settings.v1alpha1.apps.v1.McpToolAnnotationsR\vannotations\x12E\n" +
 	"\x06script\x18\n" +
 	" \x01(\v2+.settings.v1alpha1.apps.v1.McpScriptHandlerH\x00R\x06script\x12H\n" +
 	"\abuiltin\x18\v \x01(\v2,.settings.v1alpha1.apps.v1.McpBuiltinHandlerH\x00R\abuiltinB\t\n" +
-	"\ahandler\"\xbc\x02\n" +
+	"\ahandler\"\xcc\x01\n" +
+	"\x12McpToolAnnotations\x12\x14\n" +
+	"\x05title\x18\x01 \x01(\tR\x05title\x12$\n" +
+	"\x0eread_only_hint\x18\x02 \x01(\bR\freadOnlyHint\x12)\n" +
+	"\x10destructive_hint\x18\x03 \x01(\bR\x0fdestructiveHint\x12'\n" +
+	"\x0fidempotent_hint\x18\x04 \x01(\bR\x0eidempotentHint\x12&\n" +
+	"\x0fopen_world_hint\x18\x05 \x01(\bR\ropenWorldHint\"\xbc\x02\n" +
 	"\x10McpScriptHandler\x12F\n" +
 	"\vstatic_data\x18\x01 \x01(\v2%.settings.v1alpha1.data.v1.StaticDataR\n" +
 	"staticData\x12A\n" +
@@ -1101,12 +1460,15 @@ const file_settings_v1alpha1_apps_v1_mcp_proto_rawDesc = "" +
 	"\x04Type\x12\b\n" +
 	"\x04ECHO\x10\x00\x12\x0f\n" +
 	"\vCALCULATION\x10\x01\x12\r\n" +
-	"\tFILE_READ\x10\x02\"\x8c\x02\n" +
+	"\tFILE_READ\x10\x02\"\x8b\x03\n" +
 	"\vMcpResource\x12\x10\n" +
 	"\x03uri\x18\x01 \x01(\tR\x03uri\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1b\n" +
-	"\tmime_type\x18\x04 \x01(\tR\bmimeType\x12\x1d\n" +
+	"\tmime_type\x18\x04 \x01(\tR\bmimeType\x12\x14\n" +
+	"\x05title\x18\a \x01(\tR\x05title\x12\x12\n" +
+	"\x04size\x18\b \x01(\x03R\x04size\x12S\n" +
+	"\vannotations\x18\t \x01(\v21.settings.v1alpha1.apps.v1.McpResourceAnnotationsR\vannotations\x12\x1d\n" +
 	"\tfile_path\x18\n" +
 	" \x01(\tH\x00R\bfilePath\x12'\n" +
 	"\x0estatic_content\x18\v \x01(\tH\x00R\rstaticContent\x12F\n" +
@@ -1118,14 +1480,23 @@ const file_settings_v1alpha1_apps_v1_mcp_proto_rawDesc = "" +
 	"\x05risor\x18\x02 \x01(\v2).settings.v1alpha1.apps.v1.RisorEvaluatorH\x00R\x05risor\x12J\n" +
 	"\bstarlark\x18\x03 \x01(\v2,.settings.v1alpha1.apps.v1.StarlarkEvaluatorH\x00R\bstarlark\x12D\n" +
 	"\x06extism\x18\x04 \x01(\v2*.settings.v1alpha1.apps.v1.ExtismEvaluatorH\x00R\x06extismB\v\n" +
-	"\tevaluator\"\xaf\x01\n" +
+	"\tevaluator\".\n" +
+	"\x16McpResourceAnnotations\x12\x14\n" +
+	"\x05title\x18\x01 \x01(\tR\x05title\"\x91\x02\n" +
 	"\tMcpPrompt\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1c\n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12J\n" +
+	"\targuments\x18\x04 \x03(\v2,.settings.v1alpha1.apps.v1.McpPromptArgumentR\targuments\x12\x1c\n" +
 	"\btemplate\x18\n" +
 	" \x01(\tH\x00R\btemplate\x12D\n" +
 	"\x06script\x18\v \x01(\v2*.settings.v1alpha1.apps.v1.McpScriptPromptH\x00R\x06scriptB\b\n" +
-	"\x06source\"\xbb\x02\n" +
+	"\x06source\"{\n" +
+	"\x11McpPromptArgument\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
+	"\brequired\x18\x04 \x01(\bR\brequired\"\xbb\x02\n" +
 	"\x0fMcpScriptPrompt\x12F\n" +
 	"\vstatic_data\x18\x01 \x01(\v2%.settings.v1alpha1.data.v1.StaticDataR\n" +
 	"staticData\x12A\n" +
@@ -1157,58 +1528,64 @@ func file_settings_v1alpha1_apps_v1_mcp_proto_rawDescGZIP() []byte {
 }
 
 var file_settings_v1alpha1_apps_v1_mcp_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_settings_v1alpha1_apps_v1_mcp_proto_goTypes = []any{
-	(McpBuiltinHandler_Type)(0), // 0: settings.v1alpha1.apps.v1.McpBuiltinHandler.Type
-	(McpMiddleware_Type)(0),     // 1: settings.v1alpha1.apps.v1.McpMiddleware.Type
-	(*McpApp)(nil),              // 2: settings.v1alpha1.apps.v1.McpApp
-	(*McpTransport)(nil),        // 3: settings.v1alpha1.apps.v1.McpTransport
-	(*McpTool)(nil),             // 4: settings.v1alpha1.apps.v1.McpTool
-	(*McpScriptHandler)(nil),    // 5: settings.v1alpha1.apps.v1.McpScriptHandler
-	(*McpBuiltinHandler)(nil),   // 6: settings.v1alpha1.apps.v1.McpBuiltinHandler
-	(*McpResource)(nil),         // 7: settings.v1alpha1.apps.v1.McpResource
-	(*McpScriptResource)(nil),   // 8: settings.v1alpha1.apps.v1.McpScriptResource
-	(*McpPrompt)(nil),           // 9: settings.v1alpha1.apps.v1.McpPrompt
-	(*McpScriptPrompt)(nil),     // 10: settings.v1alpha1.apps.v1.McpScriptPrompt
-	(*McpMiddleware)(nil),       // 11: settings.v1alpha1.apps.v1.McpMiddleware
-	nil,                         // 12: settings.v1alpha1.apps.v1.McpBuiltinHandler.ConfigEntry
-	nil,                         // 13: settings.v1alpha1.apps.v1.McpMiddleware.ConfigEntry
-	(*v1.StaticData)(nil),       // 14: settings.v1alpha1.data.v1.StaticData
-	(*RisorEvaluator)(nil),      // 15: settings.v1alpha1.apps.v1.RisorEvaluator
-	(*StarlarkEvaluator)(nil),   // 16: settings.v1alpha1.apps.v1.StarlarkEvaluator
-	(*ExtismEvaluator)(nil),     // 17: settings.v1alpha1.apps.v1.ExtismEvaluator
+	(McpBuiltinHandler_Type)(0),    // 0: settings.v1alpha1.apps.v1.McpBuiltinHandler.Type
+	(McpMiddleware_Type)(0),        // 1: settings.v1alpha1.apps.v1.McpMiddleware.Type
+	(*McpApp)(nil),                 // 2: settings.v1alpha1.apps.v1.McpApp
+	(*McpTransport)(nil),           // 3: settings.v1alpha1.apps.v1.McpTransport
+	(*McpTool)(nil),                // 4: settings.v1alpha1.apps.v1.McpTool
+	(*McpToolAnnotations)(nil),     // 5: settings.v1alpha1.apps.v1.McpToolAnnotations
+	(*McpScriptHandler)(nil),       // 6: settings.v1alpha1.apps.v1.McpScriptHandler
+	(*McpBuiltinHandler)(nil),      // 7: settings.v1alpha1.apps.v1.McpBuiltinHandler
+	(*McpResource)(nil),            // 8: settings.v1alpha1.apps.v1.McpResource
+	(*McpScriptResource)(nil),      // 9: settings.v1alpha1.apps.v1.McpScriptResource
+	(*McpResourceAnnotations)(nil), // 10: settings.v1alpha1.apps.v1.McpResourceAnnotations
+	(*McpPrompt)(nil),              // 11: settings.v1alpha1.apps.v1.McpPrompt
+	(*McpPromptArgument)(nil),      // 12: settings.v1alpha1.apps.v1.McpPromptArgument
+	(*McpScriptPrompt)(nil),        // 13: settings.v1alpha1.apps.v1.McpScriptPrompt
+	(*McpMiddleware)(nil),          // 14: settings.v1alpha1.apps.v1.McpMiddleware
+	nil,                            // 15: settings.v1alpha1.apps.v1.McpBuiltinHandler.ConfigEntry
+	nil,                            // 16: settings.v1alpha1.apps.v1.McpMiddleware.ConfigEntry
+	(*v1.StaticData)(nil),          // 17: settings.v1alpha1.data.v1.StaticData
+	(*RisorEvaluator)(nil),         // 18: settings.v1alpha1.apps.v1.RisorEvaluator
+	(*StarlarkEvaluator)(nil),      // 19: settings.v1alpha1.apps.v1.StarlarkEvaluator
+	(*ExtismEvaluator)(nil),        // 20: settings.v1alpha1.apps.v1.ExtismEvaluator
 }
 var file_settings_v1alpha1_apps_v1_mcp_proto_depIdxs = []int32{
 	3,  // 0: settings.v1alpha1.apps.v1.McpApp.transport:type_name -> settings.v1alpha1.apps.v1.McpTransport
 	4,  // 1: settings.v1alpha1.apps.v1.McpApp.tools:type_name -> settings.v1alpha1.apps.v1.McpTool
-	7,  // 2: settings.v1alpha1.apps.v1.McpApp.resources:type_name -> settings.v1alpha1.apps.v1.McpResource
-	9,  // 3: settings.v1alpha1.apps.v1.McpApp.prompts:type_name -> settings.v1alpha1.apps.v1.McpPrompt
-	11, // 4: settings.v1alpha1.apps.v1.McpApp.middlewares:type_name -> settings.v1alpha1.apps.v1.McpMiddleware
-	5,  // 5: settings.v1alpha1.apps.v1.McpTool.script:type_name -> settings.v1alpha1.apps.v1.McpScriptHandler
-	6,  // 6: settings.v1alpha1.apps.v1.McpTool.builtin:type_name -> settings.v1alpha1.apps.v1.McpBuiltinHandler
-	14, // 7: settings.v1alpha1.apps.v1.McpScriptHandler.static_data:type_name -> settings.v1alpha1.data.v1.StaticData
-	15, // 8: settings.v1alpha1.apps.v1.McpScriptHandler.risor:type_name -> settings.v1alpha1.apps.v1.RisorEvaluator
-	16, // 9: settings.v1alpha1.apps.v1.McpScriptHandler.starlark:type_name -> settings.v1alpha1.apps.v1.StarlarkEvaluator
-	17, // 10: settings.v1alpha1.apps.v1.McpScriptHandler.extism:type_name -> settings.v1alpha1.apps.v1.ExtismEvaluator
-	0,  // 11: settings.v1alpha1.apps.v1.McpBuiltinHandler.type:type_name -> settings.v1alpha1.apps.v1.McpBuiltinHandler.Type
-	12, // 12: settings.v1alpha1.apps.v1.McpBuiltinHandler.config:type_name -> settings.v1alpha1.apps.v1.McpBuiltinHandler.ConfigEntry
-	8,  // 13: settings.v1alpha1.apps.v1.McpResource.script:type_name -> settings.v1alpha1.apps.v1.McpScriptResource
-	14, // 14: settings.v1alpha1.apps.v1.McpScriptResource.static_data:type_name -> settings.v1alpha1.data.v1.StaticData
-	15, // 15: settings.v1alpha1.apps.v1.McpScriptResource.risor:type_name -> settings.v1alpha1.apps.v1.RisorEvaluator
-	16, // 16: settings.v1alpha1.apps.v1.McpScriptResource.starlark:type_name -> settings.v1alpha1.apps.v1.StarlarkEvaluator
-	17, // 17: settings.v1alpha1.apps.v1.McpScriptResource.extism:type_name -> settings.v1alpha1.apps.v1.ExtismEvaluator
-	10, // 18: settings.v1alpha1.apps.v1.McpPrompt.script:type_name -> settings.v1alpha1.apps.v1.McpScriptPrompt
-	14, // 19: settings.v1alpha1.apps.v1.McpScriptPrompt.static_data:type_name -> settings.v1alpha1.data.v1.StaticData
-	15, // 20: settings.v1alpha1.apps.v1.McpScriptPrompt.risor:type_name -> settings.v1alpha1.apps.v1.RisorEvaluator
-	16, // 21: settings.v1alpha1.apps.v1.McpScriptPrompt.starlark:type_name -> settings.v1alpha1.apps.v1.StarlarkEvaluator
-	17, // 22: settings.v1alpha1.apps.v1.McpScriptPrompt.extism:type_name -> settings.v1alpha1.apps.v1.ExtismEvaluator
-	1,  // 23: settings.v1alpha1.apps.v1.McpMiddleware.type:type_name -> settings.v1alpha1.apps.v1.McpMiddleware.Type
-	13, // 24: settings.v1alpha1.apps.v1.McpMiddleware.config:type_name -> settings.v1alpha1.apps.v1.McpMiddleware.ConfigEntry
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	8,  // 2: settings.v1alpha1.apps.v1.McpApp.resources:type_name -> settings.v1alpha1.apps.v1.McpResource
+	11, // 3: settings.v1alpha1.apps.v1.McpApp.prompts:type_name -> settings.v1alpha1.apps.v1.McpPrompt
+	14, // 4: settings.v1alpha1.apps.v1.McpApp.middlewares:type_name -> settings.v1alpha1.apps.v1.McpMiddleware
+	5,  // 5: settings.v1alpha1.apps.v1.McpTool.annotations:type_name -> settings.v1alpha1.apps.v1.McpToolAnnotations
+	6,  // 6: settings.v1alpha1.apps.v1.McpTool.script:type_name -> settings.v1alpha1.apps.v1.McpScriptHandler
+	7,  // 7: settings.v1alpha1.apps.v1.McpTool.builtin:type_name -> settings.v1alpha1.apps.v1.McpBuiltinHandler
+	17, // 8: settings.v1alpha1.apps.v1.McpScriptHandler.static_data:type_name -> settings.v1alpha1.data.v1.StaticData
+	18, // 9: settings.v1alpha1.apps.v1.McpScriptHandler.risor:type_name -> settings.v1alpha1.apps.v1.RisorEvaluator
+	19, // 10: settings.v1alpha1.apps.v1.McpScriptHandler.starlark:type_name -> settings.v1alpha1.apps.v1.StarlarkEvaluator
+	20, // 11: settings.v1alpha1.apps.v1.McpScriptHandler.extism:type_name -> settings.v1alpha1.apps.v1.ExtismEvaluator
+	0,  // 12: settings.v1alpha1.apps.v1.McpBuiltinHandler.type:type_name -> settings.v1alpha1.apps.v1.McpBuiltinHandler.Type
+	15, // 13: settings.v1alpha1.apps.v1.McpBuiltinHandler.config:type_name -> settings.v1alpha1.apps.v1.McpBuiltinHandler.ConfigEntry
+	10, // 14: settings.v1alpha1.apps.v1.McpResource.annotations:type_name -> settings.v1alpha1.apps.v1.McpResourceAnnotations
+	9,  // 15: settings.v1alpha1.apps.v1.McpResource.script:type_name -> settings.v1alpha1.apps.v1.McpScriptResource
+	17, // 16: settings.v1alpha1.apps.v1.McpScriptResource.static_data:type_name -> settings.v1alpha1.data.v1.StaticData
+	18, // 17: settings.v1alpha1.apps.v1.McpScriptResource.risor:type_name -> settings.v1alpha1.apps.v1.RisorEvaluator
+	19, // 18: settings.v1alpha1.apps.v1.McpScriptResource.starlark:type_name -> settings.v1alpha1.apps.v1.StarlarkEvaluator
+	20, // 19: settings.v1alpha1.apps.v1.McpScriptResource.extism:type_name -> settings.v1alpha1.apps.v1.ExtismEvaluator
+	12, // 20: settings.v1alpha1.apps.v1.McpPrompt.arguments:type_name -> settings.v1alpha1.apps.v1.McpPromptArgument
+	13, // 21: settings.v1alpha1.apps.v1.McpPrompt.script:type_name -> settings.v1alpha1.apps.v1.McpScriptPrompt
+	17, // 22: settings.v1alpha1.apps.v1.McpScriptPrompt.static_data:type_name -> settings.v1alpha1.data.v1.StaticData
+	18, // 23: settings.v1alpha1.apps.v1.McpScriptPrompt.risor:type_name -> settings.v1alpha1.apps.v1.RisorEvaluator
+	19, // 24: settings.v1alpha1.apps.v1.McpScriptPrompt.starlark:type_name -> settings.v1alpha1.apps.v1.StarlarkEvaluator
+	20, // 25: settings.v1alpha1.apps.v1.McpScriptPrompt.extism:type_name -> settings.v1alpha1.apps.v1.ExtismEvaluator
+	1,  // 26: settings.v1alpha1.apps.v1.McpMiddleware.type:type_name -> settings.v1alpha1.apps.v1.McpMiddleware.Type
+	16, // 27: settings.v1alpha1.apps.v1.McpMiddleware.config:type_name -> settings.v1alpha1.apps.v1.McpMiddleware.ConfigEntry
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_apps_v1_mcp_proto_init() }
@@ -1223,26 +1600,26 @@ func file_settings_v1alpha1_apps_v1_mcp_proto_init() {
 		(*McpTool_Script)(nil),
 		(*McpTool_Builtin)(nil),
 	}
-	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[3].OneofWrappers = []any{
+	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[4].OneofWrappers = []any{
 		(*McpScriptHandler_Risor)(nil),
 		(*McpScriptHandler_Starlark)(nil),
 		(*McpScriptHandler_Extism)(nil),
 	}
-	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[5].OneofWrappers = []any{
+	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[6].OneofWrappers = []any{
 		(*McpResource_FilePath)(nil),
 		(*McpResource_StaticContent)(nil),
 		(*McpResource_Script)(nil),
 	}
-	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[6].OneofWrappers = []any{
+	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[7].OneofWrappers = []any{
 		(*McpScriptResource_Risor)(nil),
 		(*McpScriptResource_Starlark)(nil),
 		(*McpScriptResource_Extism)(nil),
 	}
-	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[7].OneofWrappers = []any{
+	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[9].OneofWrappers = []any{
 		(*McpPrompt_Template)(nil),
 		(*McpPrompt_Script)(nil),
 	}
-	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[8].OneofWrappers = []any{
+	file_settings_v1alpha1_apps_v1_mcp_proto_msgTypes[11].OneofWrappers = []any{
 		(*McpScriptPrompt_Risor)(nil),
 		(*McpScriptPrompt_Starlark)(nil),
 		(*McpScriptPrompt_Extism)(nil),
@@ -1253,7 +1630,7 @@ func file_settings_v1alpha1_apps_v1_mcp_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_settings_v1alpha1_apps_v1_mcp_proto_rawDesc), len(file_settings_v1alpha1_apps_v1_mcp_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

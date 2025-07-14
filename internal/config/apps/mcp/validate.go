@@ -198,9 +198,49 @@ func (a *App) compileMCPServer() error {
 			return fmt.Errorf("failed to create tool %s: %w", toolConfig.Name, err)
 		}
 
-		// Set the tool name and description from config
+		// Set the tool fields from config
 		tool.Name = toolConfig.Name
 		tool.Description = toolConfig.Description
+
+		// Set new MCP SDK fields
+		if toolConfig.Title != "" {
+			tool.Title = toolConfig.Title
+		}
+
+		// Set input schema - use provided schema or auto-generate fallback for built-in tools
+		if toolConfig.InputSchema != "" {
+			// Parse user-provided JSON Schema
+			if err := validateJSONSchema(toolConfig.InputSchema); err != nil {
+				return fmt.Errorf("invalid input_schema for tool %s: %w", toolConfig.Name, err)
+			}
+			tool.InputSchema, err = parseJSONSchema(toolConfig.InputSchema)
+			if err != nil {
+				return fmt.Errorf("failed to parse input_schema for tool %s: %w", toolConfig.Name, err)
+			}
+		} else {
+			// Auto-generate schema for built-in tools if not provided
+			defaultSchema, err := getDefaultInputSchema(toolConfig.Handler)
+			if err != nil {
+				return fmt.Errorf("failed to generate default input_schema for tool %s: %w", toolConfig.Name, err)
+			}
+			tool.InputSchema = defaultSchema
+		}
+
+		// Set output schema if provided
+		if toolConfig.OutputSchema != "" {
+			if err := validateJSONSchema(toolConfig.OutputSchema); err != nil {
+				return fmt.Errorf("invalid output_schema for tool %s: %w", toolConfig.Name, err)
+			}
+			tool.OutputSchema, err = parseJSONSchema(toolConfig.OutputSchema)
+			if err != nil {
+				return fmt.Errorf("failed to parse output_schema for tool %s: %w", toolConfig.Name, err)
+			}
+		}
+
+		// Set tool annotations if provided
+		if toolConfig.Annotations != nil {
+			tool.Annotations = convertAnnotationsToMCPSDK(toolConfig.Annotations)
+		}
 
 		server.AddTool(tool, handler)
 	}
@@ -476,4 +516,130 @@ func (b *BuiltinToolHandler) createFileReadTool() (*mcpsdk.Tool, mcpsdk.ToolHand
 	}
 
 	return tool, handler, nil
+}
+
+// validateJSONSchema validates that a string contains valid JSON Schema.
+func validateJSONSchema(schemaString string) error {
+	var schema interface{}
+	if err := json.Unmarshal([]byte(schemaString), &schema); err != nil {
+		return fmt.Errorf("invalid JSON: %w", err)
+	}
+	// Additional schema validation could be added here
+	return nil
+}
+
+// parseJSONSchema parses a JSON Schema string into the MCP SDK format.
+func parseJSONSchema(schemaString string) (*mcpsdk_jsonschema.Schema, error) {
+	var schemaMap map[string]interface{}
+	if err := json.Unmarshal([]byte(schemaString), &schemaMap); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON schema: %w", err)
+	}
+
+	// Convert to MCP SDK schema format
+	schema := &mcpsdk_jsonschema.Schema{}
+	if schemaType, ok := schemaMap["type"].(string); ok {
+		schema.Type = schemaType
+	}
+	if description, ok := schemaMap["description"].(string); ok {
+		schema.Description = description
+	}
+	if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
+		schema.Properties = make(map[string]*mcpsdk_jsonschema.Schema)
+		for key, prop := range properties {
+			if propMap, ok := prop.(map[string]interface{}); ok {
+				propSchema := &mcpsdk_jsonschema.Schema{}
+				if propType, ok := propMap["type"].(string); ok {
+					propSchema.Type = propType
+				}
+				if propDesc, ok := propMap["description"].(string); ok {
+					propSchema.Description = propDesc
+				}
+				schema.Properties[key] = propSchema
+			}
+		}
+	}
+	if required, ok := schemaMap["required"].([]interface{}); ok {
+		schema.Required = make([]string, len(required))
+		for i, req := range required {
+			if reqStr, ok := req.(string); ok {
+				schema.Required[i] = reqStr
+			}
+		}
+	}
+
+	return schema, nil
+}
+
+// getDefaultInputSchema returns a default input schema for built-in tools.
+func getDefaultInputSchema(handler ToolHandler) (*mcpsdk_jsonschema.Schema, error) {
+	if builtin, ok := handler.(*BuiltinToolHandler); ok {
+		switch builtin.BuiltinType {
+		case BuiltinEcho:
+			return &mcpsdk_jsonschema.Schema{
+				Type: "object",
+				Properties: map[string]*mcpsdk_jsonschema.Schema{
+					"message": {
+						Type:        "string",
+						Description: "Message to echo back",
+					},
+				},
+				Required: []string{"message"},
+			}, nil
+		case BuiltinCalculation:
+			return &mcpsdk_jsonschema.Schema{
+				Type: "object",
+				Properties: map[string]*mcpsdk_jsonschema.Schema{
+					"expression": {
+						Type:        "string",
+						Description: "Mathematical expression to evaluate",
+					},
+				},
+				Required: []string{"expression"},
+			}, nil
+		case BuiltinFileRead:
+			return &mcpsdk_jsonschema.Schema{
+				Type: "object",
+				Properties: map[string]*mcpsdk_jsonschema.Schema{
+					"path": {
+						Type:        "string",
+						Description: "Path to the file to read",
+					},
+				},
+				Required: []string{"path"},
+			}, nil
+		}
+	}
+
+	// Default fallback schema for script tools or unknown types
+	return &mcpsdk_jsonschema.Schema{
+		Type:        "object",
+		Description: "Tool input parameters",
+	}, nil
+}
+
+// convertAnnotationsToMCPSDK converts domain annotations to MCP SDK format.
+func convertAnnotationsToMCPSDK(annotations *ToolAnnotations) *mcpsdk.ToolAnnotations {
+	if annotations == nil {
+		return nil
+	}
+
+	mcpAnnotations := &mcpsdk.ToolAnnotations{
+		ReadOnlyHint:   annotations.ReadOnlyHint,
+		IdempotentHint: annotations.IdempotentHint,
+	}
+
+	if annotations.Title != "" {
+		mcpAnnotations.Title = annotations.Title
+	}
+
+	// Handle pointer fields with proper defaults
+	if annotations.DestructiveHint != nil {
+		mcpAnnotations.DestructiveHint = annotations.DestructiveHint
+	}
+
+	if annotations.OpenWorldHint != nil {
+		mcpAnnotations.OpenWorldHint = annotations.OpenWorldHint
+	}
+
+	return mcpAnnotations
 }

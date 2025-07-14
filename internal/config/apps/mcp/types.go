@@ -54,8 +54,38 @@ type Tool struct {
 	// Description describes what the tool does
 	Description string `env_interpolation:"yes"`
 
+	// Title is the human-readable UI display title (distinct from programmatic name)
+	Title string `env_interpolation:"yes"`
+
+	// InputSchema is the JSON Schema for tool input parameters (REQUIRED by MCP Go SDK)
+	InputSchema string `env_interpolation:"no"`
+
+	// OutputSchema is the JSON Schema for tool output structure (optional)
+	OutputSchema string `env_interpolation:"no"`
+
+	// Annotations contains tool behavior hints for LLM guidance
+	Annotations *ToolAnnotations
+
 	// Handler implements the tool logic
 	Handler ToolHandler
+}
+
+// ToolAnnotations contains tool behavior hints for LLM guidance.
+type ToolAnnotations struct {
+	// Title is the human-readable title for the tool (UI contexts)
+	Title string `env_interpolation:"yes"`
+
+	// ReadOnlyHint indicates tool only reads data, doesn't modify environment
+	ReadOnlyHint bool
+
+	// DestructiveHint indicates tool makes destructive changes (default: true if not specified)
+	DestructiveHint *bool
+
+	// IdempotentHint indicates calling tool multiple times is safe
+	IdempotentHint bool
+
+	// OpenWorldHint indicates tool interacts with open world (default: true if not specified)
+	OpenWorldHint *bool
 }
 
 // ToolHandler interface for different tool implementation strategies.
