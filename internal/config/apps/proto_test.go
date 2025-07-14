@@ -10,6 +10,8 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
+	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
+	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -17,6 +19,8 @@ import (
 )
 
 func TestAppTypeConversions(t *testing.T) {
+	t.Parallel()
+
 	t.Run("DomainToProto", func(t *testing.T) {
 		testCases := []struct {
 			name     string
@@ -91,7 +95,7 @@ func TestAppTypeConversions(t *testing.T) {
 }
 
 func TestFromProtoConversions(t *testing.T) {
-	// Tests for the FromProto function
+	t.Parallel()
 
 	t.Run("ScriptApp", func(t *testing.T) {
 		// Create a protobuf AppDefinition with a script app
@@ -284,35 +288,63 @@ func TestFromProtoConversions(t *testing.T) {
 		_, ok = apps[2].Config.(*echo.EchoApp)
 		assert.True(t, ok, "Third app should be an echo app")
 	})
+
+	t.Run("FromProtoEmptyList", func(t *testing.T) {
+		// Test with empty list
+		apps, err := FromProto([]*pb.AppDefinition{})
+		assert.NoError(t, err)
+		assert.Nil(t, apps)
+
+		// Test with nil list
+		apps, err = FromProto(nil)
+		assert.NoError(t, err)
+		assert.Nil(t, apps)
+	})
+
+	t.Run("FromProtoErrorPropagation", func(t *testing.T) {
+		// Create multiple apps where one has an error
+		echoType := pb.AppDefinition_TYPE_ECHO
+
+		pbApps := []*pb.AppDefinition{
+			{
+				Id:   proto.String("valid-echo"),
+				Type: &echoType,
+				Config: &pb.AppDefinition_Echo{
+					Echo: &pbApps.EchoApp{
+						Response: proto.String("valid"),
+					},
+				},
+			},
+			{
+				// This app has nil as the entire definition, which should cause an error
+				Id: nil, // This will cause fromProto to fail
+			},
+		}
+
+		// Should fail on the second app and return an error
+		_, err := FromProto(pbApps)
+		assert.Error(t, err)
+	})
+
+	t.Run("UnknownConfigTypeError", func(t *testing.T) {
+		// Create an app with an unknown config type by creating a custom protobuf message
+		// This tests the default case in fromProto switch statement
+		unkType := pb.AppDefinition_Type(999) // Invalid enum value
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("unknown-config-app"),
+			Type: &unkType,
+			// Don't set any Config field - this will trigger the nil case in switch
+		}
+
+		// Conversion should fail
+		_, err := fromProto(pbApp)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrNoConfigSpecified)
+	})
 }
 
 func TestToProtoConversions(t *testing.T) {
-	// Tests for the ToProto function
-
-	t.Run("ScriptApp", func(t *testing.T) {
-		// Create a domain App with script config
-		timeout := 5 * time.Second
-		risorEval := &evaluators.RisorEvaluator{
-			Code:    "return 'hello'",
-			Timeout: timeout,
-		}
-		scriptApp := scripts.NewAppScript(nil, risorEval)
-
-		app := App{
-			ID:     "test-script-app",
-			Config: scriptApp,
-		}
-
-		// Convert to protobuf
-		pbApp := ToProto([]App{app})[0]
-
-		// Verify conversion
-		assert.Equal(t, "test-script-app", pbApp.GetId())
-		assert.Equal(t, pb.AppDefinition_TYPE_SCRIPT, pbApp.GetType(), "AppType should be SCRIPT")
-		assert.NotNil(t, pbApp.GetScript(), "Expected Script field to be set")
-		assert.NotNil(t, pbApp.GetScript().GetRisor(), "Expected Risor evaluator to be set")
-		assert.Equal(t, "return 'hello'", pbApp.GetScript().GetRisor().GetCode())
-	})
+	t.Parallel()
 
 	t.Run("CompositeScriptApp", func(t *testing.T) {
 		// Create a domain App with composite script config
@@ -430,4 +462,153 @@ func TestToProtoConversions(t *testing.T) {
 		pbApps = ToProto([]App{})
 		assert.Nil(t, pbApps, "Expected nil result for empty input")
 	})
+
+	t.Run("ScriptAppWithStaticData", func(t *testing.T) {
+		// Create a script app with static data
+		risorEval := &evaluators.RisorEvaluator{
+			Code:    "return 'hello'",
+			Timeout: 5 * time.Second,
+		}
+
+		// Create static data
+		staticDataStruct := &staticdata.StaticData{
+			Data: map[string]any{
+				"key1": "value1",
+				"key2": 42,
+			},
+		}
+		scriptApp := scripts.NewAppScript(staticDataStruct, risorEval)
+
+		app := App{
+			ID:     "script-with-static",
+			Config: scriptApp,
+		}
+
+		// Convert to protobuf
+		pbApps := ToProto([]App{app})
+		pbApp := pbApps[0]
+
+		// Verify static data is converted
+		assert.NotNil(t, pbApp.GetScript().GetStaticData(), "Static data should be present")
+		assert.NotEmpty(t, pbApp.GetScript().GetStaticData().GetData(), "Static data should contain values")
+	})
+
+	t.Run("CompositeScriptWithStaticData", func(t *testing.T) {
+		// Create static data
+		staticDataStruct := &staticdata.StaticData{
+			Data: map[string]any{
+				"composite_key": "composite_value",
+			},
+		}
+		comp := composite.NewCompositeScript([]string{"script1", "script2"}, staticDataStruct)
+
+		app := App{
+			ID:     "composite-with-static",
+			Config: comp,
+		}
+
+		// Convert to protobuf
+		pbApps := ToProto([]App{app})
+		pbApp := pbApps[0]
+
+		// Verify static data is converted
+		assert.NotNil(t, pbApp.GetCompositeScript().GetStaticData(), "Static data should be present")
+		assert.NotEmpty(t, pbApp.GetCompositeScript().GetStaticData().GetData(), "Static data should contain values")
+	})
+
+	t.Run("RisorEvaluator", func(t *testing.T) {
+		// Create a script app with Risor evaluator
+		risorEval := &evaluators.RisorEvaluator{
+			Code:    "return 'risor test'",
+			Timeout: 8 * time.Second,
+		}
+		scriptApp := scripts.NewAppScript(nil, risorEval)
+
+		app := App{
+			ID:     "risor-app",
+			Config: scriptApp,
+		}
+
+		// Convert to protobuf
+		pbApps := ToProto([]App{app})
+		pbApp := pbApps[0]
+
+		// Verify Risor evaluator is converted
+		assert.NotNil(t, pbApp.GetScript().GetRisor(), "Risor evaluator should be present")
+		assert.Equal(t, "return 'risor test'", pbApp.GetScript().GetRisor().GetCode())
+	})
+
+	t.Run("StarlarkEvaluator", func(t *testing.T) {
+		// Create a script app with Starlark evaluator
+		starlarkEval := &evaluators.StarlarkEvaluator{
+			Code:    "result = 'starlark test'",
+			Timeout: 10 * time.Second,
+		}
+		scriptApp := scripts.NewAppScript(nil, starlarkEval)
+
+		app := App{
+			ID:     "starlark-app",
+			Config: scriptApp,
+		}
+
+		// Convert to protobuf
+		pbApps := ToProto([]App{app})
+		pbApp := pbApps[0]
+
+		// Verify Starlark evaluator is converted
+		assert.NotNil(t, pbApp.GetScript().GetStarlark(), "Starlark evaluator should be present")
+		assert.Equal(t, "result = 'starlark test'", pbApp.GetScript().GetStarlark().GetCode())
+	})
+
+	t.Run("ExtismEvaluator", func(t *testing.T) {
+		// Create a script app with Extism evaluator
+		extismEval := &evaluators.ExtismEvaluator{
+			Code:    "base64encodedwasm",
+			Timeout: 15 * time.Second,
+		}
+		scriptApp := scripts.NewAppScript(nil, extismEval)
+
+		app := App{
+			ID:     "extism-app",
+			Config: scriptApp,
+		}
+
+		// Convert to protobuf
+		pbApps := ToProto([]App{app})
+		pbApp := pbApps[0]
+
+		// Verify Extism evaluator is converted
+		assert.NotNil(t, pbApp.GetScript().GetExtism(), "Extism evaluator should be present")
+		assert.Equal(t, "base64encodedwasm", pbApp.GetScript().GetExtism().GetCode())
+	})
+
+	t.Run("UnknownAppType", func(t *testing.T) {
+		// Create an app with a custom config type that doesn't match any known types
+		customApp := &customAppConfig{name: "unknown"}
+		app := App{
+			ID:     "unknown-app",
+			Config: customApp,
+		}
+
+		// Convert to protobuf - should handle unknown type gracefully
+		pbApps := ToProto([]App{app})
+		pbApp := pbApps[0]
+
+		// Should have UNSPECIFIED type for unknown app types
+		assert.Equal(t, pb.AppDefinition_TYPE_UNSPECIFIED, pbApp.GetType())
+		assert.Equal(t, "unknown-app", pbApp.GetId())
+		// Config should be nil since we don't know how to convert unknown types
+		assert.Nil(t, pbApp.GetConfig())
+	})
 }
+
+// customAppConfig is a mock AppConfig for testing unknown types
+type customAppConfig struct {
+	name string
+}
+
+func (c *customAppConfig) Type() string                 { return "unknown" }
+func (c *customAppConfig) Validate() error              { return nil }
+func (c *customAppConfig) ToProto() any                 { return nil }
+func (c *customAppConfig) String() string               { return c.name }
+func (c *customAppConfig) ToTree() *fancy.ComponentTree { return nil }
