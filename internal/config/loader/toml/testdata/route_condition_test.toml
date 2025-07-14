@@ -17,5 +17,6 @@ path_prefix = "/test"
 
 [[apps]]
 id = "test_app"
+type = "echo"
 [apps.echo]
 response = "Hello from test"

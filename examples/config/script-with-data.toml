@@ -34,6 +34,7 @@ allowed_operations = ["transform", "validate", "enrich"]
 # Advanced Script Application
 [[apps]]
 id = "data-processor"
+type = "script"
 
 [apps.script]
 # App-level static data

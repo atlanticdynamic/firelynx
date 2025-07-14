@@ -51,6 +51,7 @@ path_prefix = "/manual-test"
 
 [[apps]]
 id = "test-echo"
+type = "echo"
 
 [apps.echo]
 response = "Manual Test Response"

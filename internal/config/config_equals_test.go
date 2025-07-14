@@ -14,11 +14,13 @@ import (
 func createEchoConfig(t *testing.T, response string) *Config {
 	t.Helper()
 	echoResponse := response
+	echoType := pb.AppDefinition_TYPE_ECHO
 	pbConfig := &pb.ServerConfig{
 		Version: proto.String(version.Version),
 		Apps: []*pb.AppDefinition{
 			{
-				Id: proto.String("test_app"),
+				Id:   proto.String("test_app"),
+				Type: &echoType,
 				Config: &pb.AppDefinition_Echo{
 					Echo: &pbApps.EchoApp{
 						Response: &echoResponse,
@@ -33,6 +35,7 @@ func createEchoConfig(t *testing.T, response string) *Config {
 }
 
 func TestConfigEquals(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		config1  func() *Config

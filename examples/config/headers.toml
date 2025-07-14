@@ -19,6 +19,7 @@ path_prefix = "/"
 
 [[apps]]
 id = "echo"
+type = "echo"
 [apps.echo]
 response = "Hello from firelynx with headers middleware!"
 

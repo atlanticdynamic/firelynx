@@ -31,11 +31,13 @@ func TestNewFromProtoWithEmptyApps(t *testing.T) {
 func TestNewFromProtoWithNonEmptyApps(t *testing.T) {
 	// Create protobuf config with one app
 	echoResponse := "test response"
+	echoType := pb.AppDefinition_TYPE_ECHO
 	pbConfig := &pb.ServerConfig{
 		Version: proto.String(version.Version),
 		Apps: []*pb.AppDefinition{
 			{
-				Id: proto.String("echo_app"),
+				Id:   proto.String("echo_app"),
+				Type: &echoType,
 				Config: &pb.AppDefinition_Echo{
 					Echo: &pbApps.EchoApp{
 						Response: &echoResponse,

@@ -27,6 +27,7 @@ path_prefix = "/api/starlark"
 # Starlark Script Application
 [[apps]]
 id = "starlark-demo"
+type = "script"
 
 [apps.script]
 # Static data available to the script

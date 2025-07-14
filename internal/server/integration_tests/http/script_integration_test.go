@@ -973,7 +973,7 @@ func (s *ExtismIntegrationTestSuite) SetupSuite() {
 	s.Require().NoError(err, "Failed to render config template")
 
 	configData := configBuffer.String()
-	s.T().Logf("Rendered Extism config:\n%s", configData)
+	// s.T().Logf("Rendered Extism config:\n%s", configData)
 
 	// Load and validate the configuration
 	cfg, err := config.NewConfigFromBytes([]byte(configData))

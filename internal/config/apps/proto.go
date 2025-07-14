@@ -7,6 +7,7 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
@@ -164,49 +165,41 @@ func FromProto(pbApps []*pb.AppDefinition) ([]App, error) {
 	return apps, nil
 }
 
+// convertStaticDataFromProto converts protobuf static data to domain static data
+func convertStaticDataFromProto(pbStaticData *pbData.StaticData) (*staticdata.StaticData, error) {
+	if pbStaticData == nil {
+		return nil, nil
+	}
+	return staticdata.FromProto(pbStaticData)
+}
+
 // fromProto converts a single protobuf AppDefinition to a domain App
 func fromProto(pbApp *pb.AppDefinition) (App, error) {
 	// Check for nil app
 	if pbApp == nil {
-		return App{}, fmt.Errorf("app definition is nil")
+		return App{}, ErrAppDefinitionNil
 	}
 
 	app := App{
 		ID: protobaggins.StringFromProto(pbApp.Id),
 	}
 
-	// Get app type from proto
+	// Get app type from proto for validation
 	appType := appTypeFromProto(pbApp.GetType())
 
-	// Validate app type and config alignment
-	switch appType {
-	case AppTypeScript:
-		if pbApp.GetScript() == nil {
-			return App{}, fmt.Errorf("app '%s' has type script but no script config", app.ID)
+	// Validate type alignment and convert config in single switch
+	switch config := pbApp.GetConfig().(type) {
+	case *pb.AppDefinition_Script:
+		if appType != AppTypeScript {
+			return App{}, fmt.Errorf("%w: app '%s' has type %s but script config", ErrTypeMismatch, app.ID, appType)
 		}
-	case AppTypeComposite:
-		if pbApp.GetCompositeScript() == nil {
-			return App{}, fmt.Errorf(
-				"app '%s' has type composite_script but no composite_script config",
-				app.ID,
-			)
-		}
-	case AppTypeEcho:
-		if pbApp.GetEcho() == nil {
-			return App{}, fmt.Errorf("app '%s' has type echo but no echo config", app.ID)
-		}
-	}
 
-	// Convert app config based on type
-	if pbScript := pbApp.GetScript(); pbScript != nil {
-		// Create static data if present
-		var staticData *staticdata.StaticData
-		if pbStaticData := pbScript.GetStaticData(); pbStaticData != nil {
-			sd, err := staticdata.FromProto(pbStaticData)
-			if err != nil {
-				return App{}, fmt.Errorf("error converting static data: %w", err)
-			}
-			staticData = sd
+		pbScript := config.Script
+
+		// Convert static data if present
+		staticData, err := convertStaticDataFromProto(pbScript.GetStaticData())
+		if err != nil {
+			return App{}, fmt.Errorf("error converting static data: %w", err)
 		}
 
 		// Convert evaluator
@@ -221,28 +214,39 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 
 		app.Config = scripts.NewAppScript(staticData, evaluator)
 		return app, nil
-	} else if pbComposite := pbApp.GetCompositeScript(); pbComposite != nil {
-		// Create static data if present
-		var staticData *staticdata.StaticData
-		if pbStaticData := pbComposite.GetStaticData(); pbStaticData != nil {
-			sd, err := staticdata.FromProto(pbStaticData)
-			if err != nil {
-				return App{}, fmt.Errorf("error converting static data: %w", err)
-			}
-			staticData = sd
+
+	case *pb.AppDefinition_CompositeScript:
+		if appType != AppTypeComposite {
+			return App{}, fmt.Errorf("%w: app '%s' has type %s but composite_script config", ErrTypeMismatch, app.ID, appType)
+		}
+
+		pbComposite := config.CompositeScript
+
+		// Convert static data if present
+		staticData, err := convertStaticDataFromProto(pbComposite.GetStaticData())
+		if err != nil {
+			return App{}, fmt.Errorf("error converting static data: %w", err)
 		}
 
 		app.Config = composite.NewCompositeScript(pbComposite.GetScriptAppIds(), staticData)
 		return app, nil
-	} else if pbEcho := pbApp.GetEcho(); pbEcho != nil {
+
+	case *pb.AppDefinition_Echo:
+		if appType != AppTypeEcho {
+			return App{}, fmt.Errorf("%w: app '%s' has type %s but echo config", ErrTypeMismatch, app.ID, appType)
+		}
+
+		pbEcho := config.Echo
+
 		// Convert Echo app config
 		echoApp := echo.EchoFromProto(pbEcho)
 		app.Config = echoApp
 		return app, nil
-	}
 
-	// If we got here, no valid app config was found
-	return App{}, fmt.Errorf(
-		"app definition '%s' has an unknown or empty config type",
-		app.ID)
+	case nil:
+		return App{}, fmt.Errorf("%w: app '%s'", ErrNoConfigSpecified, app.ID)
+
+	default:
+		return App{}, fmt.Errorf("%w: app '%s'", ErrUnknownConfigType, app.ID)
+	}
 }

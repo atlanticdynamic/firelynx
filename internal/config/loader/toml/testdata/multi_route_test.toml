@@ -22,10 +22,12 @@ path_prefix = "/echo2"
 
 [[apps]]
 id = "echo_app"
+type = "echo"
 [apps.echo]
 response = "Test response"
 
 [[apps]]
 id = "http_app"
+type = "echo"
 [apps.echo]
 response = "Another response"

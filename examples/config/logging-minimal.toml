@@ -37,5 +37,6 @@ path_prefix = "/"
 # Application Definition
 [[apps]]
 id = "hello"
+type = "echo"
 [apps.echo]
 response = "Hello, World!"

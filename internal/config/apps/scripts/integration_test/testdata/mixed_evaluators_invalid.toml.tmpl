@@ -22,6 +22,7 @@ path_prefix = "/starlark"
 # Valid Risor app
 [[apps]]
 id = "valid-risor"
+type = "script"
 
 [apps.script]
 [apps.script.risor]
@@ -43,6 +44,7 @@ timeout = "1s"
 # Invalid Starlark app (syntax error)
 [[apps]]
 id = "invalid-starlark"
+type = "script"
 
 [apps.script]
 [apps.script.starlark]

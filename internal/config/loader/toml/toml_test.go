@@ -357,6 +357,7 @@ func TestRouteDuplication(t *testing.T) {
 
 	[[apps]]
 	id = "echo_app"
+	type = "echo"
 	[apps.echo]
 	response = "Hello"
 	`)
@@ -520,6 +521,9 @@ version = "v1"
 
 [[apps]]
 # Missing ID
+type = "echo"
+[apps.echo]
+response = "test"
 `))
 
 		_, err := loader.LoadProto()
@@ -556,6 +560,7 @@ path_prefix = "/test"
 
 [[apps]]
 id = "test_app"
+type = "echo"
 [apps.echo]
 response = "Hello with defaults"
 `))
