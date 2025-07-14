@@ -256,6 +256,21 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 		app.Config = echoApp
 		return app, nil
 
+	case *pb.AppDefinition_Mcp:
+		if appType != AppTypeMCP {
+			return App{}, fmt.Errorf("%w: app '%s' has type %s but mcp config", ErrTypeMismatch, app.ID, appType)
+		}
+
+		pbMcp := config.Mcp
+
+		// Convert MCP app config
+		mcpApp, err := mcp.FromProto(pbMcp)
+		if err != nil {
+			return App{}, fmt.Errorf("error converting MCP app: %w", err)
+		}
+		app.Config = mcpApp
+		return app, nil
+
 	case nil:
 		return App{}, fmt.Errorf("%w: app '%s'", ErrNoConfigSpecified, app.ID)
 
