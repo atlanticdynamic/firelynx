@@ -4,67 +4,54 @@ package mcp
 
 import (
 	_ "embed"
+	"strings"
 	"testing"
+	"text/template"
 
-	mcp_client "github.com/atlanticdynamic/firelynx/internal/client/mcp"
+	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/stretchr/testify/suite"
 )
 
 //go:embed testdata/mcp_builtin_tools.toml.tmpl
 var mcpBuiltinToolsTemplate string
 
-// MCPBuiltinToolsIntegrationTestSuite tests MCP builtin tools via HTTP
+// MCPBuiltinToolsIntegrationTestSuite tests that MCP builtin tools are properly rejected
+// since builtin handlers are not yet implemented
 type MCPBuiltinToolsIntegrationTestSuite struct {
-	MCPIntegrationTestSuite
+	suite.Suite
 }
 
-func (s *MCPBuiltinToolsIntegrationTestSuite) SetupSuite() {
-	// Use the base suite's template setup
-	s.SetupSuiteWithTemplate(mcpBuiltinToolsTemplate)
-}
+func (s *MCPBuiltinToolsIntegrationTestSuite) TestBuiltinToolsRejected() {
+	// Test that configurations with builtin tools are properly rejected
+	// since builtin handlers are not yet implemented
 
-func (s *MCPBuiltinToolsIntegrationTestSuite) TestEchoTool() {
-	// Test that we can call the echo tool using the official MCP client
-	// Call echo tool
-	result, err := s.GetMCPSession().CallTool(s.GetContext(), &mcp_client.CallToolParams{
-		Name: "echo",
-		Arguments: map[string]any{
-			"message": "Hello, MCP!",
-		},
-	})
-	s.Require().NoError(err, "Echo tool call should succeed")
-	s.Require().NotNil(result, "Echo tool should return result")
-	s.Require().False(result.IsError, "Echo tool should not return error")
-	s.Require().NotEmpty(result.Content, "Echo tool should return content")
-
-	// Verify the echo content
-	s.Require().Len(result.Content, 1, "Echo tool should return exactly one content item")
-
-	// Check that it's text content with our message
-	textContent, ok := result.Content[0].(*mcp_client.TextContent)
-	s.Require().True(ok, "Echo tool should return text content")
-	s.Contains(textContent.Text, "Hello, MCP!", "Echo tool should echo our message")
-
-	s.T().Logf("Echo tool response: %s", textContent.Text)
-}
-
-func (s *MCPBuiltinToolsIntegrationTestSuite) TestListTools() {
-	// Test that we can list available tools
-	result, err := s.GetMCPSession().ListTools(s.GetContext(), &mcp_client.ListToolsParams{})
-	s.Require().NoError(err, "ListTools should succeed")
-	s.Require().NotNil(result, "ListTools should return result")
-	s.Require().NotEmpty(result.Tools, "Should have tools available")
-
-	// Verify we have our expected tools
-	toolNames := make([]string, len(result.Tools))
-	for i, tool := range result.Tools {
-		toolNames[i] = tool.Name
+	// Template variables
+	templateVars := struct {
+		Port int
+	}{
+		Port: 51127, // Use a fixed port for this test since we're not starting a server
 	}
 
-	s.Contains(toolNames, "echo", "Should have echo tool")
-	s.Contains(toolNames, "read_file", "Should have read_file tool")
+	// Render the configuration template
+	tmpl, err := template.New("config").Parse(mcpBuiltinToolsTemplate)
+	s.Require().NoError(err, "Failed to parse template")
 
-	s.T().Logf("Available tools: %v", toolNames)
+	var configBuffer strings.Builder
+	err = tmpl.Execute(&configBuffer, templateVars)
+	s.Require().NoError(err, "Failed to render config template")
+
+	configData := configBuffer.String()
+	s.T().Logf("Rendered MCP config:\n%s", configData)
+
+	// Attempt to load configuration - this should fail
+	_, err = config.NewConfigFromBytes([]byte(configData))
+	s.Require().Error(err, "Config loading should fail for builtin tools")
+
+	// Verify the error mentions builtin handlers
+	s.Contains(err.Error(), "builtin handlers are not yet implemented",
+		"Error should mention that builtin handlers are not implemented")
+
+	s.T().Logf("Expected error received: %v", err)
 }
 
 func TestMCPBuiltinToolsIntegrationSuite(t *testing.T) {

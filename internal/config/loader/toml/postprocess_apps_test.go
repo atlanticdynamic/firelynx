@@ -384,3 +384,382 @@ func TestProcessScriptAppConfigWithStaticDataNil(t *testing.T) {
 		assert.Contains(t, scriptApp.StaticData.Data, "key", "StaticData should contain the key")
 	})
 }
+
+// TestProcessMcpAppConfig tests the processMcpAppConfig function with comprehensive coverage
+func TestProcessMcpAppConfig(t *testing.T) {
+	t.Parallel()
+
+	t.Run("InvalidMcpConfigFormat", func(t *testing.T) {
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+		}
+
+		appMap := map[string]any{
+			"mcp": "not a map", // Invalid format
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		require.NotEmpty(t, errs, "Should return errors for invalid mcp config format")
+		assert.Contains(t, errs[0].Error(), "mcp config")
+		assert.Contains(t, errs[0].Error(), "invalid app format")
+	})
+
+	t.Run("MissingMcpAppDespiteConfig", func(t *testing.T) {
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			// No MCP config set, so GetMcp() returns nil
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"server_name": "test-server",
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		require.NotEmpty(t, errs, "Should return errors when mcp app is nil despite config")
+		assert.Contains(t, errs[0].Error(), "mcp app not created despite mcp config section")
+		assert.Contains(t, errs[0].Error(), "invalid app format")
+	})
+
+	t.Run("NoToolsSection", func(t *testing.T) {
+		mcpApp := &pbApps.McpApp{
+			ServerName: proto.String("test-server"),
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"server_name": "test-server",
+				// No tools section
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		assert.Empty(t, errs, "Should not return errors when no tools section")
+	})
+
+	t.Run("InvalidToolsArrayFormat", func(t *testing.T) {
+		mcpApp := &pbApps.McpApp{
+			ServerName: proto.String("test-server"),
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"tools": "not an array", // Invalid format
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		require.NotEmpty(t, errs, "Should return errors for invalid tools array format")
+		assert.Contains(t, errs[0].Error(), "mcp config tools")
+		assert.Contains(t, errs[0].Error(), "invalid app format")
+	})
+
+	t.Run("InvalidToolFormat", func(t *testing.T) {
+		mcpApp := &pbApps.McpApp{
+			Tools: []*pbApps.McpTool{
+				{
+					Name: proto.String("test-tool"),
+				},
+			},
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"tools": []any{
+					"not a map", // Invalid tool format
+				},
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		require.NotEmpty(t, errs, "Should return errors for invalid tool format")
+		assert.Contains(t, errs[0].Error(), "tool at index 0")
+		assert.Contains(t, errs[0].Error(), "invalid app format")
+	})
+
+	t.Run("ToolMissingHandler", func(t *testing.T) {
+		mcpApp := &pbApps.McpApp{
+			Tools: []*pbApps.McpTool{
+				{
+					Name: proto.String("test-tool"),
+				},
+			},
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"tools": []any{
+					map[string]any{
+						"name": "test-tool",
+						// No script or builtin handler
+					},
+				},
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		require.NotEmpty(t, errs, "Should return errors for tool missing handler")
+		assert.Contains(t, errs[0].Error(), "tool at index 0: missing required handler")
+		assert.Contains(t, errs[0].Error(), "only 'script' handlers are currently supported")
+	})
+
+	t.Run("ToolWithBuiltinHandler", func(t *testing.T) {
+		mcpApp := &pbApps.McpApp{
+			Tools: []*pbApps.McpTool{
+				{
+					Name: proto.String("test-tool"),
+				},
+			},
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"tools": []any{
+					map[string]any{
+						"name": "test-tool",
+						"builtin": map[string]any{
+							"type": "echo",
+						},
+					},
+				},
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		require.NotEmpty(t, errs, "Should return errors for builtin handlers")
+		assert.Contains(t, errs[0].Error(), "tool at index 0: builtin handlers are not yet implemented")
+	})
+
+	t.Run("InvalidScriptHandlerFormat", func(t *testing.T) {
+		mcpApp := &pbApps.McpApp{
+			Tools: []*pbApps.McpTool{
+				{
+					Name: proto.String("test-tool"),
+				},
+			},
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"tools": []any{
+					map[string]any{
+						"name":   "test-tool",
+						"script": "not a map", // Invalid script handler format
+					},
+				},
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		require.NotEmpty(t, errs, "Should return errors for invalid script handler format")
+		assert.Contains(t, errs[0].Error(), "tool at index 0 script handler")
+		assert.Contains(t, errs[0].Error(), "invalid app format")
+	})
+
+	t.Run("ValidToolWithScriptHandler", func(t *testing.T) {
+		mcpScriptHandler := &pbApps.McpScriptHandler{
+			Evaluator: &pbApps.McpScriptHandler_Risor{
+				Risor: &pbApps.RisorEvaluator{},
+			},
+		}
+
+		mcpApp := &pbApps.McpApp{
+			Tools: []*pbApps.McpTool{
+				{
+					Name: proto.String("test-tool"),
+					Handler: &pbApps.McpTool_Script{
+						Script: mcpScriptHandler,
+					},
+				},
+			},
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"tools": []any{
+					map[string]any{
+						"name": "test-tool",
+						"script": map[string]any{
+							"static_data": map[string]any{
+								"key": "value",
+							},
+							"risor": map[string]any{
+								"code": "print('hello')",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		assert.Empty(t, errs, "Should not return errors for valid tool with script handler")
+
+		// Verify static data was processed
+		require.NotNil(t, mcpScriptHandler.StaticData, "StaticData should be created")
+		assert.Contains(t, mcpScriptHandler.StaticData.Data, "key", "StaticData should contain the key")
+
+		// Verify evaluator source was processed
+		risorEval := mcpScriptHandler.GetRisor()
+		require.NotNil(t, risorEval, "Risor evaluator should exist")
+		assert.Equal(t, "print('hello')", risorEval.GetCode(), "Code should be set")
+	})
+
+	t.Run("ScriptHandlerWithNilStaticData", func(t *testing.T) {
+		mcpScriptHandler := &pbApps.McpScriptHandler{
+			// StaticData is nil initially
+			Evaluator: &pbApps.McpScriptHandler_Starlark{
+				Starlark: &pbApps.StarlarkEvaluator{},
+			},
+		}
+
+		mcpApp := &pbApps.McpApp{
+			Tools: []*pbApps.McpTool{
+				{
+					Name: proto.String("test-tool"),
+					Handler: &pbApps.McpTool_Script{
+						Script: mcpScriptHandler,
+					},
+				},
+			},
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"tools": []any{
+					map[string]any{
+						"name": "test-tool",
+						"script": map[string]any{
+							"static_data": map[string]any{
+								"test_key": "test_value",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		assert.Empty(t, errs, "Should not return errors")
+
+		// Verify StaticData was created and populated
+		require.NotNil(t, mcpScriptHandler.StaticData, "StaticData should be created")
+		assert.Contains(t, mcpScriptHandler.StaticData.Data, "test_key", "StaticData should contain the key")
+	})
+
+	t.Run("MultipleToolsWithScriptAndBuiltinHandlers", func(t *testing.T) {
+		mcpApp := &pbApps.McpApp{
+			Tools: []*pbApps.McpTool{
+				{
+					Name: proto.String("script-tool"),
+					Handler: &pbApps.McpTool_Script{
+						Script: &pbApps.McpScriptHandler{
+							Evaluator: &pbApps.McpScriptHandler_Extism{
+								Extism: &pbApps.ExtismEvaluator{},
+							},
+						},
+					},
+				},
+				{
+					Name: proto.String("builtin-tool"),
+				},
+			},
+		}
+
+		app := &pbSettings.AppDefinition{
+			Id: proto.String("mcp-app"),
+			Config: &pbSettings.AppDefinition_Mcp{
+				Mcp: mcpApp,
+			},
+		}
+
+		appMap := map[string]any{
+			"mcp": map[string]any{
+				"tools": []any{
+					map[string]any{
+						"name": "script-tool",
+						"script": map[string]any{
+							"extism": map[string]any{
+								"uri": "file://test.wasm",
+							},
+						},
+					},
+					map[string]any{
+						"name": "builtin-tool",
+						"builtin": map[string]any{
+							"type": "calculation",
+						},
+					},
+				},
+			},
+		}
+
+		errs := processMcpAppConfig(app, appMap)
+		require.NotEmpty(t, errs, "Should return errors for builtin handlers")
+		assert.Contains(t, errs[0].Error(), "tool at index 1: builtin handlers are not yet implemented")
+
+		// Verify script tool evaluator was still processed despite builtin error
+		scriptHandler := mcpApp.Tools[0].GetScript()
+		require.NotNil(t, scriptHandler, "Script handler should exist")
+		extismEval := scriptHandler.GetExtism()
+		require.NotNil(t, extismEval, "Extism evaluator should exist")
+		assert.Equal(t, "file://test.wasm", extismEval.GetUri(), "URI should be set")
+	})
+}
