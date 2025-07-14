@@ -201,15 +201,18 @@ path_prefix = "/no-headers"
 # Application Definitions
 [[apps]]
 id = "echo-app"
+type = "echo"
 [apps.echo]
 response = "Headers Test Response"
 
 [[apps]]
 id = "cookie-app"
+type = "echo"
 [apps.echo]
 response = "Cookie Test Response"
 
 [[apps]]
 id = "content-type-app"
+type = "echo"
 [apps.echo]
 response = "Override Test Response"

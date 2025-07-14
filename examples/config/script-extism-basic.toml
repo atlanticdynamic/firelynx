@@ -57,6 +57,7 @@ path_prefix = "/api/demo"
 # Extism WASM Script Application
 [[apps]]
 id = "demo-counter"
+type = "script"
 
 [apps.script]
 # Static data available to the WASM plugin

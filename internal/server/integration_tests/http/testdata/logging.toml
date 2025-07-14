@@ -25,5 +25,6 @@ path_prefix = "/"
 
 [[apps]]
 id = "greetz"
+type = "echo"
 [apps.echo]
 response = "Hello, World!"

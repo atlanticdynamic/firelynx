@@ -25,7 +25,6 @@ const (
 	AppTypeEcho      AppType = "echo"
 	AppTypeScript    AppType = "script"
 	AppTypeComposite AppType = "composite_script"
-	AppTypeMCP       AppType = "mcp"
 )
 
 // appTypeToProto converts from domain AppType to protobuf AppType enum

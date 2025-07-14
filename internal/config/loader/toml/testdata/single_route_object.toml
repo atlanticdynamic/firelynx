@@ -16,5 +16,6 @@ type = "http"
 
 [[apps]]
 id = "app1"
+type = "echo"
 [apps.echo]
 response = "Hello from app1"

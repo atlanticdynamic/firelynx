@@ -198,41 +198,49 @@ path_prefix = "/env-interpolation-test"
 # Application Definitions
 [[apps]]
 id = "test-echo"
+type = "echo"
 [apps.echo]
 response = "Integration Test Response"
 
 [[apps]]
 id = "test-echo-env"
+type = "echo"
 [apps.echo]
 response = "Environment Variable Test Response"
 
 [[apps]]
 id = "test-echo-minimal"
+type = "echo"
 [apps.echo]
 response = "Minimal Test Response"
 
 [[apps]]
 id = "test-echo-manual"
+type = "echo"
 [apps.echo]
 response = "Manual Test Response"
 
 [[apps]]
 id = "test-echo-preset"
+type = "echo"
 [apps.echo]
 response = "Preset Test Response"
 
 [[apps]]
 id = "test-echo-health"
+type = "echo"
 [apps.echo]
 response = "Health Check Response"
 
 [[apps]]
 id = "test-echo-normal"
+type = "echo"
 [apps.echo]
 response = "Normal Test Response"
 
 [[apps]]
 id = "test-echo-env-interpolation"
+type = "echo"
 [apps.echo]
 response = "Environment Interpolation Test Response"
 
@@ -282,11 +290,13 @@ path_prefix = "/text-detailed"
 
 [[apps]]
 id = "text-echo-standard"
+type = "echo"
 [apps.echo]
 response = "Text Standard Response"
 
 [[apps]]
 id = "text-echo-detailed"
+type = "echo"
 [apps.echo]
 response = "Text Detailed Response"
 
@@ -354,10 +364,12 @@ path_prefix = "/exclude-methods"
 
 [[apps]]
 id = "multi-middleware-echo"
+type = "echo"
 [apps.echo]
 response = "Multi Middleware Response"
 
 [[apps]]
 id = "exclude-methods-echo"
+type = "echo"
 [apps.echo]
 response = "Exclude Methods Response"

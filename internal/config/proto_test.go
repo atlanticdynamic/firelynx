@@ -290,7 +290,7 @@ func TestConfigWithInvalidComponents(t *testing.T) {
 					},
 				}
 			},
-			errSubstr: "unknown or empty config type",
+			errSubstr: "no config specified",
 		},
 	}
 

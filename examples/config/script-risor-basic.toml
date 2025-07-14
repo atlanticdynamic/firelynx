@@ -27,6 +27,7 @@ path_prefix = "/api/risor"
 # Risor Script Application
 [[apps]]
 id = "risor-demo"
+type = "script"
 
 [apps.script]
 # Static data available to the script

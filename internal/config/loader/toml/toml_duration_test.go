@@ -22,6 +22,7 @@ version = "v1"
 
 [[apps]]
 id = "test-script"
+type = "script"
 [apps.script]
 [apps.script.risor]
 code = "print('hello')"
@@ -36,6 +37,7 @@ version = "v1"
 
 [[apps]]
 id = "test-script"
+type = "script"
 [apps.script]
 [apps.script.risor]
 code = "print('hello')"
@@ -50,6 +52,7 @@ version = "v1"
 
 [[apps]]
 id = "test-script"
+type = "script"
 [apps.script]
 [apps.script.risor]
 code = "print('hello')"
@@ -64,6 +67,7 @@ version = "v1"
 
 [[apps]]
 id = "test-script"
+type = "script"
 [apps.script]
 [apps.script.risor]
 code = "print('hello')"

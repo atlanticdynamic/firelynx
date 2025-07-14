@@ -517,11 +517,14 @@ func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []er
 				continue
 			}
 
-			// Process app based on type (explicit or inferred)
+			// Process app type (required field)
 			if typeVal, ok := appMap["type"].(string); ok {
 				// Set the type field
 				errs := processAppType(app, typeVal)
 				errList = append(errList, errs...)
+			} else {
+				// Type field is required
+				errList = append(errList, fmt.Errorf("app at index %d: missing required 'type' field", i))
 			}
 
 			// Process app configurations based on which config sections are present
