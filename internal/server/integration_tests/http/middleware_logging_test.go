@@ -4,7 +4,6 @@ package http_test
 
 import (
 	"bytes"
-	"context"
 	_ "embed"
 	"log/slog"
 	"os"
@@ -75,7 +74,7 @@ func TestLoggingConfigurationPipeline(t *testing.T) {
 		testLogger := slog.New(logCollector).WithGroup("http")
 
 		// Create a context and test log entry
-		logCtx := context.Background()
+		logCtx := t.Context()
 		attrs := []slog.Attr{
 			slog.String("method", "GET"),
 			slog.String("path", "/test"),
