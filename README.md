@@ -65,12 +65,7 @@ firelynx follows a three-layer architecture:
 
 ## Development
 
-### Prerequisites
-
-- Go 1.24 or later
-- Protocol Buffer compiler and tools (`buf`)
-
-### Building from Source
+Requires Go 1.24 or later to compile.
 
 ```bash
 # Clone the repository
@@ -82,6 +77,7 @@ make protogen
 
 # Run tests
 make test
+make test-all
 
 # Compile the binary
 make build
