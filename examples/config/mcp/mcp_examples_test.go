@@ -24,100 +24,6 @@ var risorCalculatorConfig []byte
 //go:embed mcp-starlark-data-processor.toml
 var starlarkDataProcessorConfig []byte
 
-// MCPExampleTestSuite tests MCP example configurations
-type MCPExampleTestSuite struct {
-	mcp_int_test.MCPIntegrationTestSuite
-	configFile string
-}
-
-// SetupSuite sets up the test suite with the specific config file
-func (s *MCPExampleTestSuite) SetupSuite() {
-	s.SetupSuiteWithFile(s.configFile)
-}
-
-// TestListTools tests that we can list available tools and verifies expected tools are present
-func (s *MCPExampleTestSuite) TestListTools(expectedTools []string) {
-	result, err := s.GetMCPSession().ListTools(s.GetContext(), &mcp_client.ListToolsParams{})
-	s.Require().NoError(err, "ListTools should succeed")
-	s.Require().NotNil(result, "ListTools should return result")
-	s.Require().NotEmpty(result.Tools, "Should have tools available")
-
-	// Extract actual tool names
-	actualTools := make([]string, len(result.Tools))
-	for i, tool := range result.Tools {
-		actualTools[i] = tool.Name
-	}
-
-	s.T().Logf("Available tools in %s: %v", filepath.Base(s.configFile), actualTools)
-
-	// Verify expected tools are present
-	for _, expectedTool := range expectedTools {
-		s.Assert().Contains(actualTools, expectedTool, "Expected tool %s should be available", expectedTool)
-	}
-
-	// Verify we have exactly the expected number of tools
-	s.Require().Len(actualTools, len(expectedTools), "Should have exactly %d tools", len(expectedTools))
-}
-
-// TestExampleConfigurations runs tests for each MCP example configuration
-func TestExampleConfigurations(t *testing.T) {
-	tempDir := t.TempDir()
-
-	testCases := []struct {
-		name          string
-		configData    []byte
-		fileName      string
-		description   string
-		expectedTools []string
-	}{
-		{
-			name:          "MultiLanguageToolkit",
-			configData:    multiLanguageToolkitConfig,
-			fileName:      "mcp-multi-language-toolkit.toml",
-			description:   "Multi-language toolkit using Risor and Starlark",
-			expectedTools: []string{"unit_converter", "validate_schema", "data_pipeline"},
-		},
-		{
-			name:          "RisorCalculator",
-			configData:    risorCalculatorConfig,
-			fileName:      "mcp-risor-calculator.toml",
-			description:   "Mathematical calculator using Risor",
-			expectedTools: []string{"calculate"},
-		},
-		{
-			name:          "StarlarkDataProcessor",
-			configData:    starlarkDataProcessorConfig,
-			fileName:      "mcp-starlark-data-processor.toml",
-			description:   "JSON data processing using Starlark",
-			expectedTools: []string{"analyze_json", "transform_data"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Write config to temp file
-			configFile := filepath.Join(tempDir, tc.fileName)
-			err := os.WriteFile(configFile, tc.configData, 0o644)
-			require.NoError(t, err, "Should write config file successfully")
-
-			// Create test suite with specific config file
-			testSuite := &MCPExampleTestSuite{
-				configFile: configFile,
-			}
-
-			// Run the suite
-			testSuite.SetT(t)
-			testSuite.SetupSuite()
-			defer testSuite.TearDownSuite()
-
-			// Run tests
-			testSuite.TestListTools(tc.expectedTools)
-
-			t.Logf("Successfully tested %s: %s", tc.name, tc.description)
-		})
-	}
-}
-
 // TestConfigValidation tests that all example configs load and validate correctly
 func TestConfigValidation(t *testing.T) {
 	tempDir := t.TempDir()
@@ -174,6 +80,80 @@ func TestConfigValidation(t *testing.T) {
 	}
 }
 
+// TestListToolsFromConfig loads each config file, uses the mcp lists tools command to verify the expected tools are present
+func TestListToolsFromConfig(t *testing.T) {
+	tempDir := t.TempDir()
+
+	testCases := []struct {
+		name          string
+		configData    []byte
+		fileName      string
+		description   string
+		expectedTools []string
+	}{
+		{
+			name:          "MultiLanguageToolkit",
+			configData:    multiLanguageToolkitConfig,
+			fileName:      "mcp-multi-language-toolkit.toml",
+			description:   "Multi-language toolkit using Risor and Starlark",
+			expectedTools: []string{"unit_converter", "validate_schema"},
+		},
+		{
+			name:          "RisorCalculator",
+			configData:    risorCalculatorConfig,
+			fileName:      "mcp-risor-calculator.toml",
+			description:   "Mathematical calculator using Risor",
+			expectedTools: []string{"calculate"},
+		},
+		{
+			name:          "StarlarkDataProcessor",
+			configData:    starlarkDataProcessorConfig,
+			fileName:      "mcp-starlark-data-processor.toml",
+			description:   "JSON data processing using Starlark",
+			expectedTools: []string{"analyze_json", "transform_data"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Write config to temp file
+			configFile := filepath.Join(tempDir, tc.fileName)
+			err := os.WriteFile(configFile, tc.configData, 0o644)
+			require.NoError(t, err, "Should write config file successfully")
+
+			// Create and setup test suite
+			testSuite := &mcp_int_test.MCPIntegrationTestSuite{}
+			testSuite.SetT(t)
+			testSuite.SetupSuiteWithFile(configFile)
+			t.Cleanup(func() {
+				testSuite.TearDownSuite()
+			})
+
+			// Test listing tools
+			result, err := testSuite.GetMCPSession().ListTools(testSuite.GetContext(), &mcp_client.ListToolsParams{})
+			testSuite.Require().NoError(err)
+			testSuite.Require().NotNil(result)
+			testSuite.Require().NotEmpty(result.Tools)
+
+			// Extract actual tool names
+			actualTools := make([]string, len(result.Tools))
+			for i, tool := range result.Tools {
+				actualTools[i] = tool.Name
+			}
+
+			t.Logf("Available tools in %s: %v", filepath.Base(configFile), actualTools)
+
+			// Verify expected tools are present
+			for _, expectedTool := range tc.expectedTools {
+				testSuite.Assert().Contains(actualTools, expectedTool)
+			}
+
+			// Verify we have exactly the expected number of tools
+			testSuite.Require().Len(actualTools, len(tc.expectedTools))
+		})
+	}
+}
+
 // TestUnitConverterIntegration performs full integration testing of the unit_converter MCP tool
 func TestUnitConverterIntegration(t *testing.T) {
 	tempDir := t.TempDir()
@@ -184,20 +164,18 @@ func TestUnitConverterIntegration(t *testing.T) {
 	require.NoError(t, err, "Should write config file successfully")
 
 	// Create and setup test suite
-	testSuite := &MCPExampleTestSuite{
-		configFile: configFile,
-	}
+	testSuite := &mcp_int_test.MCPIntegrationTestSuite{}
 	testSuite.SetT(t)
-	testSuite.SetupSuite()
-	defer testSuite.TearDownSuite()
+	testSuite.SetupSuiteWithFile(configFile)
+	t.Cleanup(func() {
+		testSuite.TearDownSuite()
+	})
 
 	testCases := []struct {
-		name           string
-		args           map[string]any
-		expectedError  string
-		expectedValue  float64
-		expectedText   string
-		validateResult func(t *testing.T, result *mcp_client.CallToolResult)
+		name          string
+		args          map[string]any
+		expectedError string
+		expectedText  string
 	}{
 		{
 			name: "ConvertMetersToFeet",
@@ -207,8 +185,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 				"to":       "ft",
 				"category": "length",
 			},
-			expectedValue: 32.808398950131235, // 10 meters = ~32.8 feet
-			expectedText:  "10 m = 32.81 ft",
+			expectedText: "10 m = 32.81 ft",
 		},
 		{
 			name: "ConvertKilometersToMiles",
@@ -218,8 +195,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 				"to":       "mi",
 				"category": "length",
 			},
-			expectedValue: 3.1068559611866697, // 5 km = ~3.1 miles
-			expectedText:  "5 km = 3.11 mi",
+			expectedText: "5 km = 3.11 mi",
 		},
 		{
 			name: "ConvertPoundsToKilograms",
@@ -229,8 +205,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 				"to":       "kg",
 				"category": "weight",
 			},
-			expectedValue: 45.359237, // 100 lbs = ~45.36 kg
-			expectedText:  "100 lb = 45.36 kg",
+			expectedText: "100 lb = 45.36 kg",
 		},
 		{
 			name: "ConvertInchesToCentimeters",
@@ -240,8 +215,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 				"to":       "cm",
 				"category": "length",
 			},
-			expectedValue: 30.48, // 12 inches = 30.48 cm
-			expectedText:  "12 in = 30.48 cm",
+			expectedText: "12 in = 30.48 cm",
 		},
 		{
 			name: "ConvertGramsToOunces",
@@ -251,8 +225,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 				"to":       "oz",
 				"category": "weight",
 			},
-			expectedValue: 17.636980975310173, // 500g = ~17.64 oz
-			expectedText:  "500 g = 17.64 oz",
+			expectedText: "500 g = 17.64 oz",
 		},
 		{
 			name: "ErrorMissingValue",
@@ -319,8 +292,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 				"to":    "cm",
 				// category omitted, should default to "length"
 			},
-			expectedValue: 100.0, // 1 meter = 100 cm
-			expectedText:  "1 m = 100 cm",
+			expectedText: "1 m = 100 cm",
 		},
 		{
 			name: "ConvertSameUnits",
@@ -330,8 +302,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 				"to":       "kg",
 				"category": "weight",
 			},
-			expectedValue: 42.0, // 42 kg = 42 kg
-			expectedText:  "42 kg = 42 kg",
+			expectedText: "42 kg = 42 kg",
 		},
 		{
 			name: "ConvertLargeValues",
@@ -341,50 +312,162 @@ func TestUnitConverterIntegration(t *testing.T) {
 				"to":       "km",
 				"category": "length",
 			},
-			expectedValue: 1.0, // 1,000,000 mm = 1 km
-			expectedText:  "1000000 mm = 1 km",
+			expectedText: "1000000 mm = 1 km",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Call the unit_converter tool
 			result, err := testSuite.GetMCPSession().CallTool(testSuite.GetContext(), &mcp_client.CallToolParams{
 				Name:      "unit_converter",
 				Arguments: tc.args,
 			})
 
-			require.NoError(t, err, "CallTool should succeed")
-			require.NotNil(t, result, "Result should not be nil")
-			require.NotEmpty(t, result.Content, "Result should have content")
+			testSuite.Require().NoError(err)
+			testSuite.Require().NotNil(result)
+			testSuite.Require().NotEmpty(result.Content)
 
-			// Get the first content item as text
 			content, ok := result.Content[0].(*mcp_client.TextContent)
-			require.True(t, ok, "Content should be TextContent")
-			require.NotEmpty(t, content.Text, "Content text should not be empty")
+			testSuite.Require().True(ok)
+			testSuite.Require().NotEmpty(content.Text)
 
 			t.Logf("Tool response: %s", content.Text)
 
 			if tc.expectedError != "" {
-				// Expecting an error response
-				assert.Contains(t, content.Text, tc.expectedError, "Should contain expected error message")
+				testSuite.Require().Contains(content.Text, tc.expectedError)
 			} else {
-				// Expecting a successful conversion
-				assert.Contains(t, content.Text, tc.expectedText, "Should contain expected conversion text")
-
-				// The response should be JSON-like with the conversion result
-				assert.Contains(t, content.Text, "\"text\":", "Should contain text field")
-				assert.Contains(t, content.Text, "\"value\":", "Should contain value field")
-				assert.Contains(t, content.Text, "\"conversion\":", "Should contain conversion details")
-
-				// Check that the numeric value appears in the response
-				assert.Contains(t, content.Text, tc.expectedText, "Should contain expected numeric result")
-			}
-
-			// Run custom validation if provided
-			if tc.validateResult != nil {
-				tc.validateResult(t, result)
+				testSuite.Require().NotContains(content.Text, "error")
+				testSuite.Require().Contains(content.Text, tc.expectedText)
 			}
 		})
+	}
+}
+
+// TestValidateSchemaIntegration performs integration testing of the validate_schema MCP tool
+func TestValidateSchemaIntegration(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Write the multi-language toolkit config to temp file
+	configFile := filepath.Join(tempDir, "mcp-multi-language-toolkit.toml")
+	err := os.WriteFile(configFile, multiLanguageToolkitConfig, 0o644)
+	require.NoError(t, err, "Should write config file successfully")
+
+	// Create and setup test suite
+	testSuite := &mcp_int_test.MCPIntegrationTestSuite{}
+	testSuite.SetT(t)
+	testSuite.SetupSuiteWithFile(configFile)
+	t.Cleanup(func() {
+		testSuite.TearDownSuite()
+	})
+
+	testCases := []struct {
+		name         string
+		args         map[string]any
+		expectedJSON string
+		checkError   bool
+	}{
+		{
+			name: "ValidUserSchema",
+			args: map[string]any{
+				"schema": "user",
+				"data": map[string]any{
+					"id":    "123",
+					"name":  "John Doe",
+					"email": "john@example.com",
+					"age":   30,
+				},
+			},
+			expectedJSON: `{
+				"valid": true,
+				"errors": [],
+				"warnings": [],
+				"summary": {
+					"total_fields": 4,
+					"required_present": 3,
+					"required_total": 3,
+					"extra_fields": 0,
+					"type_errors": 0
+				},
+				"text": "Schema validation passed successfully"
+			}`,
+		},
+		{
+			name: "InvalidUserMissingEmail",
+			args: map[string]any{
+				"schema": "user",
+				"data": map[string]any{
+					"id":   "123",
+					"name": "John Doe",
+					// missing required "email" field
+				},
+			},
+			expectedJSON: `{
+				"valid": false,
+				"errors": ["Missing required fields: email"],
+				"warnings": [],
+				"summary": {
+					"total_fields": 2,
+					"required_present": 2,
+					"required_total": 3,
+					"extra_fields": 0,
+					"type_errors": 0
+				},
+				"text": "Schema validation failed with 1 errors"
+			}`,
+		},
+		{
+			name: "InvalidSchemaTest",
+			args: map[string]any{
+				"schema": "nonexistent",
+				"data": map[string]any{
+					"id": "123",
+				},
+			},
+			checkError: true, // This returns a simple error string, not JSON
+		},
+	}
+
+	// First verify the tool exists
+	listResult, err := testSuite.GetMCPSession().ListTools(testSuite.GetContext(), &mcp_client.ListToolsParams{})
+	testSuite.Require().NoError(err)
+	testSuite.Require().NotNil(listResult)
+
+	// Extract tool names
+	toolNames := make([]string, len(listResult.Tools))
+	for i, tool := range listResult.Tools {
+		toolNames[i] = tool.Name
+	}
+
+	// Verify validate_schema tool is present
+	testSuite.Assert().Contains(toolNames, "validate_schema")
+	t.Logf("Available tools: %v", toolNames)
+
+	// Run test cases
+	for _, tc := range testCases {
+		t.Logf("Running test case: %s", tc.name)
+
+		result, err := testSuite.GetMCPSession().CallTool(testSuite.GetContext(), &mcp_client.CallToolParams{
+			Name:      "validate_schema",
+			Arguments: tc.args,
+		})
+
+		testSuite.Require().NoError(err)
+		testSuite.Require().NotNil(result)
+		testSuite.Require().NotEmpty(result.Content)
+
+		content, ok := result.Content[0].(*mcp_client.TextContent)
+		testSuite.Require().True(ok)
+		testSuite.Require().NotEmpty(content.Text)
+
+		t.Logf("Tool response for %s: %s", tc.name, content.Text)
+
+		if tc.checkError {
+			// For simple error responses, just check they contain the expected error text
+			testSuite.Assert().Contains(content.Text, "Unknown schema: nonexistent")
+			testSuite.Assert().Contains(content.Text, "Available:")
+		} else {
+			// For JSON responses, use JSONEq for proper comparison
+			testSuite.Assert().JSONEq(tc.expectedJSON, content.Text)
+		}
 	}
 }

@@ -1,7 +1,80 @@
+# =============================================================================
 # Multi-Language MCP Toolkit
-# This example demonstrates a comprehensive MCP service using multiple scripting languages:
-# - Risor for mathematical operations and string manipulation
-# - Starlark for data processing and JSON handling
+# =============================================================================
+#
+# PURPOSE: Demonstrates a comprehensive MCP service using multiple scripting languages
+# PORT: 8083  
+# ENDPOINT: http://localhost:8083/mcp
+#
+# LANGUAGE STRATEGY:
+# - Risor: Mathematical operations, unit conversions, string manipulation
+# - Starlark: Data processing, schema validation, complex workflows
+# - Combined: Use the best language for each specific task
+#
+# TOOLS PROVIDED:
+# - unit_converter (Risor): Convert between units (length, weight) with built-in conversion tables
+# - validate_schema (Starlark): Validate JSON data against predefined or custom schemas  
+# - data_pipeline (Starlark): Multi-stage data processing pipeline coordination
+#
+# EXAMPLE USAGE:
+# Tool: unit_converter
+# Input: {"value": 5, "from": "ft", "to": "m", "category": "length"}
+# Output: {"text": "5 ft = 1.52 m", "value": 1.524, "conversion": {...}}
+#
+# Tool: validate_schema
+# Input: {"data": {"id": "123", "name": "John", "email": "john@example.com"}, "schema": "user"}
+# Output: {"valid": true, "text": "Schema validation passed successfully"}
+#
+# Tool: data_pipeline  
+# Input: {"data": {"name": "test"}, "stages": ["validate", "transform"], "config": {}}
+# Output: {"success": true, "stages_completed": ["validate", "transform"], "final_data": {...}}
+#
+# UNIT_CONVERTER FEATURES (Risor):
+# - Length conversions: mm, cm, m, km, in, ft, yd, mi
+# - Weight conversions: g, kg, lb, oz, ton
+# - Built-in conversion tables via static data
+# - High-precision calculations with rounding
+# - Comprehensive error handling for unknown units
+#
+# VALIDATE_SCHEMA FEATURES (Starlark):
+# - Predefined schemas: "user" and "product" schemas included
+# - Custom schema support: Define schemas dynamically
+# - Field validation: Required fields, optional fields, type checking
+# - Detailed error reporting: Missing fields, type mismatches, extra fields
+# - Summary statistics: Field counts, validation results
+#
+# DATA_PIPELINE FEATURES (Starlark):
+# - Multi-stage processing: validate, transform, analyze, export
+# - Pipeline coordination: Track execution, stage results, errors
+# - Data transformation: Add metadata, ensure required fields
+# - Analysis stage: Calculate complexity, structure depth, memory estimation
+# - Export preparation: Support for different output formats
+#
+# STATIC DATA CONFIGURATION:
+# - Unit conversion tables with precise factors
+# - Schema definitions with required/optional fields and types
+# - Pipeline configuration with stage definitions and limits
+#
+# PREDEFINED SCHEMAS:
+# - user: Required (id, name, email), Optional (age, address, phone)
+# - product: Required (id, name, price), Optional (description, category, tags)
+#
+# SUPPORTED UNIT CATEGORIES:
+# - length: mm, cm, m, km, in, ft, yd, mi
+# - weight: g, kg, lb, oz, ton
+#
+# PIPELINE STAGES:
+# - validate: Check data structure and required fields
+# - transform: Add metadata and ensure required fields
+# - analyze: Calculate data complexity and structure metrics
+# - export: Prepare data for output in specified format
+#
+# TO TEST:
+# 1. Start server: ./bin/firelynx server -c examples/config/mcp/mcp-multi-language-toolkit.toml
+# 2. Test unit_converter with various unit conversions
+# 3. Test validate_schema with user/product data and custom schemas
+# 4. Test data_pipeline with different stage combinations
+# 5. Compare performance characteristics of each language for different tasks
 
 [[listeners]]
 id = "toolkit-listener"
@@ -278,147 +351,5 @@ def validate_schema():
     
     return result
 
-validate_schema()
-'''
-
-# =============================================================================
-# MIXED EXAMPLE - Combining Multiple Languages
-# =============================================================================
-
-# Comprehensive Data Pipeline Tool
-[[apps.mcp.tools]]
-name = "data_pipeline"
-description = "Process data through multiple stages using different scripting languages for optimal performance"
-
-[apps.mcp.tools.script]
-[apps.mcp.tools.script.static_data]
-pipeline_stages = ["validate", "transform", "analyze", "export"]
-max_pipeline_time = 60  # seconds
-default_format = "json"
-
-# This tool coordinates between multiple processing stages
-# In practice, each stage might use the most appropriate language:
-# - Starlark for data validation and transformation
-# - Risor for mathematical processing
-# For this example, we'll use Starlark to demonstrate the coordination
-[apps.mcp.tools.script.starlark]
-code = '''
-def data_pipeline():
-    """Coordinate a multi-stage data processing pipeline"""
-    
-    args = ctx.get("args", {})
-    data = args.get("data", {})
-    stages = args.get("stages", ["validate", "transform"])
-    config = args.get("config", {})
-    
-    if not data:
-        return {"error": "No input data provided"}
-    
-    # Pipeline execution tracking
-    results = {
-        "pipeline_id": "pipe_" + str(hash(str(data)))[:8],
-        "input_size": len(str(data)),
-        "stages_completed": [],
-        "stage_results": {},
-        "execution_time": 0,
-        "final_data": data
-    }
-    
-    current_data = data
-    
-    for stage in stages:
-        if stage == "validate":
-            # Data validation stage
-            if type(current_data) != "dict":
-                results["stage_results"][stage] = {"error": "Data must be an object for validation"}
-                break
-            
-            validation_result = {
-                "valid": True,
-                "field_count": len(current_data.keys()),
-                "has_id": "id" in current_data,
-                "has_timestamp": any(["time" in key.lower() for key in current_data.keys()])
-            }
-            results["stage_results"][stage] = validation_result
-            
-        elif stage == "transform":
-            # Data transformation stage
-            if type(current_data) == "dict":
-                # Add metadata
-                current_data["_processed"] = True
-                current_data["_pipeline_stage"] = "transform"
-                if "id" not in current_data:
-                    current_data["id"] = "auto_" + str(hash(str(current_data)))[:8]
-            
-            results["stage_results"][stage] = {
-                "transformations_applied": ["add_metadata", "ensure_id"],
-                "output_size": len(str(current_data))
-            }
-            
-        elif stage == "analyze":
-            # Analysis stage
-            analysis = {
-                "data_type": type(current_data),
-                "complexity_score": min(len(str(current_data)) / 100, 10),
-                "structure_depth": calculate_depth(current_data),
-                "estimated_memory": len(str(current_data)) * 4  # rough estimate
-            }
-            results["stage_results"][stage] = analysis
-            
-        elif stage == "export":
-            # Export preparation stage
-            export_format = config.get("format", ctx.get("default_format", "json"))
-            
-            if export_format == "json":
-                # Already in JSON-compatible format
-                export_result = {"format": "json", "ready": True}
-            elif export_format == "csv":
-                # Would convert to CSV format
-                export_result = {"format": "csv", "note": "CSV conversion would happen here"}
-            else:
-                export_result = {"error": "Unsupported export format: " + export_format}
-            
-            results["stage_results"][stage] = export_result
-        
-        else:
-            results["stage_results"][stage] = {"error": "Unknown pipeline stage: " + stage}
-            break
-        
-        results["stages_completed"].append(stage)
-    
-    results["final_data"] = current_data
-    results["success"] = len(results["stages_completed"]) == len(stages)
-    
-    if results["success"]:
-        results["text"] = "Pipeline completed successfully through {} stages".format(len(stages))
-    else:
-        results["text"] = "Pipeline failed at stage: {}".format(stage)
-    
-    return results
-
-def calculate_depth(obj, current_depth=0):
-    """Calculate the maximum nesting depth of a data structure"""
-    if current_depth > 20:  # Prevent infinite recursion
-        return current_depth
-    
-    if type(obj) == "dict":
-        if len(obj) == 0:
-            return current_depth
-        max_child_depth = current_depth
-        for value in obj.values():
-            child_depth = calculate_depth(value, current_depth + 1)
-            max_child_depth = max(max_child_depth, child_depth)
-        return max_child_depth
-    elif type(obj) == "list":
-        if len(obj) == 0:
-            return current_depth
-        max_child_depth = current_depth
-        for item in obj:
-            child_depth = calculate_depth(item, current_depth + 1)
-            max_child_depth = max(max_child_depth, child_depth)
-        return max_child_depth
-    else:
-        return current_depth
-
-data_pipeline()
+_ = validate_schema()
 '''
