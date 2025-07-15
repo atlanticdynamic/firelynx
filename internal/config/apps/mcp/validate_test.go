@@ -1,13 +1,17 @@
 package mcp
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	evalMocks "github.com/robbyt/go-polyscript/engines/mocks"
 	"github.com/robbyt/go-polyscript/platform"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestApp_Validate(t *testing.T) {
@@ -685,5 +689,408 @@ func TestPromptArgument_Validate(t *testing.T) {
 
 		err := arg.Validate()
 		assert.NoError(t, err)
+	})
+}
+
+func TestParseJSONSchema(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid schema with all fields", func(t *testing.T) {
+		schemaString := `{
+			"type": "object",
+			"description": "Test schema",
+			"properties": {
+				"name": {
+					"type": "string",
+					"description": "Name field"
+				},
+				"age": {
+					"type": "number",
+					"description": "Age field"
+				}
+			},
+			"required": ["name"]
+		}`
+
+		schema, err := parseJSONSchema(schemaString)
+		assert.NoError(t, err)
+		assert.Equal(t, "object", schema.Type)
+		assert.Equal(t, "Test schema", schema.Description)
+		assert.Len(t, schema.Properties, 2)
+		assert.Equal(t, "string", schema.Properties["name"].Type)
+		assert.Equal(t, "Name field", schema.Properties["name"].Description)
+		assert.Equal(t, "number", schema.Properties["age"].Type)
+		assert.Equal(t, []string{"name"}, schema.Required)
+	})
+
+	t.Run("minimal valid schema", func(t *testing.T) {
+		schemaString := `{"type": "string"}`
+
+		schema, err := parseJSONSchema(schemaString)
+		assert.NoError(t, err)
+		assert.Equal(t, "string", schema.Type)
+		assert.Empty(t, schema.Description)
+		assert.Nil(t, schema.Properties)
+		assert.Nil(t, schema.Required)
+	})
+
+	t.Run("invalid JSON", func(t *testing.T) {
+		schemaString := `{"type": "string"`
+
+		schema, err := parseJSONSchema(schemaString)
+		assert.Error(t, err)
+		assert.Nil(t, schema)
+		assert.Contains(t, err.Error(), "failed to parse JSON schema")
+	})
+
+	t.Run("schema with invalid property structure", func(t *testing.T) {
+		schemaString := `{
+			"type": "object",
+			"properties": {
+				"invalid": "not an object"
+			}
+		}`
+
+		schema, err := parseJSONSchema(schemaString)
+		assert.NoError(t, err)
+		assert.Equal(t, "object", schema.Type)
+		assert.Len(t, schema.Properties, 0)
+	})
+}
+
+func TestConvertAnnotationsToMCPSDK(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil annotations", func(t *testing.T) {
+		result := convertAnnotationsToMCPSDK(nil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("complete annotations", func(t *testing.T) {
+		destructive := true
+		openWorld := false
+		annotations := &ToolAnnotations{
+			Title:           "Test Tool",
+			ReadOnlyHint:    true,
+			IdempotentHint:  true,
+			DestructiveHint: &destructive,
+			OpenWorldHint:   &openWorld,
+		}
+
+		result := convertAnnotationsToMCPSDK(annotations)
+		assert.NotNil(t, result)
+		assert.Equal(t, "Test Tool", result.Title)
+		assert.True(t, result.ReadOnlyHint)
+		assert.True(t, result.IdempotentHint)
+		assert.Equal(t, &destructive, result.DestructiveHint)
+		assert.Equal(t, &openWorld, result.OpenWorldHint)
+	})
+
+	t.Run("minimal annotations", func(t *testing.T) {
+		annotations := &ToolAnnotations{
+			ReadOnlyHint:   false,
+			IdempotentHint: false,
+		}
+
+		result := convertAnnotationsToMCPSDK(annotations)
+		assert.NotNil(t, result)
+		assert.Empty(t, result.Title)
+		assert.False(t, result.ReadOnlyHint)
+		assert.False(t, result.IdempotentHint)
+		assert.Nil(t, result.DestructiveHint)
+		assert.Nil(t, result.OpenWorldHint)
+	})
+}
+
+func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
+	handler := &ScriptToolHandler{}
+
+	t.Run("map with error field", func(t *testing.T) {
+		mockResult := &evalMocks.EvaluatorResponse{}
+		mockResult.On("Interface").Return(map[string]any{
+			"error": "test error message",
+		})
+
+		result, err := handler.convertToMCPContent(mockResult)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.IsError)
+		assert.Len(t, result.Content, 1)
+		assert.Equal(t, "test error message", result.Content[0].(*mcpsdk.TextContent).Text)
+		mockResult.AssertExpectations(t)
+	})
+
+	t.Run("map without error field", func(t *testing.T) {
+		mockResult := &evalMocks.EvaluatorResponse{}
+		mockResult.On("Interface").Return(map[string]any{
+			"status": "success",
+			"data":   "test data",
+		})
+
+		result, err := handler.convertToMCPContent(mockResult)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsError)
+		assert.Len(t, result.Content, 1)
+		assert.Contains(t, result.Content[0].(*mcpsdk.TextContent).Text, "success")
+		assert.Contains(t, result.Content[0].(*mcpsdk.TextContent).Text, "test data")
+		mockResult.AssertExpectations(t)
+	})
+
+	t.Run("string value", func(t *testing.T) {
+		mockResult := &evalMocks.EvaluatorResponse{}
+		mockResult.On("Interface").Return("test string result")
+
+		result, err := handler.convertToMCPContent(mockResult)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsError)
+		assert.Len(t, result.Content, 1)
+		assert.Equal(t, "test string result", result.Content[0].(*mcpsdk.TextContent).Text)
+		mockResult.AssertExpectations(t)
+	})
+
+	t.Run("byte slice value", func(t *testing.T) {
+		mockResult := &evalMocks.EvaluatorResponse{}
+		mockResult.On("Interface").Return([]byte("test bytes"))
+
+		result, err := handler.convertToMCPContent(mockResult)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsError)
+		assert.Len(t, result.Content, 1)
+		assert.Equal(t, "test bytes", result.Content[0].(*mcpsdk.TextContent).Text)
+		mockResult.AssertExpectations(t)
+	})
+
+	t.Run("other type value", func(t *testing.T) {
+		mockResult := &evalMocks.EvaluatorResponse{}
+		mockResult.On("Interface").Return(42)
+
+		result, err := handler.convertToMCPContent(mockResult)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsError)
+		assert.Len(t, result.Content, 1)
+		assert.Equal(t, "42", result.Content[0].(*mcpsdk.TextContent).Text)
+		mockResult.AssertExpectations(t)
+	})
+}
+
+type mockDataProvider struct {
+	mock.Mock
+}
+
+func (m *mockDataProvider) GetData(ctx context.Context) (map[string]any, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(map[string]any), args.Error(1)
+}
+
+func (m *mockDataProvider) AddDataToContext(ctx context.Context, d ...map[string]any) (context.Context, error) {
+	args := m.Called(ctx, d)
+	return args.Get(0).(context.Context), args.Error(1)
+}
+
+type mockScriptEvaluator struct {
+	mock.Mock
+}
+
+func (m *mockScriptEvaluator) Type() evaluators.EvaluatorType {
+	args := m.Called()
+	return args.Get(0).(evaluators.EvaluatorType)
+}
+
+func (m *mockScriptEvaluator) Validate() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockScriptEvaluator) GetCompiledEvaluator() (platform.Evaluator, error) {
+	args := m.Called()
+	return args.Get(0).(platform.Evaluator), args.Error(1)
+}
+
+func (m *mockScriptEvaluator) GetTimeout() time.Duration {
+	args := m.Called()
+	return args.Get(0).(time.Duration)
+}
+
+func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
+	t.Parallel()
+
+	t.Run("extism evaluator", func(t *testing.T) {
+		mockEval := &mockScriptEvaluator{}
+		mockEval.On("Type").Return(evaluators.EvaluatorTypeExtism)
+
+		handler := &ScriptToolHandler{
+			Evaluator: mockEval,
+		}
+
+		provider := &mockDataProvider{}
+		provider.On("GetData", mock.Anything).Return(map[string]any{
+			"config": "test",
+		}, nil)
+
+		arguments := map[string]any{
+			"input": "value",
+		}
+
+		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
+		assert.NoError(t, err)
+		assert.Equal(t, "test", result["config"])
+		assert.Equal(t, arguments, result["args"])
+
+		mockEval.AssertExpectations(t)
+		provider.AssertExpectations(t)
+	})
+
+	t.Run("risor evaluator", func(t *testing.T) {
+		mockEval := &mockScriptEvaluator{}
+		mockEval.On("Type").Return(evaluators.EvaluatorTypeRisor)
+
+		handler := &ScriptToolHandler{
+			Evaluator: mockEval,
+		}
+
+		provider := &mockDataProvider{}
+		provider.On("GetData", mock.Anything).Return(map[string]any{
+			"config": "test",
+		}, nil)
+
+		arguments := map[string]any{
+			"input": "value",
+		}
+
+		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
+		assert.NoError(t, err)
+		assert.Equal(t, "test", result["config"])
+		assert.Equal(t, arguments, result["args"])
+
+		mockEval.AssertExpectations(t)
+		provider.AssertExpectations(t)
+	})
+
+	t.Run("provider error", func(t *testing.T) {
+		mockEval := &mockScriptEvaluator{}
+		// Type() is not called when GetData fails early
+
+		handler := &ScriptToolHandler{
+			Evaluator: mockEval,
+		}
+
+		provider := &mockDataProvider{}
+		provider.On("GetData", mock.Anything).Return(map[string]any(nil), assert.AnError)
+
+		result, err := handler.prepareScriptContext(t.Context(), provider, nil)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to get tool static data")
+
+		mockEval.AssertExpectations(t)
+		provider.AssertExpectations(t)
+	})
+}
+
+func TestScriptToolHandler_executeScriptTool(t *testing.T) {
+	t.Run("successful execution with risor", func(t *testing.T) {
+		handler := &ScriptToolHandler{
+			Evaluator: &evaluators.RisorEvaluator{
+				Code: `func process() {
+					args := ctx.get("args", {})
+					input := args.get("input", "")
+					return {"result": "success", "input": input}
+				}
+				process()`,
+				Timeout: 5 * time.Second,
+			},
+		}
+
+		provider := &mockDataProvider{}
+		provider.On("GetData", mock.Anything).Return(map[string]any{
+			"config": "test",
+		}, nil)
+
+		arguments := map[string]any{
+			"input": "test value",
+		}
+
+		eval, err := handler.Evaluator.GetCompiledEvaluator()
+		assert.NoError(t, err)
+
+		result, err := handler.executeScriptTool(t.Context(), eval, provider, arguments)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.IsError)
+		assert.Len(t, result.Content, 1)
+
+		provider.AssertExpectations(t)
+	})
+
+	t.Run("script execution timeout", func(t *testing.T) {
+		handler := &ScriptToolHandler{
+			Evaluator: &evaluators.RisorEvaluator{
+				Code: `func process() {
+					// Simulate long-running operation
+					for i := 0; i < 1000000; i++ {
+						// Busy wait to consume time
+					}
+					return "should timeout"
+				}
+				process()`,
+				Timeout: 1 * time.Millisecond, // Very short timeout
+			},
+		}
+
+		provider := &mockDataProvider{}
+		provider.On("GetData", mock.Anything).Return(map[string]any{}, nil)
+
+		eval, err := handler.Evaluator.GetCompiledEvaluator()
+		assert.NoError(t, err)
+
+		result, err := handler.executeScriptTool(t.Context(), eval, provider, map[string]any{})
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "timeout")
+
+		provider.AssertExpectations(t)
+	})
+
+	t.Run("script compilation error", func(t *testing.T) {
+		handler := &ScriptToolHandler{
+			Evaluator: &evaluators.RisorEvaluator{
+				Code:    `undefined_function()`, // This should cause a compilation error
+				Timeout: 5 * time.Second,
+			},
+		}
+
+		eval, err := handler.Evaluator.GetCompiledEvaluator()
+		assert.Error(t, err)
+		assert.Nil(t, eval)
+		assert.Contains(t, err.Error(), "undefined variable \"undefined_function\"")
+	})
+
+	t.Run("static data provider error", func(t *testing.T) {
+		handler := &ScriptToolHandler{
+			Evaluator: &evaluators.RisorEvaluator{
+				Code: `func process() {
+					return {"result": "success"}
+				}
+				process()`,
+				Timeout: 5 * time.Second,
+			},
+		}
+
+		provider := &mockDataProvider{}
+		provider.On("GetData", mock.Anything).Return(map[string]any(nil), assert.AnError)
+
+		eval, err := handler.Evaluator.GetCompiledEvaluator()
+		assert.NoError(t, err)
+
+		result, err := handler.executeScriptTool(t.Context(), eval, provider, map[string]any{})
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "failed to prepare script context")
+
+		provider.AssertExpectations(t)
 	})
 }
