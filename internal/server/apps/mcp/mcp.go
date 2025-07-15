@@ -29,11 +29,6 @@ func New(id string, config *mcpconfig.App) (*App, error) {
 		return server
 	}, nil)
 
-	// SSE support not yet implemented
-	if config.Transport != nil && config.Transport.SSEEnabled {
-		panic("SSE transport is not yet implemented for MCP apps")
-	}
-
 	return &App{
 		id:      id,
 		config:  config,

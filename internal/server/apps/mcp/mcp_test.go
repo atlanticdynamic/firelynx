@@ -48,8 +48,8 @@ func TestNew(t *testing.T) {
 		assert.Contains(t, err.Error(), "MCP server not compiled during validation")
 	})
 
-	t.Run("SSE enabled should panic", func(t *testing.T) {
-		// Create valid config with SSE enabled
+	t.Run("SSE enabled should fail validation", func(t *testing.T) {
+		// Create config with SSE enabled
 		config := &mcpconfig.App{
 			ServerName:    "Test Server",
 			ServerVersion: "1.0.0",
@@ -63,13 +63,10 @@ func TestNew(t *testing.T) {
 			Middlewares: []*mcpconfig.Middleware{},
 		}
 
+		// SSE enabled should fail validation
 		err := config.Validate()
-		require.NoError(t, err)
-
-		// SSE enabled should panic
-		assert.Panics(t, func() {
-			New("test-app", config) //nolint:errcheck // Expected to panic
-		}, "SSE enabled should cause panic")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 }
 

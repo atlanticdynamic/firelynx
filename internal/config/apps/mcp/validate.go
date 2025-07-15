@@ -99,6 +99,11 @@ func (t *Transport) Validate() error {
 		return fmt.Errorf("transport interpolation failed: %w", err)
 	}
 
+	// If SSE is enabled, reject configuration until implemented
+	if t.SSEEnabled {
+		return fmt.Errorf("SSE transport is not yet implemented for MCP apps")
+	}
+
 	// If SSE is enabled, a path must be provided
 	if t.SSEEnabled && t.SSEPath == "" {
 		return ErrMissingSSEPath

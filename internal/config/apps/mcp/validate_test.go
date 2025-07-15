@@ -209,17 +209,18 @@ func TestTransport_Validate(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("valid transport with SSE enabled", func(t *testing.T) {
+	t.Run("SSE enabled should fail validation", func(t *testing.T) {
 		transport := &Transport{
 			SSEEnabled: true,
 			SSEPath:    "/events",
 		}
 
 		err := transport.Validate()
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 
-	t.Run("SSE enabled but missing path", func(t *testing.T) {
+	t.Run("SSE enabled but missing path should fail validation", func(t *testing.T) {
 		transport := &Transport{
 			SSEEnabled: true,
 			SSEPath:    "",
@@ -227,7 +228,7 @@ func TestTransport_Validate(t *testing.T) {
 
 		err := transport.Validate()
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingSSEPath)
+		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 }
 

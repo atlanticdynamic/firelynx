@@ -572,7 +572,7 @@ func TestCreateMCPApp_EdgeCases(t *testing.T) {
 		assert.Equal(t, longID, app.String())
 	})
 
-	t.Run("panics with SSE enabled", func(t *testing.T) {
+	t.Run("fails validation with SSE enabled", func(t *testing.T) {
 		config := &configMCP.App{
 			ServerName:    "SSE Test Server",
 			ServerVersion: "1.0.0",
@@ -586,13 +586,9 @@ func TestCreateMCPApp_EdgeCases(t *testing.T) {
 			Middlewares: []*configMCP.Middleware{},
 		}
 
-		// Validate the config first
+		// SSE enabled should fail validation
 		err := config.Validate()
-		require.NoError(t, err)
-
-		// Should panic when SSE is enabled
-		assert.Panics(t, func() {
-			createMCPApp("sse-test", config) //nolint:errcheck // Expected to panic
-		})
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 }
