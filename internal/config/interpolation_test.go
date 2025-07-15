@@ -1,4 +1,4 @@
-package interpolation_test
+package config
 
 import (
 	"os"
@@ -12,24 +12,21 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestEndToEndInterpolation(t *testing.T) {
-	ctx := t.Context()
-	_ = ctx
-	t.Helper()
-
 	// Set up test environment variables
 	require.NoError(t, os.Setenv("TEST_HOST", "api.example.com"))
 	require.NoError(t, os.Setenv("TEST_PORT", "9090"))
 	require.NoError(t, os.Setenv("APP_VERSION", "v1.2.3"))
 	require.NoError(t, os.Setenv("API_PREFIX", "/api/v1"))
-	defer func() {
+	t.Cleanup(func() {
 		require.NoError(t, os.Unsetenv("TEST_HOST"))
 		require.NoError(t, os.Unsetenv("TEST_PORT"))
 		require.NoError(t, os.Unsetenv("APP_VERSION"))
 		require.NoError(t, os.Unsetenv("API_PREFIX"))
-	}()
+	})
 
 	t.Run("listener address interpolation", func(t *testing.T) {
 		// Create listener with interpolated address
@@ -109,7 +106,7 @@ func TestEndToEndInterpolation(t *testing.T) {
 		route := &pb.Route{
 			Rule: &pb.Route_Http{
 				Http: &pb.HttpRule{
-					PathPrefix: stringPtr("${API_PREFIX}/users"),
+					PathPrefix: proto.String("${API_PREFIX}/users"),
 				},
 			},
 		}
@@ -216,15 +213,11 @@ func TestEndToEndInterpolation(t *testing.T) {
 }
 
 func TestFieldRulesCompliance(t *testing.T) {
-	ctx := t.Context()
-	_ = ctx
-	t.Helper()
-
 	// Set up test environment variable
 	require.NoError(t, os.Setenv("TEST_VALUE", "interpolated"))
-	defer func() {
+	t.Cleanup(func() {
 		require.NoError(t, os.Unsetenv("TEST_VALUE"))
-	}()
+	})
 
 	t.Run("ID fields are never interpolated", func(t *testing.T) {
 		listener := &listeners.Listener{
@@ -260,7 +253,7 @@ func TestFieldRulesCompliance(t *testing.T) {
 		route := &pb.Route{
 			Rule: &pb.Route_Http{
 				Http: &pb.HttpRule{
-					PathPrefix: stringPtr("/api/${TEST_VALUE}"),
+					PathPrefix: proto.String("/api/${TEST_VALUE}"),
 				},
 			},
 		}
@@ -297,24 +290,20 @@ func TestFieldRulesCompliance(t *testing.T) {
 }
 
 func TestProtobufRoundTripWithInterpolation(t *testing.T) {
-	ctx := t.Context()
-	_ = ctx
-	t.Helper()
-
 	// Set up test environment variables
 	require.NoError(t, os.Setenv("SERVER_PORT", "3000"))
 	require.NoError(t, os.Setenv("APP_NAME", "TestApp"))
-	defer func() {
+	t.Cleanup(func() {
 		require.NoError(t, os.Unsetenv("SERVER_PORT"))
 		require.NoError(t, os.Unsetenv("APP_NAME"))
-	}()
+	})
 
 	t.Run("route condition protobuf integration", func(t *testing.T) {
 		// Test that route conditions properly interpolate when created from protobuf
 		route := &pb.Route{
 			Rule: &pb.Route_Http{
 				Http: &pb.HttpRule{
-					PathPrefix: stringPtr("/apps/${APP_NAME}"),
+					PathPrefix: proto.String("/apps/${APP_NAME}"),
 				},
 			},
 		}
@@ -332,9 +321,4 @@ func TestProtobufRoundTripWithInterpolation(t *testing.T) {
 			"FromProto should not interpolate - tag-based system requires explicit validation",
 		)
 	})
-}
-
-// Helper function to create string pointers for protobuf
-func stringPtr(s string) *string {
-	return &s
 }
