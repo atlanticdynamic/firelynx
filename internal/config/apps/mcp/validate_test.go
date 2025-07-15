@@ -918,9 +918,8 @@ func (m *mockScriptEvaluator) GetTimeout() time.Duration {
 func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 	t.Parallel()
 
-	t.Run("extism evaluator", func(t *testing.T) {
+	t.Run("with static data", func(t *testing.T) {
 		mockEval := &mockScriptEvaluator{}
-		mockEval.On("Type").Return(evaluators.EvaluatorTypeExtism)
 
 		handler := &ScriptToolHandler{
 			Evaluator: mockEval,
@@ -944,18 +943,15 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 		provider.AssertExpectations(t)
 	})
 
-	t.Run("risor evaluator", func(t *testing.T) {
+	t.Run("empty static data", func(t *testing.T) {
 		mockEval := &mockScriptEvaluator{}
-		mockEval.On("Type").Return(evaluators.EvaluatorTypeRisor)
 
 		handler := &ScriptToolHandler{
 			Evaluator: mockEval,
 		}
 
 		provider := &mockDataProvider{}
-		provider.On("GetData", mock.Anything).Return(map[string]any{
-			"config": "test",
-		}, nil)
+		provider.On("GetData", mock.Anything).Return(map[string]any{}, nil)
 
 		arguments := map[string]any{
 			"input": "value",
@@ -963,7 +959,6 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 
 		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
 		assert.NoError(t, err)
-		assert.Equal(t, "test", result["config"])
 		assert.Equal(t, arguments, result["args"])
 
 		mockEval.AssertExpectations(t)
@@ -972,7 +967,6 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 
 	t.Run("provider error", func(t *testing.T) {
 		mockEval := &mockScriptEvaluator{}
-		// Type() is not called when GetData fails early
 
 		handler := &ScriptToolHandler{
 			Evaluator: mockEval,

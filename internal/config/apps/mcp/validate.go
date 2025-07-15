@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 	mcpsdk_jsonschema "github.com/modelcontextprotocol/go-sdk/jsonschema"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -365,7 +364,7 @@ func (s *ScriptToolHandler) executeScriptTool(
 	return s.convertToMCPContent(result)
 }
 
-// prepareScriptContext prepares the script execution context following script app patterns.
+// prepareScriptContext prepares the script execution context for MCP tools.
 func (s *ScriptToolHandler) prepareScriptContext(
 	ctx context.Context,
 	staticProvider data.Provider,
@@ -377,27 +376,11 @@ func (s *ScriptToolHandler) prepareScriptContext(
 		return nil, fmt.Errorf("failed to get tool static data: %w", err)
 	}
 
-	// For MCP tools, we structure data based on evaluator type
-	// following the script app pattern from script.go:148-170
-	switch s.Evaluator.Type() {
-	case evaluators.EvaluatorTypeExtism:
-		// For WASM modules, prepare structured data
-		scriptData := maps.Clone(toolStaticData)
-		scriptData["args"] = arguments
-		return scriptData, nil
-
-	case evaluators.EvaluatorTypeRisor, evaluators.EvaluatorTypeStarlark:
-		// Risor/Starlark scripts expect flattened data accessible via ctx.get()
-		scriptData := maps.Clone(toolStaticData)
-		scriptData["args"] = arguments
-		return scriptData, nil
-
-	default:
-		// Default to Risor/Starlark behavior for unknown types
-		scriptData := maps.Clone(toolStaticData)
-		scriptData["args"] = arguments
-		return scriptData, nil
-	}
+	// Clone static data and add tool arguments
+	// Both Extism and Risor/Starlark can handle this flat structure
+	scriptData := maps.Clone(toolStaticData)
+	scriptData["args"] = arguments
+	return scriptData, nil
 }
 
 // convertToMCPContent converts script execution results to MCP content format.
