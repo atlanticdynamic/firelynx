@@ -18,12 +18,6 @@ import (
 //go:embed mcp-multi-language-toolkit.toml
 var multiLanguageToolkitConfig []byte
 
-//go:embed mcp-risor-calculator.toml
-var risorCalculatorConfig []byte
-
-//go:embed mcp-starlark-data-processor.toml
-var starlarkDataProcessorConfig []byte
-
 // TestConfigValidation tests that all example configs load and validate correctly
 func TestConfigValidation(t *testing.T) {
 	tempDir := t.TempDir()
@@ -37,16 +31,6 @@ func TestConfigValidation(t *testing.T) {
 			name:       "mcp-multi-language-toolkit.toml",
 			configData: multiLanguageToolkitConfig,
 			fileName:   "mcp-multi-language-toolkit.toml",
-		},
-		{
-			name:       "mcp-risor-calculator.toml",
-			configData: risorCalculatorConfig,
-			fileName:   "mcp-risor-calculator.toml",
-		},
-		{
-			name:       "mcp-starlark-data-processor.toml",
-			configData: starlarkDataProcessorConfig,
-			fileName:   "mcp-starlark-data-processor.toml",
 		},
 	}
 
@@ -97,20 +81,6 @@ func TestListToolsFromConfig(t *testing.T) {
 			fileName:      "mcp-multi-language-toolkit.toml",
 			description:   "Multi-language toolkit using Risor and Starlark",
 			expectedTools: []string{"unit_converter", "validate_schema"},
-		},
-		{
-			name:          "RisorCalculator",
-			configData:    risorCalculatorConfig,
-			fileName:      "mcp-risor-calculator.toml",
-			description:   "Mathematical calculator using Risor",
-			expectedTools: []string{"calculate"},
-		},
-		{
-			name:          "StarlarkDataProcessor",
-			configData:    starlarkDataProcessorConfig,
-			fileName:      "mcp-starlark-data-processor.toml",
-			description:   "JSON data processing using Starlark",
-			expectedTools: []string{"analyze_json", "transform_data"},
 		},
 	}
 
