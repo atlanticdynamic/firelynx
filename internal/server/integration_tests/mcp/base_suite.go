@@ -8,7 +8,6 @@ import (
 	"text/template"
 	"time"
 
-	mcp_client "github.com/atlanticdynamic/firelynx/internal/client/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
@@ -17,6 +16,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/orchestrator"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -29,8 +29,8 @@ type MCPIntegrationTestSuite struct {
 	httpRunner  *httplistener.Runner
 	saga        *orchestrator.SagaOrchestrator
 	runnerErrCh chan error
-	mcpClient   mcp_client.Client
-	mcpSession  mcp_client.Session
+	mcpClient   *mcpsdk.Client
+	mcpSession  *mcpsdk.ClientSession
 }
 
 // SetupSuiteWithConfig sets up the test suite with a given configuration
@@ -109,10 +109,10 @@ func (s *MCPIntegrationTestSuite) establishMCPConnection() {
 	s.Require().Eventually(func() bool {
 		// Try to connect with MCP client to verify server is ready
 		mcpURL := fmt.Sprintf("http://127.0.0.1:%d/mcp", s.port)
-		transport := mcp_client.NewStreamableTransport(mcpURL, nil)
+		transport := mcpsdk.NewStreamableClientTransport(mcpURL, &mcpsdk.StreamableClientTransportOptions{})
 
 		// Create temporary client to test connectivity
-		tempClient := mcp_client.NewClient(&mcp_client.Implementation{Name: "test-client", Version: "1.0.0"})
+		tempClient := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
 		session, err := tempClient.Connect(s.ctx, transport)
 		if err != nil {
 			return false
@@ -123,8 +123,8 @@ func (s *MCPIntegrationTestSuite) establishMCPConnection() {
 
 	// Create the MCP client for tests
 	mcpURL := fmt.Sprintf("http://127.0.0.1:%d/mcp", s.port)
-	transport := mcp_client.NewStreamableTransport(mcpURL, nil)
-	s.mcpClient = mcp_client.NewClient(&mcp_client.Implementation{Name: "integration-test-client", Version: "1.0.0"})
+	transport := mcpsdk.NewStreamableClientTransport(mcpURL, &mcpsdk.StreamableClientTransportOptions{})
+	s.mcpClient = mcpsdk.NewClient(&mcpsdk.Implementation{Name: "integration-test-client", Version: "1.0.0"}, nil)
 
 	// Establish the MCP session
 	var err error
@@ -209,7 +209,7 @@ func (s *MCPIntegrationTestSuite) updateConfigPort(cfg *config.Config) {
 }
 
 // GetMCPSession returns the MCP session for tests to use
-func (s *MCPIntegrationTestSuite) GetMCPSession() mcp_client.Session {
+func (s *MCPIntegrationTestSuite) GetMCPSession() *mcpsdk.ClientSession {
 	return s.mcpSession
 }
 

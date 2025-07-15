@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	mcp_client "github.com/atlanticdynamic/firelynx/internal/client/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	mcp_int_test "github.com/atlanticdynamic/firelynx/internal/server/integration_tests/mcp"
+	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -100,7 +100,7 @@ func TestListToolsFromConfig(t *testing.T) {
 			})
 
 			// Test listing tools
-			result, err := testSuite.GetMCPSession().ListTools(testSuite.GetContext(), &mcp_client.ListToolsParams{})
+			result, err := testSuite.GetMCPSession().ListTools(testSuite.GetContext(), &mcpsdk.ListToolsParams{})
 			testSuite.Require().NoError(err)
 			testSuite.Require().NotNil(result)
 			testSuite.Require().NotEmpty(result.Tools)
@@ -288,7 +288,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := testSuite.GetMCPSession().CallTool(testSuite.GetContext(), &mcp_client.CallToolParams{
+			result, err := testSuite.GetMCPSession().CallTool(testSuite.GetContext(), &mcpsdk.CallToolParams{
 				Name:      "unit_converter",
 				Arguments: tc.args,
 			})
@@ -297,7 +297,7 @@ func TestUnitConverterIntegration(t *testing.T) {
 			testSuite.Require().NotNil(result)
 			testSuite.Require().NotEmpty(result.Content)
 
-			content, ok := result.Content[0].(*mcp_client.TextContent)
+			content, ok := result.Content[0].(*mcpsdk.TextContent)
 			testSuite.Require().True(ok)
 			testSuite.Require().NotEmpty(content.Text)
 
@@ -398,7 +398,7 @@ func TestValidateSchemaIntegration(t *testing.T) {
 	}
 
 	// First verify the tool exists
-	listResult, err := testSuite.GetMCPSession().ListTools(testSuite.GetContext(), &mcp_client.ListToolsParams{})
+	listResult, err := testSuite.GetMCPSession().ListTools(testSuite.GetContext(), &mcpsdk.ListToolsParams{})
 	testSuite.Require().NoError(err)
 	testSuite.Require().NotNil(listResult)
 
@@ -416,7 +416,7 @@ func TestValidateSchemaIntegration(t *testing.T) {
 	for _, tc := range testCases {
 		t.Logf("Running test case: %s", tc.name)
 
-		result, err := testSuite.GetMCPSession().CallTool(testSuite.GetContext(), &mcp_client.CallToolParams{
+		result, err := testSuite.GetMCPSession().CallTool(testSuite.GetContext(), &mcpsdk.CallToolParams{
 			Name:      "validate_schema",
 			Arguments: tc.args,
 		})
@@ -425,7 +425,7 @@ func TestValidateSchemaIntegration(t *testing.T) {
 		testSuite.Require().NotNil(result)
 		testSuite.Require().NotEmpty(result.Content)
 
-		content, ok := result.Content[0].(*mcp_client.TextContent)
+		content, ok := result.Content[0].(*mcpsdk.TextContent)
 		testSuite.Require().True(ok)
 		testSuite.Require().NotEmpty(content.Text)
 

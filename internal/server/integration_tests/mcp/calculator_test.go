@@ -13,7 +13,6 @@ import (
 	"text/template"
 	"time"
 
-	mcp_client "github.com/atlanticdynamic/firelynx/internal/client/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	mcpapp "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
@@ -45,8 +44,8 @@ type MCPScriptToolsIntegrationTestSuite struct {
 	httpRunner  *httplistener.Runner
 	saga        *orchestrator.SagaOrchestrator
 	runnerErrCh chan error
-	mcpClient   mcp_client.Client
-	mcpSession  mcp_client.Session
+	mcpClient   *mcpsdk.Client
+	mcpSession  *mcpsdk.ClientSession
 }
 
 func (s *MCPScriptToolsIntegrationTestSuite) SetupSuite() {
@@ -135,10 +134,10 @@ func (s *MCPScriptToolsIntegrationTestSuite) SetupSuite() {
 	s.Require().Eventually(func() bool {
 		// Try to connect with MCP client to verify server is ready
 		mcpURL := fmt.Sprintf("http://127.0.0.1:%d/mcp", s.port)
-		transport := mcp_client.NewStreamableTransport(mcpURL, nil)
+		transport := mcpsdk.NewStreamableClientTransport(mcpURL, &mcpsdk.StreamableClientTransportOptions{})
 
 		// Create temporary client to test connectivity
-		tempClient := mcp_client.NewClient(&mcp_client.Implementation{Name: "test-client", Version: "1.0.0"})
+		tempClient := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
 		session, err := tempClient.Connect(s.ctx, transport)
 		if err != nil {
 			return false
@@ -149,8 +148,8 @@ func (s *MCPScriptToolsIntegrationTestSuite) SetupSuite() {
 
 	// Create the MCP client for tests
 	mcpURL := fmt.Sprintf("http://127.0.0.1:%d/mcp", s.port)
-	transport := mcp_client.NewStreamableTransport(mcpURL, nil)
-	s.mcpClient = mcp_client.NewClient(&mcp_client.Implementation{Name: "script-test-client", Version: "1.0.0"})
+	transport := mcpsdk.NewStreamableClientTransport(mcpURL, &mcpsdk.StreamableClientTransportOptions{})
+	s.mcpClient = mcpsdk.NewClient(&mcpsdk.Implementation{Name: "script-test-client", Version: "1.0.0"}, nil)
 
 	// Establish the MCP session
 	s.mcpSession, err = s.mcpClient.Connect(s.ctx, transport)
@@ -181,7 +180,7 @@ func (s *MCPScriptToolsIntegrationTestSuite) TearDownSuite() {
 
 func (s *MCPScriptToolsIntegrationTestSuite) TestCalculatorTool() {
 	// Test script-based calculator tool
-	result, err := s.mcpSession.CallTool(s.ctx, &mcp_client.CallToolParams{
+	result, err := s.mcpSession.CallTool(s.ctx, &mcpsdk.CallToolParams{
 		Name: "calculator",
 		Arguments: map[string]any{
 			"expression": "2 + 2",
@@ -196,7 +195,7 @@ func (s *MCPScriptToolsIntegrationTestSuite) TestCalculatorTool() {
 	s.Require().Len(result.Content, 1, "Calculator tool should return exactly one content item")
 
 	// Check that it's text content with actual calculation result
-	textContent, ok := result.Content[0].(*mcp_client.TextContent)
+	textContent, ok := result.Content[0].(*mcpsdk.TextContent)
 	s.Require().True(ok, "Calculator tool should return text content")
 	s.Contains(textContent.Text, "Result: 4", "Calculator tool should return actual calculated result")
 
@@ -205,7 +204,7 @@ func (s *MCPScriptToolsIntegrationTestSuite) TestCalculatorTool() {
 
 func (s *MCPScriptToolsIntegrationTestSuite) TestCalculatorToolError() {
 	// Test script-based calculator tool with error case
-	result, err := s.mcpSession.CallTool(s.ctx, &mcp_client.CallToolParams{
+	result, err := s.mcpSession.CallTool(s.ctx, &mcpsdk.CallToolParams{
 		Name: "calculator",
 		Arguments: map[string]any{
 			"expression": "5 / 0",
@@ -220,14 +219,14 @@ func (s *MCPScriptToolsIntegrationTestSuite) TestCalculatorToolError() {
 	s.Require().NotEmpty(result.Content, "Error result should have content")
 
 	// Verify error message is accessible to LLM
-	textContent, ok := result.Content[0].(*mcp_client.TextContent)
+	textContent, ok := result.Content[0].(*mcpsdk.TextContent)
 	s.Require().True(ok, "Error content should be text")
 	s.Contains(textContent.Text, "Division by zero", "Error message should be visible to LLM")
 }
 
 func (s *MCPScriptToolsIntegrationTestSuite) TestListScriptTools() {
 	// Test that we can list script tools
-	result, err := s.mcpSession.ListTools(s.ctx, &mcp_client.ListToolsParams{})
+	result, err := s.mcpSession.ListTools(s.ctx, &mcpsdk.ListToolsParams{})
 	s.Require().NoError(err, "ListTools should succeed")
 	s.Require().NotNil(result, "ListTools should return result")
 	s.Require().NotEmpty(result.Tools, "Should have tools available")
