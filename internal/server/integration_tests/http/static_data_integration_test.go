@@ -136,7 +136,7 @@ func (s *StaticDataIntegrationSuite) TearDownSuite() {
 	}
 	if s.httpRunner != nil {
 		// Wait for runner to stop
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 		defer cancel()
 		select {
 		case err := <-s.runnerErrCh:
