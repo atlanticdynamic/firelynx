@@ -482,7 +482,7 @@ func TestCreateMCPApp(t *testing.T) {
 				// Not calling Validate() - should fail with no compiled server
 			},
 			wantError: true,
-			errorMsg:  "MCP server not compiled during validation",
+			errorMsg:  "", // Will use ErrorIs check instead
 		},
 	}
 
@@ -490,7 +490,7 @@ func TestCreateMCPApp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// For MCP configs, call Validate() to compile the MCP server
 			// Exception: skip validation for the "unvalidated" test case
-			if tt.config != nil && !tt.wantError || (tt.wantError && tt.errorMsg != "MCP server not compiled during validation") {
+			if tt.config != nil && !tt.wantError || (tt.wantError && tt.name != "fails with unvalidated config") {
 				if mcpConfig, ok := tt.config.(*configMCP.App); ok {
 					err := mcpConfig.Validate()
 					if !tt.wantError {
@@ -507,7 +507,9 @@ func TestCreateMCPApp(t *testing.T) {
 
 			if tt.wantError {
 				require.Error(t, err)
-				if tt.errorMsg != "" {
+				if tt.name == "fails with unvalidated config" {
+					require.ErrorIs(t, err, mcp.ErrServerNotCompiled)
+				} else if tt.errorMsg != "" {
 					assert.Contains(t, err.Error(), tt.errorMsg)
 				}
 				assert.Nil(t, app)

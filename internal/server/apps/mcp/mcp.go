@@ -21,7 +21,7 @@ func New(id string, config *mcpconfig.App) (*App, error) {
 	// Get the pre-compiled MCP server from the domain config
 	server := config.GetCompiledServer()
 	if server == nil {
-		return nil, fmt.Errorf("MCP server not compiled during validation")
+		return nil, fmt.Errorf("%w for app %s", ErrServerNotCompiled, id)
 	}
 
 	// Create HTTP handler using MCP SDK
@@ -51,8 +51,5 @@ func (a *App) HandleHTTP(
 	// The MCP SDK handler manages all MCP protocol concerns
 	// We simply delegate the request to it
 	a.handler.ServeHTTP(w, r)
-
-	// MCP SDK handlers typically don't return errors through ServeHTTP
-	// They handle errors internally and return appropriate HTTP responses
 	return nil
 }

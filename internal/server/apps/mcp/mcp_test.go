@@ -45,7 +45,7 @@ func TestNew(t *testing.T) {
 		app, err := New("test-app", config)
 		assert.Error(t, err)
 		assert.Nil(t, app)
-		assert.Contains(t, err.Error(), "MCP server not compiled during validation")
+		require.ErrorIs(t, err, ErrServerNotCompiled)
 	})
 
 	t.Run("SSE enabled should fail validation", func(t *testing.T) {
