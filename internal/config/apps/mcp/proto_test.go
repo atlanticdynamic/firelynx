@@ -5,6 +5,7 @@ import (
 
 	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
+	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -104,6 +105,46 @@ func TestFromProto(t *testing.T) {
 		assert.Equal(t, MiddlewareRateLimiting, app.Middlewares[0].Type)
 		assert.Equal(t, "100", app.Middlewares[0].Config["rate"])
 	})
+
+	t.Run("proto with resources", func(t *testing.T) {
+		proto := &pbApps.McpApp{
+			ServerName:    stringPtr("Test Server"),
+			ServerVersion: stringPtr("1.0.0"),
+			Resources: []*pbApps.McpResource{
+				{
+					Uri:         stringPtr("test://resource"),
+					Name:        stringPtr("Test Resource"),
+					Description: stringPtr("A test resource"),
+					MimeType:    stringPtr("text/plain"),
+				},
+			},
+		}
+
+		app, err := FromProto(proto)
+		assert.NoError(t, err)
+		assert.Len(t, app.Resources, 1)
+		assert.Equal(t, "test://resource", app.Resources[0].URI)
+		assert.Equal(t, "Test Resource", app.Resources[0].Name)
+	})
+
+	t.Run("proto with prompts", func(t *testing.T) {
+		proto := &pbApps.McpApp{
+			ServerName:    stringPtr("Test Server"),
+			ServerVersion: stringPtr("1.0.0"),
+			Prompts: []*pbApps.McpPrompt{
+				{
+					Name:        stringPtr("Test Prompt"),
+					Description: stringPtr("A test prompt"),
+				},
+			},
+		}
+
+		app, err := FromProto(proto)
+		assert.NoError(t, err)
+		assert.Len(t, app.Prompts, 1)
+		assert.Equal(t, "Test Prompt", app.Prompts[0].Name)
+		assert.Equal(t, "A test prompt", app.Prompts[0].Description)
+	})
 }
 
 func TestToProto(t *testing.T) {
@@ -184,6 +225,104 @@ func TestToProto(t *testing.T) {
 		builtinHandler := proto.Tools[0].Handler.(*pbApps.McpTool_Builtin)
 		assert.Equal(t, pbApps.McpBuiltinHandler_ECHO, *builtinHandler.Builtin.Type)
 		assert.Equal(t, "value", builtinHandler.Builtin.Config["key"])
+	})
+
+	t.Run("app with script tool", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Tools: []*Tool{
+				{
+					Name:        "script",
+					Description: "Script tool",
+					Handler: &ScriptToolHandler{
+						StaticData: &staticdata.StaticData{
+							Data: map[string]any{
+								"key": "value",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		result := app.ToProto()
+		require.IsType(t, (*pbApps.McpApp)(nil), result)
+		proto := result.(*pbApps.McpApp)
+
+		assert.Len(t, proto.Tools, 1)
+		assert.Equal(t, "script", *proto.Tools[0].Name)
+
+		scriptHandler := proto.Tools[0].Handler.(*pbApps.McpTool_Script)
+		assert.NotNil(t, scriptHandler.Script)
+		assert.NotNil(t, scriptHandler.Script.StaticData)
+	})
+
+	t.Run("app with resources", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Resources: []*Resource{
+				{
+					URI:         "test://resource",
+					Name:        "Test Resource",
+					Description: "A test resource",
+					MIMEType:    "text/plain",
+				},
+			},
+		}
+
+		result := app.ToProto()
+		require.IsType(t, (*pbApps.McpApp)(nil), result)
+		proto := result.(*pbApps.McpApp)
+
+		assert.Len(t, proto.Resources, 1)
+		assert.Equal(t, "test://resource", *proto.Resources[0].Uri)
+		assert.Equal(t, "Test Resource", *proto.Resources[0].Name)
+	})
+
+	t.Run("app with prompts", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Prompts: []*Prompt{
+				{
+					Name:        "Test Prompt",
+					Description: "A test prompt",
+				},
+			},
+		}
+
+		result := app.ToProto()
+		require.IsType(t, (*pbApps.McpApp)(nil), result)
+		proto := result.(*pbApps.McpApp)
+
+		assert.Len(t, proto.Prompts, 1)
+		assert.Equal(t, "Test Prompt", *proto.Prompts[0].Name)
+		assert.Equal(t, "A test prompt", *proto.Prompts[0].Description)
+	})
+
+	t.Run("app with middlewares", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Middlewares: []*Middleware{
+				{
+					Type: MiddlewareRateLimiting,
+					Config: map[string]string{
+						"rate": "100",
+					},
+				},
+			},
+		}
+
+		result := app.ToProto()
+		require.IsType(t, (*pbApps.McpApp)(nil), result)
+		proto := result.(*pbApps.McpApp)
+
+		assert.Len(t, proto.Middlewares, 1)
+		assert.Equal(t, pbApps.McpMiddleware_RATE_LIMITING, *proto.Middlewares[0].Type)
+		assert.Equal(t, "100", proto.Middlewares[0].Config["rate"])
 	})
 }
 
@@ -322,6 +461,45 @@ func TestToolFromProto(t *testing.T) {
 		assert.Equal(t, "empty", tool.Name)
 		assert.Nil(t, tool.Handler)
 	})
+
+	t.Run("tool with all fields", func(t *testing.T) {
+		destructive := true
+		openWorld := false
+		proto := &pbApps.McpTool{
+			Name:         stringPtr("complete"),
+			Description:  stringPtr("Complete tool"),
+			Title:        stringPtr("Complete Tool"),
+			InputSchema:  stringPtr(`{"type": "object"}`),
+			OutputSchema: stringPtr(`{"type": "string"}`),
+			Annotations: &pbApps.McpToolAnnotations{
+				Title:           stringPtr("Annotation Title"),
+				ReadOnlyHint:    boolPtr(true),
+				IdempotentHint:  boolPtr(true),
+				DestructiveHint: &destructive,
+				OpenWorldHint:   &openWorld,
+			},
+			Handler: &pbApps.McpTool_Builtin{
+				Builtin: &pbApps.McpBuiltinHandler{
+					Type: mcpBuiltinTypePtr(pbApps.McpBuiltinHandler_ECHO),
+				},
+			},
+		}
+
+		tool, err := toolFromProto(proto)
+		assert.NoError(t, err)
+		assert.NotNil(t, tool)
+		assert.Equal(t, "complete", tool.Name)
+		assert.Equal(t, "Complete tool", tool.Description)
+		assert.Equal(t, "Complete Tool", tool.Title)
+		assert.Equal(t, `{"type": "object"}`, tool.InputSchema)
+		assert.Equal(t, `{"type": "string"}`, tool.OutputSchema)
+		assert.NotNil(t, tool.Annotations)
+		assert.Equal(t, "Annotation Title", tool.Annotations.Title)
+		assert.True(t, tool.Annotations.ReadOnlyHint)
+		assert.True(t, tool.Annotations.IdempotentHint)
+		assert.Equal(t, &destructive, tool.Annotations.DestructiveHint)
+		assert.Equal(t, &openWorld, tool.Annotations.OpenWorldHint)
+	})
 }
 
 //nolint:dupl // Different function being tested despite similar test structure
@@ -456,6 +634,40 @@ func TestMiddlewareFromProto(t *testing.T) {
 	})
 }
 
+func TestScriptHandlerFromProto(t *testing.T) {
+	t.Run("nil proto", func(t *testing.T) {
+		handler, err := scriptHandlerFromProto(nil)
+		assert.NoError(t, err)
+		assert.Nil(t, handler)
+	})
+
+	t.Run("handler with static data", func(t *testing.T) {
+		proto := &pbApps.McpScriptHandler{
+			StaticData: &pbData.StaticData{
+				Data: map[string]*structpb.Value{
+					"key": structpb.NewStringValue("value"),
+				},
+			},
+		}
+
+		handler, err := scriptHandlerFromProto(proto)
+		assert.NoError(t, err)
+		assert.NotNil(t, handler)
+		assert.NotNil(t, handler.StaticData)
+		assert.Equal(t, "value", handler.StaticData.Data["key"])
+	})
+
+	t.Run("handler without static data", func(t *testing.T) {
+		proto := &pbApps.McpScriptHandler{}
+
+		handler, err := scriptHandlerFromProto(proto)
+		assert.NoError(t, err)
+		assert.NotNil(t, handler)
+		assert.Nil(t, handler.StaticData)
+		assert.Nil(t, handler.Evaluator)
+	})
+}
+
 func TestResourceFromProto(t *testing.T) {
 	t.Run("nil proto", func(t *testing.T) {
 		resource, err := resourceFromProto(nil)
@@ -517,4 +729,228 @@ func mcpBuiltinTypePtr(t pbApps.McpBuiltinHandler_Type) *pbApps.McpBuiltinHandle
 
 func mcpMiddlewareTypePtr(t pbApps.McpMiddleware_Type) *pbApps.McpMiddleware_Type {
 	return &t
+}
+
+func TestScriptHandlerToProto(t *testing.T) {
+	t.Run("nil handler", func(t *testing.T) {
+		var handler *ScriptToolHandler
+		proto := handler.toProto()
+		assert.Nil(t, proto)
+	})
+
+	t.Run("handler with static data", func(t *testing.T) {
+		handler := &ScriptToolHandler{
+			StaticData: &staticdata.StaticData{
+				Data: map[string]any{
+					"key": "value",
+				},
+			},
+		}
+
+		proto := handler.toProto()
+		assert.NotNil(t, proto)
+		assert.NotNil(t, proto.StaticData)
+	})
+
+	t.Run("handler without static data", func(t *testing.T) {
+		handler := &ScriptToolHandler{}
+
+		proto := handler.toProto()
+		assert.NotNil(t, proto)
+		assert.Nil(t, proto.StaticData)
+	})
+}
+
+func TestResourceToProto(t *testing.T) {
+	t.Run("nil resource", func(t *testing.T) {
+		var resource *Resource
+		proto := resource.toProto()
+		assert.Nil(t, proto)
+	})
+
+	t.Run("complete resource", func(t *testing.T) {
+		resource := &Resource{
+			URI:         "test://resource",
+			Name:        "Test Resource",
+			Description: "A test resource",
+			MIMEType:    "text/plain",
+		}
+
+		proto := resource.toProto()
+		assert.NotNil(t, proto)
+		assert.Equal(t, "test://resource", *proto.Uri)
+		assert.Equal(t, "Test Resource", *proto.Name)
+		assert.Equal(t, "A test resource", *proto.Description)
+		assert.Equal(t, "text/plain", *proto.MimeType)
+	})
+
+	t.Run("minimal resource", func(t *testing.T) {
+		resource := &Resource{}
+
+		proto := resource.toProto()
+		assert.NotNil(t, proto)
+		assert.Nil(t, proto.Uri)
+		assert.Nil(t, proto.Name)
+		assert.Nil(t, proto.Description)
+		assert.Nil(t, proto.MimeType)
+	})
+}
+
+func TestPromptToProto(t *testing.T) {
+	t.Run("nil prompt", func(t *testing.T) {
+		var prompt *Prompt
+		proto := prompt.toProto()
+		assert.Nil(t, proto)
+	})
+
+	t.Run("complete prompt", func(t *testing.T) {
+		prompt := &Prompt{
+			Name:        "Test Prompt",
+			Description: "A test prompt",
+		}
+
+		proto := prompt.toProto()
+		assert.NotNil(t, proto)
+		assert.Equal(t, "Test Prompt", *proto.Name)
+		assert.Equal(t, "A test prompt", *proto.Description)
+	})
+
+	t.Run("minimal prompt", func(t *testing.T) {
+		prompt := &Prompt{}
+
+		proto := prompt.toProto()
+		assert.NotNil(t, proto)
+		assert.Nil(t, proto.Name)
+		assert.Nil(t, proto.Description)
+	})
+}
+
+//nolint:dupl // Different function being tested despite similar test structure
+func TestMiddlewareToProto(t *testing.T) {
+	t.Run("nil middleware", func(t *testing.T) {
+		var middleware *Middleware
+		proto := middleware.toProto()
+		assert.Nil(t, proto)
+	})
+
+	t.Run("rate limiting middleware", func(t *testing.T) {
+		middleware := &Middleware{
+			Type: MiddlewareRateLimiting,
+			Config: map[string]string{
+				"rate": "100",
+			},
+		}
+
+		proto := middleware.toProto()
+		assert.NotNil(t, proto)
+		assert.Equal(t, pbApps.McpMiddleware_RATE_LIMITING, *proto.Type)
+		assert.Equal(t, "100", proto.Config["rate"])
+	})
+
+	t.Run("logging middleware", func(t *testing.T) {
+		middleware := &Middleware{
+			Type:   MiddlewareLogging,
+			Config: map[string]string{},
+		}
+
+		proto := middleware.toProto()
+		assert.NotNil(t, proto)
+		assert.Equal(t, pbApps.McpMiddleware_MCP_LOGGING, *proto.Type)
+	})
+
+	t.Run("authentication middleware", func(t *testing.T) {
+		middleware := &Middleware{
+			Type:   MiddlewareAuthentication,
+			Config: map[string]string{},
+		}
+
+		proto := middleware.toProto()
+		assert.NotNil(t, proto)
+		assert.Equal(t, pbApps.McpMiddleware_MCP_AUTHENTICATION, *proto.Type)
+	})
+}
+
+func TestToolAnnotationsFromProto(t *testing.T) {
+	t.Run("nil proto", func(t *testing.T) {
+		annotations, err := toolAnnotationsFromProto(nil)
+		assert.NoError(t, err)
+		assert.Nil(t, annotations)
+	})
+
+	t.Run("complete annotations", func(t *testing.T) {
+		destructive := true
+		openWorld := false
+		proto := &pbApps.McpToolAnnotations{
+			Title:           stringPtr("Test Tool"),
+			ReadOnlyHint:    boolPtr(true),
+			IdempotentHint:  boolPtr(true),
+			DestructiveHint: &destructive,
+			OpenWorldHint:   &openWorld,
+		}
+
+		annotations, err := toolAnnotationsFromProto(proto)
+		assert.NoError(t, err)
+		assert.NotNil(t, annotations)
+		assert.Equal(t, "Test Tool", annotations.Title)
+		assert.True(t, annotations.ReadOnlyHint)
+		assert.True(t, annotations.IdempotentHint)
+		assert.Equal(t, &destructive, annotations.DestructiveHint)
+		assert.Equal(t, &openWorld, annotations.OpenWorldHint)
+	})
+
+	t.Run("minimal annotations", func(t *testing.T) {
+		proto := &pbApps.McpToolAnnotations{}
+
+		annotations, err := toolAnnotationsFromProto(proto)
+		assert.NoError(t, err)
+		assert.NotNil(t, annotations)
+		assert.Empty(t, annotations.Title)
+		assert.False(t, annotations.ReadOnlyHint)
+		assert.False(t, annotations.IdempotentHint)
+		assert.Nil(t, annotations.DestructiveHint)
+		assert.Nil(t, annotations.OpenWorldHint)
+	})
+}
+
+func TestToolAnnotationsToProto(t *testing.T) {
+	t.Run("nil annotations", func(t *testing.T) {
+		var annotations *ToolAnnotations
+		proto := annotations.toProto()
+		assert.Nil(t, proto)
+	})
+
+	t.Run("complete annotations", func(t *testing.T) {
+		destructive := true
+		openWorld := false
+		annotations := &ToolAnnotations{
+			Title:           "Test Tool",
+			ReadOnlyHint:    true,
+			IdempotentHint:  true,
+			DestructiveHint: &destructive,
+			OpenWorldHint:   &openWorld,
+		}
+
+		proto := annotations.toProto()
+		assert.NotNil(t, proto)
+		assert.Equal(t, "Test Tool", *proto.Title)
+		assert.True(t, *proto.ReadOnlyHint)
+		assert.True(t, *proto.IdempotentHint)
+		assert.Equal(t, &destructive, proto.DestructiveHint)
+		assert.Equal(t, &openWorld, proto.OpenWorldHint)
+	})
+
+	t.Run("minimal annotations", func(t *testing.T) {
+		annotations := &ToolAnnotations{
+			ReadOnlyHint:   false,
+			IdempotentHint: false,
+		}
+
+		proto := annotations.toProto()
+		assert.NotNil(t, proto)
+		assert.Nil(t, proto.Title)
+		assert.False(t, *proto.ReadOnlyHint)
+		assert.False(t, *proto.IdempotentHint)
+		assert.Nil(t, proto.DestructiveHint)
+		assert.Nil(t, proto.OpenWorldHint)
+	})
 }
