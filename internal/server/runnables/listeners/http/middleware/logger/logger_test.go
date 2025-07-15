@@ -292,8 +292,8 @@ func TestConsoleLogger_Middleware(t *testing.T) {
 			expectedLevel slog.Level
 		}{
 			{200, slog.LevelInfo},
-			{404, slog.LevelWarn},
-			{500, slog.LevelError},
+			{404, slog.LevelInfo},
+			{500, slog.LevelWarn},
 		}
 
 		for _, tt := range tests {
@@ -764,8 +764,8 @@ func TestConsoleLogger_Log(t *testing.T) {
 			expectedLevel slog.Level
 		}{
 			{200, slog.LevelInfo},
-			{404, slog.LevelWarn},
-			{500, slog.LevelError},
+			{404, slog.LevelInfo},
+			{500, slog.LevelWarn},
 		}
 
 		for _, tt := range tests {

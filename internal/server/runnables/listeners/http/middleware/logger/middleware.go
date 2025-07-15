@@ -199,8 +199,6 @@ func (cl *ConsoleLogger) Log(ctx context.Context, attrs []slog.Attr) {
 		if attr.Key == "status" {
 			if statusCode, ok := attr.Value.Any().(int64); ok {
 				if statusCode >= 500 {
-					level = slog.LevelError
-				} else if statusCode >= 400 {
 					level = slog.LevelWarn
 				}
 			}
