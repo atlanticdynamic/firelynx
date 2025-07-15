@@ -78,12 +78,20 @@
 
 [[listeners]]
 id = "toolkit-listener"
-address = ":8083"
+address = "localhost:8083"
 type = "http"
 
 [[endpoints]]
 id = "toolkit-endpoint"
 listener_id = "toolkit-listener"
+
+# Adding optional logger middleware for this endpoint
+[[endpoints.middlewares]]
+id = "logger"
+type = "console_logger"
+[endpoints.middlewares.console_logger]
+preset = "debug"
+output = "stdout"
 
 [[endpoints.routes]]
 app_id = "multi-toolkit"
