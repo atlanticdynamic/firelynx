@@ -21,7 +21,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// MockApp is a test implementation of the App interface
+type MockApp struct {
+	id string
+}
+
+func (m *MockApp) String() string {
+	return m.id
+}
+
+func (m *MockApp) HandleHTTP(
+	ctx context.Context,
+	w http.ResponseWriter,
+	r *http.Request,
+	data map[string]any,
+) error {
+	return nil
+}
+
+// mockInstantiator is a test instantiator that returns a MockApp
+func mockInstantiator(id string, _ any) (App, error) {
+	return &MockApp{id: id}, nil
+}
+
 func TestCreateEchoApp(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name             string
 		id               string
@@ -82,30 +107,9 @@ func TestCreateEchoApp(t *testing.T) {
 	}
 }
 
-// MockApp is a test implementation of the App interface
-type MockApp struct {
-	id string
-}
-
-func (m *MockApp) String() string {
-	return m.id
-}
-
-func (m *MockApp) HandleHTTP(
-	ctx context.Context,
-	w http.ResponseWriter,
-	r *http.Request,
-	data map[string]any,
-) error {
-	return nil
-}
-
-// mockInstantiator is a test instantiator that returns a MockApp
-func mockInstantiator(id string, _ any) (App, error) {
-	return &MockApp{id: id}, nil
-}
-
 func TestCreateScriptApp(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		id        string
@@ -265,6 +269,8 @@ _ = result`,
 }
 
 func TestCreateScriptApp_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	t.Run("handles empty app ID", func(t *testing.T) {
 		config := &configScripts.AppScript{
 			StaticData: &staticdata.StaticData{
@@ -336,6 +342,8 @@ func TestCreateScriptApp_EdgeCases(t *testing.T) {
 }
 
 func TestCreateScriptApp_LoggerFields(t *testing.T) {
+	t.Parallel()
+
 	t.Run("app receives logger with correct fields", func(t *testing.T) {
 		config := &configScripts.AppScript{
 			StaticData: &staticdata.StaticData{
@@ -364,6 +372,8 @@ func TestCreateScriptApp_LoggerFields(t *testing.T) {
 }
 
 func TestCreateScriptApp_Debug(t *testing.T) {
+	t.Parallel()
+
 	t.Run("debug unvalidated evaluator behavior", func(t *testing.T) {
 		// Create a completely zero-value evaluator
 		evaluator := &evaluators.RisorEvaluator{}
@@ -403,6 +413,8 @@ func TestCreateScriptApp_Debug(t *testing.T) {
 }
 
 func TestCreateMCPApp(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		id        string
@@ -526,6 +538,8 @@ func TestCreateMCPApp(t *testing.T) {
 }
 
 func TestCreateMCPApp_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	t.Run("handles empty app ID", func(t *testing.T) {
 		config := &configMCP.App{
 			ServerName:    "Test Server",
