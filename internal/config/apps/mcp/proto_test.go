@@ -8,10 +8,13 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestFromProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil proto", func(t *testing.T) {
 		app, err := FromProto(nil)
 		assert.NoError(t, err)
@@ -20,8 +23,8 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("minimal valid proto", func(t *testing.T) {
 		proto := &pbApps.McpApp{
-			ServerName:    stringPtr("Test Server"),
-			ServerVersion: stringPtr("1.0.0"),
+			ServerName:    proto.String("Test Server"),
+			ServerVersion: proto.String("1.0.0"),
 		}
 
 		app, err := FromProto(proto)
@@ -38,11 +41,11 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("proto with transport", func(t *testing.T) {
 		proto := &pbApps.McpApp{
-			ServerName:    stringPtr("Test Server"),
-			ServerVersion: stringPtr("1.0.0"),
+			ServerName:    proto.String("Test Server"),
+			ServerVersion: proto.String("1.0.0"),
 			Transport: &pbApps.McpTransport{
-				SseEnabled: boolPtr(true),
-				SsePath:    stringPtr("/events"),
+				SseEnabled: proto.Bool(true),
+				SsePath:    proto.String("/events"),
 			},
 		}
 
@@ -55,12 +58,12 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("proto with builtin tool", func(t *testing.T) {
 		proto := &pbApps.McpApp{
-			ServerName:    stringPtr("Test Server"),
-			ServerVersion: stringPtr("1.0.0"),
+			ServerName:    proto.String("Test Server"),
+			ServerVersion: proto.String("1.0.0"),
 			Tools: []*pbApps.McpTool{
 				{
-					Name:        stringPtr("echo"),
-					Description: stringPtr("Echo tool"),
+					Name:        proto.String("echo"),
+					Description: proto.String("Echo tool"),
 					Handler: &pbApps.McpTool_Builtin{
 						Builtin: &pbApps.McpBuiltinHandler{
 							Type: mcpBuiltinTypePtr(pbApps.McpBuiltinHandler_ECHO),
@@ -87,8 +90,8 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("proto with middleware", func(t *testing.T) {
 		proto := &pbApps.McpApp{
-			ServerName:    stringPtr("Test Server"),
-			ServerVersion: stringPtr("1.0.0"),
+			ServerName:    proto.String("Test Server"),
+			ServerVersion: proto.String("1.0.0"),
 			Middlewares: []*pbApps.McpMiddleware{
 				{
 					Type: mcpMiddlewareTypePtr(pbApps.McpMiddleware_RATE_LIMITING),
@@ -108,14 +111,14 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("proto with resources", func(t *testing.T) {
 		proto := &pbApps.McpApp{
-			ServerName:    stringPtr("Test Server"),
-			ServerVersion: stringPtr("1.0.0"),
+			ServerName:    proto.String("Test Server"),
+			ServerVersion: proto.String("1.0.0"),
 			Resources: []*pbApps.McpResource{
 				{
-					Uri:         stringPtr("test://resource"),
-					Name:        stringPtr("Test Resource"),
-					Description: stringPtr("A test resource"),
-					MimeType:    stringPtr("text/plain"),
+					Uri:         proto.String("test://resource"),
+					Name:        proto.String("Test Resource"),
+					Description: proto.String("A test resource"),
+					MimeType:    proto.String("text/plain"),
 				},
 			},
 		}
@@ -129,12 +132,12 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("proto with prompts", func(t *testing.T) {
 		proto := &pbApps.McpApp{
-			ServerName:    stringPtr("Test Server"),
-			ServerVersion: stringPtr("1.0.0"),
+			ServerName:    proto.String("Test Server"),
+			ServerVersion: proto.String("1.0.0"),
 			Prompts: []*pbApps.McpPrompt{
 				{
-					Name:        stringPtr("Test Prompt"),
-					Description: stringPtr("A test prompt"),
+					Name:        proto.String("Test Prompt"),
+					Description: proto.String("A test prompt"),
 				},
 			},
 		}
@@ -148,6 +151,8 @@ func TestFromProto(t *testing.T) {
 }
 
 func TestToProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil app", func(t *testing.T) {
 		var app *App
 		proto := app.ToProto()
@@ -327,6 +332,8 @@ func TestToProto(t *testing.T) {
 }
 
 func TestTransportFromProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil proto", func(t *testing.T) {
 		transport, err := transportFromProto(nil)
 		assert.NoError(t, err)
@@ -337,8 +344,8 @@ func TestTransportFromProto(t *testing.T) {
 
 	t.Run("SSE enabled", func(t *testing.T) {
 		proto := &pbApps.McpTransport{
-			SseEnabled: boolPtr(true),
-			SsePath:    stringPtr("/events"),
+			SseEnabled: proto.Bool(true),
+			SsePath:    proto.String("/events"),
 		}
 
 		transport, err := transportFromProto(proto)
@@ -349,7 +356,7 @@ func TestTransportFromProto(t *testing.T) {
 
 	t.Run("SSE disabled", func(t *testing.T) {
 		proto := &pbApps.McpTransport{
-			SseEnabled: boolPtr(false),
+			SseEnabled: proto.Bool(false),
 		}
 
 		transport, err := transportFromProto(proto)
@@ -360,6 +367,8 @@ func TestTransportFromProto(t *testing.T) {
 }
 
 func TestTransportToProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil transport", func(t *testing.T) {
 		var transport *Transport
 		proto := transport.toProto()
@@ -391,6 +400,8 @@ func TestTransportToProto(t *testing.T) {
 }
 
 func TestToolFromProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil proto", func(t *testing.T) {
 		tool, err := toolFromProto(nil)
 		assert.NoError(t, err)
@@ -399,8 +410,8 @@ func TestToolFromProto(t *testing.T) {
 
 	t.Run("builtin tool", func(t *testing.T) {
 		proto := &pbApps.McpTool{
-			Name:        stringPtr("echo"),
-			Description: stringPtr("Echo tool"),
+			Name:        proto.String("echo"),
+			Description: proto.String("Echo tool"),
 			Handler: &pbApps.McpTool_Builtin{
 				Builtin: &pbApps.McpBuiltinHandler{
 					Type: mcpBuiltinTypePtr(pbApps.McpBuiltinHandler_ECHO),
@@ -425,8 +436,8 @@ func TestToolFromProto(t *testing.T) {
 
 	t.Run("script tool", func(t *testing.T) {
 		proto := &pbApps.McpTool{
-			Name:        stringPtr("script"),
-			Description: stringPtr("Script tool"),
+			Name:        proto.String("script"),
+			Description: proto.String("Script tool"),
 			Handler: &pbApps.McpTool_Script{
 				Script: &pbApps.McpScriptHandler{
 					StaticData: &pbData.StaticData{
@@ -451,8 +462,8 @@ func TestToolFromProto(t *testing.T) {
 
 	t.Run("no handler", func(t *testing.T) {
 		proto := &pbApps.McpTool{
-			Name:        stringPtr("empty"),
-			Description: stringPtr("Empty tool"),
+			Name:        proto.String("empty"),
+			Description: proto.String("Empty tool"),
 		}
 
 		tool, err := toolFromProto(proto)
@@ -466,15 +477,15 @@ func TestToolFromProto(t *testing.T) {
 		destructive := true
 		openWorld := false
 		proto := &pbApps.McpTool{
-			Name:         stringPtr("complete"),
-			Description:  stringPtr("Complete tool"),
-			Title:        stringPtr("Complete Tool"),
-			InputSchema:  stringPtr(`{"type": "object"}`),
-			OutputSchema: stringPtr(`{"type": "string"}`),
+			Name:         proto.String("complete"),
+			Description:  proto.String("Complete tool"),
+			Title:        proto.String("Complete Tool"),
+			InputSchema:  proto.String(`{"type": "object"}`),
+			OutputSchema: proto.String(`{"type": "string"}`),
 			Annotations: &pbApps.McpToolAnnotations{
-				Title:           stringPtr("Annotation Title"),
-				ReadOnlyHint:    boolPtr(true),
-				IdempotentHint:  boolPtr(true),
+				Title:           proto.String("Annotation Title"),
+				ReadOnlyHint:    proto.Bool(true),
+				IdempotentHint:  proto.Bool(true),
 				DestructiveHint: &destructive,
 				OpenWorldHint:   &openWorld,
 			},
@@ -502,8 +513,10 @@ func TestToolFromProto(t *testing.T) {
 	})
 }
 
-//nolint:dupl // Different function being tested despite similar test structure
+//nolint:dupl
 func TestBuiltinHandlerFromProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil proto", func(t *testing.T) {
 		handler, err := builtinHandlerFromProto(nil)
 		assert.NoError(t, err)
@@ -547,6 +560,8 @@ func TestBuiltinHandlerFromProto(t *testing.T) {
 }
 
 func TestBuiltinHandlerToProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil handler", func(t *testing.T) {
 		var handler *BuiltinToolHandler
 		proto := handler.toProto()
@@ -592,6 +607,8 @@ func TestBuiltinHandlerToProto(t *testing.T) {
 
 //nolint:dupl // Different function being tested despite similar test structure
 func TestMiddlewareFromProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil proto", func(t *testing.T) {
 		middleware, err := middlewareFromProto(nil)
 		assert.NoError(t, err)
@@ -635,6 +652,8 @@ func TestMiddlewareFromProto(t *testing.T) {
 }
 
 func TestScriptHandlerFromProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil proto", func(t *testing.T) {
 		handler, err := scriptHandlerFromProto(nil)
 		assert.NoError(t, err)
@@ -669,6 +688,8 @@ func TestScriptHandlerFromProto(t *testing.T) {
 }
 
 func TestResourceFromProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil proto", func(t *testing.T) {
 		resource, err := resourceFromProto(nil)
 		assert.NoError(t, err)
@@ -677,10 +698,10 @@ func TestResourceFromProto(t *testing.T) {
 
 	t.Run("complete resource", func(t *testing.T) {
 		proto := &pbApps.McpResource{
-			Uri:         stringPtr("test://resource"),
-			Name:        stringPtr("Test Resource"),
-			Description: stringPtr("A test resource"),
-			MimeType:    stringPtr("text/plain"),
+			Uri:         proto.String("test://resource"),
+			Name:        proto.String("Test Resource"),
+			Description: proto.String("A test resource"),
+			MimeType:    proto.String("text/plain"),
 		}
 
 		resource, err := resourceFromProto(proto)
@@ -694,6 +715,8 @@ func TestResourceFromProto(t *testing.T) {
 }
 
 func TestPromptFromProto(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil proto", func(t *testing.T) {
 		prompt, err := promptFromProto(nil)
 		assert.NoError(t, err)
@@ -702,8 +725,8 @@ func TestPromptFromProto(t *testing.T) {
 
 	t.Run("complete prompt", func(t *testing.T) {
 		proto := &pbApps.McpPrompt{
-			Name:        stringPtr("Test Prompt"),
-			Description: stringPtr("A test prompt"),
+			Name:        proto.String("Test Prompt"),
+			Description: proto.String("A test prompt"),
 		}
 
 		prompt, err := promptFromProto(proto)
@@ -712,15 +735,6 @@ func TestPromptFromProto(t *testing.T) {
 		assert.Equal(t, "Test Prompt", prompt.Name)
 		assert.Equal(t, "A test prompt", prompt.Description)
 	})
-}
-
-// Helper functions for creating protobuf pointers
-func stringPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }
 
 func mcpBuiltinTypePtr(t pbApps.McpBuiltinHandler_Type) *pbApps.McpBuiltinHandler_Type {
@@ -825,7 +839,6 @@ func TestPromptToProto(t *testing.T) {
 	})
 }
 
-//nolint:dupl // Different function being tested despite similar test structure
 func TestMiddlewareToProto(t *testing.T) {
 	t.Run("nil middleware", func(t *testing.T) {
 		var middleware *Middleware
@@ -881,9 +894,9 @@ func TestToolAnnotationsFromProto(t *testing.T) {
 		destructive := true
 		openWorld := false
 		proto := &pbApps.McpToolAnnotations{
-			Title:           stringPtr("Test Tool"),
-			ReadOnlyHint:    boolPtr(true),
-			IdempotentHint:  boolPtr(true),
+			Title:           proto.String("Test Tool"),
+			ReadOnlyHint:    proto.Bool(true),
+			IdempotentHint:  proto.Bool(true),
 			DestructiveHint: &destructive,
 			OpenWorldHint:   &openWorld,
 		}
