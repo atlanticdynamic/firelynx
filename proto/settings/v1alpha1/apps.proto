@@ -4,8 +4,8 @@ package settings.v1alpha1;
 
 import "settings/v1alpha1/apps/v1/composite.proto";
 import "settings/v1alpha1/apps/v1/echo.proto";
-import "settings/v1alpha1/apps/v1/script.proto";
 import "settings/v1alpha1/apps/v1/mcp.proto";
+import "settings/v1alpha1/apps/v1/script.proto";
 
 option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1";
 
@@ -39,10 +39,10 @@ message AppDefinition {
 
     // Echo application configuration
     // env_interpolation: n/a (non-string)
-    settings.v1alpha1.apps.v1.EchoApp echo = 5;
-    
+    settings.v1alpha1.apps.v1.EchoApp echo = 102;
+
     // MCP application configuration
     // env_interpolation: n/a (non-string)
-    settings.v1alpha1.apps.v1.McpApp mcp = 6;
+    settings.v1alpha1.apps.v1.McpApp mcp = 103;
   }
 }

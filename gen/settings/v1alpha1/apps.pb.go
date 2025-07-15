@@ -210,13 +210,13 @@ type AppDefinition_CompositeScript struct {
 type AppDefinition_Echo struct {
 	// Echo application configuration
 	// env_interpolation: n/a (non-string)
-	Echo *v1.EchoApp `protobuf:"bytes,5,opt,name=echo,oneof"`
+	Echo *v1.EchoApp `protobuf:"bytes,102,opt,name=echo,oneof"`
 }
 
 type AppDefinition_Mcp struct {
 	// MCP application configuration
 	// env_interpolation: n/a (non-string)
-	Mcp *v1.McpApp `protobuf:"bytes,6,opt,name=mcp,oneof"`
+	Mcp *v1.McpApp `protobuf:"bytes,103,opt,name=mcp,oneof"`
 }
 
 func (*AppDefinition_Script) isAppDefinition_Config() {}
@@ -231,14 +231,14 @@ var File_settings_v1alpha1_apps_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\n" +
-	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a)settings/v1alpha1/apps/v1/composite.proto\x1a$settings/v1alpha1/apps/v1/echo.proto\x1a&settings/v1alpha1/apps/v1/script.proto\x1a#settings/v1alpha1/apps/v1/mcp.proto\"\xea\x03\n" +
+	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a)settings/v1alpha1/apps/v1/composite.proto\x1a$settings/v1alpha1/apps/v1/echo.proto\x1a#settings/v1alpha1/apps/v1/mcp.proto\x1a&settings/v1alpha1/apps/v1/script.proto\"\xea\x03\n" +
 	"\rAppDefinition\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12K\n" +
 	"\x04type\x18\x02 \x01(\x0e2%.settings.v1alpha1.AppDefinition.Type:\x10TYPE_UNSPECIFIEDR\x04type\x12>\n" +
 	"\x06script\x18d \x01(\v2$.settings.v1alpha1.apps.v1.ScriptAppH\x00R\x06script\x12Z\n" +
 	"\x10composite_script\x18e \x01(\v2-.settings.v1alpha1.apps.v1.CompositeScriptAppH\x00R\x0fcompositeScript\x128\n" +
-	"\x04echo\x18\x05 \x01(\v2\".settings.v1alpha1.apps.v1.EchoAppH\x00R\x04echo\x125\n" +
-	"\x03mcp\x18\x06 \x01(\v2!.settings.v1alpha1.apps.v1.McpAppH\x00R\x03mcp\"e\n" +
+	"\x04echo\x18f \x01(\v2\".settings.v1alpha1.apps.v1.EchoAppH\x00R\x04echo\x125\n" +
+	"\x03mcp\x18g \x01(\v2!.settings.v1alpha1.apps.v1.McpAppH\x00R\x03mcp\"e\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTYPE_SCRIPT\x10\x01\x12\x19\n" +
