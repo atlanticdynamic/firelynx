@@ -6,8 +6,10 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
+	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
@@ -16,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestAppTypeConversions(t *testing.T) {
@@ -41,6 +44,11 @@ func TestAppTypeConversions(t *testing.T) {
 				name:     "Echo",
 				appType:  AppTypeEcho,
 				expected: pb.AppDefinition_TYPE_ECHO,
+			},
+			{
+				name:     "MCP",
+				appType:  AppTypeMCP,
+				expected: pb.AppDefinition_TYPE_MCP,
 			},
 			{
 				name:     "Unknown",
@@ -77,6 +85,11 @@ func TestAppTypeConversions(t *testing.T) {
 				name:     "Echo",
 				pbType:   pb.AppDefinition_TYPE_ECHO,
 				expected: AppTypeEcho,
+			},
+			{
+				name:     "MCP",
+				pbType:   pb.AppDefinition_TYPE_MCP,
+				expected: AppTypeMCP,
 			},
 			{
 				name:     "Unspecified",
@@ -299,6 +312,34 @@ func TestFromProtoConversions(t *testing.T) {
 		apps, err = FromProto(nil)
 		assert.NoError(t, err)
 		assert.Nil(t, apps)
+	})
+
+	t.Run("MCPApp", func(t *testing.T) {
+		// Create a protobuf AppDefinition with an MCP app
+		mcpType := pb.AppDefinition_TYPE_MCP
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("test-mcp-app"),
+			Type: &mcpType,
+			Config: &pb.AppDefinition_Mcp{
+				Mcp: &pbApps.McpApp{
+					ServerName:    proto.String("test-server"),
+					ServerVersion: proto.String("1.0.0"),
+				},
+			},
+		}
+
+		// Convert to domain model
+		app, err := fromProto(pbApp)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+
+		// Check conversion
+		assert.Equal(t, "test-mcp-app", app.ID)
+		assert.NotNil(t, app.Config, "Config should not be nil")
+
+		// Verify the config type - expect it to be an MCPApp
+		// Note: This will depend on the actual MCP config type implementation
+		// For now we just verify it's not nil and has the right ID
 	})
 
 	t.Run("FromProtoErrorPropagation", func(t *testing.T) {
@@ -582,6 +623,29 @@ func TestToProtoConversions(t *testing.T) {
 		assert.Equal(t, "base64encodedwasm", pbApp.GetScript().GetExtism().GetCode())
 	})
 
+	t.Run("MCPApp", func(t *testing.T) {
+		// Create a domain App with MCP config
+		mcpApp := mcp.NewApp()
+		mcpApp.ServerName = "test-server"
+		mcpApp.ServerVersion = "1.0.0"
+
+		app := App{
+			ID:     "test-mcp-app",
+			Config: mcpApp,
+		}
+
+		// Convert to protobuf
+		pbApps := ToProto([]App{app})
+		assert.Len(t, pbApps, 1, "Expected 1 app to be converted")
+
+		pbApp := pbApps[0]
+		assert.Equal(t, "test-mcp-app", pbApp.GetId())
+		assert.Equal(t, pb.AppDefinition_TYPE_MCP, pbApp.GetType(), "AppType should be MCP")
+		assert.NotNil(t, pbApp.GetMcp(), "Expected MCP field to be set")
+		assert.Equal(t, "test-server", pbApp.GetMcp().GetServerName())
+		assert.Equal(t, "1.0.0", pbApp.GetMcp().GetServerVersion())
+	})
+
 	t.Run("UnknownAppType", func(t *testing.T) {
 		// Create an app with a custom config type that doesn't match any known types
 		customApp := &customAppConfig{name: "unknown"}
@@ -599,6 +663,138 @@ func TestToProtoConversions(t *testing.T) {
 		assert.Equal(t, "unknown-app", pbApp.GetId())
 		// Config should be nil since we don't know how to convert unknown types
 		assert.Nil(t, pbApp.GetConfig())
+	})
+}
+
+func TestStaticDataConversions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("StaticDataFromProtoSuccess", func(t *testing.T) {
+		// Create protobuf static data
+		value1, err := structpb.NewValue("value1")
+		require.NoError(t, err)
+		value2, err := structpb.NewValue("value2")
+		require.NoError(t, err)
+		pbStaticData := &pbData.StaticData{
+			Data: map[string]*structpb.Value{
+				"key1": value1,
+				"key2": value2,
+			},
+		}
+
+		// Convert to domain model
+		staticData, err := convertStaticDataFromProto(pbStaticData)
+		require.NoError(t, err)
+		require.NotNil(t, staticData)
+
+		// Verify conversion
+		assert.Equal(t, "value1", staticData.Data["key1"])
+		assert.Equal(t, "value2", staticData.Data["key2"])
+	})
+
+	t.Run("StaticDataFromProtoNil", func(t *testing.T) {
+		// Test with nil input
+		staticData, err := convertStaticDataFromProto(nil)
+		assert.NoError(t, err)
+		assert.Nil(t, staticData)
+	})
+}
+
+func TestFromProtoTypeMismatchErrors(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ScriptTypeMismatch", func(t *testing.T) {
+		// Create app with ECHO type but script config
+		echoType := pb.AppDefinition_TYPE_ECHO
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("mismatch-app"),
+			Type: &echoType,
+			Config: &pb.AppDefinition_Script{
+				Script: &pbApps.ScriptApp{
+					Evaluator: &pbApps.ScriptApp_Risor{
+						Risor: &pbApps.RisorEvaluator{
+							Source: &pbApps.RisorEvaluator_Code{Code: "return 'hello'"},
+						},
+					},
+				},
+			},
+		}
+
+		_, err := fromProto(pbApp)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrTypeMismatch)
+	})
+
+	t.Run("CompositeTypeMismatch", func(t *testing.T) {
+		// Create app with ECHO type but composite config
+		echoType := pb.AppDefinition_TYPE_ECHO
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("mismatch-app"),
+			Type: &echoType,
+			Config: &pb.AppDefinition_CompositeScript{
+				CompositeScript: &pbApps.CompositeScriptApp{
+					ScriptAppIds: []string{"script1"},
+				},
+			},
+		}
+
+		_, err := fromProto(pbApp)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrTypeMismatch)
+	})
+
+	t.Run("EchoTypeMismatch", func(t *testing.T) {
+		// Create app with SCRIPT type but echo config
+		scriptType := pb.AppDefinition_TYPE_SCRIPT
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("mismatch-app"),
+			Type: &scriptType,
+			Config: &pb.AppDefinition_Echo{
+				Echo: &pbApps.EchoApp{
+					Response: proto.String("hello"),
+				},
+			},
+		}
+
+		_, err := fromProto(pbApp)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrTypeMismatch)
+	})
+
+	t.Run("MCPTypeMismatch", func(t *testing.T) {
+		// Create app with SCRIPT type but MCP config
+		scriptType := pb.AppDefinition_TYPE_SCRIPT
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("mismatch-app"),
+			Type: &scriptType,
+			Config: &pb.AppDefinition_Mcp{
+				Mcp: &pbApps.McpApp{
+					ServerName: proto.String("test-server"),
+				},
+			},
+		}
+
+		_, err := fromProto(pbApp)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrTypeMismatch)
+	})
+
+	t.Run("UnknownConfigTypeDefault", func(t *testing.T) {
+		// Create an app definition with an unknown config type
+		// This tests the default case in the switch statement
+		scriptType := pb.AppDefinition_TYPE_SCRIPT
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("unknown-config-app"),
+			Type: &scriptType,
+		}
+
+		// Manually set an unknown config type that would trigger the default case
+		// Since we can't easily create an unknown protobuf oneof, we'll rely on
+		// the existing test for this coverage
+
+		_, err := fromProto(pbApp)
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, ErrNoConfigSpecified)
 	})
 }
 
