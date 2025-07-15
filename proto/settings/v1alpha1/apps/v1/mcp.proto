@@ -1,0 +1,298 @@
+edition = "2023";
+
+package settings.v1alpha1.apps.v1;
+
+import "settings/v1alpha1/data/v1/static_data.proto";
+import "settings/v1alpha1/apps/v1/risor.proto";
+import "settings/v1alpha1/apps/v1/starlark.proto";
+import "settings/v1alpha1/apps/v1/extism.proto";
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1";
+
+// MCP (Model Context Protocol) app
+// VALIDATION REQUIREMENTS:
+// - All tool names must be unique within the server instance (Server.AddTool replaces tools with same name)
+// - All prompt names must be unique within the server instance (Server.AddPrompt replaces prompts with same name)  
+// - All resource URIs must be unique within the server instance (Server.AddResource replaces resources with same URI)
+// - Resource URIs must be absolute with a valid scheme (Server.AddResource panics on invalid URIs)
+message McpApp {
+  // MCP server implementation details
+  // env_interpolation: yes (server name)
+  string server_name = 1;
+  // env_interpolation: yes (server version)
+  string server_version = 2;
+  
+  // MCP transport configuration
+  // env_interpolation: n/a (non-string)
+  McpTransport transport = 3;
+  
+  // MCP tools configuration
+  // UNIQUENESS REQUIREMENT: All tool names must be unique within the server instance.
+  // The MCP SDK Server.AddTool method replaces tools with the same name.
+  // env_interpolation: n/a (non-string)
+  repeated McpTool tools = 4;
+  
+  // MCP resources configuration (future phases)
+  // UNIQUENESS REQUIREMENT: All resource URIs must be unique within the server instance.
+  // The MCP SDK Server.AddResource method replaces resources with the same URI.
+  // URI VALIDATION: All URIs must be absolute with a valid scheme (e.g., file://, http://, custom://)
+  // env_interpolation: n/a (non-string)
+  repeated McpResource resources = 5;
+  
+  // MCP prompts configuration (future phases)
+  // UNIQUENESS REQUIREMENT: All prompt names must be unique within the server instance.
+  // The MCP SDK Server.AddPrompt method replaces prompts with the same name.
+  // env_interpolation: n/a (non-string)
+  repeated McpPrompt prompts = 6;
+  
+  // MCP SDK middleware configuration
+  // env_interpolation: n/a (non-string)
+  repeated McpMiddleware middlewares = 7;
+}
+
+// MCP transport configuration
+message McpTransport {
+  // Enable Server-Sent Events (SSE) support for MCP protocol
+  // env_interpolation: n/a (non-string)
+  bool sse_enabled = 1;
+  
+  // SSE endpoint path when SSE is enabled
+  // env_interpolation: yes (path field)
+  string sse_path = 2;
+}
+
+// MCP tool definition
+// Based on MCP Go SDK github.com/modelcontextprotocol/go-sdk/mcp.Tool
+message McpTool {
+  // REQUIRED: Programmatic tool identifier used for calling the tool.
+  // UNIQUENESS: Must be unique within the server instance - duplicate names will replace existing tools.
+  // This is the unique identifier for the tool within the server instance.
+  // env_interpolation: no (tool name)
+  string name = 1;
+  
+  // RECOMMENDED: Human-readable description of the tool's purpose.
+  // Used by LLMs to understand when to use the tool.
+  // env_interpolation: yes (description text)
+  string description = 2;
+  
+  // OPTIONAL: Human-readable title for UI display contexts.
+  // Display precedence: title > annotations.title > name
+  // If not provided, the name field will be used for display.
+  // env_interpolation: yes (UI display title)
+  string title = 3;
+  
+  // REQUIRED by MCP Go SDK: JSON Schema defining expected tool parameters.
+  // VALIDATION: The MCP SDK requires tool.InputSchema to be non-nil before calling Server.AddTool.
+  // If not provided during configuration, firelynx will auto-generate
+  // a default schema for built-in tools. Must be valid JSON Schema.
+  // env_interpolation: no (schema content)
+  string input_schema = 4;
+  
+  // OPTIONAL: JSON Schema defining tool output structure.
+  // Defines the structure returned in structuredContent field of CallToolResult.
+  // env_interpolation: no (schema content)
+  string output_schema = 5;
+  
+  // OPTIONAL: Tool behavior annotations for LLM guidance.
+  // Provides hints about tool behavior (read-only, destructive, etc.)
+  // env_interpolation: n/a (non-string)
+  McpToolAnnotations annotations = 6;
+  
+  // Tool implementation using existing evaluator types
+  oneof handler {
+    McpScriptHandler script = 10;   // Script-based tool using evaluators
+    McpBuiltinHandler builtin = 11; // Built-in tool handlers
+  }
+}
+
+// MCP tool behavior annotations for LLM guidance
+message McpToolAnnotations {
+  // Human-readable title for the tool (UI contexts)
+  // env_interpolation: yes (display text)
+  string title = 1;
+  
+  // Hint that tool only reads data, doesn't modify environment
+  // env_interpolation: n/a (non-string)
+  bool read_only_hint = 2;
+  
+  // Hint that tool makes destructive changes (pointer type, default: true)
+  // env_interpolation: n/a (non-string)
+  bool destructive_hint = 3;
+  
+  // Hint that calling tool multiple times is safe
+  // env_interpolation: n/a (non-string)
+  bool idempotent_hint = 4;
+  
+  // Hint that tool interacts with open world (pointer type, default: true)
+  // env_interpolation: n/a (non-string)
+  bool open_world_hint = 5;
+}
+
+// Script handler reusing existing evaluator infrastructure
+message McpScriptHandler {
+  // Static data specific to this tool
+  // env_interpolation: n/a (non-string)
+  settings.v1alpha1.data.v1.StaticData static_data = 1;
+  
+  // Reuse existing evaluator types from script app
+  oneof evaluator {
+    RisorEvaluator risor = 2;     // Reuse existing evaluators
+    StarlarkEvaluator starlark = 3;
+    ExtismEvaluator extism = 4;
+  }
+}
+
+// Built-in handler for common operations
+message McpBuiltinHandler {
+  enum Type {
+    ECHO = 0;           // Simple echo tool for testing
+    CALCULATION = 1;    // Mathematical calculations  
+    FILE_READ = 2;      // File reading operations
+  }
+  // env_interpolation: n/a (non-string)
+  Type type = 1;
+  // env_interpolation: yes (config values may contain paths)
+  map<string, string> config = 2;
+}
+
+// MCP resource definition (future phases)
+// Based on MCP Go SDK github.com/modelcontextprotocol/go-sdk/mcp.Resource
+message McpResource {
+  // REQUIRED: The URI of this resource.
+  // UNIQUENESS: Must be unique within the server instance - duplicate URIs will replace existing resources.
+  // VALIDATION: Must be absolute with a valid scheme (e.g., file://, http://, custom://)
+  // The MCP SDK will panic if the URI is invalid or not absolute.
+  // env_interpolation: yes (URI field)
+  string uri = 1;
+  
+  // REQUIRED: Programmatic identifier for the resource.
+  // Used as display name if title is not provided.
+  // env_interpolation: yes (name field)
+  string name = 2;
+  
+  // RECOMMENDED: Description of what this resource represents.
+  // Used by LLMs to understand available resources.
+  // env_interpolation: yes (description text)
+  string description = 3;
+  
+  // OPTIONAL: MIME type of the resource, if known.
+  // env_interpolation: no (MIME type)
+  string mime_type = 4;
+  
+  // OPTIONAL: Human-readable title for UI display.
+  // Display precedence: title > name
+  // env_interpolation: yes (UI display title)
+  string title = 7;
+  
+  // OPTIONAL: Size of the raw resource content in bytes.
+  // Used for display and context window estimation.
+  // env_interpolation: n/a (non-string)
+  int64 size = 8;
+  
+  // OPTIONAL: Annotations for client guidance.
+  // env_interpolation: n/a (non-string)
+  McpResourceAnnotations annotations = 9;
+  
+  oneof source {
+    // env_interpolation: yes (file path)
+    string file_path = 10;
+    // env_interpolation: no (static content)
+    string static_content = 11;
+    McpScriptResource script = 12;  // go-polyscript integration
+  }
+}
+
+message McpScriptResource {
+  // env_interpolation: n/a (non-string)
+  settings.v1alpha1.data.v1.StaticData static_data = 1;
+  oneof evaluator {
+    RisorEvaluator risor = 2;
+    StarlarkEvaluator starlark = 3;
+    ExtismEvaluator extism = 4;
+  }
+}
+
+// MCP resource annotations (based on MCP SDK Annotations type)
+message McpResourceAnnotations {
+  // Human-readable title for the resource
+  // env_interpolation: yes (display text)
+  string title = 1;
+  
+  // Additional metadata fields can be added here in the future
+}
+
+// MCP prompt definition (future phases)
+// Based on MCP Go SDK github.com/modelcontextprotocol/go-sdk/mcp.Prompt
+message McpPrompt {
+  // REQUIRED: Programmatic identifier for the prompt.
+  // UNIQUENESS: Must be unique within the server instance - duplicate names will replace existing prompts.
+  // Used as display name if title is not provided.
+  // env_interpolation: no (prompt name)
+  string name = 1;
+  
+  // OPTIONAL: Description of what this prompt provides.
+  // env_interpolation: yes (description text)
+  string description = 2;
+  
+  // OPTIONAL: Human-readable title for UI display.
+  // Display precedence: title > name
+  // env_interpolation: yes (UI display title)
+  string title = 3;
+  
+  // OPTIONAL: List of arguments the prompt accepts.
+  // env_interpolation: n/a (non-string)
+  repeated McpPromptArgument arguments = 4;
+  
+  oneof source {
+    // env_interpolation: no (template content)
+    string template = 10;
+    McpScriptPrompt script = 11;  // go-polyscript generated prompts
+  }
+}
+
+// MCP prompt argument definition
+// Based on MCP Go SDK github.com/modelcontextprotocol/go-sdk/mcp.PromptArgument
+message McpPromptArgument {
+  // REQUIRED: Programmatic identifier for the argument.
+  // UNIQUENESS: Must be unique within the prompt - duplicate argument names would cause conflicts.
+  // Used as display name if title is not provided.
+  // env_interpolation: no (argument name)
+  string name = 1;
+  
+  // OPTIONAL: Human-readable title for UI display.
+  // Display precedence: title > name
+  // env_interpolation: yes (UI display title)
+  string title = 2;
+  
+  // OPTIONAL: Human-readable description of the argument.
+  // env_interpolation: yes (description text)
+  string description = 3;
+  
+  // OPTIONAL: Whether this argument must be provided.
+  // Defaults to false if not specified.
+  // env_interpolation: n/a (non-string)
+  bool required = 4;
+}
+
+message McpScriptPrompt {
+  // env_interpolation: n/a (non-string)
+  settings.v1alpha1.data.v1.StaticData static_data = 1;
+  oneof evaluator {
+    RisorEvaluator risor = 2;
+    StarlarkEvaluator starlark = 3;
+    ExtismEvaluator extism = 4;
+  }
+}
+
+// MCP SDK middleware configuration  
+message McpMiddleware {
+  enum Type {
+    RATE_LIMITING = 0;     // Native MCP rate limiting
+    MCP_LOGGING = 1;       // MCP-specific logging
+    MCP_AUTHENTICATION = 2; // MCP authentication
+  }
+  // env_interpolation: n/a (non-string)
+  Type type = 1;
+  // env_interpolation: yes (config values)
+  map<string, string> config = 2;
+}

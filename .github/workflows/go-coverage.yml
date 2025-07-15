@@ -42,8 +42,8 @@ jobs:
             -Dsonar.organization=atlanticdynamic
             -Dsonar.go.coverage.reportPaths=unit.coverage.out
             -Dsonar.sources=.
-            -Dsonar.exclusions=**/*_test.go,**/gen/**
+            -Dsonar.exclusions=**/*_test.go,**/gen/**,**/internal/server/integration_tests/**
             -Dsonar.tests=.
-            -Dsonar.test.inclusions=**/*_test.go
+            -Dsonar.test.inclusions=**/*_test.go,**/internal/server/integration_tests/**
             -Dsonar.language=go
             -Dsonar.sourceEncoding=UTF-8

@@ -1,0 +1,6 @@
+func process() {
+    maxValue := ctx.get("max_value", 500)
+    return {"text": "Max value is " + string(maxValue)}
+}
+
+process()

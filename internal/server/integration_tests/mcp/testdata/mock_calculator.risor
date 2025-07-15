@@ -1,0 +1,14 @@
+// Mock calculator for testing MCP script tool integration
+// This is NOT a real calculator - it's a test fixture with hard-coded responses
+
+func calculate() {
+    // Hard-coded test responses for integration testing
+    if ctx.get("args", {}).get("expression", "") == "10 / 0" {
+        return {"error": "Division by zero"}
+    }
+
+    // Always return 42 for any other expression (test fixture)
+    return {"text": "Calculation result", "value": 42}
+}
+
+calculate()

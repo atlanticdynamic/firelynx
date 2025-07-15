@@ -10,6 +10,7 @@ import (
 	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
@@ -25,6 +26,7 @@ const (
 	AppTypeEcho      AppType = "echo"
 	AppTypeScript    AppType = "script"
 	AppTypeComposite AppType = "composite_script"
+	AppTypeMCP       AppType = "mcp"
 )
 
 // appTypeToProto converts from domain AppType to protobuf AppType enum
@@ -36,6 +38,8 @@ func appTypeToProto(appType AppType) pb.AppDefinition_Type {
 		return pb.AppDefinition_TYPE_COMPOSITE_SCRIPT
 	case AppTypeEcho:
 		return pb.AppDefinition_TYPE_ECHO
+	case AppTypeMCP:
+		return pb.AppDefinition_TYPE_MCP
 	default:
 		return pb.AppDefinition_TYPE_UNSPECIFIED
 	}
@@ -50,6 +54,8 @@ func appTypeFromProto(pbAppType pb.AppDefinition_Type) AppType {
 		return AppTypeComposite
 	case pb.AppDefinition_TYPE_ECHO:
 		return AppTypeEcho
+	case pb.AppDefinition_TYPE_MCP:
+		return AppTypeMCP
 	default:
 		return AppTypeUnknown
 	}
@@ -72,6 +78,8 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 			appType = AppTypeComposite
 		case *echo.EchoApp:
 			appType = AppTypeEcho
+		case *mcp.App:
+			appType = AppTypeMCP
 		default:
 			appType = AppTypeUnknown
 		}
@@ -132,6 +140,11 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 			pbEcho := cfg.ToProto().(*pbApps.EchoApp)
 			app.Config = &pb.AppDefinition_Echo{
 				Echo: pbEcho,
+			}
+		case *mcp.App:
+			pbMcp := cfg.ToProto().(*pbApps.McpApp)
+			app.Config = &pb.AppDefinition_Mcp{
+				Mcp: pbMcp,
 			}
 		}
 
@@ -241,6 +254,21 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 		// Convert Echo app config
 		echoApp := echo.EchoFromProto(pbEcho)
 		app.Config = echoApp
+		return app, nil
+
+	case *pb.AppDefinition_Mcp:
+		if appType != AppTypeMCP {
+			return App{}, fmt.Errorf("%w: app '%s' has type %s but mcp config", ErrTypeMismatch, app.ID, appType)
+		}
+
+		pbMcp := config.Mcp
+
+		// Convert MCP app config
+		mcpApp, err := mcp.FromProto(pbMcp)
+		if err != nil {
+			return App{}, fmt.Errorf("error converting MCP app: %w", err)
+		}
+		app.Config = mcpApp
 		return app, nil
 
 	case nil:

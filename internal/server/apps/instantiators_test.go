@@ -9,17 +9,44 @@ import (
 	"time"
 
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/script"
 	"github.com/robbyt/go-polyscript/engines/extism/wasmdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// MockApp is a test implementation of the App interface
+type MockApp struct {
+	id string
+}
+
+func (m *MockApp) String() string {
+	return m.id
+}
+
+func (m *MockApp) HandleHTTP(
+	ctx context.Context,
+	w http.ResponseWriter,
+	r *http.Request,
+	data map[string]any,
+) error {
+	return nil
+}
+
+// mockInstantiator is a test instantiator that returns a MockApp
+func mockInstantiator(id string, _ any) (App, error) {
+	return &MockApp{id: id}, nil
+}
+
 func TestCreateEchoApp(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name             string
 		id               string
@@ -80,30 +107,9 @@ func TestCreateEchoApp(t *testing.T) {
 	}
 }
 
-// MockApp is a test implementation of the App interface
-type MockApp struct {
-	id string
-}
-
-func (m *MockApp) String() string {
-	return m.id
-}
-
-func (m *MockApp) HandleHTTP(
-	ctx context.Context,
-	w http.ResponseWriter,
-	r *http.Request,
-	data map[string]any,
-) error {
-	return nil
-}
-
-// mockInstantiator is a test instantiator that returns a MockApp
-func mockInstantiator(id string, _ any) (App, error) {
-	return &MockApp{id: id}, nil
-}
-
 func TestCreateScriptApp(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		id        string
@@ -263,6 +269,8 @@ _ = result`,
 }
 
 func TestCreateScriptApp_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	t.Run("handles empty app ID", func(t *testing.T) {
 		config := &configScripts.AppScript{
 			StaticData: &staticdata.StaticData{
@@ -334,6 +342,8 @@ func TestCreateScriptApp_EdgeCases(t *testing.T) {
 }
 
 func TestCreateScriptApp_LoggerFields(t *testing.T) {
+	t.Parallel()
+
 	t.Run("app receives logger with correct fields", func(t *testing.T) {
 		config := &configScripts.AppScript{
 			StaticData: &staticdata.StaticData{
@@ -362,6 +372,8 @@ func TestCreateScriptApp_LoggerFields(t *testing.T) {
 }
 
 func TestCreateScriptApp_Debug(t *testing.T) {
+	t.Parallel()
+
 	t.Run("debug unvalidated evaluator behavior", func(t *testing.T) {
 		// Create a completely zero-value evaluator
 		evaluator := &evaluators.RisorEvaluator{}
@@ -397,5 +409,202 @@ func TestCreateScriptApp_Debug(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.NotNil(t, app)
+	})
+}
+
+func TestCreateMCPApp(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		id        string
+		config    any
+		wantError bool
+		errorMsg  string
+	}{
+		{
+			name: "creates MCP app with valid config",
+			id:   "test-mcp-app",
+			config: &configMCP.App{
+				ServerName:    "Test MCP Server",
+				ServerVersion: "1.0.0",
+				Transport:     &configMCP.Transport{},
+				Tools:         []*configMCP.Tool{},
+				Resources:     []*configMCP.Resource{},
+				Prompts:       []*configMCP.Prompt{},
+				Middlewares:   []*configMCP.Middleware{},
+			},
+			wantError: false,
+		},
+		{
+			name: "creates MCP app with tools",
+			id:   "test-mcp-with-tools",
+			config: &configMCP.App{
+				ServerName:    "MCP Server with Tools",
+				ServerVersion: "1.0.0",
+				Transport:     &configMCP.Transport{},
+				Tools: []*configMCP.Tool{
+					{
+						Name:        "echo",
+						Description: "Echo tool",
+						Handler: &configMCP.BuiltinToolHandler{
+							BuiltinType: configMCP.BuiltinEcho,
+							Config:      map[string]string{},
+						},
+					},
+				},
+				Resources:   []*configMCP.Resource{},
+				Prompts:     []*configMCP.Prompt{},
+				Middlewares: []*configMCP.Middleware{},
+			},
+			wantError: false,
+		},
+		{
+			name:      "fails with wrong config type",
+			id:        "test-wrong-type",
+			config:    &configEcho.EchoApp{Response: "not an MCP config"},
+			wantError: true,
+			errorMsg:  "invalid config type for MCP app",
+		},
+		{
+			name:      "fails with nil config",
+			id:        "test-nil-config",
+			config:    nil,
+			wantError: true,
+			errorMsg:  "invalid config type for MCP app",
+		},
+		{
+			name: "fails with unvalidated config",
+			id:   "test-unvalidated",
+			config: &configMCP.App{
+				ServerName:    "Unvalidated Server",
+				ServerVersion: "1.0.0",
+				// Not calling Validate() - should fail with no compiled server
+			},
+			wantError: true,
+			errorMsg:  "", // Will use ErrorIs check instead
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// For MCP configs, call Validate() to compile the MCP server
+			// Exception: skip validation for the "unvalidated" test case
+			if tt.config != nil && !tt.wantError || (tt.wantError && tt.name != "fails with unvalidated config") {
+				if mcpConfig, ok := tt.config.(*configMCP.App); ok {
+					err := mcpConfig.Validate()
+					if !tt.wantError {
+						require.NoError(
+							t,
+							err,
+							"Test setup: MCP config validation should succeed for valid configs",
+						)
+					}
+				}
+			}
+
+			app, err := createMCPApp(tt.id, tt.config)
+
+			if tt.wantError {
+				require.Error(t, err)
+				if tt.name == "fails with unvalidated config" {
+					require.ErrorIs(t, err, mcp.ErrServerNotCompiled)
+				} else if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
+				assert.Nil(t, app)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, app)
+
+				// Verify it returns the correct ID
+				assert.Equal(t, tt.id, app.String())
+
+				// Verify it's actually an mcp.App instance
+				mcpApp, ok := app.(*mcp.App)
+				assert.True(t, ok, "should return an mcp.App instance")
+				assert.NotNil(t, mcpApp)
+
+				// Test that the app can handle HTTP requests (basic smoke test)
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest("POST", "/mcp/test", nil)
+				ctx := t.Context()
+
+				// Note: We don't require HandleHTTP to succeed since that depends on
+				// MCP SDK implementation, but we verify it doesn't panic
+				err := mcpApp.HandleHTTP(ctx, w, r, nil)
+				_ = err // Intentionally ignore error in smoke test
+			}
+		})
+	}
+}
+
+func TestCreateMCPApp_EdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("handles empty app ID", func(t *testing.T) {
+		config := &configMCP.App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &configMCP.Transport{},
+			Tools:         []*configMCP.Tool{},
+			Resources:     []*configMCP.Resource{},
+			Prompts:       []*configMCP.Prompt{},
+			Middlewares:   []*configMCP.Middleware{},
+		}
+
+		// Validate the config first
+		err := config.Validate()
+		require.NoError(t, err)
+
+		app, err := createMCPApp("", config)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+
+		// Should handle empty ID gracefully
+		assert.Equal(t, "", app.String())
+	})
+
+	t.Run("handles very long app ID", func(t *testing.T) {
+		longID := "very-long-mcp-app-id-that-exceeds-normal-length-expectations-and-tests-boundary-conditions"
+		config := &configMCP.App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &configMCP.Transport{},
+			Tools:         []*configMCP.Tool{},
+			Resources:     []*configMCP.Resource{},
+			Prompts:       []*configMCP.Prompt{},
+			Middlewares:   []*configMCP.Middleware{},
+		}
+
+		// Validate the config first
+		err := config.Validate()
+		require.NoError(t, err)
+
+		app, err := createMCPApp(longID, config)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+
+		assert.Equal(t, longID, app.String())
+	})
+
+	t.Run("fails validation with SSE enabled", func(t *testing.T) {
+		config := &configMCP.App{
+			ServerName:    "SSE Test Server",
+			ServerVersion: "1.0.0",
+			Transport: &configMCP.Transport{
+				SSEEnabled: true,
+				SSEPath:    "/events",
+			},
+			Tools:       []*configMCP.Tool{},
+			Resources:   []*configMCP.Resource{},
+			Prompts:     []*configMCP.Prompt{},
+			Middlewares: []*configMCP.Middleware{},
+		}
+
+		// SSE enabled should fail validation
+		err := config.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 }

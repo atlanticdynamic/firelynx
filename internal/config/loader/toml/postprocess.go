@@ -532,6 +532,10 @@ func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []er
 				errs := processScriptAppConfig(app, appMap)
 				errList = append(errList, errs...)
 			}
+			if _, hasMcp := appMap["mcp"]; hasMcp {
+				errs := processMcpAppConfig(app, appMap)
+				errList = append(errList, errs...)
+			}
 			// Echo and composite_script apps don't need special post-processing
 		}
 	}
@@ -551,6 +555,8 @@ func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
 		appType = pbSettings.AppDefinition_TYPE_COMPOSITE_SCRIPT
 	case "echo":
 		appType = pbSettings.AppDefinition_TYPE_ECHO
+	case "mcp":
+		appType = pbSettings.AppDefinition_TYPE_MCP
 	default:
 		appType = pbSettings.AppDefinition_TYPE_UNSPECIFIED
 		errList = append(errList, fmt.Errorf("unsupported app type: %s", typeVal))
@@ -613,6 +619,175 @@ func processScriptEvaluators(scriptApp *pbApps.ScriptApp, scriptConfig map[strin
 	}
 	if extismConfig, ok := scriptConfig["extism"].(map[string]any); ok {
 		processExtismSource(scriptApp.GetExtism(), extismConfig)
+	}
+
+	return errList
+}
+
+// processMcpAppConfig handles MCP app-specific configuration post-processing.
+//
+// This function processes the TOML "mcp" section and maps it to the protobuf McpApp structure.
+// It handles complex nested structures that require special processing beyond basic TOML→protobuf conversion.
+//
+// TOML Structure Mapping:
+//
+//	[apps.mcp]                          → McpApp message
+//	server_name = "..."                 → McpApp.server_name (string, required)
+//	server_version = "..."              → McpApp.server_version (string, optional)
+//	transport = {...}                   → McpApp.transport (McpTransport, optional)
+//	[[apps.mcp.tools]]                  → McpApp.tools (repeated McpTool, optional)
+//	  name = "..."                      → McpTool.name (string, REQUIRED by MCP SDK)
+//	  description = "..."               → McpTool.description (string, optional)
+//	  input_schema = "..."              → McpTool.input_schema (string, REQUIRED by MCP SDK)
+//	  [apps.mcp.tools.script]           → McpTool.handler.script (McpScriptHandler, oneof)
+//	    [apps.mcp.tools.script.static_data] → McpScriptHandler.static_data (StaticData, optional)
+//	    [apps.mcp.tools.script.risor]   → McpScriptHandler.evaluator.risor (RisorEvaluator, oneof)
+//	    [apps.mcp.tools.script.starlark] → McpScriptHandler.evaluator.starlark (StarlarkEvaluator, oneof)
+//	    [apps.mcp.tools.script.extism]  → McpScriptHandler.evaluator.extism (ExtismEvaluator, oneof)
+//	  [apps.mcp.tools.builtin]          → McpTool.handler.builtin (McpBuiltinHandler, oneof)
+//	    type = "echo"                   → McpBuiltinHandler.type (enum, required)
+//	    config = {...}                  → McpBuiltinHandler.config (map<string,string>, optional)
+//
+// Key Validation Rules from Proto Schema:
+// - AppDefinition.config is a oneof field: exactly one of script/composite_script/echo/mcp must be present
+// - AppDefinition.type must match the config type (TYPE_MCP = 4 for MCP apps)
+// - McpTool.handler is a oneof field (REQUIRED): exactly one of 'script' or 'builtin' must be present
+// - McpTool.name is REQUIRED by MCP Go SDK for Server.AddTool()
+// - McpTool.input_schema is REQUIRED by MCP Go SDK (auto-generated if missing)
+// - McpScriptHandler.evaluator is a oneof field: exactly one evaluator type must be present
+// - Tool names must be globally unique within the server instance
+//
+// This function only handles post-processing of complex nested structures:
+// - Static data conversion from TOML maps to protobuf Struct
+// - Script evaluator source field handling (code vs uri)
+// - Validation of oneof field requirements
+func processMcpAppConfig(app *pbSettings.AppDefinition, appMap map[string]any) []error {
+	var errList []error
+
+	// Extract the TOML "mcp" section that corresponds to McpApp message
+	// TOML: [apps.mcp] or [[apps]] with type = "mcp"
+	// Proto: AppDefinition.config.mcp (McpApp)
+	mcpConfig, ok := appMap["mcp"].(map[string]any)
+	if !ok {
+		return []error{fmt.Errorf("mcp config: %w", errz.ErrInvalidAppFormat)}
+	}
+
+	// Verify the protobuf McpApp message was created during unmarshaling
+	// AppDefinition.GetMcp() returns the McpApp if AppDefinition.config contains mcp field
+	// If user provided [apps.mcp] section but protobuf unmarshaling failed to create McpApp,
+	// this indicates a configuration or unmarshaling problem that should be reported
+	mcpApp := app.GetMcp()
+	if mcpApp == nil {
+		return []error{fmt.Errorf("mcp app not created despite mcp config section: %w", errz.ErrInvalidAppFormat)}
+	}
+
+	// Process McpApp.tools (repeated McpTool) - OPTIONAL field
+	// TOML: [[apps.mcp.tools]] array sections
+	// Proto: repeated McpTool tools = 4;
+	// MCP apps can exist without tools (e.g., resource-only or prompt-only servers)
+	toolsVal, hasTools := mcpConfig["tools"]
+	if !hasTools {
+		// No tools section is valid - MCP apps can exist without tools
+		return errList
+	}
+
+	// Validate the tools field is an array as expected from TOML [[apps.mcp.tools]] syntax
+	toolsArray, ok := toolsVal.([]any)
+	if !ok {
+		return []error{fmt.Errorf("mcp config tools: %w", errz.ErrInvalidAppFormat)}
+	}
+
+	// First pass: Process script tools (IMPLEMENTED)
+	// These tools use evaluators (risor/starlark/extism) to run custom code
+	for i, toolObj := range toolsArray {
+		toolMap, ok := toolObj.(map[string]any)
+		if !ok {
+			errList = append(errList, fmt.Errorf("tool at index %d: %w", i, errz.ErrInvalidAppFormat))
+			continue
+		}
+
+		// Only process script tools in this pass
+		if _, hasScript := toolMap["script"]; !hasScript {
+			continue
+		}
+
+		// Ensure we don't exceed the protobuf array bounds
+		if i >= len(mcpApp.Tools) {
+			errList = append(errList, fmt.Errorf("tool at index %d: more tools in TOML than in protobuf", i))
+			continue
+		}
+
+		tool := mcpApp.Tools[i]
+		scriptHandlerMap, ok := toolMap["script"].(map[string]any)
+		if !ok {
+			errList = append(errList, fmt.Errorf("tool at index %d script handler: %w", i, errz.ErrInvalidAppFormat))
+			continue
+		}
+
+		// Process McpScriptHandler.static_data (StaticData) - OPTIONAL field
+		// TOML: [apps.mcp.tools.script.static_data] with key-value pairs
+		// Proto: settings.v1alpha1.data.v1.StaticData static_data = 1;
+		if staticDataMap, ok := scriptHandlerMap["static_data"].(map[string]any); ok {
+			scriptHandler := tool.GetScript()
+			if scriptHandler != nil {
+				if scriptHandler.StaticData == nil {
+					scriptHandler.StaticData = &pbData.StaticData{}
+				}
+				scriptHandler.StaticData.Data = protobaggins.MapToStructValues(staticDataMap)
+			}
+		}
+
+		// Process McpScriptHandler.evaluator oneof field (REQUIRED)
+		// TOML: [apps.mcp.tools.script.risor], [apps.mcp.tools.script.starlark], or [apps.mcp.tools.script.extism]
+		// Proto: oneof evaluator { RisorEvaluator risor = 2; StarlarkEvaluator starlark = 3; ExtismEvaluator extism = 4; }
+		scriptHandler := tool.GetScript()
+		if scriptHandler != nil {
+			errs := processMcpScriptEvaluators(scriptHandler, scriptHandlerMap)
+			errList = append(errList, errs...)
+		}
+	}
+
+	// Second pass: Check for builtin tools and report errors (NOT YET IMPLEMENTED)
+	// Builtin tools would provide pre-built functionality like echo, calculation, file operations
+	for i, toolObj := range toolsArray {
+		toolMap, ok := toolObj.(map[string]any)
+		if !ok {
+			continue // Already reported error in first pass
+		}
+
+		// Check if this tool uses builtin handler
+		if _, hasBuiltin := toolMap["builtin"]; hasBuiltin {
+			errList = append(errList, fmt.Errorf("tool at index %d: builtin handlers are not yet implemented", i))
+			continue
+		}
+
+		// Check if tool has any handler at all
+		hasScript := false
+		if _, ok := toolMap["script"]; ok {
+			hasScript = true
+		}
+
+		if !hasScript {
+			errList = append(errList, fmt.Errorf("tool at index %d: missing required handler (only 'script' handlers are currently supported)", i))
+		}
+	}
+
+	return errList
+}
+
+// processMcpScriptEvaluators handles script evaluator configuration for MCP tools
+func processMcpScriptEvaluators(scriptHandler *pbApps.McpScriptHandler, scriptConfig map[string]any) []error {
+	var errList []error
+
+	// Process each evaluator type (reuse existing evaluator processing functions)
+	if risorConfig, ok := scriptConfig["risor"].(map[string]any); ok {
+		processRisorSource(scriptHandler.GetRisor(), risorConfig)
+	}
+	if starlarkConfig, ok := scriptConfig["starlark"].(map[string]any); ok {
+		processStarlarkSource(scriptHandler.GetStarlark(), starlarkConfig)
+	}
+	if extismConfig, ok := scriptConfig["extism"].(map[string]any); ok {
+		processExtismSource(scriptHandler.GetExtism(), extismConfig)
 	}
 
 	return errList

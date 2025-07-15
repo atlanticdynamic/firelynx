@@ -29,6 +29,7 @@ const (
 	AppDefinition_TYPE_SCRIPT           AppDefinition_Type = 1
 	AppDefinition_TYPE_COMPOSITE_SCRIPT AppDefinition_Type = 2
 	AppDefinition_TYPE_ECHO             AppDefinition_Type = 3
+	AppDefinition_TYPE_MCP              AppDefinition_Type = 4
 )
 
 // Enum value maps for AppDefinition_Type.
@@ -38,12 +39,14 @@ var (
 		1: "TYPE_SCRIPT",
 		2: "TYPE_COMPOSITE_SCRIPT",
 		3: "TYPE_ECHO",
+		4: "TYPE_MCP",
 	}
 	AppDefinition_Type_value = map[string]int32{
 		"TYPE_UNSPECIFIED":      0,
 		"TYPE_SCRIPT":           1,
 		"TYPE_COMPOSITE_SCRIPT": 2,
 		"TYPE_ECHO":             3,
+		"TYPE_MCP":              4,
 	}
 )
 
@@ -90,6 +93,7 @@ type AppDefinition struct {
 	//	*AppDefinition_Script
 	//	*AppDefinition_CompositeScript
 	//	*AppDefinition_Echo
+	//	*AppDefinition_Mcp
 	Config        isAppDefinition_Config `protobuf_oneof:"config"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -178,6 +182,15 @@ func (x *AppDefinition) GetEcho() *v1.EchoApp {
 	return nil
 }
 
+func (x *AppDefinition) GetMcp() *v1.McpApp {
+	if x != nil {
+		if x, ok := x.Config.(*AppDefinition_Mcp); ok {
+			return x.Mcp
+		}
+	}
+	return nil
+}
+
 type isAppDefinition_Config interface {
 	isAppDefinition_Config()
 }
@@ -200,28 +213,38 @@ type AppDefinition_Echo struct {
 	Echo *v1.EchoApp `protobuf:"bytes,102,opt,name=echo,oneof"`
 }
 
+type AppDefinition_Mcp struct {
+	// MCP application configuration
+	// env_interpolation: n/a (non-string)
+	Mcp *v1.McpApp `protobuf:"bytes,103,opt,name=mcp,oneof"`
+}
+
 func (*AppDefinition_Script) isAppDefinition_Config() {}
 
 func (*AppDefinition_CompositeScript) isAppDefinition_Config() {}
 
 func (*AppDefinition_Echo) isAppDefinition_Config() {}
 
+func (*AppDefinition_Mcp) isAppDefinition_Config() {}
+
 var File_settings_v1alpha1_apps_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\n" +
-	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a)settings/v1alpha1/apps/v1/composite.proto\x1a$settings/v1alpha1/apps/v1/echo.proto\x1a&settings/v1alpha1/apps/v1/script.proto\"\xa5\x03\n" +
+	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a)settings/v1alpha1/apps/v1/composite.proto\x1a$settings/v1alpha1/apps/v1/echo.proto\x1a#settings/v1alpha1/apps/v1/mcp.proto\x1a&settings/v1alpha1/apps/v1/script.proto\"\xea\x03\n" +
 	"\rAppDefinition\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12K\n" +
 	"\x04type\x18\x02 \x01(\x0e2%.settings.v1alpha1.AppDefinition.Type:\x10TYPE_UNSPECIFIEDR\x04type\x12>\n" +
 	"\x06script\x18d \x01(\v2$.settings.v1alpha1.apps.v1.ScriptAppH\x00R\x06script\x12Z\n" +
 	"\x10composite_script\x18e \x01(\v2-.settings.v1alpha1.apps.v1.CompositeScriptAppH\x00R\x0fcompositeScript\x128\n" +
-	"\x04echo\x18f \x01(\v2\".settings.v1alpha1.apps.v1.EchoAppH\x00R\x04echo\"W\n" +
+	"\x04echo\x18f \x01(\v2\".settings.v1alpha1.apps.v1.EchoAppH\x00R\x04echo\x125\n" +
+	"\x03mcp\x18g \x01(\v2!.settings.v1alpha1.apps.v1.McpAppH\x00R\x03mcp\"e\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTYPE_SCRIPT\x10\x01\x12\x19\n" +
 	"\x15TYPE_COMPOSITE_SCRIPT\x10\x02\x12\r\n" +
-	"\tTYPE_ECHO\x10\x03B\b\n" +
+	"\tTYPE_ECHO\x10\x03\x12\f\n" +
+	"\bTYPE_MCP\x10\x04B\b\n" +
 	"\x06configB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
@@ -244,17 +267,19 @@ var file_settings_v1alpha1_apps_proto_goTypes = []any{
 	(*v1.ScriptApp)(nil),          // 2: settings.v1alpha1.apps.v1.ScriptApp
 	(*v1.CompositeScriptApp)(nil), // 3: settings.v1alpha1.apps.v1.CompositeScriptApp
 	(*v1.EchoApp)(nil),            // 4: settings.v1alpha1.apps.v1.EchoApp
+	(*v1.McpApp)(nil),             // 5: settings.v1alpha1.apps.v1.McpApp
 }
 var file_settings_v1alpha1_apps_proto_depIdxs = []int32{
 	0, // 0: settings.v1alpha1.AppDefinition.type:type_name -> settings.v1alpha1.AppDefinition.Type
 	2, // 1: settings.v1alpha1.AppDefinition.script:type_name -> settings.v1alpha1.apps.v1.ScriptApp
 	3, // 2: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.apps.v1.CompositeScriptApp
 	4, // 3: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.apps.v1.EchoApp
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 4: settings.v1alpha1.AppDefinition.mcp:type_name -> settings.v1alpha1.apps.v1.McpApp
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_apps_proto_init() }
@@ -266,6 +291,7 @@ func file_settings_v1alpha1_apps_proto_init() {
 		(*AppDefinition_Script)(nil),
 		(*AppDefinition_CompositeScript)(nil),
 		(*AppDefinition_Echo)(nil),
+		(*AppDefinition_Mcp)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

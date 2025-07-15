@@ -1,0 +1,8 @@
+func process() {
+    args := ctx.get("args", {})
+    name := args.get("name", "Alice")
+    count := args.get("count", 42)
+    return {"text": "Hello " + name + ", count is " + string(count)}
+}
+
+process()
