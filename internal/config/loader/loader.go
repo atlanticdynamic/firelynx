@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	pbSettings "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader/toml"
@@ -52,7 +53,7 @@ func NewLoaderFromFilePath(filePath string) (Loader, error) {
 	}
 
 	// Determine loader type based on extension
-	ext := filepath.Ext(filePath)
+	ext := strings.ToLower(filepath.Ext(filePath))
 	switch ext {
 	case ".toml":
 		return toml.NewTomlLoader(data), nil
