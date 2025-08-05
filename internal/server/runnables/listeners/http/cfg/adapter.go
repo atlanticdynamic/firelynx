@@ -237,11 +237,8 @@ func extractEndpointRoutes(
 
 		// Create a handler function for this route
 		handlerFunc := func(w http.ResponseWriter, r *http.Request) {
-			// Expanded app already has merged static data
-			data := make(map[string]any)
-
 			// Call the app handler
-			err := app.HandleHTTP(r.Context(), w, r, data)
+			err := app.HandleHTTP(r.Context(), w, r)
 			if err != nil {
 				logger.Error("Error handling request",
 					"path", r.URL.Path,

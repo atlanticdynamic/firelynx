@@ -17,6 +17,5 @@ type App interface {
 		ctx context.Context,
 		resp http.ResponseWriter,
 		req *http.Request,
-		data map[string]any,
 	) error
 }

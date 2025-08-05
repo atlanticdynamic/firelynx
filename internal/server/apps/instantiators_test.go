@@ -34,7 +34,6 @@ func (m *MockApp) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	data map[string]any,
 ) error {
 	return nil
 }
@@ -98,7 +97,7 @@ func TestCreateEchoApp(t *testing.T) {
 			r := httptest.NewRequest("GET", "/test", nil)
 			ctx := t.Context()
 
-			err = echoApp.HandleHTTP(ctx, w, r, nil)
+			err = echoApp.HandleHTTP(ctx, w, r)
 			require.NoError(t, err)
 
 			// Verify the response matches expected
@@ -261,7 +260,7 @@ _ = result`,
 
 				// Note: We don't require HandleHTTP to succeed since that depends on
 				// script content and execution, but we verify it doesn't panic
-				err := scriptApp.HandleHTTP(ctx, w, r, nil)
+				err := scriptApp.HandleHTTP(ctx, w, r)
 				_ = err // Intentionally ignore error in smoke test
 			}
 		})
@@ -532,7 +531,7 @@ func TestCreateMCPApp(t *testing.T) {
 
 				// Note: We don't require HandleHTTP to succeed since that depends on
 				// MCP SDK implementation, but we verify it doesn't panic
-				err := mcpApp.HandleHTTP(ctx, w, r, nil)
+				err := mcpApp.HandleHTTP(ctx, w, r)
 				_ = err // Intentionally ignore error in smoke test
 			}
 		})

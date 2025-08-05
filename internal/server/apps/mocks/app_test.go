@@ -29,15 +29,13 @@ func TestMockApp(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/test", nil)
 	require.NoError(t, err)
 
-	params := map[string]any{"key": "value"}
-
 	// Set expectation for HandleHTTP to be called with specific arguments
 	// and return a specific error
 	expectedError := errors.New("test error")
-	mockApp.On("HandleHTTP", ctx, w, r, params).Return(expectedError).Once()
+	mockApp.On("HandleHTTP", ctx, w, r).Return(expectedError).Once()
 
 	// Call the method
-	result := mockApp.HandleHTTP(ctx, w, r, params)
+	result := mockApp.HandleHTTP(ctx, w, r)
 
 	// Assert expectations
 	assert.Equal(t, expectedError, result)
@@ -46,7 +44,7 @@ func TestMockApp(t *testing.T) {
 	// Test with custom behavior
 	customMock := &mocks.MockApp{}
 	customMock.On("String").Return("custom-id")
-	customMock.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	customMock.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything).
 		Run(func(args mock.Arguments) {
 			// Extract arguments
 			writer := args.Get(1).(http.ResponseWriter)
@@ -62,7 +60,7 @@ func TestMockApp(t *testing.T) {
 
 	// Test HandleHTTP custom behavior
 	newRecorder := httptest.NewRecorder()
-	err = customMock.HandleHTTP(ctx, newRecorder, r, nil)
+	err = customMock.HandleHTTP(ctx, newRecorder, r)
 
 	// Verify results
 	assert.NoError(t, err)

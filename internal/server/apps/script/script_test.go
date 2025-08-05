@@ -124,7 +124,7 @@ func TestScriptApp_HandleHTTP_RisorScript(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
 
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -159,11 +159,7 @@ func TestScriptApp_HandleHTTP_WithStaticData(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
 
-	runtimeData := map[string]any{
-		"runtime_key": "runtime_value",
-	}
-
-	err = app.HandleHTTP(t.Context(), w, req, runtimeData)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "static_value")
@@ -211,7 +207,7 @@ func TestScriptApp_HandleHTTP_Timeout(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
 
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusGatewayTimeout, w.Code)
 }
@@ -242,7 +238,7 @@ _ = result`,
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
 
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
@@ -282,7 +278,7 @@ _ = result`,
 	req := httptest.NewRequest(http.MethodPost, "/api/test", nil)
 	w := httptest.NewRecorder()
 
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "production")
@@ -310,7 +306,7 @@ func TestScriptApp_HandleHTTP_PrepareScriptDataError(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// This should work fine since prepareScriptData doesn't fail for valid inputs
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.NoError(t, err)
 }
 
@@ -346,7 +342,7 @@ func TestScriptApp_HandleHTTP_ExtismDataStructure(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// For non-Extism evaluators, data field should be available as-is
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.NoError(t, err)
 }
 
@@ -369,7 +365,7 @@ func TestScriptApp_HandleHTTP_StringResult(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
 
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
@@ -395,7 +391,7 @@ func TestScriptApp_HandleHTTP_NumericResult(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
 
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
@@ -424,7 +420,7 @@ func TestScriptApp_HandleHTTP_ExecutionError(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
 	w := httptest.NewRecorder()
 
-	err = app.HandleHTTP(t.Context(), w, req, nil)
+	err = app.HandleHTTP(t.Context(), w, req)
 	assert.Error(t, err)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }

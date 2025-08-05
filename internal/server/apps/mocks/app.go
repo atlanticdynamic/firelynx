@@ -32,8 +32,7 @@ func (m *MockApp) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	params map[string]any,
 ) error {
-	args := m.Called(ctx, w, r, params)
+	args := m.Called(ctx, w, r)
 	return args.Error(0)
 }

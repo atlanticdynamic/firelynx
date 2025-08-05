@@ -46,7 +46,7 @@ func TestIntegration_HTTP(t *testing.T) {
 
 	// Create mock apps
 	echoApp := mocks.NewMockApp("echo-app")
-	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	echoApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).
 		Run(func(args mock.Arguments) {
 			w := args.Get(1).(http.ResponseWriter)
@@ -56,7 +56,7 @@ func TestIntegration_HTTP(t *testing.T) {
 		})
 
 	adminApp := mocks.NewMockApp("admin-app")
-	adminApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	adminApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).
 		Run(func(args mock.Arguments) {
 			w := args.Get(1).(http.ResponseWriter)
@@ -84,14 +84,14 @@ func TestIntegration_HTTP(t *testing.T) {
 	// Create echo route handler
 	echoHandler := func(w http.ResponseWriter, r *http.Request) {
 		// Call echo app directly
-		err := echoApp.HandleHTTP(r.Context(), w, r, map[string]any{"version": "1.0"})
+		err := echoApp.HandleHTTP(r.Context(), w, r)
 		require.NoError(t, err)
 	}
 
 	// Create admin route handler
 	adminHandler := func(w http.ResponseWriter, r *http.Request) {
 		// Call admin app directly
-		err := adminApp.HandleHTTP(r.Context(), w, r, map[string]any{"role": "admin"})
+		err := adminApp.HandleHTTP(r.Context(), w, r)
 		require.NoError(t, err)
 	}
 
