@@ -178,14 +178,3 @@ func (a AppCollection) ValidateRouteAppReferences(
 
 	return errors.Join(errs...)
 }
-
-// ValidateRouteAppReferencesWithBuiltIns ensures all routes reference valid apps
-// availableBuiltInApps is a list of built-in app IDs that are always available
-// Deprecated: Use ValidateRouteAppReferences instead. Built-in apps are no longer supported.
-func (a AppCollection) ValidateRouteAppReferencesWithBuiltIns(
-	routes []struct{ AppID string },
-	availableBuiltInApps []string,
-) error {
-	// For backward compatibility, just call the new method
-	return a.ValidateRouteAppReferences(routes)
-}

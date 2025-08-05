@@ -274,62 +274,6 @@ func TestAppCollectionFindByID(t *testing.T) {
 	}
 }
 
-func TestValidateRouteAppReferencesWithBuiltIns(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name          string
-		apps          AppCollection
-		routes        []struct{ AppID string }
-		builtInAppIDs []string
-		expectError   bool
-	}{
-		{
-			name: "Valid references - built-in apps are now ignored",
-			apps: AppCollection{
-				{ID: "app1", Config: &testAppConfig{appType: "echo"}},
-			},
-			routes: []struct{ AppID string }{
-				{AppID: "app1"},
-				{AppID: "built-in1"},
-			},
-			builtInAppIDs: []string{"built-in1"},
-			expectError:   true, // Built-in apps are no longer supported
-		},
-		{
-			name: "Invalid reference",
-			apps: AppCollection{
-				{ID: "app1", Config: &testAppConfig{appType: "echo"}},
-			},
-			routes: []struct{ AppID string }{
-				{AppID: "non-existent"},
-			},
-			builtInAppIDs: []string{"built-in1"},
-			expectError:   true,
-		},
-		{
-			name:          "Empty route app ID",
-			apps:          AppCollection{},
-			routes:        []struct{ AppID string }{{AppID: ""}},
-			builtInAppIDs: []string{},
-			expectError:   false,
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc // Capture range variable
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.apps.ValidateRouteAppReferencesWithBuiltIns(tc.routes, tc.builtInAppIDs)
-
-			if tc.expectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
 // testAppConfig is a simple AppConfig implementation for testing
 type testAppConfig struct {
 	appType string
