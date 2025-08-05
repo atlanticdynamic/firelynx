@@ -666,7 +666,7 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/api/error", nil)
 
-	expandedErrorApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	expandedErrorApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything).
 		Return(errors.New("app error")).
 		Once()
 
@@ -727,14 +727,11 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, routes, 1)
 
-	// Test that static data is passed to the app
+	// Test that app is called without static data parameter
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/api/test", nil)
 
-	expandedServerApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything, mock.MatchedBy(func(data map[string]any) bool {
-		// Expanded app should receive empty data map since static data is merged in the app instance
-		return len(data) == 0
-	})).
+	expandedServerApp.On("HandleHTTP", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).
 		Once()
 

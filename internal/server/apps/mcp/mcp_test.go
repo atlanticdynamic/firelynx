@@ -110,10 +110,9 @@ func TestApp_HandleHTTP(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/test", nil)
 		w := httptest.NewRecorder()
 		ctx := t.Context()
-		staticData := map[string]any{}
 
 		// HandleHTTP should not return an error (MCP SDK handles errors internally)
-		err = app.HandleHTTP(ctx, w, req, staticData)
+		err = app.HandleHTTP(ctx, w, req)
 		assert.NoError(t, err)
 
 		// The actual response depends on MCP SDK implementation
@@ -131,11 +130,10 @@ func TestApp_HandleHTTP(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/test", nil)
 		w := httptest.NewRecorder()
 		ctx := t.Context()
-		staticData := map[string]any{}
 
 		// Should panic with nil handler
 		assert.Panics(t, func() {
-			app.HandleHTTP(ctx, w, req, staticData) //nolint:errcheck // Expected to panic
+			app.HandleHTTP(ctx, w, req) //nolint:errcheck // Expected to panic
 		})
 	})
 }
@@ -183,7 +181,7 @@ func TestApp_Integration(t *testing.T) {
 		w := httptest.NewRecorder()
 		ctx := t.Context()
 
-		err = app.HandleHTTP(ctx, w, req, map[string]any{})
+		err = app.HandleHTTP(ctx, w, req)
 		assert.NoError(t, err)
 
 		// Response handling is delegated to MCP SDK

@@ -30,7 +30,6 @@ func (a *App) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	staticData map[string]any,
 ) error {
 	// Set content type to plain text for simple response
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

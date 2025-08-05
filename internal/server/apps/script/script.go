@@ -75,14 +75,13 @@ func (s *ScriptApp) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	routeStaticData map[string]any,
 ) error {
 	timeout := s.config.Evaluator.GetTimeout()
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Prepare script data with proper structure for WASM modules
-	scriptData, err := s.prepareScriptData(timeoutCtx, r, routeStaticData)
+	scriptData, err := s.prepareScriptData(timeoutCtx, r)
 	if err != nil {
 		s.logger.Error("Failed to prepare script data", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -133,17 +132,15 @@ func (s *ScriptApp) HandleHTTP(
 func (s *ScriptApp) prepareScriptData(
 	ctx context.Context,
 	r *http.Request,
-	routeStaticData map[string]any,
 ) (map[string]any, error) {
-	// Get app-level static data
+	// Get app-level static data (route static data is now embedded during app creation)
 	appStaticData, err := s.appStaticProvider.GetData(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get app static data: %w", err)
 	}
 
-	// Merge app and route static data (route overrides app)
+	// Use app static data which now includes merged route data from app creation time
 	mergedStaticData := maps.Clone(appStaticData)
-	maps.Copy(mergedStaticData, routeStaticData)
 
 	// Structure data based on evaluator type
 	switch s.config.Evaluator.Type() {

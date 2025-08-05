@@ -46,7 +46,6 @@ func (a *App) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
 	r *http.Request,
-	staticData map[string]any,
 ) error {
 	// The MCP SDK handler manages all MCP protocol concerns
 	// We simply delegate the request to it
