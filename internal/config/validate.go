@@ -38,6 +38,10 @@ func (c *Config) Validate() error {
 	endpointErrs := c.validateEndpoints(listenerIds)
 	errs = append(errs, endpointErrs...)
 
+	// Expand apps for routes before validating them
+	// This creates route-specific app instances with merged static data
+	expandAppsForRoutes(c.Apps, c.Endpoints)
+
 	// Validate apps and route references
 	if err := c.validateAppsAndRoutes(); err != nil {
 		errs = append(errs, err)
