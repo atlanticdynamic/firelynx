@@ -667,6 +667,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "Invalid version",
 			config: &Config{
 				Version: "invalid",
+				Apps:    apps.NewAppCollection(),
 			},
 			expectError: true,
 			errorType:   ErrUnsupportedConfigVer,
@@ -675,6 +676,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "Invalid listener",
 			config: &Config{
 				Version: VersionLatest,
+				Apps:    apps.NewAppCollection(),
 				Listeners: listeners.ListenerCollection{
 					{
 						ID:      "", // Empty ID
@@ -696,6 +698,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "Invalid endpoint reference",
 			config: &Config{
 				Version: VersionLatest,
+				Apps:    apps.NewAppCollection(),
 				Listeners: listeners.ListenerCollection{
 					{
 						ID:      "http1",

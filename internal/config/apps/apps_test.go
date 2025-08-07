@@ -268,12 +268,12 @@ func TestAppCollectionFindByID(t *testing.T) {
 		})
 	}
 
-	// Test nil collection
-	t.Run("Nil collection", func(t *testing.T) {
-		var nilApps *AppCollection
-		app, found := nilApps.FindByID("any")
-		assert.False(t, found, "Should not find app in nil collection")
-		assert.Equal(t, "", app.ID, "Should return zero value for nil collection")
+	// Test empty collection
+	t.Run("Empty collection", func(t *testing.T) {
+		emptyApps := NewAppCollection()
+		app, found := emptyApps.FindByID("any")
+		assert.False(t, found, "Should not find app in empty collection")
+		assert.Equal(t, "", app.ID, "Should return zero value for empty collection")
 	})
 }
 

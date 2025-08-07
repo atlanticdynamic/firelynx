@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,9 @@ func createTestTransaction(t *testing.T) *transaction.ConfigTransaction {
 	t.Helper()
 
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	cfg := &config.Config{}
+	// Create config using proper constructor
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 	tx, err := transaction.FromTest("test_transaction", cfg, handler)
 	require.NoError(t, err)
 	require.NotNil(t, tx)

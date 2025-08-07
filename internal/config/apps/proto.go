@@ -63,8 +63,8 @@ func appTypeFromProto(pbAppType pb.AppDefinition_Type) AppType {
 
 // ToProto converts the Apps collection to a slice of protobuf AppDefinition messages
 func (ac *AppCollection) ToProto() []*pb.AppDefinition {
-	if ac == nil || len(ac.Apps) == 0 {
-		return nil
+	if len(ac.Apps) == 0 {
+		return []*pb.AppDefinition{}
 	}
 
 	result := make([]*pb.AppDefinition, 0, len(ac.Apps))
@@ -164,7 +164,7 @@ func ToProto(apps []App) []*pb.AppDefinition {
 // FromProto converts a slice of protobuf AppDefinition messages to domain App objects
 func FromProto(pbApps []*pb.AppDefinition) (*AppCollection, error) {
 	if len(pbApps) == 0 {
-		return nil, nil
+		return NewAppCollection(), nil
 	}
 
 	apps := make([]App, 0, len(pbApps))

@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
@@ -21,9 +22,9 @@ import (
 func TestRunValidation_ShouldReturnValidationErrors(t *testing.T) {
 	t.Run("unsupported_version_should_return_error", func(t *testing.T) {
 		// Create a config with unsupported version
-		invalidConfig := &config.Config{
-			Version: "v999", // Unsupported version
-		}
+		invalidConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		invalidConfig.Version = "v999" // Unsupported version
 
 		// Create transaction
 		tx, err := New(
@@ -56,19 +57,22 @@ func TestRunValidation_ShouldReturnValidationErrors(t *testing.T) {
 
 	t.Run("duplicate_listener_ids_should_return_error", func(t *testing.T) {
 		// Create config with duplicate listener IDs
-		invalidConfig := &config.Config{
-			Version: config.VersionLatest,
-			Listeners: listeners.ListenerCollection{
-				{
-					ID:      "duplicate-id",
-					Address: ":8080",
-					Type:    listeners.TypeHTTP,
-				},
-				{
-					ID:      "duplicate-id", // Duplicate!
-					Address: ":8081",
-					Type:    listeners.TypeHTTP,
-				},
+		// First create a valid config using the constructor
+		invalidConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+
+		// Then set the fields we need for the test
+		invalidConfig.Version = config.VersionLatest
+		invalidConfig.Listeners = listeners.ListenerCollection{
+			{
+				ID:      "duplicate-id",
+				Address: ":8080",
+				Type:    listeners.TypeHTTP,
+			},
+			{
+				ID:      "duplicate-id", // Duplicate!
+				Address: ":8081",
+				Type:    listeners.TypeHTTP,
 			},
 		}
 
@@ -102,9 +106,8 @@ func TestRunValidation_ShouldReturnValidationErrors(t *testing.T) {
 
 	t.Run("valid_config_should_succeed", func(t *testing.T) {
 		// Create a valid config
-		validConfig := &config.Config{
-			Version: config.VersionLatest,
-		}
+		validConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 
 		// Create transaction
 		tx, err := New(
@@ -151,9 +154,8 @@ func TestRunValidation_NilConfig(t *testing.T) {
 
 func TestRunValidation_CalledMultipleTimes(t *testing.T) {
 	// Test that RunValidation can only be called once
-	validConfig := &config.Config{
-		Version: config.VersionLatest,
-	}
+	validConfig, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 
 	tx, err := New(
 		SourceTest,
@@ -186,14 +188,14 @@ func TestSetStateInvalid_ErrorAlreadyWrapped(t *testing.T) {
 	// We need to create a custom validator that returns already-wrapped errors
 
 	// Create a config that will trigger validation errors
-	invalidConfig := &config.Config{
-		Version: config.VersionLatest,
-		Listeners: listeners.ListenerCollection{
-			{
-				ID:      "test",
-				Address: "", // Invalid: empty address
-				Type:    listeners.TypeHTTP,
-			},
+	invalidConfig, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	invalidConfig.Version = config.VersionLatest
+	invalidConfig.Listeners = listeners.ListenerCollection{
+		{
+			ID:      "test",
+			Address: "", // Invalid: empty address
+			Type:    listeners.TypeHTTP,
 		},
 	}
 
@@ -226,9 +228,8 @@ func TestSetStateInvalid_ErrorAlreadyWrapped(t *testing.T) {
 func TestRunValidation_FullLifecycle(t *testing.T) {
 	t.Run("successful validation with state transitions", func(t *testing.T) {
 		// Create valid config
-		validConfig := &config.Config{
-			Version: config.VersionLatest,
-		}
+		validConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 
 		// Create transaction with real FSM
 		tx, err := New(
@@ -255,9 +256,9 @@ func TestRunValidation_FullLifecycle(t *testing.T) {
 
 	t.Run("failed validation with state transitions", func(t *testing.T) {
 		// Create invalid config with bad version
-		invalidConfig := &config.Config{
-			Version: "invalid-version",
-		}
+		invalidConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		invalidConfig.Version = "invalid-version"
 
 		// Create transaction with real FSM
 		tx, err := New(
@@ -287,14 +288,14 @@ func TestRunValidation_StateTransitionLogging(t *testing.T) {
 	// This test exercises the state transition paths and logging
 	t.Run("invalid config with multiple errors", func(t *testing.T) {
 		// Create a config that will have multiple validation errors
-		invalidConfig := &config.Config{
-			Version: "invalid-version",
-			Listeners: listeners.ListenerCollection{
-				{
-					ID:      "", // Invalid: empty ID
-					Address: "", // Invalid: empty address
-					Type:    listeners.TypeHTTP,
-				},
+		invalidConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		invalidConfig.Version = "invalid-version"
+		invalidConfig.Listeners = listeners.ListenerCollection{
+			{
+				ID:      "", // Invalid: empty ID
+				Address: "", // Invalid: empty address
+				Type:    listeners.TypeHTTP,
 			},
 		}
 
@@ -320,9 +321,9 @@ func TestRunValidation_StateTransitionLogging(t *testing.T) {
 	})
 
 	t.Run("validation state already set", func(t *testing.T) {
-		validConfig := &config.Config{
-			Version: config.VersionLatest,
-		}
+		validConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		validConfig.Version = config.VersionLatest
 
 		tx, err := New(
 			SourceTest,
