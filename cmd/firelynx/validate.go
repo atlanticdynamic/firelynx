@@ -90,7 +90,7 @@ func formatValidResult(result ValidationResult, treeView, noColor bool) string {
 
 	details := fmt.Sprintf("(%s, %d listeners, %d endpoints, %d apps)",
 		result.Config.Version, len(result.Config.Listeners),
-		len(result.Config.Endpoints), len(result.Config.Apps))
+		len(result.Config.Endpoints), result.Config.Apps.Len())
 
 	if noColor {
 		return fmt.Sprintf("%s: valid %s", result.Path, details)

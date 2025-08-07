@@ -189,26 +189,26 @@ func TestAppCollectionToTree(t *testing.T) {
 	t.Parallel()
 
 	// Create a collection with different app types
-	apps := AppCollection{
-		{
+	apps := NewAppCollection(
+		App{
 			ID: "script-app",
 			Config: scripts.NewAppScript(
 				&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 				&evaluators.RisorEvaluator{Code: "return 42"},
 			),
 		},
-		{
+		App{
 			ID: "composite-app",
 			Config: &composite.CompositeScript{
 				ScriptAppIDs: []string{"script1", "script2"},
 				StaticData:   &staticdata.StaticData{Data: map[string]any{"key": "value"}},
 			},
 		},
-		{
+		App{
 			ID:     "echo-app",
 			Config: &echo.EchoApp{Response: "Hello!"},
 		},
-	}
+	)
 
 	tree := apps.ToTree()
 	assert.NotNil(t, tree)

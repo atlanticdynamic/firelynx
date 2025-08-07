@@ -123,7 +123,7 @@ func setupTestConfig() *Config {
 			multiHttpEndpoint,
 			multiHttpEndpoint2,
 		},
-		Apps: apps.AppCollection{echoApp, scriptApp, starScriptApp},
+		Apps: apps.NewAppCollection(echoApp, scriptApp, starScriptApp),
 	}
 
 	return config

@@ -54,7 +54,7 @@ func TestConfigValidation(t *testing.T) {
 			assert.NotEmpty(t, cfg.Apps, "Should have at least one app")
 
 			mcpApps := 0
-			for _, app := range cfg.Apps {
+			for _, app := range cfg.Apps.Apps {
 				if app.Config.Type() == "mcp" {
 					mcpApps++
 				}
