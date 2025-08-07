@@ -18,11 +18,20 @@ This package handles:
 - **app.go**: Common App interface definition
 - **instantiators.go**: Type-specific app creation logic
 
+## App Interface
+
+Apps implement a simple interface:
+- `String()` - Returns the app ID for registry lookup
+- `HandleHTTP(ctx, ResponseWriter, *Request)` - Processes HTTP requests
+
+Static data is embedded during app creation, not passed at runtime.
+
 ## App Types
 
 Currently implemented:
 - **EchoApp**: Returns request information for testing
 - **ScriptApp**: Executes scripts (Risor, Starlark, WebAssembly)
+- **MCPApp**: Executes Model Context Protocol tools
 
 Future implementations:
 - **CompositeApp**: Chains multiple script apps

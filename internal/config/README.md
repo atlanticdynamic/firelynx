@@ -83,6 +83,25 @@ Configuration validation follows a strict two-phase architecture:
 - **Validate interpolated values** - Business rules apply to expanded values, not templates
 - **Explicit validation required** - Callers must call `.Validate()` explicitly
 
+## Validation Flow
+
+The configuration validation happens in the following order:
+
+1. **Basic structure validation** - Validate IDs, required fields, and data types
+2. **App expansion for routes** (`expandAppsForRoutes`) - Create route-specific app instances with merged static data
+3. **Individual component validation** - Validate apps, listeners, endpoints individually
+4. **Cross-component validation** - Validate references between components (routes to apps, endpoints to listeners)
+
+## App Expansion
+
+Apps are expanded during the validation phase to create route-specific instances. Each route that references an app gets its own instance with merged static data from both the app definition and route-specific configuration.
+
+**Key Points:**
+- Expansion happens in validation phase, not during protobuf conversion
+- Each route gets a dedicated app instance with pre-merged static data
+- Static data merging is completed before server instantiation
+- Server components receive fully-prepared app instances
+
 ## Environment Variable Interpolation
 
 Config fields support environment variable interpolation using `${VAR_NAME}` and `${VAR_NAME:default}` syntax.
