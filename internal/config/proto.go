@@ -55,6 +55,9 @@ func fromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		config.Endpoints = endpointsList
 	}
 
+	// Always initialize Apps to avoid nil pointer
+	config.Apps = apps.NewAppCollection()
+
 	// Convert apps using the apps package's FromProto method
 	if len(pbConfig.Apps) > 0 {
 		appDefinitions, err := apps.FromProto(pbConfig.Apps)

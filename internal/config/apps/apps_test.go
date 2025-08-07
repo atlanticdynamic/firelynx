@@ -75,85 +75,85 @@ func TestAppCollectionValidate(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		apps        AppCollection
+		apps        *AppCollection
 		expectError bool
 	}{
 		{
 			name:        "Empty collection",
-			apps:        AppCollection{},
+			apps:        NewAppCollection(),
 			expectError: false,
 		},
 		{
 			name: "Valid collection",
-			apps: AppCollection{
-				{
+			apps: NewAppCollection(
+				App{
 					ID: "app1",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
 				},
-				{
+				App{
 					ID: "app2",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),
 				},
-			},
+			),
 			expectError: false,
 		},
 		{
 			name: "Duplicate IDs",
-			apps: AppCollection{
-				{
+			apps: NewAppCollection(
+				App{
 					ID: "app1",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
 				},
-				{
+				App{
 					ID: "app1",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),
 				},
-			},
+			),
 			expectError: true,
 		},
 		{
 			name: "Composite with valid reference",
-			apps: AppCollection{
-				{
+			apps: NewAppCollection(
+				App{
 					ID: "script1",
 					Config: scripts.NewAppScript(
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
 				},
-				{
+				App{
 					ID: "composite1",
 					Config: &composite.CompositeScript{
 						ScriptAppIDs: []string{"script1"},
 						StaticData:   &staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					},
 				},
-			},
+			),
 			expectError: false,
 		},
 		{
 			name: "Composite with invalid reference",
-			apps: AppCollection{
-				{
+			apps: NewAppCollection(
+				App{
 					ID: "composite1",
 					Config: &composite.CompositeScript{
 						ScriptAppIDs: []string{"non-existent"},
 						StaticData:   &staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					},
 				},
-			},
+			),
 			expectError: true,
 		},
 	}
@@ -176,102 +176,105 @@ func TestAppCollectionFindByID(t *testing.T) {
 	t.Parallel()
 
 	// Create a test collection
-	apps := AppCollection{
-		{
+	apps := NewAppCollection(
+		App{
 			ID: "app1",
 			Config: &testAppConfig{
 				appType: "echo",
 				valid:   true,
 			},
 		},
-		{
+		App{
 			ID: "app2",
 			Config: &testAppConfig{
 				appType: "script",
 				valid:   true,
 			},
 		},
-		{
+		App{
 			ID: "app3",
 			Config: &testAppConfig{
 				appType: "composite",
 				valid:   true,
 			},
 		},
-	}
+	)
 
 	tests := []struct {
-		name          string
-		id            string
-		expectedID    string
-		expectNil     bool
-		expectPointer bool
+		name        string
+		id          string
+		expectedID  string
+		expectFound bool
 	}{
 		{
-			name:          "Find existing app (first)",
-			id:            "app1",
-			expectedID:    "app1",
-			expectNil:     false,
-			expectPointer: true,
+			name:        "Find existing app (first)",
+			id:          "app1",
+			expectedID:  "app1",
+			expectFound: true,
 		},
 		{
-			name:          "Find existing app (middle)",
-			id:            "app2",
-			expectedID:    "app2",
-			expectNil:     false,
-			expectPointer: true,
+			name:        "Find existing app (middle)",
+			id:          "app2",
+			expectedID:  "app2",
+			expectFound: true,
 		},
 		{
-			name:          "Find existing app (last)",
-			id:            "app3",
-			expectedID:    "app3",
-			expectNil:     false,
-			expectPointer: true,
+			name:        "Find existing app (last)",
+			id:          "app3",
+			expectedID:  "app3",
+			expectFound: true,
 		},
 		{
-			name:          "App not found",
-			id:            "non-existent",
-			expectedID:    "",
-			expectNil:     true,
-			expectPointer: false,
+			name:        "App not found",
+			id:          "non-existent",
+			expectedID:  "",
+			expectFound: false,
 		},
 		{
-			name:          "Empty ID",
-			id:            "",
-			expectedID:    "",
-			expectNil:     true,
-			expectPointer: false,
+			name:        "Empty ID",
+			id:          "",
+			expectedID:  "",
+			expectFound: false,
 		},
 	}
 
 	for _, tc := range tests {
 		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
-			app := apps.FindByID(tc.id)
+			app, found := apps.FindByID(tc.id)
 
-			if tc.expectNil {
-				assert.Nil(t, app, "App should be nil")
-			} else {
-				assert.NotNil(t, app, "App should not be nil")
+			if tc.expectFound {
+				assert.True(t, found, "App should be found")
 				assert.Equal(t, tc.expectedID, app.ID, "App ID should match")
 
-				// Verify that it's a pointer to the app in the collection, not a copy
-				if tc.expectPointer {
-					// Modify the found app and check if the collection is updated
-					originalID := app.ID
-					app.ID = "modified"
+				// Verify that it's a copy, not a pointer to the collection
+				// Modify the returned app and verify the collection is unchanged
+				originalID := app.ID
+				app.ID = "modified"
 
-					// Check that the app in the collection was modified
-					directApp := apps.FindByID("modified")
-					assert.NotNil(t, directApp, "Modified app should be found")
-					assert.Equal(t, "modified", directApp.ID, "App ID should be modified")
+				// Check that the original app in the collection is unchanged
+				originalApp, originalFound := apps.FindByID(originalID)
+				assert.True(t, originalFound, "Original app should still be found")
+				assert.Equal(t, originalID, originalApp.ID, "Original app ID should be unchanged")
 
-					// Restore the original ID for other tests
-					app.ID = originalID
-				}
+				// Verify the modified copy is not in the collection
+				modifiedApp, modifiedFound := apps.FindByID("modified")
+				assert.False(t, modifiedFound, "Modified app should not be found in collection")
+				assert.Equal(t, "", modifiedApp.ID, "Modified app should be zero value")
+			} else {
+				assert.False(t, found, "App should not be found")
+				assert.Equal(t, "", app.ID, "App should be zero value when not found")
 			}
 		})
 	}
+
+	// Test nil collection
+	t.Run("Nil collection", func(t *testing.T) {
+		var nilApps *AppCollection
+		app, found := nilApps.FindByID("any")
+		assert.False(t, found, "Should not find app in nil collection")
+		assert.Equal(t, "", app.ID, "Should return zero value for nil collection")
+	})
 }
 
 // testAppConfig is a simple AppConfig implementation for testing

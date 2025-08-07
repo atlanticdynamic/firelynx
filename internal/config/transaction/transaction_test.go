@@ -495,22 +495,22 @@ func TestGetDuration(t *testing.T) {
 func TestConvertToAppDefinitions(t *testing.T) {
 	tests := []struct {
 		name     string
-		input    apps.AppCollection
+		input    *apps.AppCollection
 		expected []serverApps.AppDefinition
 	}{
 		{
 			name:     "empty collection",
-			input:    apps.AppCollection{},
+			input:    apps.NewAppCollection(),
 			expected: []serverApps.AppDefinition{},
 		},
 		{
 			name: "single echo app",
-			input: apps.AppCollection{
-				{
+			input: apps.NewAppCollection(
+				apps.App{
 					ID:     "test-echo",
 					Config: &echo.EchoApp{Response: "test"},
 				},
-			},
+			),
 			expected: []serverApps.AppDefinition{
 				{
 					ID:     "test-echo",
@@ -520,16 +520,16 @@ func TestConvertToAppDefinitions(t *testing.T) {
 		},
 		{
 			name: "multiple apps",
-			input: apps.AppCollection{
-				{
+			input: apps.NewAppCollection(
+				apps.App{
 					ID:     "echo1",
 					Config: &echo.EchoApp{Response: "test1"},
 				},
-				{
+				apps.App{
 					ID:     "echo2",
 					Config: &echo.EchoApp{Response: "test2"},
 				},
-			},
+			),
 			expected: []serverApps.AppDefinition{
 				{
 					ID:     "echo1",
@@ -630,12 +630,12 @@ func TestNew_ErrorConditions(t *testing.T) {
 		// Create a config that will cause app factory to fail
 		cfg := &config.Config{
 			Version: config.VersionLatest,
-			Apps: apps.AppCollection{
-				{
+			Apps: apps.NewAppCollection(
+				apps.App{
 					ID:     "invalid-app",
 					Config: nil, // This should cause the factory to fail
 				},
-			},
+			),
 		}
 
 		handler := slog.NewTextHandler(os.Stdout, nil)
@@ -940,12 +940,12 @@ func TestGetAppCollection(t *testing.T) {
 	t.Run("app collection integration", func(t *testing.T) {
 		cfg := &config.Config{
 			Version: config.VersionLatest,
-			Apps: apps.AppCollection{
-				{
+			Apps: apps.NewAppCollection(
+				apps.App{
 					ID:     "test-echo",
 					Config: &echo.EchoApp{Response: "test response"},
 				},
-			},
+			),
 		}
 
 		handler := slog.NewTextHandler(os.Stdout, nil)
@@ -1018,16 +1018,16 @@ func TestAppFactoryIntegration(t *testing.T) {
 	t.Run("creates app collection from config", func(t *testing.T) {
 		// Create a config with echo apps
 		cfg := &config.Config{
-			Apps: apps.AppCollection{
-				{
+			Apps: apps.NewAppCollection(
+				apps.App{
 					ID:     "echo1",
 					Config: &echo.EchoApp{Response: "Hello 1"},
 				},
-				{
+				apps.App{
 					ID:     "echo2",
 					Config: &echo.EchoApp{Response: "Hello 2"},
 				},
-			},
+			),
 		}
 
 		// Create app factory and convert definitions
@@ -1051,7 +1051,7 @@ func TestAppFactoryIntegration(t *testing.T) {
 
 	t.Run("handles empty config", func(t *testing.T) {
 		cfg := &config.Config{
-			Apps: apps.AppCollection{},
+			Apps: apps.NewAppCollection(),
 		}
 
 		// Create app factory and convert definitions
@@ -1258,12 +1258,12 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 				},
 			},
 			// Add required apps
-			Apps: apps.AppCollection{
-				{
+			Apps: apps.NewAppCollection(
+				apps.App{
 					ID:     "test-app",
 					Config: &echo.EchoApp{Response: "test response"},
 				},
-			},
+			),
 			Endpoints: endpoints.EndpointCollection{
 				{
 					ID:         "endpoint1",
@@ -1343,16 +1343,16 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 				},
 			},
 			// Add required apps
-			Apps: apps.AppCollection{
-				{
+			Apps: apps.NewAppCollection(
+				apps.App{
 					ID:     "app1",
 					Config: &echo.EchoApp{Response: "app1 response"},
 				},
-				{
+				apps.App{
 					ID:     "app2",
 					Config: &echo.EchoApp{Response: "app2 response"},
 				},
-			},
+			),
 			Endpoints: endpoints.EndpointCollection{
 				{
 					ID:         "endpoint1",
@@ -1421,16 +1421,16 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 				},
 			},
 			// Add required apps
-			Apps: apps.AppCollection{
-				{
+			Apps: apps.NewAppCollection(
+				apps.App{
 					ID:     "app1",
 					Config: &echo.EchoApp{Response: "app1 response"},
 				},
-				{
+				apps.App{
 					ID:     "app2",
 					Config: &echo.EchoApp{Response: "app2 response"},
 				},
-			},
+			),
 			Endpoints: endpoints.EndpointCollection{
 				{
 					ID:         "endpoint1",
@@ -1551,16 +1551,16 @@ func createDualLoggerConfig(t *testing.T, output1, output2 string) *config.Confi
 			},
 		},
 		// Add required apps
-		Apps: apps.AppCollection{
-			{
+		Apps: apps.NewAppCollection(
+			apps.App{
 				ID:     "app1",
 				Config: &echo.EchoApp{Response: "app1 response"},
 			},
-			{
+			apps.App{
 				ID:     "app2",
 				Config: &echo.EchoApp{Response: "app2 response"},
 			},
-		},
+		),
 		Endpoints: endpoints.EndpointCollection{
 			{
 				ID:         "endpoint1",

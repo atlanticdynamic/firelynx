@@ -94,12 +94,12 @@ func TestConfigString(t *testing.T) {
 			setupConfig: func() *Config {
 				return &Config{
 					Version: version.Version,
-					Apps: apps.AppCollection{
-						{
+					Apps: apps.NewAppCollection(
+						apps.App{
 							ID:     "echo-app",
 							Config: &echo.EchoApp{Response: "Hello World"},
 						},
-						{
+						apps.App{
 							ID: "script-app",
 							Config: scripts.NewAppScript(
 								nil,
@@ -108,7 +108,7 @@ func TestConfigString(t *testing.T) {
 								},
 							),
 						},
-					},
+					),
 				}
 			},
 			expectedSubstr: []string{
@@ -146,12 +146,12 @@ func TestConfigString(t *testing.T) {
 							},
 						},
 					},
-					Apps: apps.AppCollection{
-						{
+					Apps: apps.NewAppCollection(
+						apps.App{
 							ID:     "echo-app",
 							Config: &echo.EchoApp{Response: "Hello World"},
 						},
-					},
+					),
 				}
 			},
 			expectedSubstr: []string{
@@ -216,12 +216,12 @@ func TestConfigTree(t *testing.T) {
 				},
 			},
 		},
-		Apps: apps.AppCollection{
-			{
+		Apps: apps.NewAppCollection(
+			apps.App{
 				ID:     "echo-app",
 				Config: &echo.EchoApp{Response: "Hello World"},
 			},
-		},
+		),
 	}
 
 	// Verify that ConfigTree and String return the same result
