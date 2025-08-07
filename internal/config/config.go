@@ -29,7 +29,7 @@ type Config struct {
 	Version   string
 	Listeners listeners.ListenerCollection
 	Endpoints endpoints.EndpointCollection
-	Apps      apps.AppCollection
+	Apps      *apps.AppCollection
 
 	// ValidationCompleted is set after the config has been validated. If the config is invalid, this will still be true.
 	ValidationCompleted bool
@@ -80,7 +80,7 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	config := &Config{
 		Version:  VersionLatest,
 		rawProto: pbConfig,
-		Apps:     apps.AppCollection{},
+		Apps:     apps.NewAppCollection(),
 	}
 
 	if pbConfig.Version != nil && *pbConfig.Version != "" {
@@ -103,6 +103,9 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		}
 		config.Endpoints = endpointsList
 	}
+
+	// Always initialize Apps to avoid nil pointer
+	config.Apps = apps.NewAppCollection()
 
 	var appErrz []error
 	if len(pbConfig.Apps) > 0 {

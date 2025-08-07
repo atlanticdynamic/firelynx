@@ -284,21 +284,21 @@ func TestFromProtoConversions(t *testing.T) {
 		// Convert all apps
 		apps, err := FromProto(pbApps)
 		require.NoError(t, err, "Should convert all apps")
-		require.Len(t, apps, 3, "Should convert all 3 apps")
+		require.Len(t, apps.Apps, 3, "Should convert all 3 apps")
 
 		// Verify each app was converted correctly
-		assert.Equal(t, "script-app", apps[0].ID)
-		assert.Equal(t, "composite-app", apps[1].ID)
-		assert.Equal(t, "echo-app", apps[2].ID)
+		assert.Equal(t, "script-app", apps.Apps[0].ID)
+		assert.Equal(t, "composite-app", apps.Apps[1].ID)
+		assert.Equal(t, "echo-app", apps.Apps[2].ID)
 
 		// Verify config types
-		_, ok := apps[0].Config.(*scripts.AppScript)
+		_, ok := apps.Apps[0].Config.(*scripts.AppScript)
 		assert.True(t, ok, "First app should be a script app")
 
-		_, ok = apps[1].Config.(*composite.CompositeScript)
+		_, ok = apps.Apps[1].Config.(*composite.CompositeScript)
 		assert.True(t, ok, "Second app should be a composite app")
 
-		_, ok = apps[2].Config.(*echo.EchoApp)
+		_, ok = apps.Apps[2].Config.(*echo.EchoApp)
 		assert.True(t, ok, "Third app should be an echo app")
 	})
 
@@ -460,7 +460,7 @@ func TestToProtoConversions(t *testing.T) {
 		}
 
 		// Convert to protobuf
-		pbApps := AppCollection(apps).ToProto()
+		pbApps := NewAppCollection(apps...).ToProto()
 		assert.Len(t, pbApps, 3, "Should convert all apps")
 
 		// Verify each app was converted correctly

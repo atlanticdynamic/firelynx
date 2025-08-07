@@ -45,7 +45,10 @@ func (c *Config) GetEndpointByID(id string) *endpoints.Endpoint {
 // FindApp finds an application by ID (alias for apps.FindByID)
 // Deprecated: Direct usage of c.Apps.FindByID() is preferred.
 func (c *Config) FindApp(id string) *apps.App {
-	return c.Apps.FindByID(id)
+	if app, found := c.Apps.FindByID(id); found {
+		return &app
+	}
+	return nil
 }
 
 //
@@ -55,7 +58,7 @@ func (c *Config) FindApp(id string) *apps.App {
 // GetAppsByType returns all apps with a specific evaluator type
 func (c *Config) GetAppsByType(evalType string) []apps.App {
 	var result []apps.App
-	for _, app := range c.Apps {
+	for _, app := range c.Apps.Apps {
 		if scriptApp, ok := app.Config.(*scripts.AppScript); ok {
 			if scriptApp.Evaluator.Type().String() == evalType {
 				result = append(result, app)

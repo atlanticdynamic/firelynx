@@ -54,6 +54,6 @@ func TestNewFromProtoWithNonEmptyApps(t *testing.T) {
 	// Verify the apps field contains the expected app
 	assert.NotNil(t, config)
 	assert.NotNil(t, config.Apps)
-	assert.Len(t, config.Apps, 1, "Apps should contain one app")
-	assert.Equal(t, "echo_app", config.Apps[0].ID)
+	assert.Len(t, config.Apps.Apps, 1, "Apps should contain one app")
+	assert.Equal(t, "echo_app", config.Apps.Apps[0].ID)
 }

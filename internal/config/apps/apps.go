@@ -3,34 +3,14 @@
 //
 // This package defines the domain model for application configurations, including
 // various app types (scripts, composite scripts) and their validation logic.
-// It serves as the boundary between configuration and runtime systems.
 //
 // The main types include:
 // - App: Represents a single application configuration with ID and type-specific config
-// - AppCollection: A slice of App objects with validation and lookup methods
+// - AppCollection: A struct containing a slice of App objects with validation and lookup methods
 // - AppConfig: Interface implemented by all app type configs (scripts, composite, etc.)
 //
-// Thread Safety:
-// The types in this package are not inherently thread-safe and should be protected
-// when used concurrently. Typically, these configuration objects are loaded during
-// startup or config reload events, which should be synchronized.
-//
-// Usage Example:
-//
-//	// Create an app collection with a script app
-//	scriptApp := &apps.App{
-//	    ID: "my-script",
-//	    Config: scripts.NewAppScript(staticData, evaluator),
-//	}
-//	appCollection := apps.AppCollection{scriptApp}
-//
-//	// Validate the configuration
-//	if err := appCollection.Validate(); err != nil {
-//	    return err
-//	}
-//
-//	// Convert to runtime instances (using core adapter)
-//	instances, err := core.CreateAppInstances(appCollection)
+// AppCollection provides centralized management of app definitions with duplicate ID detection,
+// lookup by ID, and validation of cross-references between apps.
 package apps
 
 import (
@@ -48,8 +28,10 @@ type App struct {
 	Config AppConfig
 }
 
-// AppCollection is a collection of App definitions
-type AppCollection []App
+// AppCollection is a collection of App definitions with centralized management
+type AppCollection struct {
+	Apps []App
+}
 
 // AppConfig represents application-specific configuration
 type AppConfig interface {
@@ -81,19 +63,36 @@ func (a App) Validate() error {
 	return errors.Join(errs...)
 }
 
-// FindByID finds an app by its ID
-func (a AppCollection) FindByID(id string) *App {
-	for i, app := range a {
+// NewAppCollection creates a new AppCollection with the given apps
+func NewAppCollection(apps ...App) *AppCollection {
+	return &AppCollection{
+		Apps: apps,
+	}
+}
+
+// FindByID finds an app by its ID. Returns a copy to prevent external mutations.
+func (ac *AppCollection) FindByID(id string) (App, bool) {
+	for _, app := range ac.Apps {
 		if app.ID == id {
-			return &a[i]
+			return app, true
 		}
 	}
-	return nil
+	return App{}, false
+}
+
+// Len returns the number of apps in the collection
+func (ac *AppCollection) Len() int {
+	return len(ac.Apps)
+}
+
+// Get returns the app at the specified index
+func (ac *AppCollection) Get(index int) App {
+	return ac.Apps[index]
 }
 
 // Validate checks that app configurations are valid
-func (a AppCollection) Validate() error {
-	if len(a) == 0 {
+func (ac *AppCollection) Validate() error {
+	if len(ac.Apps) == 0 {
 		return nil // Empty app list is valid
 	}
 
@@ -103,7 +102,7 @@ func (a AppCollection) Validate() error {
 	appIDs := make(map[string]bool)
 
 	// First pass: Validate IDs and check for duplicates
-	for _, app := range a {
+	for _, app := range ac.Apps {
 		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
 			errs = append(errs, err)
 			continue
@@ -118,7 +117,7 @@ func (a AppCollection) Validate() error {
 	}
 
 	// Second pass: Validate each app individually and handle cross-references
-	for i, app := range a {
+	for i, app := range ac.Apps {
 		// Skip apps with invalid IDs as those are already reported
 		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
 			continue
@@ -154,12 +153,10 @@ func (a AppCollection) Validate() error {
 }
 
 // ValidateRouteAppReferences ensures all routes reference valid apps
-func (a AppCollection) ValidateRouteAppReferences(
-	routes []struct{ AppID string },
-) error {
+func (ac *AppCollection) ValidateRouteAppReferences(routes []struct{ AppID string }) error {
 	// Build map of app IDs for quick lookup
 	appIDs := make(map[string]bool)
-	for _, app := range a {
+	for _, app := range ac.Apps {
 		appIDs[app.ID] = true
 	}
 

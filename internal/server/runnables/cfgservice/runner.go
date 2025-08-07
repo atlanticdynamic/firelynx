@@ -218,7 +218,7 @@ func (r *Runner) GetDomainConfig() config.Config {
 		"GetDomainConfig: returning config",
 		"listeners", len(cfg.Listeners),
 		"endpoints", len(cfg.Endpoints),
-		"apps", len(cfg.Apps))
+		"apps", cfg.Apps.Len())
 
 	return *cfg
 }

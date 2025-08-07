@@ -175,7 +175,7 @@ func TestExtractEndpointRoutes(t *testing.T) {
 	appID3 := "missing-app"
 
 	// Create app collection for expansion (empty collection for testing missing app scenarios)
-	appCollection := configApps.AppCollection{}
+	appCollection := configApps.NewAppCollection()
 
 	// Create app instances (empty since all test routes will reference missing apps)
 	appInstances, err := serverApps.NewAppInstances([]serverApps.App{})

@@ -104,14 +104,14 @@ func TestFullConfigToProto(t *testing.T) {
 				},
 			},
 		},
-		Apps: apps.AppCollection{
-			{
+		Apps: apps.NewAppCollection(
+			apps.App{
 				ID: "echo-app",
 				Config: &echo.EchoApp{
 					Response: "Hello, World!",
 				},
 			},
-		},
+		),
 	}
 
 	// Convert to protobuf
@@ -181,12 +181,12 @@ func TestFullConfigRoundTrip(t *testing.T) {
 				},
 			},
 		},
-		Apps: apps.AppCollection{
-			{
+		Apps: apps.NewAppCollection(
+			apps.App{
 				ID:     "echo-app",
 				Config: &echo.EchoApp{Response: "Hello, World!"},
 			},
-		},
+		),
 	}
 
 	// Convert to protobuf
@@ -231,12 +231,12 @@ func TestFullConfigRoundTrip(t *testing.T) {
 	)
 
 	// Verify apps
-	require.Len(t, resultConfig.Apps, 1)
-	assert.Equal(t, originalConfig.Apps[0].ID, resultConfig.Apps[0].ID)
+	require.Len(t, resultConfig.Apps.Apps, 1)
+	assert.Equal(t, originalConfig.Apps.Apps[0].ID, resultConfig.Apps.Apps[0].ID)
 
-	origEcho, ok := originalConfig.Apps[0].Config.(*echo.EchoApp)
+	origEcho, ok := originalConfig.Apps.Apps[0].Config.(*echo.EchoApp)
 	require.True(t, ok)
-	resultEcho, ok := resultConfig.Apps[0].Config.(*echo.EchoApp)
+	resultEcho, ok := resultConfig.Apps.Apps[0].Config.(*echo.EchoApp)
 	require.True(t, ok)
 	assert.Equal(t, origEcho.Response, resultEcho.Response)
 }
@@ -318,26 +318,26 @@ func TestConfigWithMultipleAppsTypes(t *testing.T) {
 	// Create a config with multiple app types
 	config := &Config{
 		Version: "v1alpha1",
-		Apps: apps.AppCollection{
-			{
+		Apps: apps.NewAppCollection(
+			apps.App{
 				ID:     "echo-app",
 				Config: &echo.EchoApp{Response: "Echo Response"},
 			},
-			{
+			apps.App{
 				ID: "risor-app",
 				Config: scripts.NewAppScript(
 					nil,
 					&evaluators.RisorEvaluator{Code: "risor code"},
 				),
 			},
-			{
+			apps.App{
 				ID: "starlark-app",
 				Config: scripts.NewAppScript(
 					nil,
 					&evaluators.StarlarkEvaluator{Code: "starlark code"},
 				),
 			},
-		},
+		),
 	}
 
 	// Convert to protobuf
@@ -367,20 +367,20 @@ func TestConfigWithMultipleAppsTypes(t *testing.T) {
 	resultConfig, err := fromProto(pbConfig)
 	require.NoError(t, err)
 	require.NotNil(t, resultConfig)
-	require.Len(t, resultConfig.Apps, 3)
+	require.Len(t, resultConfig.Apps.Apps, 3)
 
 	// Verify each app was converted back correctly
-	resultEchoApp, ok := findAppConfigByID(resultConfig.Apps, "echo-app").(*echo.EchoApp)
+	resultEchoApp, ok := findAppConfigByID(resultConfig.Apps.Apps, "echo-app").(*echo.EchoApp)
 	require.True(t, ok)
 	assert.Equal(t, "Echo Response", resultEchoApp.Response)
 
-	resultRisorApp, ok := findAppConfigByID(resultConfig.Apps, "risor-app").(*scripts.AppScript)
+	resultRisorApp, ok := findAppConfigByID(resultConfig.Apps.Apps, "risor-app").(*scripts.AppScript)
 	require.True(t, ok)
 	risorEval, ok := resultRisorApp.Evaluator.(*evaluators.RisorEvaluator)
 	require.True(t, ok)
 	assert.Equal(t, "risor code", risorEval.Code)
 
-	resultStarlarkApp, ok := findAppConfigByID(resultConfig.Apps, "starlark-app").(*scripts.AppScript)
+	resultStarlarkApp, ok := findAppConfigByID(resultConfig.Apps.Apps, "starlark-app").(*scripts.AppScript)
 	require.True(t, ok)
 	starlarkEval, ok := resultStarlarkApp.Evaluator.(*evaluators.StarlarkEvaluator)
 	require.True(t, ok)
