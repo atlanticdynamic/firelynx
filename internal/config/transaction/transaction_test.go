@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
@@ -33,10 +34,9 @@ func setupTest(t *testing.T) (*ConfigTransaction, slog.Handler) {
 	t.Helper()
 
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
-	// Create a valid config with the current version
-	cfg := &config.Config{
-		Version: config.VersionLatest,
-	}
+	// Create a valid config using proper constructor
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 
 	tx, err := FromTest("test_transaction", cfg, handler)
 	require.NoError(t, err)
@@ -337,9 +337,9 @@ func TestConfigTransaction_MarkFailed(t *testing.T) {
 func TestConfigTransaction_GetConfig(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{
-		Version: config.VersionLatest,
-	}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	cfg.Version = config.VersionLatest
 
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
 	tx, err := FromTest("test", cfg, handler)
@@ -370,9 +370,9 @@ func TestConfigTransaction_RunValidation(t *testing.T) {
 
 	t.Run("validation with invalid config", func(t *testing.T) {
 		// Create a config that will fail validation
-		cfg := &config.Config{
-			Version: "invalid-version", // This should fail validation
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = "invalid-version" // This should fail validation
 
 		handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
 		tx, err := FromTest("test", cfg, handler)
@@ -414,7 +414,9 @@ func TestTransactionLifecycle(t *testing.T) {
 	t.Run("validates failed validation path", func(t *testing.T) {
 		tx, _ := setupTest(t)
 
-		invalidCfg := &config.Config{}
+		// Create config using proper constructor
+		invalidCfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		tx.domainConfig = invalidCfg
 
 		validationErrs := []error{
@@ -427,7 +429,7 @@ func TestTransactionLifecycle(t *testing.T) {
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
 
-		err := tx.BeginExecution()
+		err = tx.BeginExecution()
 		assert.ErrorIs(t, err, ErrNotValidated)
 	})
 
@@ -545,7 +547,9 @@ func TestConvertToAppDefinitions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &config.Config{Apps: tt.input}
+			cfg, err := config.NewFromProto(&pb.ServerConfig{})
+			require.NoError(t, err)
+			cfg.Apps = tt.input
 			result := collectApps(cfg)
 
 			require.Len(t, result, len(tt.expected))
@@ -618,7 +622,8 @@ func TestNew_ErrorConditions(t *testing.T) {
 	})
 
 	t.Run("nil handler creates default handler", func(t *testing.T) {
-		cfg := &config.Config{Version: config.VersionLatest}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		tx, err := New(SourceTest, "test", "", cfg, nil)
 
 		require.NoError(t, err)
@@ -628,15 +633,15 @@ func TestNew_ErrorConditions(t *testing.T) {
 
 	t.Run("handles app factory creation failure", func(t *testing.T) {
 		// Create a config that will cause app factory to fail
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-			Apps: apps.NewAppCollection(
-				apps.App{
-					ID:     "invalid-app",
-					Config: nil, // This should cause the factory to fail
-				},
-			),
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
+		cfg.Apps = apps.NewAppCollection(
+			apps.App{
+				ID:     "invalid-app",
+				Config: nil, // This should cause the factory to fail
+			},
+		)
 
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		tx, err := New(SourceTest, "test", "", cfg, handler)
@@ -857,7 +862,8 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 	t.Parallel()
 
 	t.Run("BeginValidation handles FSM transition failure", func(t *testing.T) {
-		cfg := &config.Config{Version: config.VersionLatest}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		handler := slog.NewTextHandler(os.Stdout, nil)
 
 		// Create transaction with mock FSM
@@ -872,7 +878,7 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 		expectedErr := errors.New("fsm transition failed")
 		mockFSM.On("Transition", finitestate.StateValidating).Return(expectedErr)
 
-		err := tx.BeginValidation()
+		err = tx.BeginValidation()
 		assert.Error(t, err)
 		assert.Equal(t, expectedErr, err)
 
@@ -880,7 +886,8 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 	})
 
 	t.Run("MarkSucceeded handles FSM transition failure", func(t *testing.T) {
-		cfg := &config.Config{Version: config.VersionLatest}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		handler := slog.NewTextHandler(os.Stdout, nil)
 
 		mockFSM := &MockFSM{}
@@ -893,7 +900,7 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 		expectedErr := errors.New("fsm transition failed")
 		mockFSM.On("Transition", finitestate.StateSucceeded).Return(expectedErr)
 
-		err := tx.MarkSucceeded()
+		err = tx.MarkSucceeded()
 		assert.Error(t, err)
 		assert.Equal(t, expectedErr, err)
 
@@ -901,7 +908,8 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 	})
 
 	t.Run("MarkError handles FSM transition failure", func(t *testing.T) {
-		cfg := &config.Config{Version: config.VersionLatest}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		handler := slog.NewTextHandler(os.Stdout, nil)
 
 		mockFSM := &MockFSM{}
@@ -915,7 +923,7 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 		mockFSM.On("Transition", finitestate.StateError).Return(expectedErr)
 
 		originalErr := errors.New("original error")
-		err := tx.MarkError(originalErr)
+		err = tx.MarkError(originalErr)
 		assert.Error(t, err)
 		assert.Equal(t, expectedErr, err)
 
@@ -938,15 +946,15 @@ func TestGetAppCollection(t *testing.T) {
 	})
 
 	t.Run("app collection integration", func(t *testing.T) {
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-			Apps: apps.NewAppCollection(
-				apps.App{
-					ID:     "test-echo",
-					Config: &echo.EchoApp{Response: "test response"},
-				},
-			),
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
+		cfg.Apps = apps.NewAppCollection(
+			apps.App{
+				ID:     "test-echo",
+				Config: &echo.EchoApp{Response: "test response"},
+			},
+		)
 
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		tx, err := FromTest("test", cfg, handler)
@@ -1017,18 +1025,18 @@ func TestGetTotalDuration(t *testing.T) {
 func TestAppFactoryIntegration(t *testing.T) {
 	t.Run("creates app collection from config", func(t *testing.T) {
 		// Create a config with echo apps
-		cfg := &config.Config{
-			Apps: apps.NewAppCollection(
-				apps.App{
-					ID:     "echo1",
-					Config: &echo.EchoApp{Response: "Hello 1"},
-				},
-				apps.App{
-					ID:     "echo2",
-					Config: &echo.EchoApp{Response: "Hello 2"},
-				},
-			),
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Apps = apps.NewAppCollection(
+			apps.App{
+				ID:     "echo1",
+				Config: &echo.EchoApp{Response: "Hello 1"},
+			},
+			apps.App{
+				ID:     "echo2",
+				Config: &echo.EchoApp{Response: "Hello 2"},
+			},
+		)
 
 		// Create app factory and convert definitions
 		factory := serverApps.NewAppFactory()
@@ -1050,9 +1058,9 @@ func TestAppFactoryIntegration(t *testing.T) {
 	})
 
 	t.Run("handles empty config", func(t *testing.T) {
-		cfg := &config.Config{
-			Apps: apps.NewAppCollection(),
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Apps = apps.NewAppCollection()
 
 		// Create app factory and convert definitions
 		factory := serverApps.NewAppFactory()
@@ -1074,9 +1082,9 @@ func TestCreateMiddleware(t *testing.T) {
 
 	t.Run("creates console logger middleware", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
 		tx, err := FromTest("test", cfg, handler)
 		require.NoError(t, err)
 
@@ -1106,9 +1114,9 @@ func TestCreateMiddleware(t *testing.T) {
 
 	t.Run("reuses existing middleware instance", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
 		tx, err := FromTest("test", cfg, handler)
 		require.NoError(t, err)
 
@@ -1146,9 +1154,9 @@ func TestCreateMiddleware(t *testing.T) {
 
 	t.Run("handles unsupported middleware type", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
 		tx, err := FromTest("test", cfg, handler)
 		require.NoError(t, err)
 
@@ -1166,9 +1174,9 @@ func TestCreateMiddleware(t *testing.T) {
 
 	t.Run("handles console logger creation failure", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
 		tx, err := FromTest("test", cfg, handler)
 		require.NoError(t, err)
 
@@ -1196,9 +1204,9 @@ func TestGetMiddlewareRegistry(t *testing.T) {
 
 	t.Run("returns middleware registry", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
 		tx, err := FromTest("test", cfg, handler)
 		require.NoError(t, err)
 
@@ -1209,9 +1217,9 @@ func TestGetMiddlewareRegistry(t *testing.T) {
 
 	t.Run("registry contains created middleware", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-		}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
 		tx, err := FromTest("test", cfg, handler)
 		require.NoError(t, err)
 
@@ -1246,54 +1254,54 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
 
 		// Create config with endpoints and middleware
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-			// Add required listeners
-			Listeners: listeners.ListenerCollection{
-				{
-					ID:      "http-1",
-					Address: "127.0.0.1:8080",
-					Type:    listeners.TypeHTTP,
-					Options: options.NewHTTP(),
-				},
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
+		// Add required listeners
+		cfg.Listeners = listeners.ListenerCollection{
+			{
+				ID:      "http-1",
+				Address: "127.0.0.1:8080",
+				Type:    listeners.TypeHTTP,
+				Options: options.NewHTTP(),
 			},
-			// Add required apps
-			Apps: apps.NewAppCollection(
-				apps.App{
-					ID:     "test-app",
-					Config: &echo.EchoApp{Response: "test response"},
-				},
-			),
-			Endpoints: endpoints.EndpointCollection{
-				{
-					ID:         "endpoint1",
-					ListenerID: "http-1",
-					Middlewares: middleware.MiddlewareCollection{
-						{
-							ID: "endpoint-logger",
-							Config: &configLogger.ConsoleLogger{
-								Options: configLogger.LogOptionsGeneral{
-									Format: configLogger.FormatJSON,
-									Level:  configLogger.LevelInfo,
-								},
-								Output: "stdout",
+		}
+		// Add required apps
+		cfg.Apps = apps.NewAppCollection(
+			apps.App{
+				ID:     "test-app",
+				Config: &echo.EchoApp{Response: "test response"},
+			},
+		)
+		cfg.Endpoints = endpoints.EndpointCollection{
+			{
+				ID:         "endpoint1",
+				ListenerID: "http-1",
+				Middlewares: middleware.MiddlewareCollection{
+					{
+						ID: "endpoint-logger",
+						Config: &configLogger.ConsoleLogger{
+							Options: configLogger.LogOptionsGeneral{
+								Format: configLogger.FormatJSON,
+								Level:  configLogger.LevelInfo,
 							},
+							Output: "stdout",
 						},
 					},
-					Routes: routes.RouteCollection{
-						{
-							AppID:     "test-app",
-							Condition: conditions.NewHTTP("/test", ""),
-							Middlewares: middleware.MiddlewareCollection{
-								{
-									ID: "route-logger",
-									Config: &configLogger.ConsoleLogger{
-										Options: configLogger.LogOptionsGeneral{
-											Format: configLogger.FormatJSON,
-											Level:  configLogger.LevelDebug,
-										},
-										Output: "stdout",
+				},
+				Routes: routes.RouteCollection{
+					{
+						AppID:     "test-app",
+						Condition: conditions.NewHTTP("/test", ""),
+						Middlewares: middleware.MiddlewareCollection{
+							{
+								ID: "route-logger",
+								Config: &configLogger.ConsoleLogger{
+									Options: configLogger.LogOptionsGeneral{
+										Format: configLogger.FormatJSON,
+										Level:  configLogger.LevelDebug,
 									},
+									Output: "stdout",
 								},
 							},
 						},
@@ -1331,57 +1339,57 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 			Output: "stdout",
 		}
 
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-			// Add required listeners
-			Listeners: listeners.ListenerCollection{
-				{
-					ID:      "http-1",
-					Address: "127.0.0.1:8080",
-					Type:    listeners.TypeHTTP,
-					Options: options.NewHTTP(),
-				},
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
+		// Add required listeners
+		cfg.Listeners = listeners.ListenerCollection{
+			{
+				ID:      "http-1",
+				Address: "127.0.0.1:8080",
+				Type:    listeners.TypeHTTP,
+				Options: options.NewHTTP(),
 			},
-			// Add required apps
-			Apps: apps.NewAppCollection(
-				apps.App{
-					ID:     "app1",
-					Config: &echo.EchoApp{Response: "app1 response"},
-				},
-				apps.App{
-					ID:     "app2",
-					Config: &echo.EchoApp{Response: "app2 response"},
-				},
-			),
-			Endpoints: endpoints.EndpointCollection{
-				{
-					ID:         "endpoint1",
-					ListenerID: "http-1",
-					Middlewares: middleware.MiddlewareCollection{
-						{
-							ID:     "shared-logger",
-							Config: sharedLoggerConfig,
-						},
+		}
+		// Add required apps
+		cfg.Apps = apps.NewAppCollection(
+			apps.App{
+				ID:     "app1",
+				Config: &echo.EchoApp{Response: "app1 response"},
+			},
+			apps.App{
+				ID:     "app2",
+				Config: &echo.EchoApp{Response: "app2 response"},
+			},
+		)
+		cfg.Endpoints = endpoints.EndpointCollection{
+			{
+				ID:         "endpoint1",
+				ListenerID: "http-1",
+				Middlewares: middleware.MiddlewareCollection{
+					{
+						ID:     "shared-logger",
+						Config: sharedLoggerConfig,
 					},
-					Routes: routes.RouteCollection{
-						{
-							AppID:     "app1",
-							Condition: conditions.NewHTTP("/app1", ""),
-							Middlewares: middleware.MiddlewareCollection{
-								{
-									ID:     "shared-logger", // Same ID
-									Config: sharedLoggerConfig,
-								},
+				},
+				Routes: routes.RouteCollection{
+					{
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/app1", ""),
+						Middlewares: middleware.MiddlewareCollection{
+							{
+								ID:     "shared-logger", // Same ID
+								Config: sharedLoggerConfig,
 							},
 						},
-						{
-							AppID:     "app2",
-							Condition: conditions.NewHTTP("/app2", ""),
-							Middlewares: middleware.MiddlewareCollection{
-								{
-									ID:     "shared-logger", // Same ID again
-									Config: sharedLoggerConfig,
-								},
+					},
+					{
+						AppID:     "app2",
+						Condition: conditions.NewHTTP("/app2", ""),
+						Middlewares: middleware.MiddlewareCollection{
+							{
+								ID:     "shared-logger", // Same ID again
+								Config: sharedLoggerConfig,
 							},
 						},
 					},
@@ -1409,62 +1417,62 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
 
 		// Create config with different middleware IDs but same config
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-			// Add required listeners
-			Listeners: listeners.ListenerCollection{
-				{
-					ID:      "http-1",
-					Address: "127.0.0.1:8080",
-					Type:    listeners.TypeHTTP,
-					Options: options.NewHTTP(),
-				},
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
+		// Add required listeners
+		cfg.Listeners = listeners.ListenerCollection{
+			{
+				ID:      "http-1",
+				Address: "127.0.0.1:8080",
+				Type:    listeners.TypeHTTP,
+				Options: options.NewHTTP(),
 			},
-			// Add required apps
-			Apps: apps.NewAppCollection(
-				apps.App{
-					ID:     "app1",
-					Config: &echo.EchoApp{Response: "app1 response"},
-				},
-				apps.App{
-					ID:     "app2",
-					Config: &echo.EchoApp{Response: "app2 response"},
-				},
-			),
-			Endpoints: endpoints.EndpointCollection{
-				{
-					ID:         "endpoint1",
-					ListenerID: "http-1",
-					Routes: routes.RouteCollection{
-						{
-							AppID:     "app1",
-							Condition: conditions.NewHTTP("/app1", ""),
-							Middlewares: middleware.MiddlewareCollection{
-								{
-									ID: "logger1",
-									Config: &configLogger.ConsoleLogger{
-										Options: configLogger.LogOptionsGeneral{
-											Format: configLogger.FormatJSON,
-											Level:  configLogger.LevelInfo,
-										},
-										Output: "stdout",
+		}
+		// Add required apps
+		cfg.Apps = apps.NewAppCollection(
+			apps.App{
+				ID:     "app1",
+				Config: &echo.EchoApp{Response: "app1 response"},
+			},
+			apps.App{
+				ID:     "app2",
+				Config: &echo.EchoApp{Response: "app2 response"},
+			},
+		)
+		cfg.Endpoints = endpoints.EndpointCollection{
+			{
+				ID:         "endpoint1",
+				ListenerID: "http-1",
+				Routes: routes.RouteCollection{
+					{
+						AppID:     "app1",
+						Condition: conditions.NewHTTP("/app1", ""),
+						Middlewares: middleware.MiddlewareCollection{
+							{
+								ID: "logger1",
+								Config: &configLogger.ConsoleLogger{
+									Options: configLogger.LogOptionsGeneral{
+										Format: configLogger.FormatJSON,
+										Level:  configLogger.LevelInfo,
 									},
+									Output: "stdout",
 								},
 							},
 						},
-						{
-							AppID:     "app2",
-							Condition: conditions.NewHTTP("/app2", ""),
-							Middlewares: middleware.MiddlewareCollection{
-								{
-									ID: "logger2", // Different ID
-									Config: &configLogger.ConsoleLogger{
-										Options: configLogger.LogOptionsGeneral{
-											Format: configLogger.FormatJSON,
-											Level:  configLogger.LevelInfo,
-										},
-										Output: "stdout",
+					},
+					{
+						AppID:     "app2",
+						Condition: conditions.NewHTTP("/app2", ""),
+						Middlewares: middleware.MiddlewareCollection{
+							{
+								ID: "logger2", // Different ID
+								Config: &configLogger.ConsoleLogger{
+									Options: configLogger.LogOptionsGeneral{
+										Format: configLogger.FormatJSON,
+										Level:  configLogger.LevelInfo,
 									},
+									Output: "stdout",
 								},
 							},
 						},
@@ -1499,17 +1507,17 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
 
 		// Create config with invalid middleware
-		cfg := &config.Config{
-			Version: config.VersionLatest,
-			Endpoints: endpoints.EndpointCollection{
-				{
-					ID:         "endpoint1",
-					ListenerID: "http-1",
-					Middlewares: middleware.MiddlewareCollection{
-						{
-							ID:     "bad-middleware",
-							Config: &mockMiddlewareConfig{configType: "unsupported"},
-						},
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = config.VersionLatest
+		cfg.Endpoints = endpoints.EndpointCollection{
+			{
+				ID:         "endpoint1",
+				ListenerID: "http-1",
+				Middlewares: middleware.MiddlewareCollection{
+					{
+						ID:     "bad-middleware",
+						Config: &mockMiddlewareConfig{configType: "unsupported"},
 					},
 				},
 			},
@@ -1539,62 +1547,62 @@ func (m *mockMiddlewareConfig) ToTree() *fancy.ComponentTree { return nil }
 // createDualLoggerConfig creates a test config with two console loggers
 func createDualLoggerConfig(t *testing.T, output1, output2 string) *config.Config {
 	t.Helper()
-	return &config.Config{
-		Version: config.VersionLatest,
-		// Add required listeners
-		Listeners: listeners.ListenerCollection{
-			{
-				ID:      "http-1",
-				Address: "127.0.0.1:8080",
-				Type:    listeners.TypeHTTP,
-				Options: options.NewHTTP(),
-			},
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	cfg.Version = config.VersionLatest
+	// Add required listeners
+	cfg.Listeners = listeners.ListenerCollection{
+		{
+			ID:      "http-1",
+			Address: "127.0.0.1:8080",
+			Type:    listeners.TypeHTTP,
+			Options: options.NewHTTP(),
 		},
-		// Add required apps
-		Apps: apps.NewAppCollection(
-			apps.App{
-				ID:     "app1",
-				Config: &echo.EchoApp{Response: "app1 response"},
-			},
-			apps.App{
-				ID:     "app2",
-				Config: &echo.EchoApp{Response: "app2 response"},
-			},
-		),
-		Endpoints: endpoints.EndpointCollection{
-			{
-				ID:         "endpoint1",
-				ListenerID: "http-1",
-				Routes: routes.RouteCollection{
-					{
-						AppID:     "app1",
-						Condition: conditions.NewHTTP("/app1", ""),
-						Middlewares: middleware.MiddlewareCollection{
-							{
-								ID: "logger1",
-								Config: &configLogger.ConsoleLogger{
-									Options: configLogger.LogOptionsGeneral{
-										Format: configLogger.FormatJSON,
-										Level:  configLogger.LevelInfo,
-									},
-									Output: output1,
+	}
+	// Add required apps
+	cfg.Apps = apps.NewAppCollection(
+		apps.App{
+			ID:     "app1",
+			Config: &echo.EchoApp{Response: "app1 response"},
+		},
+		apps.App{
+			ID:     "app2",
+			Config: &echo.EchoApp{Response: "app2 response"},
+		},
+	)
+	cfg.Endpoints = endpoints.EndpointCollection{
+		{
+			ID:         "endpoint1",
+			ListenerID: "http-1",
+			Routes: routes.RouteCollection{
+				{
+					AppID:     "app1",
+					Condition: conditions.NewHTTP("/app1", ""),
+					Middlewares: middleware.MiddlewareCollection{
+						{
+							ID: "logger1",
+							Config: &configLogger.ConsoleLogger{
+								Options: configLogger.LogOptionsGeneral{
+									Format: configLogger.FormatJSON,
+									Level:  configLogger.LevelInfo,
 								},
+								Output: output1,
 							},
 						},
 					},
-					{
-						AppID:     "app2",
-						Condition: conditions.NewHTTP("/app2", ""),
-						Middlewares: middleware.MiddlewareCollection{
-							{
-								ID: "logger2",
-								Config: &configLogger.ConsoleLogger{
-									Options: configLogger.LogOptionsGeneral{
-										Format: configLogger.FormatJSON,
-										Level:  configLogger.LevelInfo,
-									},
-									Output: output2,
+				},
+				{
+					AppID:     "app2",
+					Condition: conditions.NewHTTP("/app2", ""),
+					Middlewares: middleware.MiddlewareCollection{
+						{
+							ID: "logger2",
+							Config: &configLogger.ConsoleLogger{
+								Options: configLogger.LogOptionsGeneral{
+									Format: configLogger.FormatJSON,
+									Level:  configLogger.LevelInfo,
 								},
+								Output: output2,
 							},
 						},
 					},
@@ -1602,6 +1610,7 @@ func createDualLoggerConfig(t *testing.T, output1, output2 string) *config.Confi
 			},
 		},
 	}
+	return cfg
 }
 
 func TestMiddlewareDuplicateOutputFileValidation(t *testing.T) {

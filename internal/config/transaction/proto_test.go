@@ -22,7 +22,8 @@ func TestConfigTransaction_ToProto(t *testing.T) {
 	handler := logging.SetupHandlerText("debug", nil)
 
 	t.Run("converts transaction to protobuf", func(t *testing.T) {
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		tx, err := FromAPI("test-request", cfg, handler)
 		require.NoError(t, err)
 
@@ -44,7 +45,8 @@ func TestConfigTransaction_ToProto(t *testing.T) {
 	})
 
 	t.Run("includes log records", func(t *testing.T) {
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		tx, err := FromTest("test-request", cfg, handler)
 		require.NoError(t, err)
 
@@ -62,7 +64,8 @@ func TestConfigTransaction_ToProto(t *testing.T) {
 	})
 
 	t.Run("converts different source types", func(t *testing.T) {
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 
 		tests := []struct {
 			name           string
@@ -192,10 +195,9 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 }
 
 func TestGetLogsVsPlaybackLogs(t *testing.T) {
-	// Create a config transaction
-	cfg := &config.Config{
-		Version: "v1",
-	}
+	// Create a config transaction using proper constructor
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 
 	// Enable debug logging to capture all log levels
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -241,7 +243,8 @@ func TestConfigTransaction_ToProto_IncludesConfig(t *testing.T) {
 	handler := logging.SetupHandlerText("debug", nil)
 
 	t.Run("includes config when domainConfig is set", func(t *testing.T) {
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		tx, err := FromAPI("test-request", cfg, handler)
 		require.NoError(t, err)
 
@@ -260,7 +263,8 @@ func TestConfigTransaction_ToProto_IncludesConfig(t *testing.T) {
 
 	t.Run("config is nil when domainConfig is nil", func(t *testing.T) {
 		// Create a transaction without a valid config (this is a test scenario)
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
 		tx, err := FromAPI("test-request", cfg, handler)
 		require.NoError(t, err)
 

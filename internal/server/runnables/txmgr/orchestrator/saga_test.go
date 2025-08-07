@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
@@ -178,7 +179,8 @@ func TestProcessTransaction_Success(t *testing.T) {
 	ctx := t.Context()
 
 	// Create a test transaction
-	cfg := &config.Config{Version: "v1"}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 	tx, err := transaction.New(transaction.SourceTest, "test", "req-123", cfg, handler)
 	require.NoError(t, err)
 
@@ -225,7 +227,8 @@ func TestProcessTransaction_Failure(t *testing.T) {
 	ctx := t.Context()
 
 	// Create a test transaction
-	cfg := &config.Config{Version: "v1"}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 	tx, err := transaction.New(transaction.SourceTest, "test", "req-123", cfg, handler)
 	require.NoError(t, err)
 
@@ -270,7 +273,8 @@ func TestCompensateParticipants(t *testing.T) {
 	ctx := t.Context()
 
 	// Create a test transaction
-	cfg := &config.Config{Version: "v1"}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 	tx, err := transaction.New(transaction.SourceTest, "test", "req-123", cfg, handler)
 	require.NoError(t, err)
 
@@ -323,7 +327,9 @@ func TestGetTransactionStatus(t *testing.T) {
 	orchestrator := NewSagaOrchestrator(storage, handler)
 
 	// Create a test transaction
-	cfg := &config.Config{}
+	// Create config using proper constructor
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 	tx, err := transaction.New(transaction.SourceTest, "test-details", "req-456", cfg, handler)
 	require.NoError(t, err)
 
@@ -401,9 +407,8 @@ func TestProcessTransactionWithNoParticipants(t *testing.T) {
 	ctx := t.Context()
 
 	// Create a minimal config for testing
-	cfg := &config.Config{
-		Version: "v1",
-	}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
 
 	// Create and validate transaction
 	tx, err := transaction.New(

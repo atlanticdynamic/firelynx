@@ -76,11 +76,11 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		return nil, fmt.Errorf("nil protobuf config")
 	}
 
-	// Create a new domain config
+	// Create a new domain config with reasonable defaults
 	config := &Config{
 		Version:  VersionLatest,
 		rawProto: pbConfig,
-		Apps:     apps.NewAppCollection(),
+		Apps:     apps.NewAppCollection(), // Always initialize to empty collection
 	}
 
 	if pbConfig.Version != nil && *pbConfig.Version != "" {
@@ -104,17 +104,15 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		config.Endpoints = endpointsList
 	}
 
-	// Always initialize Apps to avoid nil pointer
-	config.Apps = apps.NewAppCollection()
-
+	// Convert apps - FromProto always returns a valid AppCollection (empty if no apps)
 	var appErrz []error
-	if len(pbConfig.Apps) > 0 {
-		appDefinitions, err := apps.FromProto(pbConfig.Apps)
-		if err != nil {
-			appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
-		} else {
-			config.Apps = appDefinitions
-		}
+	appDefinitions, err := apps.FromProto(pbConfig.Apps)
+	if err != nil {
+		appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
+		// Fallback to empty collection on error
+		config.Apps = apps.NewAppCollection()
+	} else {
+		config.Apps = appDefinitions
 	}
 
 	return config, errors.Join(appErrz...)

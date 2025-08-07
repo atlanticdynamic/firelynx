@@ -20,15 +20,17 @@ import (
 )
 
 func TestEmptyConfigToProto(t *testing.T) {
-	// Create an empty config
-	config := &Config{}
+	// Create an empty config using proper constructor
+	emptyProto := &pb.ServerConfig{}
+	config, err := NewFromProto(emptyProto)
+	require.NoError(t, err)
 
 	// Convert to protobuf
 	pbConfig := config.ToProto()
 	require.NotNil(t, pbConfig, "ToProto should return a non-nil result")
 
-	// Check default values
-	assert.Equal(t, "", *pbConfig.Version, "Empty config should have empty version")
+	// Check default values - constructor sets VersionLatest by default
+	assert.Equal(t, VersionLatest, *pbConfig.Version, "Empty config should have default version")
 	assert.Empty(t, pbConfig.Listeners, "Empty config should have no listeners")
 	assert.Empty(t, pbConfig.Endpoints, "Empty config should have no endpoints")
 	assert.Empty(t, pbConfig.Apps, "Empty config should have no apps")
