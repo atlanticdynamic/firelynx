@@ -62,13 +62,13 @@ func appTypeFromProto(pbAppType pb.AppDefinition_Type) AppType {
 }
 
 // ToProto converts the Apps collection to a slice of protobuf AppDefinition messages
-func (apps AppCollection) ToProto() []*pb.AppDefinition {
-	if len(apps) == 0 {
+func (ac *AppCollection) ToProto() []*pb.AppDefinition {
+	if ac == nil || len(ac.Apps) == 0 {
 		return nil
 	}
 
-	result := make([]*pb.AppDefinition, 0, len(apps))
-	for _, a := range apps {
+	result := make([]*pb.AppDefinition, 0, len(ac.Apps))
+	for _, a := range ac.Apps {
 		// Get the app type based on the config type
 		var appType AppType
 		switch a.Config.(type) {
@@ -157,11 +157,12 @@ func (apps AppCollection) ToProto() []*pb.AppDefinition {
 // ToProto converts a slice of domain App objects to protobuf AppDefinition messages
 // Deprecated: Use the Apps.ToProto() method instead
 func ToProto(apps []App) []*pb.AppDefinition {
-	return AppCollection(apps).ToProto()
+	ac := NewAppCollection(apps...)
+	return ac.ToProto()
 }
 
 // FromProto converts a slice of protobuf AppDefinition messages to domain App objects
-func FromProto(pbApps []*pb.AppDefinition) ([]App, error) {
+func FromProto(pbApps []*pb.AppDefinition) (*AppCollection, error) {
 	if len(pbApps) == 0 {
 		return nil, nil
 	}
@@ -175,7 +176,7 @@ func FromProto(pbApps []*pb.AppDefinition) ([]App, error) {
 		apps = append(apps, app)
 	}
 
-	return apps, nil
+	return NewAppCollection(apps...), nil
 }
 
 // convertStaticDataFromProto converts protobuf static data to domain static data
