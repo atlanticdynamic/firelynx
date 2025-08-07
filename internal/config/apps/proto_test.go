@@ -306,12 +306,14 @@ func TestFromProtoConversions(t *testing.T) {
 		// Test with empty list
 		apps, err := FromProto([]*pb.AppDefinition{})
 		assert.NoError(t, err)
-		assert.Nil(t, apps)
+		assert.NotNil(t, apps, "Should return empty AppCollection, not nil")
+		assert.Equal(t, 0, apps.Len(), "Should have no apps")
 
 		// Test with nil list
 		apps, err = FromProto(nil)
 		assert.NoError(t, err)
-		assert.Nil(t, apps)
+		assert.NotNil(t, apps, "Should return empty AppCollection, not nil")
+		assert.Equal(t, 0, apps.Len(), "Should have no apps")
 	})
 
 	t.Run("MCPApp", func(t *testing.T) {
@@ -498,10 +500,10 @@ func TestToProtoConversions(t *testing.T) {
 
 	t.Run("EmptyApps", func(t *testing.T) {
 		pbApps := ToProto(nil)
-		assert.Nil(t, pbApps, "Expected nil result for nil input")
+		assert.Empty(t, pbApps, "Expected empty result for nil input")
 
 		pbApps = ToProto([]App{})
-		assert.Nil(t, pbApps, "Expected nil result for empty input")
+		assert.Empty(t, pbApps, "Expected empty result for empty input")
 	})
 
 	t.Run("ScriptAppWithStaticData", func(t *testing.T) {
