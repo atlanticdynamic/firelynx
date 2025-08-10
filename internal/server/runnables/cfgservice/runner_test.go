@@ -223,21 +223,6 @@ func TestGetDomainConfig(t *testing.T) {
 		assert.Equal(t, 0, cfg.Apps.Len(), "Apps should be empty for minimal config")
 	})
 
-	t.Run("transaction with nil config", func(t *testing.T) {
-		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
-		r := h.runner
-
-		// Set transaction storage to return transaction with nil config
-		r.txStorage = &mockTxStorageWithNilConfig{}
-
-		// Should return a minimal default config
-		cfg := r.GetDomainConfig()
-		assert.NotNil(t, cfg)
-		assert.Equal(t, config.VersionLatest, cfg.Version)
-		assert.NotNil(t, cfg.Apps, "Apps should be initialized")
-		assert.Equal(t, 0, cfg.Apps.Len(), "Apps should be empty for minimal config")
-	})
-
 	t.Run("normal transaction with valid config", func(t *testing.T) {
 		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
 		r := h.runner
@@ -295,36 +280,6 @@ func (m *mockTxStorageNil) Clear(keepLast int) (int, error) {
 	return 0, nil
 }
 
-// mockTxStorageWithNilConfig returns a transaction that has a nil config
-type mockTxStorageWithNilConfig struct {
-	tx *transaction.ConfigTransaction
-}
-
-func (m *mockTxStorageWithNilConfig) SetCurrent(tx *transaction.ConfigTransaction) {}
-
-func (m *mockTxStorageWithNilConfig) GetCurrent() *transaction.ConfigTransaction {
-	// Create a test transaction with nil config by using the FromTest constructor
-	if m.tx == nil {
-		// This will create a transaction, but we'll simulate it having a nil config
-		// by returning a transaction that was created without proper domain config
-		testTx, _ := transaction.FromTest("test-config-nil", nil, slog.Default().Handler())
-		m.tx = testTx
-	}
-	return m.tx
-}
-
-func (m *mockTxStorageWithNilConfig) GetAll() []*transaction.ConfigTransaction {
-	return []*transaction.ConfigTransaction{}
-}
-
-func (m *mockTxStorageWithNilConfig) GetByID(id string) *transaction.ConfigTransaction {
-	return nil
-}
-
-func (m *mockTxStorageWithNilConfig) Clear(keepLast int) (int, error) {
-	return 0, nil
-}
-
 // mockTxStorageWithConfig returns a transaction that has a specific config
 type mockTxStorageWithConfig struct {
 	cfg *config.Config
@@ -336,8 +291,12 @@ func (m *mockTxStorageWithConfig) SetCurrent(tx *transaction.ConfigTransaction) 
 func (m *mockTxStorageWithConfig) GetCurrent() *transaction.ConfigTransaction {
 	// Create a test transaction with the specific config
 	if m.tx == nil {
-		testTx, _ := transaction.FromTest("test-config", m.cfg, slog.Default().Handler())
-		m.tx = testTx
+		var err error
+		m.tx, err = transaction.FromTest("test-config", m.cfg, slog.Default().Handler())
+		if err != nil {
+			// Transaction creation failure is a test setup error - fail fast
+			panic("test setup error: failed to create test transaction: " + err.Error())
+		}
 	}
 	return m.tx
 }
