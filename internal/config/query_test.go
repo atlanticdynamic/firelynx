@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
@@ -20,6 +21,11 @@ import (
 
 // setupTestConfig creates a test configuration with various listeners, endpoints, and apps
 func setupTestConfig() *Config {
+	// Use proper constructor to ensure AppCollection is initialized
+	config, err := NewFromProto(&pb.ServerConfig{})
+	if err != nil {
+		panic("failed to create test config: " + err.Error())
+	}
 	// Create test listeners
 	httpOptions := options.NewHTTP()
 
@@ -113,18 +119,16 @@ func setupTestConfig() *Config {
 		Routes:     []routes.Route{multiRoute},
 	}
 
-	// Create the final config
-	config := &Config{
-		Version:   version.Version,
-		Listeners: listeners.ListenerCollection{httpListener, httpListener2},
-		Endpoints: endpoints.EndpointCollection{
-			httpEndpoint,
-			httpEndpoint2,
-			multiHttpEndpoint,
-			multiHttpEndpoint2,
-		},
-		Apps: apps.AppCollection{echoApp, scriptApp, starScriptApp},
+	// Set the configured fields
+	config.Version = version.Version
+	config.Listeners = listeners.ListenerCollection{httpListener, httpListener2}
+	config.Endpoints = endpoints.EndpointCollection{
+		httpEndpoint,
+		httpEndpoint2,
+		multiHttpEndpoint,
+		multiHttpEndpoint2,
 	}
+	config.Apps = apps.AppCollection{echoApp, scriptApp, starScriptApp}
 
 	return config
 }
@@ -526,9 +530,9 @@ func TestGetEndpointToListenerIDMapping(t *testing.T) {
 	assert.Equal(t, expected, mapping)
 
 	// Test with an empty config
-	emptyConfig := &Config{
-		Endpoints: endpoints.EndpointCollection{},
-	}
+	emptyConfig, err := NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	emptyConfig.Endpoints = endpoints.EndpointCollection{}
 	emptyMapping := emptyConfig.GetEndpointToListenerIDMapping()
 	assert.Empty(t, emptyMapping, "Empty config should produce empty mapping")
 }
