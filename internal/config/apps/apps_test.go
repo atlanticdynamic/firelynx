@@ -54,6 +54,39 @@ func TestAppValidate(t *testing.T) {
 			},
 			expectError: true,
 		},
+		{
+			name: "Invalid config validation",
+			app: App{
+				ID: "invalid-config",
+				Config: &testAppConfig{
+					appType: "script",
+					valid:   false, // This will cause validation to fail
+				},
+			},
+			expectError: true,
+		},
+		{
+			name: "Invalid ID format - spaces",
+			app: App{
+				ID: "invalid id with spaces",
+				Config: scripts.NewAppScript(
+					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
+					&evaluators.RisorEvaluator{Code: validRisorCode42},
+				),
+			},
+			expectError: true,
+		},
+		{
+			name: "Invalid ID format - special characters",
+			app: App{
+				ID: "invalid@id!",
+				Config: scripts.NewAppScript(
+					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
+					&evaluators.RisorEvaluator{Code: validRisorCode42},
+				),
+			},
+			expectError: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -152,6 +185,70 @@ func TestAppCollectionValidate(t *testing.T) {
 						ScriptAppIDs: []string{"non-existent"},
 						StaticData:   &staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					},
+				},
+			),
+			expectError: true,
+		},
+		{
+			name: "Apps with invalid IDs in collection",
+			apps: NewAppCollection(
+				App{
+					ID: "", // Invalid ID
+					Config: scripts.NewAppScript(
+						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
+						&evaluators.RisorEvaluator{Code: validRisorCode42},
+					),
+				},
+				App{
+					ID: "valid-app",
+					Config: scripts.NewAppScript(
+						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
+						&evaluators.RisorEvaluator{Code: validRisorCode43},
+					),
+				},
+			),
+			expectError: true,
+		},
+		{
+			name: "Composite with invalid ID format in reference",
+			apps: NewAppCollection(
+				App{
+					ID: "script1",
+					Config: scripts.NewAppScript(
+						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
+						&evaluators.RisorEvaluator{Code: validRisorCode42},
+					),
+				},
+				App{
+					ID: "composite1",
+					Config: &composite.CompositeScript{
+						ScriptAppIDs: []string{"invalid id format"}, // Invalid ID format
+						StaticData:   &staticdata.StaticData{Data: map[string]any{"key": "value"}},
+					},
+				},
+			),
+			expectError: true,
+		},
+		{
+			name: "Multiple validation errors",
+			apps: NewAppCollection(
+				App{
+					ID:     "",  // Invalid ID
+					Config: nil, // Missing config
+				},
+				App{
+					ID: "duplicate",
+					Config: scripts.NewAppScript(
+						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
+						&evaluators.RisorEvaluator{Code: validRisorCode42},
+					),
+				},
+				App{
+					ID: "duplicate", // Duplicate ID
+					Config: scripts.NewAppScript(
+						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
+						&evaluators.RisorEvaluator{Code: validRisorCode43},
+					),
 				},
 			),
 			expectError: true,
@@ -277,6 +374,182 @@ func TestAppCollectionFindByID(t *testing.T) {
 	})
 }
 
+func TestAppCollection_Get(t *testing.T) {
+	t.Parallel()
+
+	// Create a test collection
+	apps := NewAppCollection(
+		App{
+			ID: "app1",
+			Config: &testAppConfig{
+				appType: "echo",
+				valid:   true,
+			},
+		},
+		App{
+			ID: "app2",
+			Config: &testAppConfig{
+				appType: "script",
+				valid:   true,
+			},
+		},
+		App{
+			ID: "app3",
+			Config: &testAppConfig{
+				appType: "composite",
+				valid:   true,
+			},
+		},
+	)
+
+	tests := []struct {
+		name       string
+		index      int
+		expectedID string
+	}{
+		{
+			name:       "Get first app",
+			index:      0,
+			expectedID: "app1",
+		},
+		{
+			name:       "Get middle app",
+			index:      1,
+			expectedID: "app2",
+		},
+		{
+			name:       "Get last app",
+			index:      2,
+			expectedID: "app3",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			app := apps.Get(tc.index)
+			assert.Equal(t, tc.expectedID, app.ID, "App ID should match expected")
+			assert.NotNil(t, app.Config, "App config should not be nil")
+		})
+	}
+
+	// Test with empty collection
+	t.Run("Empty collection", func(t *testing.T) {
+		emptyApps := NewAppCollection()
+		// Note: Get() on empty collection would panic due to index out of range
+		// This is expected behavior and matches Go slice behavior
+		assert.Equal(t, 0, emptyApps.Len(), "Empty collection should have length 0")
+	})
+}
+
+func TestAppCollection_ValidateRouteAppReferences(t *testing.T) {
+	t.Parallel()
+
+	// Create a test collection with apps
+	apps := NewAppCollection(
+		App{
+			ID: "app1",
+			Config: &testAppConfig{
+				appType: "echo",
+				valid:   true,
+			},
+		},
+		App{
+			ID: "app2",
+			Config: &testAppConfig{
+				appType: "script",
+				valid:   true,
+			},
+		},
+	)
+
+	tests := []struct {
+		name        string
+		routes      []struct{ AppID string }
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "Valid app references",
+			routes: []struct{ AppID string }{
+				{AppID: "app1"},
+				{AppID: "app2"},
+			},
+			expectError: false,
+		},
+		{
+			name:        "Empty routes",
+			routes:      []struct{ AppID string }{},
+			expectError: false,
+		},
+		{
+			name: "Empty app ID (allowed)",
+			routes: []struct{ AppID string }{
+				{AppID: ""},
+				{AppID: "app1"},
+			},
+			expectError: false,
+		},
+		{
+			name: "Invalid app reference",
+			routes: []struct{ AppID string }{
+				{AppID: "app1"},
+				{AppID: "nonexistent"},
+			},
+			expectError: true,
+			errorMsg:    "app not found: route at index 1 references app ID 'nonexistent'",
+		},
+		{
+			name: "Multiple invalid app references",
+			routes: []struct{ AppID string }{
+				{AppID: "nonexistent1"},
+				{AppID: "app1"},
+				{AppID: "nonexistent2"},
+			},
+			expectError: true,
+			errorMsg:    "app not found",
+		},
+		{
+			name: "Mix of empty and invalid app IDs",
+			routes: []struct{ AppID string }{
+				{AppID: ""},
+				{AppID: "nonexistent"},
+				{AppID: "app1"},
+			},
+			expectError: true,
+			errorMsg:    "app not found: route at index 1 references app ID 'nonexistent'",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			err := apps.ValidateRouteAppReferences(tc.routes)
+
+			if tc.expectError {
+				assert.Error(t, err, "Should return error for invalid app references")
+				if tc.errorMsg != "" {
+					assert.Contains(t, err.Error(), tc.errorMsg, "Error should contain expected message")
+				}
+			} else {
+				assert.NoError(t, err, "Should not return error for valid app references")
+			}
+		})
+	}
+
+	// Test with empty app collection
+	t.Run("Empty app collection", func(t *testing.T) {
+		emptyApps := NewAppCollection()
+		routes := []struct{ AppID string }{
+			{AppID: "any-app"},
+		}
+
+		err := emptyApps.ValidateRouteAppReferences(routes)
+		assert.Error(t, err, "Should return error when no apps exist")
+		assert.Contains(t, err.Error(), "app not found", "Error should indicate app not found")
+	})
+}
+
 // testAppConfig is a simple AppConfig implementation for testing
 type testAppConfig struct {
 	appType string
@@ -303,5 +576,5 @@ func (t *testAppConfig) String() string {
 }
 
 func (t *testAppConfig) ToTree() *fancy.ComponentTree {
-	return fancy.NewComponentTree("Test App Config")
+	return fancy.NewComponentTree("testAppConfig")
 }
