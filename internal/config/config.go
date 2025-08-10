@@ -80,7 +80,6 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 	config := &Config{
 		Version:  VersionLatest,
 		rawProto: pbConfig,
-		Apps:     apps.NewAppCollection(), // Always initialize to empty collection
 	}
 
 	if pbConfig.Version != nil && *pbConfig.Version != "" {
@@ -104,14 +103,15 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		config.Endpoints = endpointsList
 	}
 
-	// Convert apps - FromProto always returns a valid AppCollection (empty if no apps)
+	// Convert apps - FromProto returns a valid AppCollection (empty if no apps)
 	var appErrz []error
 	appDefinitions, err := apps.FromProto(pbConfig.Apps)
 	if err != nil {
 		appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
-		// Fallback to empty collection on error
+		// FromProto failed, use empty collection as fallback
 		config.Apps = apps.NewAppCollection()
 	} else {
+		// FromProto succeeded (returns empty collection if no apps)
 		config.Apps = appDefinitions
 	}
 
