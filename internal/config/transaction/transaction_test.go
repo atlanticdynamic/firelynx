@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
@@ -34,9 +35,9 @@ func setupTest(t *testing.T) (*ConfigTransaction, slog.Handler) {
 
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
 	// Create a valid config with the current version
-	cfg := &config.Config{
-		Version: config.VersionLatest,
-	}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	cfg.Version = config.VersionLatest
 
 	tx, err := FromTest("test_transaction", cfg, handler)
 	require.NoError(t, err)

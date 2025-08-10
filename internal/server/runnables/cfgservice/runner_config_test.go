@@ -1035,10 +1035,11 @@ func createTestTransaction(
 	state string,
 ) *transaction.ConfigTransaction {
 	t.Helper()
-	cfg := &config.Config{Version: version.Version}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	cfg.Version = version.Version
 
 	var tx *transaction.ConfigTransaction
-	var err error
 
 	switch source {
 	case transaction.SourceAPI:
@@ -1409,7 +1410,9 @@ func TestGetCurrentConfigTransaction(t *testing.T) {
 		h.transitionToRunning()
 
 		// Create and set a current transaction
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = version.Version
 		tx, err := transaction.FromAPI("test-request", cfg, handler)
 		require.NoError(t, err)
 		require.NoError(t, tx.RunValidation())
@@ -1488,7 +1491,9 @@ func TestGetCurrentConfigTransaction(t *testing.T) {
 
 		for _, tt := range states {
 			t.Run(tt.name, func(t *testing.T) {
-				cfg := &config.Config{Version: version.Version}
+				cfg, err := config.NewFromProto(&pb.ServerConfig{})
+				require.NoError(t, err)
+				cfg.Version = version.Version
 				tx, err := transaction.FromTest("test-tx", cfg, handler)
 				require.NoError(t, err)
 
@@ -1522,7 +1527,9 @@ func TestGetConfigTransaction(t *testing.T) {
 		h.transitionToRunning()
 
 		// Create a transaction and add it to storage
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = version.Version
 		tx, err := transaction.FromAPI("test-request", cfg, handler)
 		require.NoError(t, err)
 		require.NoError(t, tx.RunValidation())
@@ -1616,7 +1623,9 @@ func TestGetConfigTransaction(t *testing.T) {
 			{
 				name: "API source",
 				createTx: func() (*transaction.ConfigTransaction, error) {
-					cfg := &config.Config{Version: version.Version}
+					cfg, err := config.NewFromProto(&pb.ServerConfig{})
+					require.NoError(t, err)
+					cfg.Version = version.Version
 					return transaction.FromAPI("api-request", cfg, handler)
 				},
 				expectedSource: pb.ConfigTransaction_SOURCE_API,
@@ -1624,7 +1633,9 @@ func TestGetConfigTransaction(t *testing.T) {
 			{
 				name: "Test source",
 				createTx: func() (*transaction.ConfigTransaction, error) {
-					cfg := &config.Config{Version: version.Version}
+					cfg, err := config.NewFromProto(&pb.ServerConfig{})
+					require.NoError(t, err)
+					cfg.Version = version.Version
 					return transaction.FromTest("test-tx", cfg, handler)
 				},
 				expectedSource: pb.ConfigTransaction_SOURCE_TEST,
@@ -1663,7 +1674,9 @@ func TestClearConfigTransactions(t *testing.T) {
 		h.transitionToRunning()
 
 		// Add multiple transactions to storage
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = version.Version
 		for range 5 {
 			tx, err := transaction.FromTest("test-tx", cfg, handler)
 			require.NoError(t, err)
@@ -1693,7 +1706,9 @@ func TestClearConfigTransactions(t *testing.T) {
 		h.transitionToRunning()
 
 		// Add multiple transactions
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = version.Version
 		for range 10 {
 			tx, err := transaction.FromTest("test-tx", cfg, handler)
 			require.NoError(t, err)
@@ -1720,7 +1735,9 @@ func TestClearConfigTransactions(t *testing.T) {
 		h.transitionToRunning()
 
 		// Add transactions
-		cfg := &config.Config{Version: version.Version}
+		cfg, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		cfg.Version = version.Version
 		for range 3 {
 			tx, err := transaction.FromTest("test-tx", cfg, handler)
 			require.NoError(t, err)
@@ -1800,7 +1817,9 @@ func TestClearConfigTransactions(t *testing.T) {
 				h.txStorage.transactions = nil
 
 				// Add specified number of transactions
-				cfg := &config.Config{Version: version.Version}
+				cfg, err := config.NewFromProto(&pb.ServerConfig{})
+				require.NoError(t, err)
+				cfg.Version = version.Version
 				for range tt.transactionCount {
 					tx, err := transaction.FromTest("test-tx", cfg, handler)
 					require.NoError(t, err)

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/stretchr/testify/assert"
@@ -14,9 +15,12 @@ import (
 
 // For testing only - a minimal config
 func mockConfig() *config.Config {
-	return &config.Config{
-		Version: "v1",
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	if err != nil {
+		panic("failed to create mock config: " + err.Error())
 	}
+	cfg.Version = config.VersionLatest
+	return cfg
 }
 
 // setupAppsInTransaction runs validation to create apps in the transaction

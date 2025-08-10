@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,9 +20,9 @@ func TestConstructors(t *testing.T) {
 	t.Parallel()
 
 	handler := slog.NewTextHandler(os.Stdout, nil)
-	cfg := &config.Config{
-		Version: config.VersionLatest,
-	}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	cfg.Version = config.VersionLatest
 
 	t.Run("constructs from file", func(t *testing.T) {
 		tmpDir := t.TempDir()
