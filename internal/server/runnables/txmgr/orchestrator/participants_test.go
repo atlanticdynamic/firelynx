@@ -6,12 +6,14 @@ import (
 	"os"
 	"testing"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // TestSagaParticipantInterface_ReloadConflictFromMocks tests that registering a participant that implements both
@@ -54,9 +56,9 @@ func TestSagaParticipantInterface_ApplyPendingConfigFromMocks(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Create and prepare transaction with a non-nil config
-	testConfig := &config.Config{
-		Version: "test",
-	}
+	testConfig, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	testConfig.Version = config.VersionLatest
 	tx, err := transaction.New(transaction.SourceTest, "test", "test-id", testConfig, handler)
 	assert.NoError(t, err)
 
@@ -86,9 +88,9 @@ func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 	storage := txstorage.NewMemoryStorage()
 
 	// Create a test config
-	testConfig := &config.Config{
-		Version: "test",
-	}
+	testConfig, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	testConfig.Version = config.VersionLatest
 
 	tx, err := transaction.New(transaction.SourceTest, "test", "test-request", testConfig, handler)
 	assert.NoError(t, err)
@@ -142,9 +144,9 @@ func TestTriggerReload_FailureFromMocks(t *testing.T) {
 	storage := txstorage.NewMemoryStorage()
 
 	// Create a test config
-	testConfig := &config.Config{
-		Version: "test",
-	}
+	testConfig, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	testConfig.Version = config.VersionLatest
 
 	tx, err := transaction.New(transaction.SourceTest, "test", "test-request", testConfig, handler)
 	assert.NoError(t, err)

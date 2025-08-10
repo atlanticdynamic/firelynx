@@ -13,7 +13,6 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
@@ -228,10 +227,9 @@ func TestGetDomainConfig(t *testing.T) {
 		r := h.runner
 
 		// Create a test config
-		testConfig := &config.Config{
-			Version: "v1.0.0",
-			Apps:    apps.NewAppCollection(),
-		}
+		testConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		testConfig.Version = config.VersionLatest
 
 		// Set transaction storage to return transaction with valid config
 		r.txStorage = &mockTxStorageWithConfig{cfg: testConfig}
@@ -239,7 +237,7 @@ func TestGetDomainConfig(t *testing.T) {
 		// Should return the actual config
 		cfg := r.GetDomainConfig()
 		assert.NotNil(t, cfg)
-		assert.Equal(t, "v1.0.0", cfg.Version)
+		assert.Equal(t, config.VersionLatest, cfg.Version)
 		assert.NotNil(t, cfg.Apps, "Apps should be initialized")
 		assert.Equal(t, 0, cfg.Apps.Len(), "Should preserve apps from original config")
 	})
