@@ -18,12 +18,6 @@ func expandAppsForRoutes(appCollection *apps.AppCollection, endpoints endpoints.
 		return
 	}
 
-	// Create a map for fast app lookup by ID
-	appMap := make(map[string]apps.App)
-	for _, app := range appCollection.Apps {
-		appMap[app.ID] = app
-	}
-
 	// Process each endpoint
 	for endpointIndex := range endpoints {
 		endpoint := &endpoints[endpointIndex]
@@ -36,8 +30,8 @@ func expandAppsForRoutes(appCollection *apps.AppCollection, endpoints endpoints.
 				continue
 			}
 
-			// Find the original app
-			originalApp, exists := appMap[route.AppID]
+			// Find the original app using the collection's FindByID method
+			originalApp, exists := appCollection.FindByID(route.AppID)
 			if !exists {
 				continue // Skip invalid app references, validation will catch this
 			}
