@@ -3,6 +3,7 @@ package txstorage
 import (
 	"testing"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/stretchr/testify/assert"
@@ -167,9 +168,9 @@ func createTestTransactionWithState(t *testing.T, state string) *transaction.Con
 	t.Helper()
 
 	// Create minimal config for the transaction
-	cfg := &config.Config{
-		Version: config.VersionLatest,
-	}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	cfg.Version = config.VersionLatest
 
 	// Create transaction - it starts in "created" state
 	tx, err := transaction.New(

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
@@ -22,9 +23,9 @@ func TestMarkFailedOnErrorStateTransaction(t *testing.T) {
 	t.Parallel()
 
 	// Create minimal config for testing
-	cfg := &config.Config{
-		Version: "v1",
-	}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	cfg.Version = config.VersionLatest
 
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError})
 
@@ -78,9 +79,9 @@ func TestTransactionManagerWithErroredTransaction(t *testing.T) {
 	t.Parallel()
 
 	// Create minimal config for testing
-	cfg := &config.Config{
-		Version: "v1",
-	}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	cfg.Version = config.VersionLatest
 
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError})
 

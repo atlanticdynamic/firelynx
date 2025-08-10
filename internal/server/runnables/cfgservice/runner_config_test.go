@@ -1037,7 +1037,7 @@ func createTestTransaction(
 	t.Helper()
 	cfg, err := config.NewFromProto(&pb.ServerConfig{})
 	require.NoError(t, err)
-	cfg.Version = version.Version
+	cfg.Version = config.VersionLatest
 
 	var tx *transaction.ConfigTransaction
 
