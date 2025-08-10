@@ -16,7 +16,7 @@ require (
 	github.com/robbyt/go-supervisor v0.0.15
 	github.com/robbyt/protobaggins v0.1.0
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/net v0.42.0
+	golang.org/x/net v0.43.0
 	google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf v1.36.7
 )
@@ -48,8 +48,8 @@ require (
 	go.opentelemetry.io/proto/otlp v1.7.0 // indirect
 	go.starlark.net v0.0.0-20250701195324-d457b4515e0e // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
