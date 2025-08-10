@@ -13,15 +13,9 @@ import (
 // expandAppsForRoutes assigns app instances to routes with merged static data.
 // Each route gets its own app instance with route-specific static data merged in.
 // Expanded apps get unique IDs to avoid conflicts in the server registry.
-func expandAppsForRoutes(appCollection apps.AppCollection, endpoints endpoints.EndpointCollection) {
-	if len(appCollection) == 0 || len(endpoints) == 0 {
+func expandAppsForRoutes(appCollection *apps.AppCollection, endpoints endpoints.EndpointCollection) {
+	if appCollection == nil || appCollection.Len() == 0 || len(endpoints) == 0 {
 		return
-	}
-
-	// Create a map for fast app lookup by ID
-	appMap := make(map[string]apps.App)
-	for _, app := range appCollection {
-		appMap[app.ID] = app
 	}
 
 	// Process each endpoint
@@ -36,8 +30,8 @@ func expandAppsForRoutes(appCollection apps.AppCollection, endpoints endpoints.E
 				continue
 			}
 
-			// Find the original app
-			originalApp, exists := appMap[route.AppID]
+			// Find the original app using the collection's FindByID method
+			originalApp, exists := appCollection.FindByID(route.AppID)
 			if !exists {
 				continue // Skip invalid app references, validation will catch this
 			}

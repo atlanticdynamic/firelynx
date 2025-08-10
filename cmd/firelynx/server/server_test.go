@@ -18,10 +18,6 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/client"
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
-	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
-	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/logging"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
@@ -331,8 +327,8 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 	// Verify the retrieved config matches what we expect
 	assert.Equal(
 		t,
-		len(currentCfg.Apps),
-		len(retrievedCfg.Apps),
+		currentCfg.Apps.Len(),
+		retrievedCfg.Apps.Len(),
 		"Retrieved config should have same number of apps",
 	)
 	assert.Equal(
@@ -408,26 +404,8 @@ func TestConfigFileReload(t *testing.T) {
 		return resp.StatusCode == http.StatusOK
 	}, 5*time.Second, 200*time.Millisecond, "Initial endpoint should be available")
 
-	// Update config file to add new route
-	cfg, err := config.NewConfigFromBytes([]byte(initialConfig))
-	require.NoError(t, err, "Should parse config")
-	require.NoError(t, cfg.Validate(), "Should validate config")
-
-	// Add new route and app using domain objects
-	cfg.Endpoints[0].Routes = append(cfg.Endpoints[0].Routes, routes.Route{
-		AppID:     "new_app",
-		Condition: conditions.NewHTTP("/new-path", ""),
-	})
-
-	cfg.Apps = append(cfg.Apps, apps.App{
-		ID: "new_app",
-		Config: &echo.EchoApp{
-			Response: "New path response",
-		},
-	})
-
-	// Save updated config using TOML format (simulate file update)
-	// For simplicity, we'll create the updated config as TOML manually
+	// Update config file to add new route (simulate file update)
+	// Work directly with TOML since file reloads are atomic
 	updatedConfig := initialConfig + `
 
 [[endpoints.routes]]
@@ -514,7 +492,7 @@ func TestNewConfigFromBytes(t *testing.T) {
 	assert.Equal(t, "v1", cfg.Version)
 	assert.Len(t, cfg.Listeners, 1)
 	assert.Len(t, cfg.Endpoints, 1)
-	assert.Len(t, cfg.Apps, 1)
+	assert.Equal(t, 1, cfg.Apps.Len())
 
 	// Test conversion to proto and back
 	proto := cfg.ToProto()

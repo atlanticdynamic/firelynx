@@ -1037,7 +1037,7 @@ func createTestTransaction(
 	t.Helper()
 	cfg, err := config.NewFromProto(&pb.ServerConfig{})
 	require.NoError(t, err)
-	cfg.Version = version.Version
+	cfg.Version = config.VersionLatest
 
 	var tx *transaction.ConfigTransaction
 
@@ -1412,7 +1412,6 @@ func TestGetCurrentConfigTransaction(t *testing.T) {
 		// Create and set a current transaction
 		cfg, err := config.NewFromProto(&pb.ServerConfig{})
 		require.NoError(t, err)
-		cfg.Version = version.Version
 		tx, err := transaction.FromAPI("test-request", cfg, handler)
 		require.NoError(t, err)
 		require.NoError(t, tx.RunValidation())
@@ -1493,7 +1492,6 @@ func TestGetCurrentConfigTransaction(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				cfg, err := config.NewFromProto(&pb.ServerConfig{})
 				require.NoError(t, err)
-				cfg.Version = version.Version
 				tx, err := transaction.FromTest("test-tx", cfg, handler)
 				require.NoError(t, err)
 
@@ -1529,7 +1527,6 @@ func TestGetConfigTransaction(t *testing.T) {
 		// Create a transaction and add it to storage
 		cfg, err := config.NewFromProto(&pb.ServerConfig{})
 		require.NoError(t, err)
-		cfg.Version = version.Version
 		tx, err := transaction.FromAPI("test-request", cfg, handler)
 		require.NoError(t, err)
 		require.NoError(t, tx.RunValidation())
@@ -1625,7 +1622,6 @@ func TestGetConfigTransaction(t *testing.T) {
 				createTx: func() (*transaction.ConfigTransaction, error) {
 					cfg, err := config.NewFromProto(&pb.ServerConfig{})
 					require.NoError(t, err)
-					cfg.Version = version.Version
 					return transaction.FromAPI("api-request", cfg, handler)
 				},
 				expectedSource: pb.ConfigTransaction_SOURCE_API,
@@ -1635,7 +1631,6 @@ func TestGetConfigTransaction(t *testing.T) {
 				createTx: func() (*transaction.ConfigTransaction, error) {
 					cfg, err := config.NewFromProto(&pb.ServerConfig{})
 					require.NoError(t, err)
-					cfg.Version = version.Version
 					return transaction.FromTest("test-tx", cfg, handler)
 				},
 				expectedSource: pb.ConfigTransaction_SOURCE_TEST,
@@ -1676,7 +1671,6 @@ func TestClearConfigTransactions(t *testing.T) {
 		// Add multiple transactions to storage
 		cfg, err := config.NewFromProto(&pb.ServerConfig{})
 		require.NoError(t, err)
-		cfg.Version = version.Version
 		for range 5 {
 			tx, err := transaction.FromTest("test-tx", cfg, handler)
 			require.NoError(t, err)
@@ -1708,7 +1702,6 @@ func TestClearConfigTransactions(t *testing.T) {
 		// Add multiple transactions
 		cfg, err := config.NewFromProto(&pb.ServerConfig{})
 		require.NoError(t, err)
-		cfg.Version = version.Version
 		for range 10 {
 			tx, err := transaction.FromTest("test-tx", cfg, handler)
 			require.NoError(t, err)
@@ -1737,7 +1730,6 @@ func TestClearConfigTransactions(t *testing.T) {
 		// Add transactions
 		cfg, err := config.NewFromProto(&pb.ServerConfig{})
 		require.NoError(t, err)
-		cfg.Version = version.Version
 		for range 3 {
 			tx, err := transaction.FromTest("test-tx", cfg, handler)
 			require.NoError(t, err)
@@ -1819,7 +1811,6 @@ func TestClearConfigTransactions(t *testing.T) {
 				// Add specified number of transactions
 				cfg, err := config.NewFromProto(&pb.ServerConfig{})
 				require.NoError(t, err)
-				cfg.Version = version.Version
 				for range tt.transactionCount {
 					tx, err := transaction.FromTest("test-tx", cfg, handler)
 					require.NoError(t, err)

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
@@ -70,9 +71,9 @@ func TestIntegration_HTTP(t *testing.T) {
 	appRegistry.On("GetApp", "admin-app").Return(adminApp, true)
 
 	// Create a minimal configuration
-	testConfig := &config.Config{
-		Version: "test",
-	}
+	testConfig, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err)
+	testConfig.Version = config.VersionLatest
 
 	// Create a ConfigProvider with our mock objects
 	provider := &MockConfigProvider{

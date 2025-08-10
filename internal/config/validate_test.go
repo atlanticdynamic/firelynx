@@ -300,12 +300,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 			setupConfig: func() *Config {
 				return &Config{
 					Version: VersionLatest,
-					Apps: apps.AppCollection{
-						{
+					Apps: apps.NewAppCollection(
+						apps.App{
 							ID:     "echo-app",
 							Config: &echo.EchoApp{Response: "Hello"},
 						},
-					},
+					),
 					Endpoints: endpoints.EndpointCollection{
 						{
 							ID:         "ep1",
@@ -327,12 +327,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 			setupConfig: func() *Config {
 				return &Config{
 					Version: VersionLatest,
-					Apps: apps.AppCollection{
-						{
+					Apps: apps.NewAppCollection(
+						apps.App{
 							ID:     "echo-app",
 							Config: &echo.EchoApp{Response: "Hello"},
 						},
-					},
+					),
 					Endpoints: endpoints.EndpointCollection{
 						{
 							ID:         "ep1",
@@ -354,12 +354,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 			setupConfig: func() *Config {
 				return &Config{
 					Version: VersionLatest,
-					Apps: apps.AppCollection{
-						{
+					Apps: apps.NewAppCollection(
+						apps.App{
 							ID:     "echo-app",
 							Config: &echo.EchoApp{Response: "Hello"},
 						},
-					},
+					),
 					Endpoints: endpoints.EndpointCollection{
 						{
 							ID:         "ep1",
@@ -386,12 +386,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 				)
 				return &Config{
 					Version: VersionLatest,
-					Apps: apps.AppCollection{
-						{
+					Apps: apps.NewAppCollection(
+						apps.App{
 							ID:     "invalid-app",
 							Config: invalidScript,
 						},
-					},
+					),
 					Endpoints: endpoints.EndpointCollection{
 						{
 							ID:         "ep1",
@@ -654,12 +654,12 @@ func TestConfig_Validate(t *testing.T) {
 						},
 					},
 				},
-				Apps: apps.AppCollection{
-					{
+				Apps: apps.NewAppCollection(
+					apps.App{
 						ID:     "echo-app",
 						Config: &echo.EchoApp{Response: "Hello"},
 					},
-				},
+				),
 			},
 			expectError: false,
 		},
@@ -667,6 +667,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "Invalid version",
 			config: &Config{
 				Version: "invalid",
+				Apps:    apps.NewAppCollection(),
 			},
 			expectError: true,
 			errorType:   ErrUnsupportedConfigVer,
@@ -675,6 +676,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "Invalid listener",
 			config: &Config{
 				Version: VersionLatest,
+				Apps:    apps.NewAppCollection(),
 				Listeners: listeners.ListenerCollection{
 					{
 						ID:      "", // Empty ID
@@ -696,6 +698,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "Invalid endpoint reference",
 			config: &Config{
 				Version: VersionLatest,
+				Apps:    apps.NewAppCollection(),
 				Listeners: listeners.ListenerCollection{
 					{
 						ID:      "http1",
@@ -758,16 +761,16 @@ func TestConfig_Validate(t *testing.T) {
 						},
 					},
 				},
-				Apps: apps.AppCollection{
-					{
+				Apps: apps.NewAppCollection(
+					apps.App{
 						ID:     "app1",
 						Config: &echo.EchoApp{Response: "Hello from app1"},
 					},
-					{
+					apps.App{
 						ID:     "app2",
 						Config: &echo.EchoApp{Response: "Hello from app2"},
 					},
-				},
+				),
 			},
 			expectError: true,
 			errorType:   ErrFailedToValidateConfig,
@@ -801,12 +804,12 @@ func TestConfig_Validate(t *testing.T) {
 						},
 					},
 				},
-				Apps: apps.AppCollection{
-					{
+				Apps: apps.NewAppCollection(
+					apps.App{
 						ID:     "app1",
 						Config: &echo.EchoApp{Response: "Hello"},
 					},
-				},
+				),
 			},
 			expectError: true,
 			errorType:   ErrFailedToValidateConfig,

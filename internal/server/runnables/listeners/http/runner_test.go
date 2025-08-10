@@ -14,12 +14,10 @@ import (
 )
 
 // For testing only - a minimal config
-func mockConfig() *config.Config {
+func mockConfig(t *testing.T) *config.Config {
+	t.Helper()
 	cfg, err := config.NewFromProto(&pb.ServerConfig{})
-	if err != nil {
-		panic("failed to create mock config: " + err.Error())
-	}
-	cfg.Version = config.VersionLatest
+	require.NoError(t, err)
 	return cfg
 }
 
@@ -35,7 +33,7 @@ func setupAppsInTransaction(t *testing.T, tx *transaction.ConfigTransaction) {
 // createMockTransaction creates a test transaction with apps set up
 func createMockTransaction(t *testing.T) *transaction.ConfigTransaction {
 	t.Helper()
-	cfg := mockConfig()
+	cfg := mockConfig(t)
 	tx, err := transaction.FromTest(t.Name(), cfg, nil)
 	require.NoError(t, err)
 
