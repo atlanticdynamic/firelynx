@@ -133,7 +133,7 @@ func (ac *AppCollection) ToTree() *fancy.ComponentTree {
 	// Use consistent section header styling
 	tree := fancy.NewComponentTree(styles.FormatSection("Apps", len(ac.Apps)))
 
-	for _, app := range ac.Apps {
+	for app := range ac.All() {
 		appTree := app.ToTree()
 		tree.AddChild(appTree.Tree())
 	}

@@ -31,7 +31,7 @@ type App struct {
 
 // AppCollection is a collection of App definitions with centralized management
 type AppCollection struct {
-	Apps []App
+	apps []App
 }
 
 // AppConfig represents application-specific configuration
@@ -67,13 +67,13 @@ func (a App) Validate() error {
 // NewAppCollection creates a new AppCollection with the given apps
 func NewAppCollection(apps ...App) *AppCollection {
 	return &AppCollection{
-		Apps: apps,
+		apps: apps,
 	}
 }
 
 // FindByID finds an app by its ID. Returns a copy to prevent external mutations.
 func (ac *AppCollection) FindByID(id string) (App, bool) {
-	for _, app := range ac.Apps {
+	for _, app := range ac.apps {
 		if app.ID == id {
 			return app, true
 		}
@@ -83,19 +83,19 @@ func (ac *AppCollection) FindByID(id string) (App, bool) {
 
 // Len returns the number of apps in the collection
 func (ac *AppCollection) Len() int {
-	return len(ac.Apps)
+	return len(ac.apps)
 }
 
 // Get returns the app at the specified index
 func (ac *AppCollection) Get(index int) App {
-	return ac.Apps[index]
+	return ac.apps[index]
 }
 
 // All returns an iterator over all apps in the collection.
 // This enables clean iteration: for app := range collection.All() { ... }
 func (ac *AppCollection) All() iter.Seq[App] {
 	return func(yield func(App) bool) {
-		for _, app := range ac.Apps {
+		for _, app := range ac.apps {
 			if !yield(app) {
 				return // Early termination support
 			}
@@ -105,7 +105,7 @@ func (ac *AppCollection) All() iter.Seq[App] {
 
 // Validate checks that app configurations are valid
 func (ac *AppCollection) Validate() error {
-	if len(ac.Apps) == 0 {
+	if len(ac.apps) == 0 {
 		return nil // Empty app list is valid
 	}
 
@@ -115,7 +115,7 @@ func (ac *AppCollection) Validate() error {
 	appIDs := make(map[string]bool)
 
 	// First pass: Validate IDs and check for duplicates
-	for _, app := range ac.Apps {
+	for _, app := range ac.apps {
 		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
 			errs = append(errs, err)
 			continue
@@ -130,7 +130,7 @@ func (ac *AppCollection) Validate() error {
 	}
 
 	// Second pass: Validate each app individually and handle cross-references
-	for i, app := range ac.Apps {
+	for i, app := range ac.apps {
 		// Skip apps with invalid IDs as those are already reported
 		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
 			continue
@@ -169,7 +169,7 @@ func (ac *AppCollection) Validate() error {
 func (ac *AppCollection) ValidateRouteAppReferences(routes []struct{ AppID string }) error {
 	// Build map of app IDs for quick lookup
 	appIDs := make(map[string]bool)
-	for _, app := range ac.Apps {
+	for _, app := range ac.apps {
 		appIDs[app.ID] = true
 	}
 
