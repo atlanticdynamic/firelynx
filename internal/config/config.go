@@ -29,7 +29,7 @@ type Config struct {
 	Version   string
 	Listeners listeners.ListenerCollection
 	Endpoints endpoints.EndpointCollection
-	Apps      apps.AppCollection
+	Apps      *apps.AppCollection
 
 	// ValidationCompleted is set after the config has been validated. If the config is invalid, this will still be true.
 	ValidationCompleted bool
@@ -76,11 +76,10 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		return nil, fmt.Errorf("nil protobuf config")
 	}
 
-	// Create a new domain config
+	// Create a new domain config with reasonable defaults
 	config := &Config{
 		Version:  VersionLatest,
 		rawProto: pbConfig,
-		Apps:     apps.AppCollection{},
 	}
 
 	if pbConfig.Version != nil && *pbConfig.Version != "" {
@@ -104,14 +103,16 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 		config.Endpoints = endpointsList
 	}
 
+	// Convert apps - FromProto returns a valid AppCollection (empty if no apps)
 	var appErrz []error
-	if len(pbConfig.Apps) > 0 {
-		appDefinitions, err := apps.FromProto(pbConfig.Apps)
-		if err != nil {
-			appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
-		} else {
-			config.Apps = appDefinitions
-		}
+	appDefinitions, err := apps.FromProto(pbConfig.Apps)
+	if err != nil {
+		appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
+		// FromProto failed, use empty collection as fallback
+		config.Apps = apps.NewAppCollection()
+	} else {
+		// FromProto succeeded (returns empty collection if no apps)
+		config.Apps = appDefinitions
 	}
 
 	return config, errors.Join(appErrz...)

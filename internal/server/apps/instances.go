@@ -1,6 +1,9 @@
 package apps
 
-import "fmt"
+import (
+	"fmt"
+	"iter"
+)
 
 // AppInstances is an immutable collection of application instances
 type AppInstances struct {
@@ -28,6 +31,18 @@ func NewAppInstances(apps []App) (*AppInstances, error) {
 func (c *AppInstances) GetApp(id string) (App, bool) {
 	app, exists := c.apps[id]
 	return app, exists
+}
+
+// All returns an iterator over all app instances in the collection.
+// This enables clean iteration: for app := range instances.All() { ... }
+func (c *AppInstances) All() iter.Seq[App] {
+	return func(yield func(App) bool) {
+		for _, app := range c.apps {
+			if !yield(app) {
+				return // Early termination support
+			}
+		}
+	}
 }
 
 // String returns a string representation of the app instances

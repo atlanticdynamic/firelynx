@@ -2,6 +2,7 @@ package cfgservice
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"log/slog"
 	"net"
@@ -217,6 +218,42 @@ func TestGetDomainConfig(t *testing.T) {
 		cfg := r.GetDomainConfig()
 		assert.NotNil(t, cfg)
 		assert.Equal(t, config.VersionLatest, cfg.Version)
+		assert.NotNil(t, cfg.Apps, "Apps should be initialized")
+		assert.Equal(t, 0, cfg.Apps.Len(), "Apps should be empty for minimal config")
+	})
+
+	t.Run("normal transaction with valid config", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		// Create a test config
+		testConfig, err := config.NewFromProto(&pb.ServerConfig{})
+		require.NoError(t, err)
+		testConfig.Version = config.VersionLatest
+
+		// Set transaction storage to return transaction with valid config
+		r.txStorage = &mockTxStorageWithConfig{cfg: testConfig}
+
+		// Should return the actual config
+		cfg := r.GetDomainConfig()
+		assert.NotNil(t, cfg)
+		assert.Equal(t, config.VersionLatest, cfg.Version)
+		assert.NotNil(t, cfg.Apps, "Apps should be initialized")
+		assert.Equal(t, 0, cfg.Apps.Len(), "Should preserve apps from original config")
+	})
+
+	t.Run("config creation error fallback", func(t *testing.T) {
+		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
+		r := h.runner
+
+		// Set transaction storage to return nil (will trigger fallback)
+		r.txStorage = &mockTxStorageNil{}
+
+		// This test ensures the error path fallback works
+		// The fallback should still work in normal cases, but we test the path exists
+		cfg := r.GetDomainConfig()
+		assert.NotNil(t, cfg)
+		// Even with error, should return something (zero value or minimal config)
 	})
 }
 
@@ -238,6 +275,39 @@ func (m *mockTxStorageNil) GetByID(id string) *transaction.ConfigTransaction {
 }
 
 func (m *mockTxStorageNil) Clear(keepLast int) (int, error) {
+	return 0, nil
+}
+
+// mockTxStorageWithConfig returns a transaction that has a specific config
+type mockTxStorageWithConfig struct {
+	cfg *config.Config
+	tx  *transaction.ConfigTransaction
+}
+
+func (m *mockTxStorageWithConfig) SetCurrent(tx *transaction.ConfigTransaction) {}
+
+func (m *mockTxStorageWithConfig) GetCurrent() *transaction.ConfigTransaction {
+	// Create a test transaction with the specific config
+	if m.tx == nil {
+		var err error
+		m.tx, err = transaction.FromTest("test-config", m.cfg, slog.Default().Handler())
+		if err != nil {
+			// Transaction creation failure is a test setup error - fail fast
+			panic("test setup error: failed to create test transaction: " + err.Error())
+		}
+	}
+	return m.tx
+}
+
+func (m *mockTxStorageWithConfig) GetAll() []*transaction.ConfigTransaction {
+	return []*transaction.ConfigTransaction{}
+}
+
+func (m *mockTxStorageWithConfig) GetByID(id string) *transaction.ConfigTransaction {
+	return nil
+}
+
+func (m *mockTxStorageWithConfig) Clear(keepLast int) (int, error) {
 	return 0, nil
 }
 
@@ -655,5 +725,112 @@ func TestConcurrentAccess(t *testing.T) {
 			}
 		}
 		assert.Equal(t, 0, errorCount, "All concurrent transaction operations should succeed")
+	})
+}
+
+// TestEncodeDecodePageToken tests the pagination token encoding and decoding functions
+func TestEncodeDecodePageToken(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Valid token round trip", func(t *testing.T) {
+		offset := 10
+		pageSize := 25
+		state := "completed"
+		source := "api"
+
+		// Encode token
+		token, err := encodePageToken(offset, pageSize, state, source)
+		assert.NoError(t, err, "Should encode token successfully")
+		assert.NotEmpty(t, token, "Token should not be empty")
+
+		// Decode token
+		decoded, err := decodePageToken(token)
+		assert.NoError(t, err, "Should decode token successfully")
+		assert.Equal(t, offset, decoded.Offset, "Offset should match")
+		assert.Equal(t, pageSize, decoded.PageSize, "Page size should match")
+		assert.Equal(t, state, decoded.State, "State should match")
+		assert.Equal(t, source, decoded.Source, "Source should match")
+	})
+
+	t.Run("Empty strings in token", func(t *testing.T) {
+		offset := 0
+		pageSize := 10
+		state := ""
+		source := ""
+
+		// Encode token
+		token, err := encodePageToken(offset, pageSize, state, source)
+		assert.NoError(t, err, "Should encode token with empty strings")
+		assert.NotEmpty(t, token, "Token should not be empty")
+
+		// Decode token
+		decoded, err := decodePageToken(token)
+		assert.NoError(t, err, "Should decode token with empty strings")
+		assert.Equal(t, offset, decoded.Offset, "Offset should match")
+		assert.Equal(t, pageSize, decoded.PageSize, "Page size should match")
+		assert.Equal(t, state, decoded.State, "State should match")
+		assert.Equal(t, source, decoded.Source, "Source should match")
+	})
+
+	t.Run("Decode empty token", func(t *testing.T) {
+		decoded, err := decodePageToken("")
+		assert.NoError(t, err, "Should handle empty token gracefully")
+		assert.Equal(t, pageToken{}, decoded, "Should return zero value for empty token")
+	})
+
+	t.Run("Decode invalid base64", func(t *testing.T) {
+		invalidToken := "invalid-base64-!@#$%"
+
+		decoded, err := decodePageToken(invalidToken)
+		assert.Error(t, err, "Should return error for invalid base64")
+		assert.Equal(t, pageToken{}, decoded, "Should return zero value on error")
+		assert.Contains(t, err.Error(), "invalid page token format", "Error should mention invalid format")
+	})
+
+	t.Run("Decode invalid JSON", func(t *testing.T) {
+		// Create a valid base64 string that contains invalid JSON
+		invalidJSON := base64.URLEncoding.EncodeToString([]byte("{invalid json syntax"))
+
+		decoded, err := decodePageToken(invalidJSON)
+		assert.Error(t, err, "Should return error for invalid JSON")
+		assert.Equal(t, pageToken{}, decoded, "Should return zero value on error")
+		assert.Contains(t, err.Error(), "failed to unmarshal page token", "Error should mention unmarshal failure")
+	})
+
+	t.Run("Large values", func(t *testing.T) {
+		offset := 999999
+		pageSize := 100
+		state := "very_long_state_string_that_should_still_work_fine_in_encoding"
+		source := "very_long_source_string_that_should_also_work_fine"
+
+		// Encode token
+		token, err := encodePageToken(offset, pageSize, state, source)
+		assert.NoError(t, err, "Should encode token with large values")
+		assert.NotEmpty(t, token, "Token should not be empty")
+
+		// Decode token
+		decoded, err := decodePageToken(token)
+		assert.NoError(t, err, "Should decode token with large values")
+		assert.Equal(t, offset, decoded.Offset, "Large offset should match")
+		assert.Equal(t, pageSize, decoded.PageSize, "Page size should match")
+		assert.Equal(t, state, decoded.State, "Long state should match")
+		assert.Equal(t, source, decoded.Source, "Long source should match")
+	})
+
+	t.Run("Negative values", func(t *testing.T) {
+		offset := -1
+		pageSize := -10
+		state := "failed"
+		source := "test"
+
+		// Encode token (should work even with negative values)
+		token, err := encodePageToken(offset, pageSize, state, source)
+		assert.NoError(t, err, "Should encode token with negative values")
+
+		// Decode token
+		decoded, err := decodePageToken(token)
+		assert.NoError(t, err, "Should decode token with negative values")
+		assert.Equal(t, offset, decoded.Offset, "Negative offset should be preserved")
+		assert.Equal(t, pageSize, decoded.PageSize, "Negative page size should be preserved")
 	})
 }

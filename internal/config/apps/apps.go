@@ -3,53 +3,25 @@
 //
 // This package defines the domain model for application configurations, including
 // various app types (scripts, composite scripts) and their validation logic.
-// It serves as the boundary between configuration and runtime systems.
 //
 // The main types include:
 // - App: Represents a single application configuration with ID and type-specific config
-// - AppCollection: A slice of App objects with validation and lookup methods
+// - AppCollection: A struct containing a slice of App objects with validation and lookup methods
 // - AppConfig: Interface implemented by all app type configs (scripts, composite, etc.)
 //
-// Thread Safety:
-// The types in this package are not inherently thread-safe and should be protected
-// when used concurrently. Typically, these configuration objects are loaded during
-// startup or config reload events, which should be synchronized.
-//
-// Usage Example:
-//
-//	// Create an app collection with a script app
-//	scriptApp := &apps.App{
-//	    ID: "my-script",
-//	    Config: scripts.NewAppScript(staticData, evaluator),
-//	}
-//	appCollection := apps.AppCollection{scriptApp}
-//
-//	// Validate the configuration
-//	if err := appCollection.Validate(); err != nil {
-//	    return err
-//	}
-//
-//	// Convert to runtime instances (using core adapter)
-//	instances, err := core.CreateAppInstances(appCollection)
+// AppCollection provides centralized management of app definitions with duplicate ID detection,
+// lookup by ID, and validation of cross-references between apps.
 package apps
 
 import (
 	"errors"
 	"fmt"
+	"iter"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/validation"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
-
-// App represents an application definition
-type App struct {
-	ID     string
-	Config AppConfig
-}
-
-// AppCollection is a collection of App definitions
-type AppCollection []App
 
 // AppConfig represents application-specific configuration
 type AppConfig interface {
@@ -58,6 +30,12 @@ type AppConfig interface {
 	ToProto() any
 	String() string
 	ToTree() *fancy.ComponentTree
+}
+
+// App represents an application definition
+type App struct {
+	ID     string
+	Config AppConfig
 }
 
 // Validate validates a single app definition
@@ -81,64 +59,83 @@ func (a App) Validate() error {
 	return errors.Join(errs...)
 }
 
-// FindByID finds an app by its ID
-func (a AppCollection) FindByID(id string) *App {
-	for i, app := range a {
+// AppCollection is a collection of App definitions with centralized management
+type AppCollection struct {
+	apps []App
+}
+
+// NewAppCollection creates a new AppCollection with the given apps
+func NewAppCollection(apps ...App) *AppCollection {
+	return &AppCollection{
+		apps: apps,
+	}
+}
+
+// FindByID finds an app by its ID. Returns a copy to prevent external mutations.
+func (ac *AppCollection) FindByID(id string) (App, bool) {
+	for _, app := range ac.apps {
 		if app.ID == id {
-			return &a[i]
+			return app, true
 		}
 	}
-	return nil
+	return App{}, false
+}
+
+// Len returns the number of apps in the collection
+func (ac *AppCollection) Len() int {
+	return len(ac.apps)
+}
+
+// Get returns the app at the specified index
+func (ac *AppCollection) Get(index int) App {
+	return ac.apps[index]
+}
+
+// All returns an iterator over all apps in the collection.
+// This enables clean iteration: for app := range collection.All() { ... }
+func (ac *AppCollection) All() iter.Seq[App] {
+	return func(yield func(App) bool) {
+		for _, app := range ac.apps {
+			if !yield(app) {
+				return // Early termination support
+			}
+		}
+	}
 }
 
 // Validate checks that app configurations are valid
-func (a AppCollection) Validate() error {
-	if len(a) == 0 {
-		return nil // Empty app list is valid
-	}
-
+func (ac *AppCollection) Validate() error {
 	var errs []error
-
-	// Create map of app IDs for reference validation
 	appIDs := make(map[string]bool)
 
-	// First pass: Validate IDs and check for duplicates
-	for _, app := range a {
+	// First pass: Build ID map and validate each app
+	for i, app := range ac.apps {
+		// Validate the app ID format
 		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
 			errs = append(errs, err)
 			continue
 		}
 
+		// Check for duplicate IDs
 		if appIDs[app.ID] {
 			errs = append(errs, fmt.Errorf("%w: app ID '%s'", ErrDuplicateID, app.ID))
 			continue
 		}
-
 		appIDs[app.ID] = true
-	}
-
-	// Second pass: Validate each app individually and handle cross-references
-	for i, app := range a {
-		// Skip apps with invalid IDs as those are already reported
-		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
-			continue
-		}
 
 		// Validate the app itself
 		if err := app.Validate(); err != nil {
 			errs = append(errs, fmt.Errorf("app at index %d: %w", i, err))
 		}
+	}
 
-		// Handle cross-references for composite apps
-		// This can't be done in App.Validate() since it requires knowledge of all app IDs
+	// Second pass: Validate composite app references
+	for _, app := range ac.apps {
 		if comp, isComposite := app.Config.(*composite.CompositeScript); isComposite {
 			// Validate all referenced script apps exist
 			for _, scriptAppID := range comp.ScriptAppIDs {
 				if err := validation.ValidateID(scriptAppID, "script app ID"); err != nil {
-					errs = append(
-						errs,
-						fmt.Errorf("in app '%s' composite script reference: %w", app.ID, err),
-					)
+					errs = append(errs, fmt.Errorf("in app '%s' composite script reference: %w", app.ID, err))
 					continue
 				}
 
@@ -154,12 +151,10 @@ func (a AppCollection) Validate() error {
 }
 
 // ValidateRouteAppReferences ensures all routes reference valid apps
-func (a AppCollection) ValidateRouteAppReferences(
-	routes []struct{ AppID string },
-) error {
+func (ac *AppCollection) ValidateRouteAppReferences(routes []struct{ AppID string }) error {
 	// Build map of app IDs for quick lookup
 	appIDs := make(map[string]bool)
-	for _, app := range a {
+	for _, app := range ac.apps {
 		appIDs[app.ID] = true
 	}
 

@@ -20,15 +20,17 @@ import (
 )
 
 func TestEmptyConfigToProto(t *testing.T) {
-	// Create an empty config
-	config := &Config{}
+	// Create an empty config using proper constructor
+	emptyProto := &pb.ServerConfig{}
+	config, err := NewFromProto(emptyProto)
+	require.NoError(t, err)
 
 	// Convert to protobuf
 	pbConfig := config.ToProto()
 	require.NotNil(t, pbConfig, "ToProto should return a non-nil result")
 
-	// Check default values
-	assert.Equal(t, "", *pbConfig.Version, "Empty config should have empty version")
+	// Check default values - constructor sets VersionLatest by default
+	assert.Equal(t, VersionLatest, *pbConfig.Version, "Empty config should have default version")
 	assert.Empty(t, pbConfig.Listeners, "Empty config should have no listeners")
 	assert.Empty(t, pbConfig.Endpoints, "Empty config should have no endpoints")
 	assert.Empty(t, pbConfig.Apps, "Empty config should have no apps")
@@ -104,14 +106,14 @@ func TestFullConfigToProto(t *testing.T) {
 				},
 			},
 		},
-		Apps: apps.AppCollection{
-			{
+		Apps: apps.NewAppCollection(
+			apps.App{
 				ID: "echo-app",
 				Config: &echo.EchoApp{
 					Response: "Hello, World!",
 				},
 			},
-		},
+		),
 	}
 
 	// Convert to protobuf
@@ -181,12 +183,12 @@ func TestFullConfigRoundTrip(t *testing.T) {
 				},
 			},
 		},
-		Apps: apps.AppCollection{
-			{
+		Apps: apps.NewAppCollection(
+			apps.App{
 				ID:     "echo-app",
 				Config: &echo.EchoApp{Response: "Hello, World!"},
 			},
-		},
+		),
 	}
 
 	// Convert to protobuf
@@ -231,12 +233,12 @@ func TestFullConfigRoundTrip(t *testing.T) {
 	)
 
 	// Verify apps
-	require.Len(t, resultConfig.Apps, 1)
-	assert.Equal(t, originalConfig.Apps[0].ID, resultConfig.Apps[0].ID)
+	require.Equal(t, 1, resultConfig.Apps.Len())
+	assert.Equal(t, originalConfig.Apps.Get(0).ID, resultConfig.Apps.Get(0).ID)
 
-	origEcho, ok := originalConfig.Apps[0].Config.(*echo.EchoApp)
+	origEcho, ok := originalConfig.Apps.Get(0).Config.(*echo.EchoApp)
 	require.True(t, ok)
-	resultEcho, ok := resultConfig.Apps[0].Config.(*echo.EchoApp)
+	resultEcho, ok := resultConfig.Apps.Get(0).Config.(*echo.EchoApp)
 	require.True(t, ok)
 	assert.Equal(t, origEcho.Response, resultEcho.Response)
 }
@@ -318,26 +320,26 @@ func TestConfigWithMultipleAppsTypes(t *testing.T) {
 	// Create a config with multiple app types
 	config := &Config{
 		Version: "v1alpha1",
-		Apps: apps.AppCollection{
-			{
+		Apps: apps.NewAppCollection(
+			apps.App{
 				ID:     "echo-app",
 				Config: &echo.EchoApp{Response: "Echo Response"},
 			},
-			{
+			apps.App{
 				ID: "risor-app",
 				Config: scripts.NewAppScript(
 					nil,
 					&evaluators.RisorEvaluator{Code: "risor code"},
 				),
 			},
-			{
+			apps.App{
 				ID: "starlark-app",
 				Config: scripts.NewAppScript(
 					nil,
 					&evaluators.StarlarkEvaluator{Code: "starlark code"},
 				),
 			},
-		},
+		),
 	}
 
 	// Convert to protobuf
@@ -367,20 +369,26 @@ func TestConfigWithMultipleAppsTypes(t *testing.T) {
 	resultConfig, err := fromProto(pbConfig)
 	require.NoError(t, err)
 	require.NotNil(t, resultConfig)
-	require.Len(t, resultConfig.Apps, 3)
+	require.Equal(t, 3, resultConfig.Apps.Len())
 
 	// Verify each app was converted back correctly
-	resultEchoApp, ok := findAppConfigByID(resultConfig.Apps, "echo-app").(*echo.EchoApp)
+	domainEchoApp, found := resultConfig.Apps.FindByID("echo-app")
+	require.True(t, found)
+	resultEchoApp, ok := domainEchoApp.Config.(*echo.EchoApp)
 	require.True(t, ok)
 	assert.Equal(t, "Echo Response", resultEchoApp.Response)
 
-	resultRisorApp, ok := findAppConfigByID(resultConfig.Apps, "risor-app").(*scripts.AppScript)
+	domainRisorApp, found := resultConfig.Apps.FindByID("risor-app")
+	require.True(t, found)
+	resultRisorApp, ok := domainRisorApp.Config.(*scripts.AppScript)
 	require.True(t, ok)
 	risorEval, ok := resultRisorApp.Evaluator.(*evaluators.RisorEvaluator)
 	require.True(t, ok)
 	assert.Equal(t, "risor code", risorEval.Code)
 
-	resultStarlarkApp, ok := findAppConfigByID(resultConfig.Apps, "starlark-app").(*scripts.AppScript)
+	domainStarlarkApp, found := resultConfig.Apps.FindByID("starlark-app")
+	require.True(t, found)
+	resultStarlarkApp, ok := domainStarlarkApp.Config.(*scripts.AppScript)
 	require.True(t, ok)
 	starlarkEval, ok := resultStarlarkApp.Evaluator.(*evaluators.StarlarkEvaluator)
 	require.True(t, ok)
@@ -411,15 +419,6 @@ func findAppByID(apps []*pb.AppDefinition, id string) *pb.AppDefinition {
 	for _, app := range apps {
 		if app.GetId() == id {
 			return app
-		}
-	}
-	return nil
-}
-
-func findAppConfigByID(apps []apps.App, id string) any {
-	for _, app := range apps {
-		if app.ID == id {
-			return app.Config
 		}
 	}
 	return nil

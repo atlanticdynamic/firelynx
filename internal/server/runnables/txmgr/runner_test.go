@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
@@ -92,7 +93,9 @@ func (h *testHarness) waitForTransaction(txID string) *transaction.ConfigTransac
 
 // sendConfig sends a config transaction with the given version
 func (h *testHarness) sendConfig(version string) *transaction.ConfigTransaction {
-	cfg := &config.Config{Version: version}
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(h.t, err)
+	cfg.Version = version
 	tx, err := transaction.New(
 		transaction.SourceTest,
 		"test harness",
@@ -300,7 +303,12 @@ func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
 	// Send multiple transactions concurrently
 	for i := range 5 {
 		go func(n int) {
-			cfg := &config.Config{Version: fmt.Sprintf("v%d", n)}
+			cfg, err := config.NewFromProto(&pb.ServerConfig{})
+			if err != nil {
+				t.Errorf("Failed to create config: %v", err)
+				return
+			}
+			cfg.Version = fmt.Sprintf("v%d", n)
 			tx, err := transaction.New(
 				transaction.SourceTest,
 				"concurrent test",

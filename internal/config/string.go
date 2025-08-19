@@ -43,9 +43,9 @@ func ConfigTree(cfg *Config) string {
 	}
 
 	// Create a nested tree of apps with consistent styling
-	if len(cfg.Apps) > 0 {
-		appsRoot := fancy.NewComponentTree(styles.FormatSection("Apps", len(cfg.Apps)))
-		for _, app := range cfg.Apps {
+	if cfg.Apps != nil && cfg.Apps.Len() > 0 {
+		appsRoot := fancy.NewComponentTree(styles.FormatSection("Apps", cfg.Apps.Len()))
+		for app := range cfg.Apps.All() {
 			appTree := app.ToTree()
 			appsRoot.AddChild(appTree.Tree())
 		}

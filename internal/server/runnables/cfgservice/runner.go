@@ -200,25 +200,22 @@ func (r *Runner) GetDomainConfig() config.Config {
 	if cfgTx == nil {
 		// Return a minimal valid config if none exists
 		r.logger.Warn("txStorage.GetCurrent() returned nil, returning minimal default")
-		return config.Config{
-			Version: config.VersionLatest,
+		// Use the constructor to ensure Apps is initialized
+		minimalCfg, err := config.NewFromProto(&pb.ServerConfig{})
+		if err != nil {
+			r.logger.Error("Failed to create minimal config", "error", err)
+			return config.Config{} // Return zero value as fallback
 		}
+		return *minimalCfg
 	}
 
 	cfg := cfgTx.GetConfig()
-	if cfg == nil {
-		// Return a minimal valid config if none exists
-		r.logger.Warn("txStorage.GetCurrent().GetConfig() returned nil, returning minimal default")
-		return config.Config{
-			Version: config.VersionLatest,
-		}
-	}
-
+	// Note: cfg cannot be nil because transaction.New() validates cfg != nil
 	r.logger.Debug(
 		"GetDomainConfig: returning config",
 		"listeners", len(cfg.Listeners),
 		"endpoints", len(cfg.Endpoints),
-		"apps", len(cfg.Apps))
+		"apps", cfg.Apps.Len())
 
 	return *cfg
 }

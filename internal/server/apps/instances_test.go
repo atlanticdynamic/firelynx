@@ -172,3 +172,98 @@ func TestAppInstances_String(t *testing.T) {
 		})
 	}
 }
+
+func TestAppInstances_All(t *testing.T) {
+	t.Run("Empty instances", func(t *testing.T) {
+		instances, err := NewAppInstances([]App{})
+		require.NoError(t, err)
+
+		var collected []App
+		for app := range instances.All() {
+			collected = append(collected, app)
+		}
+
+		assert.Empty(t, collected, "Empty instances should yield no apps")
+	})
+
+	t.Run("Nil instances", func(t *testing.T) {
+		instances, err := NewAppInstances(nil)
+		require.NoError(t, err)
+
+		var collected []App
+		for app := range instances.All() {
+			collected = append(collected, app)
+		}
+
+		assert.Empty(t, collected, "Nil instances should yield no apps")
+	})
+
+	t.Run("Single app", func(t *testing.T) {
+		mockApp := &MockApp{id: "test-app"}
+		instances, err := NewAppInstances([]App{mockApp})
+		require.NoError(t, err)
+
+		var collected []App
+		for app := range instances.All() {
+			collected = append(collected, app)
+		}
+
+		assert.Len(t, collected, 1, "Instances should yield one app")
+		assert.Equal(t, "test-app", collected[0].String(), "App ID should match")
+	})
+
+	t.Run("Multiple apps", func(t *testing.T) {
+		apps := []App{
+			&MockApp{id: "app1"},
+			&MockApp{id: "app2"},
+			&MockApp{id: "app3"},
+		}
+		instances, err := NewAppInstances(apps)
+		require.NoError(t, err)
+
+		var collected []App
+		for app := range instances.All() {
+			collected = append(collected, app)
+		}
+
+		assert.Len(t, collected, 3, "Instances should yield three apps")
+
+		// Collect IDs and verify all expected apps are present
+		// Note: maps don't guarantee iteration order, so we use a set comparison
+		collectedIDs := make(map[string]bool)
+		for _, app := range collected {
+			collectedIDs[app.String()] = true
+		}
+
+		expectedIDs := []string{"app1", "app2", "app3"}
+		for _, expectedID := range expectedIDs {
+			assert.True(t, collectedIDs[expectedID], "App %s should be present", expectedID)
+		}
+	})
+
+	t.Run("Early termination", func(t *testing.T) {
+		apps := []App{
+			&MockApp{id: "app1"},
+			&MockApp{id: "app2"},
+			&MockApp{id: "app3"},
+		}
+		instances, err := NewAppInstances(apps)
+		require.NoError(t, err)
+
+		var collected []App
+		for app := range instances.All() {
+			collected = append(collected, app)
+			if len(collected) == 2 {
+				break // Early termination
+			}
+		}
+
+		assert.Len(t, collected, 2, "Early termination should stop at 2 apps")
+		// We can't test exact order due to map iteration being random,
+		// but we can verify we got exactly 2 apps and they're valid
+		for _, app := range collected {
+			assert.Contains(t, []string{"app1", "app2", "app3"}, app.String(),
+				"Collected app should be one of the expected apps")
+		}
+	})
+}

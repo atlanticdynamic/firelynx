@@ -284,21 +284,21 @@ func TestFromProtoConversions(t *testing.T) {
 		// Convert all apps
 		apps, err := FromProto(pbApps)
 		require.NoError(t, err, "Should convert all apps")
-		require.Len(t, apps, 3, "Should convert all 3 apps")
+		require.Equal(t, 3, apps.Len(), "Should convert all 3 apps")
 
 		// Verify each app was converted correctly
-		assert.Equal(t, "script-app", apps[0].ID)
-		assert.Equal(t, "composite-app", apps[1].ID)
-		assert.Equal(t, "echo-app", apps[2].ID)
+		assert.Equal(t, "script-app", apps.Get(0).ID)
+		assert.Equal(t, "composite-app", apps.Get(1).ID)
+		assert.Equal(t, "echo-app", apps.Get(2).ID)
 
 		// Verify config types
-		_, ok := apps[0].Config.(*scripts.AppScript)
+		_, ok := apps.Get(0).Config.(*scripts.AppScript)
 		assert.True(t, ok, "First app should be a script app")
 
-		_, ok = apps[1].Config.(*composite.CompositeScript)
+		_, ok = apps.Get(1).Config.(*composite.CompositeScript)
 		assert.True(t, ok, "Second app should be a composite app")
 
-		_, ok = apps[2].Config.(*echo.EchoApp)
+		_, ok = apps.Get(2).Config.(*echo.EchoApp)
 		assert.True(t, ok, "Third app should be an echo app")
 	})
 
@@ -306,12 +306,14 @@ func TestFromProtoConversions(t *testing.T) {
 		// Test with empty list
 		apps, err := FromProto([]*pb.AppDefinition{})
 		assert.NoError(t, err)
-		assert.Nil(t, apps)
+		assert.NotNil(t, apps, "Should return empty AppCollection, not nil")
+		assert.Equal(t, 0, apps.Len(), "Should have no apps")
 
 		// Test with nil list
 		apps, err = FromProto(nil)
 		assert.NoError(t, err)
-		assert.Nil(t, apps)
+		assert.NotNil(t, apps, "Should return empty AppCollection, not nil")
+		assert.Equal(t, 0, apps.Len(), "Should have no apps")
 	})
 
 	t.Run("MCPApp", func(t *testing.T) {
@@ -460,7 +462,7 @@ func TestToProtoConversions(t *testing.T) {
 		}
 
 		// Convert to protobuf
-		pbApps := AppCollection(apps).ToProto()
+		pbApps := NewAppCollection(apps...).ToProto()
 		assert.Len(t, pbApps, 3, "Should convert all apps")
 
 		// Verify each app was converted correctly
@@ -498,10 +500,10 @@ func TestToProtoConversions(t *testing.T) {
 
 	t.Run("EmptyApps", func(t *testing.T) {
 		pbApps := ToProto(nil)
-		assert.Nil(t, pbApps, "Expected nil result for nil input")
+		assert.Empty(t, pbApps, "Expected empty result for nil input")
 
 		pbApps = ToProto([]App{})
-		assert.Nil(t, pbApps, "Expected nil result for empty input")
+		assert.Empty(t, pbApps, "Expected empty result for empty input")
 	})
 
 	t.Run("ScriptAppWithStaticData", func(t *testing.T) {
