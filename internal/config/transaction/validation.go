@@ -150,7 +150,7 @@ func collectApps(cfg *config.Config) []serverApps.AppDefinition {
 
 	// Add any apps that don't have routes (not expanded)
 	if cfg.Apps != nil {
-		for _, app := range cfg.Apps.Apps {
+		for app := range cfg.Apps.All() {
 			if _, exists := uniqueApps[app.ID]; !exists {
 				uniqueApps[app.ID] = app
 			}

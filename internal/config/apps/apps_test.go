@@ -578,3 +578,76 @@ func (t *testAppConfig) String() string {
 func (t *testAppConfig) ToTree() *fancy.ComponentTree {
 	return fancy.NewComponentTree("testAppConfig")
 }
+
+func TestAppCollection_All(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Empty collection", func(t *testing.T) {
+		apps := NewAppCollection()
+
+		var collected []App
+		for app := range apps.All() {
+			collected = append(collected, app)
+		}
+
+		assert.Empty(t, collected, "Empty collection should yield no apps")
+	})
+
+	t.Run("Single app", func(t *testing.T) {
+		testApp := App{
+			ID:     "test-app",
+			Config: &testAppConfig{},
+		}
+		apps := NewAppCollection(testApp)
+
+		var collected []App
+		for app := range apps.All() {
+			collected = append(collected, app)
+		}
+
+		assert.Len(t, collected, 1, "Collection should yield one app")
+		assert.Equal(t, "test-app", collected[0].ID, "App ID should match")
+	})
+
+	t.Run("Multiple apps", func(t *testing.T) {
+		testApps := []App{
+			{ID: "app1", Config: &testAppConfig{}},
+			{ID: "app2", Config: &testAppConfig{}},
+			{ID: "app3", Config: &testAppConfig{}},
+		}
+		apps := NewAppCollection(testApps...)
+
+		var collected []App
+		for app := range apps.All() {
+			collected = append(collected, app)
+		}
+
+		assert.Len(t, collected, 3, "Collection should yield three apps")
+
+		expectedIDs := []string{"app1", "app2", "app3"}
+		for i, app := range collected {
+			assert.Equal(t, expectedIDs[i], app.ID, "App ID should match expected order")
+		}
+	})
+
+	t.Run("Early termination", func(t *testing.T) {
+		testApps := []App{
+			{ID: "app1", Config: &testAppConfig{}},
+			{ID: "app2", Config: &testAppConfig{}},
+			{ID: "app3", Config: &testAppConfig{}},
+		}
+		apps := NewAppCollection(testApps...)
+
+		var collected []App
+		for app := range apps.All() {
+			collected = append(collected, app)
+			if len(collected) == 2 {
+				break // Early termination
+			}
+		}
+
+		assert.Len(t, collected, 2, "Early termination should stop at 2 apps")
+		assert.Equal(t, "app1", collected[0].ID, "First app should be app1")
+		assert.Equal(t, "app2", collected[1].ID, "Second app should be app2")
+	})
+}

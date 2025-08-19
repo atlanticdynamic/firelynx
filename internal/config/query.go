@@ -58,7 +58,7 @@ func (c *Config) FindApp(id string) *apps.App {
 // GetAppsByType returns all apps with a specific evaluator type
 func (c *Config) GetAppsByType(evalType string) []apps.App {
 	var result []apps.App
-	for _, app := range c.Apps.Apps {
+	for app := range c.Apps.All() {
 		if scriptApp, ok := app.Config.(*scripts.AppScript); ok {
 			if scriptApp.Evaluator.Type().String() == evalType {
 				result = append(result, app)

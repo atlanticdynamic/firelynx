@@ -16,6 +16,7 @@ package apps
 import (
 	"errors"
 	"fmt"
+	"iter"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/validation"
@@ -88,6 +89,18 @@ func (ac *AppCollection) Len() int {
 // Get returns the app at the specified index
 func (ac *AppCollection) Get(index int) App {
 	return ac.Apps[index]
+}
+
+// All returns an iterator over all apps in the collection.
+// This enables clean iteration: for app := range collection.All() { ... }
+func (ac *AppCollection) All() iter.Seq[App] {
+	return func(yield func(App) bool) {
+		for _, app := range ac.Apps {
+			if !yield(app) {
+				return // Early termination support
+			}
+		}
+	}
 }
 
 // Validate checks that app configurations are valid
