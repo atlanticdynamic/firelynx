@@ -63,12 +63,12 @@ func appTypeFromProto(pbAppType pb.AppDefinition_Type) AppType {
 
 // ToProto converts the Apps collection to a slice of protobuf AppDefinition messages
 func (ac *AppCollection) ToProto() []*pb.AppDefinition {
-	if len(ac.Apps) == 0 {
+	if len(ac.apps) == 0 {
 		return []*pb.AppDefinition{}
 	}
 
-	result := make([]*pb.AppDefinition, 0, len(ac.Apps))
-	for _, a := range ac.Apps {
+	result := make([]*pb.AppDefinition, 0, len(ac.apps))
+	for _, a := range ac.apps {
 		// Get the app type based on the config type
 		var appType AppType
 		switch a.Config.(type) {

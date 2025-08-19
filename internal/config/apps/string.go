@@ -131,7 +131,7 @@ func (a *App) ToTree() *fancy.ComponentTree {
 // ToTree returns a tree visualization of a collection of Apps
 func (ac *AppCollection) ToTree() *fancy.ComponentTree {
 	// Use consistent section header styling
-	tree := fancy.NewComponentTree(styles.FormatSection("Apps", len(ac.Apps)))
+	tree := fancy.NewComponentTree(styles.FormatSection("Apps", len(ac.apps)))
 
 	for app := range ac.All() {
 		appTree := app.ToTree()

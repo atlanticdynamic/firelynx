@@ -190,6 +190,33 @@ func TestAppCollectionValidate(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name: "Composite with forward reference (requires two-pass validation)",
+			apps: NewAppCollection(
+				App{
+					ID: "composite1",
+					Config: &composite.CompositeScript{
+						ScriptAppIDs: []string{"script1", "script2"},
+						StaticData:   &staticdata.StaticData{Data: map[string]any{"key": "value"}},
+					},
+				},
+				App{
+					ID: "script1",
+					Config: scripts.NewAppScript(
+						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
+						&evaluators.RisorEvaluator{Code: validRisorCode42},
+					),
+				},
+				App{
+					ID: "script2",
+					Config: scripts.NewAppScript(
+						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
+						&evaluators.RisorEvaluator{Code: validRisorCode43},
+					),
+				},
+			),
+			expectError: false, // Should pass with two-pass validation
+		},
+		{
 			name: "Apps with invalid IDs in collection",
 			apps: NewAppCollection(
 				App{

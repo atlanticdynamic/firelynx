@@ -23,17 +23,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 )
 
-// App represents an application definition
-type App struct {
-	ID     string
-	Config AppConfig
-}
-
-// AppCollection is a collection of App definitions with centralized management
-type AppCollection struct {
-	apps []App
-}
-
 // AppConfig represents application-specific configuration
 type AppConfig interface {
 	Type() string
@@ -41,6 +30,12 @@ type AppConfig interface {
 	ToProto() any
 	String() string
 	ToTree() *fancy.ComponentTree
+}
+
+// App represents an application definition
+type App struct {
+	ID     string
+	Config AppConfig
 }
 
 // Validate validates a single app definition
@@ -62,6 +57,11 @@ func (a App) Validate() error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// AppCollection is a collection of App definitions with centralized management
+type AppCollection struct {
+	apps []App
 }
 
 // NewAppCollection creates a new AppCollection with the given apps
@@ -105,52 +105,37 @@ func (ac *AppCollection) All() iter.Seq[App] {
 
 // Validate checks that app configurations are valid
 func (ac *AppCollection) Validate() error {
-	if len(ac.apps) == 0 {
-		return nil // Empty app list is valid
-	}
-
 	var errs []error
-
-	// Create map of app IDs for reference validation
 	appIDs := make(map[string]bool)
 
-	// First pass: Validate IDs and check for duplicates
-	for _, app := range ac.apps {
+	// First pass: Build ID map and validate each app
+	for i, app := range ac.apps {
+		// Validate the app ID format
 		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
 			errs = append(errs, err)
 			continue
 		}
 
+		// Check for duplicate IDs
 		if appIDs[app.ID] {
 			errs = append(errs, fmt.Errorf("%w: app ID '%s'", ErrDuplicateID, app.ID))
 			continue
 		}
-
 		appIDs[app.ID] = true
-	}
-
-	// Second pass: Validate each app individually and handle cross-references
-	for i, app := range ac.apps {
-		// Skip apps with invalid IDs as those are already reported
-		if err := validation.ValidateID(app.ID, "app ID"); err != nil {
-			continue
-		}
 
 		// Validate the app itself
 		if err := app.Validate(); err != nil {
 			errs = append(errs, fmt.Errorf("app at index %d: %w", i, err))
 		}
+	}
 
-		// Handle cross-references for composite apps
-		// This can't be done in App.Validate() since it requires knowledge of all app IDs
+	// Second pass: Validate composite app references
+	for _, app := range ac.apps {
 		if comp, isComposite := app.Config.(*composite.CompositeScript); isComposite {
 			// Validate all referenced script apps exist
 			for _, scriptAppID := range comp.ScriptAppIDs {
 				if err := validation.ValidateID(scriptAppID, "script app ID"); err != nil {
-					errs = append(
-						errs,
-						fmt.Errorf("in app '%s' composite script reference: %w", app.ID, err),
-					)
+					errs = append(errs, fmt.Errorf("in app '%s' composite script reference: %w", app.ID, err))
 					continue
 				}
 
