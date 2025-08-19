@@ -153,11 +153,8 @@ func extractRoutes(
 	for id := range listeners {
 		routes[id] = []httpserver.Route{}
 
-		// Get all endpoints for this HTTP listener
-		endpointsForListener := cfg.GetEndpointsForListener(id)
-
-		// Process each endpoint for this listener
-		for _, endpoint := range endpointsForListener {
+		// Process each endpoint for this HTTP listener
+		for endpoint := range cfg.GetEndpointsForListener(id) {
 			// Process HTTP routes for this endpoint
 			endpointRoutes, err := extractEndpointRoutes(
 				&endpoint,

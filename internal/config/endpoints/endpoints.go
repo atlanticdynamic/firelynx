@@ -42,6 +42,8 @@
 package endpoints
 
 import (
+	"iter"
+
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 )
@@ -91,4 +93,63 @@ func (e *Endpoint) getMergedMiddleware(r *routes.Route) middleware.MiddlewareCol
 		return e.Middlewares
 	}
 	return e.Middlewares.Merge(r.Middlewares)
+}
+
+// All returns an iterator over all endpoints in the collection.
+// This enables clean iteration: for endpoint := range collection.All() { ... }
+func (ec EndpointCollection) All() iter.Seq[Endpoint] {
+	return func(yield func(Endpoint) bool) {
+		for _, endpoint := range ec {
+			if !yield(endpoint) {
+				return // Early termination support
+			}
+		}
+	}
+}
+
+// FindByID finds an endpoint by ID, returning (Endpoint, bool)
+func (ec EndpointCollection) FindByID(id string) (Endpoint, bool) {
+	for _, e := range ec {
+		if e.ID == id {
+			return e, true
+		}
+	}
+	return Endpoint{}, false
+}
+
+// FindByListenerID returns an iterator over endpoints attached to a specific listener ID.
+// This enables clean iteration: for endpoint := range collection.FindByListenerID("http-1") { ... }
+func (ec EndpointCollection) FindByListenerID(listenerID string) iter.Seq[Endpoint] {
+	return func(yield func(Endpoint) bool) {
+		for _, endpoint := range ec {
+			if endpoint.ListenerID == listenerID {
+				if !yield(endpoint) {
+					return // Early termination support
+				}
+			}
+		}
+	}
+}
+
+// GetIDsForListener returns the IDs of endpoints that are attached to a listener ID
+func (ec EndpointCollection) GetIDsForListener(listenerID string) []string {
+	var ids []string
+	for endpoint := range ec.FindByListenerID(listenerID) {
+		ids = append(ids, endpoint.ID)
+	}
+	return ids
+}
+
+// GetListenerIDMapping creates a mapping from endpoint IDs to their associated listener IDs.
+// This is useful when you need to quickly determine which listener an endpoint belongs to.
+//
+// Returns:
+//   - A map where keys are endpoint IDs and values are listener IDs
+//   - For example: map[string]string{"endpoint-1": "http-listener-1", "endpoint-2": "grpc-listener-1"}
+func (ec EndpointCollection) GetListenerIDMapping() map[string]string {
+	result := make(map[string]string)
+	for endpoint := range ec.All() {
+		result[endpoint.ID] = endpoint.ListenerID
+	}
+	return result
 }
