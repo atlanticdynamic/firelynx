@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Fetch all history for SonarQube
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -31,5 +34,21 @@ jobs:
       - name: Go test (short)
         run: make test-short
 
-      - name: Go test (all)
-        run: make test-all
+      - name: Go test (all) with coverage
+        run: go test -race -cover -coverprofile=unit.coverage.out -timeout 5m -tags "integration e2e" ./...
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=atlanticdynamic_firelynx
+            -Dsonar.organization=atlanticdynamic
+            -Dsonar.go.coverage.reportPaths=unit.coverage.out
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/*_test.go,**/gen/**,**/internal/server/integration_tests/**
+            -Dsonar.tests=.
+            -Dsonar.test.inclusions=**/*_test.go,**/internal/server/integration_tests/**
+            -Dsonar.language=go
+            -Dsonar.sourceEncoding=UTF-8
