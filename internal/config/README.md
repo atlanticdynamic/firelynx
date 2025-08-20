@@ -46,10 +46,29 @@ cfg, _ := config.NewConfig("config.toml")
 _ = cfg.Validate()
 
 fmt.Println(cfg.Version)
-listener := cfg.Listeners.FindByID("public-http")
+
+// Use direct collection methods
+listener, found := cfg.Listeners.FindByID("public-http")
+if found {
+    fmt.Printf("Listener: %s at %s\n", listener.ID, listener.Address)
+}
+
+// Iterate over apps using Go 1.23 iterator pattern
+for app := range cfg.Apps.All() {
+    fmt.Printf("App: %s\n", app.GetID())
+}
 ```
 
 The rest of the server interacts with configuration exclusively through this API, allowing the TOML and protobuf schemas to evolve without touching runtime code.
+
+## Collection Architecture
+
+Configuration uses structured collections with consistent APIs:
+
+- **AppCollection**: Struct with encapsulated app instances and iterator methods
+- **ListenerCollection, EndpointCollection**: Slice types with finder methods
+- **Go 1.23 Iterators**: All collections provide `All()` and specialized finders returning `iter.Seq[T]`
+- **Direct Collection Access**: Use `config.Listeners.GetHTTPListeners()` instead of deprecated config-level wrappers
 
 ## Default Value Pattern
 
@@ -82,6 +101,25 @@ Configuration validation follows a strict two-phase architecture:
 - **Interpolation happens during validation** - Not during conversion from protobuf
 - **Validate interpolated values** - Business rules apply to expanded values, not templates
 - **Explicit validation required** - Callers must call `.Validate()` explicitly
+
+## Validation Flow
+
+The configuration validation happens in the following order:
+
+1. **Basic structure validation** - Validate IDs, required fields, and data types
+2. **App expansion for routes** (`expandAppsForRoutes`) - Create route-specific app instances with merged static data
+3. **Individual component validation** - Validate apps, listeners, endpoints individually
+4. **Cross-component validation** - Validate references between components (routes to apps, endpoints to listeners)
+
+## App Expansion
+
+Apps are expanded during the validation phase to create route-specific instances. Each route that references an app gets its own instance with merged static data from both the app definition and route-specific configuration.
+
+**Key Points:**
+- Expansion happens in validation phase, not during protobuf conversion
+- Each route gets a dedicated app instance with pre-merged static data
+- Static data merging is completed before server instantiation
+- Server components receive fully-prepared app instances
 
 ## Environment Variable Interpolation
 
