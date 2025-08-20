@@ -68,7 +68,7 @@ func NewAdapter(provider ConfigProvider, logger *slog.Logger) (*Adapter, error) 
 	}
 
 	// Extract HTTP listeners
-	httpListeners := slices.Collect(cfg.GetHTTPListeners())
+	httpListeners := slices.Collect(cfg.Listeners.GetHTTPListeners())
 	listeners, listenersErr := extractListeners(httpListeners)
 	if listenersErr != nil {
 		return nil, fmt.Errorf("failed to extract HTTP listeners: %w", listenersErr)
@@ -156,7 +156,7 @@ func extractRoutes(
 		routes[id] = []httpserver.Route{}
 
 		// Process each endpoint for this HTTP listener
-		for endpoint := range cfg.GetEndpointsForListener(id) {
+		for endpoint := range cfg.Endpoints.FindByListenerID(id) {
 			// Process HTTP routes for this endpoint
 			endpointRoutes, err := extractEndpointRoutes(
 				&endpoint,
