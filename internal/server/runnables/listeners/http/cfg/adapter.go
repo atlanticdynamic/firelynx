@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"sort"
 	"time"
 
@@ -67,7 +68,8 @@ func NewAdapter(provider ConfigProvider, logger *slog.Logger) (*Adapter, error) 
 	}
 
 	// Extract HTTP listeners
-	listeners, listenersErr := extractListeners(cfg.GetHTTPListeners())
+	httpListeners := slices.Collect(cfg.GetHTTPListeners())
+	listeners, listenersErr := extractListeners(httpListeners)
 	if listenersErr != nil {
 		return nil, fmt.Errorf("failed to extract HTTP listeners: %w", listenersErr)
 	}

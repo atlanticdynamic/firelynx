@@ -39,9 +39,9 @@ func (c *Config) GetListenersByType(listenerType listeners.Type) iter.Seq[listen
 	return c.Listeners.FindByType(listenerType)
 }
 
-// GetHTTPListeners returns only the listeners of HTTP type
+// GetHTTPListeners returns an iterator over HTTP listeners
 // Deprecated: Use c.Listeners.GetHTTPListeners() directly instead.
-func (c *Config) GetHTTPListeners() listeners.ListenerCollection {
+func (c *Config) GetHTTPListeners() iter.Seq[listeners.Listener] {
 	return c.Listeners.GetHTTPListeners()
 }
 

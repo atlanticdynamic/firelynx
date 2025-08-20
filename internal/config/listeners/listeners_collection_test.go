@@ -255,7 +255,7 @@ func TestListenerCollection_GetHTTPListeners(t *testing.T) {
 	collection := ListenerCollection{httpListener1, unspecifiedListener, httpListener2}
 
 	t.Run("Get only HTTP listeners", func(t *testing.T) {
-		httpListeners := collection.GetHTTPListeners()
+		httpListeners := slices.Collect(collection.GetHTTPListeners())
 		assert.Len(t, httpListeners, 2)
 		assert.Equal(t, httpListener1, httpListeners[0])
 		assert.Equal(t, httpListener2, httpListeners[1])
@@ -263,19 +263,19 @@ func TestListenerCollection_GetHTTPListeners(t *testing.T) {
 
 	t.Run("No HTTP listeners", func(t *testing.T) {
 		noHttpCollection := ListenerCollection{unspecifiedListener}
-		httpListeners := noHttpCollection.GetHTTPListeners()
+		httpListeners := slices.Collect(noHttpCollection.GetHTTPListeners())
 		assert.Empty(t, httpListeners)
 	})
 
 	t.Run("Empty collection", func(t *testing.T) {
 		emptyCollection := ListenerCollection{}
-		httpListeners := emptyCollection.GetHTTPListeners()
+		httpListeners := slices.Collect(emptyCollection.GetHTTPListeners())
 		assert.Empty(t, httpListeners)
 	})
 
 	t.Run("All listeners are HTTP", func(t *testing.T) {
 		allHttpCollection := ListenerCollection{httpListener1, httpListener2}
-		httpListeners := allHttpCollection.GetHTTPListeners()
+		httpListeners := slices.Collect(allHttpCollection.GetHTTPListeners())
 		assert.Len(t, httpListeners, 2)
 		assert.Equal(t, httpListener1, httpListeners[0])
 		assert.Equal(t, httpListener2, httpListeners[1])
@@ -432,7 +432,7 @@ func TestListenerCollection_ComplexScenario(t *testing.T) {
 	})
 
 	t.Run("Get all HTTP listeners", func(t *testing.T) {
-		httpListeners := collection.GetHTTPListeners()
+		httpListeners := slices.Collect(collection.GetHTTPListeners())
 		assert.Len(t, httpListeners, 3) // api, admin, internal
 		// Verify they are in the correct order
 		assert.Equal(t, "api-https", httpListeners[0].ID)

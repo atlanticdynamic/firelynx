@@ -179,11 +179,7 @@ func (lc ListenerCollection) FindByType(listenerType Type) iter.Seq[Listener] {
 	}
 }
 
-// GetHTTPListeners returns only the listeners of HTTP type
-func (lc ListenerCollection) GetHTTPListeners() ListenerCollection {
-	var result []Listener
-	for listener := range lc.FindByType(TypeHTTP) {
-		result = append(result, listener)
-	}
-	return result
+// GetHTTPListeners returns an iterator over listeners of HTTP type
+func (lc ListenerCollection) GetHTTPListeners() iter.Seq[Listener] {
+	return lc.FindByType(TypeHTTP)
 }

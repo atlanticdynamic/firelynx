@@ -390,7 +390,7 @@ func TestGetListenersByType(t *testing.T) {
 
 func TestGetHTTPListeners(t *testing.T) {
 	config := setupTestConfig()
-	result := config.GetHTTPListeners()
+	result := slices.Collect(config.GetHTTPListeners())
 	assert.Len(t, result, 2)
 	// Check that we have both HTTP listeners
 	ids := []string{result[0].ID, result[1].ID}

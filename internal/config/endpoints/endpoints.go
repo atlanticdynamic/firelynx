@@ -14,31 +14,6 @@
 // The endpoint configuration objects are not thread-safe and should be protected when
 // accessed concurrently. These objects are typically loaded during startup or configuration
 // reload operations, which should be synchronized.
-//
-// Usage Example:
-//
-//	// Create an endpoint with HTTP routes
-//	endpoint := endpoints.Endpoint{
-//	    ID:          "main-api",
-//	    ListenerIDs: []string{"http-main"},
-//	    Routes: routes.RouteCollection{
-//	        {
-//	            AppID:     "echo-app",
-//	            Condition: conditions.NewHTTP("/api/echo"),
-//	            StaticData: map[string]any{
-//	                "version": "1.0",
-//	            },
-//	        },
-//	    },
-//	}
-//
-//	// Get structured HTTP routes for this endpoint
-//	httpRoutes := endpoint.GetStructuredHTTPRoutes()
-//
-//	// Process HTTP routes
-//	for _, route := range httpRoutes {
-//	    fmt.Printf("Path: %s, App: %s\n", route.Path, route.AppID)
-//	}
 package endpoints
 
 import (
@@ -96,12 +71,11 @@ func (e *Endpoint) getMergedMiddleware(r *routes.Route) middleware.MiddlewareCol
 }
 
 // All returns an iterator over all endpoints in the collection.
-// This enables clean iteration: for endpoint := range collection.All() { ... }
 func (ec EndpointCollection) All() iter.Seq[Endpoint] {
 	return func(yield func(Endpoint) bool) {
 		for _, endpoint := range ec {
 			if !yield(endpoint) {
-				return // Early termination support
+				return
 			}
 		}
 	}
@@ -118,13 +92,12 @@ func (ec EndpointCollection) FindByID(id string) (Endpoint, bool) {
 }
 
 // FindByListenerID returns an iterator over endpoints attached to a specific listener ID.
-// This enables clean iteration: for endpoint := range collection.FindByListenerID("http-1") { ... }
 func (ec EndpointCollection) FindByListenerID(listenerID string) iter.Seq[Endpoint] {
 	return func(yield func(Endpoint) bool) {
 		for _, endpoint := range ec {
 			if endpoint.ListenerID == listenerID {
 				if !yield(endpoint) {
-					return // Early termination support
+					return
 				}
 			}
 		}
@@ -140,12 +113,7 @@ func (ec EndpointCollection) GetIDsForListener(listenerID string) []string {
 	return ids
 }
 
-// GetListenerIDMapping creates a mapping from endpoint IDs to their associated listener IDs.
-// This is useful when you need to quickly determine which listener an endpoint belongs to.
-//
-// Returns:
-//   - A map where keys are endpoint IDs and values are listener IDs
-//   - For example: map[string]string{"endpoint-1": "http-listener-1", "endpoint-2": "grpc-listener-1"}
+// GetListenerIDMapping creates a mapping from endpoint IDs to their listener IDs.
 func (ec EndpointCollection) GetListenerIDMapping() map[string]string {
 	result := make(map[string]string)
 	for endpoint := range ec.All() {
