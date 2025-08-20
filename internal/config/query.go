@@ -49,9 +49,9 @@ func (c *Config) GetHTTPListeners() iter.Seq[listeners.Listener] {
 // Reverse lookup and convenience methods
 //
 
-// GetEndpointIDsForListener returns the IDs of endpoints that are attached to a listener ID
+// GetEndpointIDsForListener returns an iterator over endpoint IDs attached to a listener ID
 // Deprecated: Use c.Endpoints.GetIDsForListener(listenerID) directly instead.
-func (c *Config) GetEndpointIDsForListener(listenerID string) []string {
+func (c *Config) GetEndpointIDsForListener(listenerID string) iter.Seq[string] {
 	return c.Endpoints.GetIDsForListener(listenerID)
 }
 

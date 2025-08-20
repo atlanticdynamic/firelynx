@@ -234,32 +234,32 @@ func TestEndpointCollection_GetIDsForListener(t *testing.T) {
 	collection := EndpointCollection{endpoint1, endpoint2, endpoint3, endpoint4}
 
 	t.Run("Get IDs for listener-1", func(t *testing.T) {
-		ids := collection.GetIDsForListener("listener-1")
+		ids := slices.Collect(collection.GetIDsForListener("listener-1"))
 		assert.Len(t, ids, 2)
 		assert.Contains(t, ids, "endpoint-1")
 		assert.Contains(t, ids, "endpoint-3")
 	})
 
 	t.Run("Get IDs for listener-2", func(t *testing.T) {
-		ids := collection.GetIDsForListener("listener-2")
+		ids := slices.Collect(collection.GetIDsForListener("listener-2"))
 		assert.Len(t, ids, 2)
 		assert.Contains(t, ids, "endpoint-2")
 		assert.Contains(t, ids, "endpoint-4")
 	})
 
 	t.Run("No IDs for non-existent listener", func(t *testing.T) {
-		ids := collection.GetIDsForListener("listener-3")
+		ids := slices.Collect(collection.GetIDsForListener("listener-3"))
 		assert.Empty(t, ids)
 	})
 
 	t.Run("Empty collection", func(t *testing.T) {
 		emptyCollection := EndpointCollection{}
-		ids := emptyCollection.GetIDsForListener("any-listener")
+		ids := slices.Collect(emptyCollection.GetIDsForListener("any-listener"))
 		assert.Empty(t, ids)
 	})
 
 	t.Run("Preserve order", func(t *testing.T) {
-		ids := collection.GetIDsForListener("listener-1")
+		ids := slices.Collect(collection.GetIDsForListener("listener-1"))
 		// Should maintain the order from the collection
 		assert.Equal(t, []string{"endpoint-1", "endpoint-3"}, ids)
 	})
@@ -471,7 +471,7 @@ func TestEndpointCollection_ComplexScenario(t *testing.T) {
 	})
 
 	t.Run("Get IDs for https-443 listener", func(t *testing.T) {
-		ids := collection.GetIDsForListener("https-443")
+		ids := slices.Collect(collection.GetIDsForListener("https-443"))
 		assert.Equal(t, []string{"api-gateway", "health-check"}, ids)
 	})
 

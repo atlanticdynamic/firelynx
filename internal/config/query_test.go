@@ -429,7 +429,7 @@ func TestGetEndpointIDsForListener(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetEndpointIDsForListener(tt.listenerID)
+			result := slices.Collect(config.GetEndpointIDsForListener(tt.listenerID))
 			assert.Len(t, result, tt.expectedCount)
 
 			// Check that all expected IDs are in the result

@@ -11,14 +11,8 @@
 // - ListenerCollection: A slice of Listener objects with validation and conversion methods
 //
 // Relationship with Endpoints:
-// To find endpoints for a specific listener, use the collection methods:
-//   - endpoints.FindByListenerID(listenerID string) []Endpoint
-//   - endpoints.ByListenerID(listenerID string) iter.Seq[Endpoint]
-//   - endpoints.GetIDsForListener(listenerID string) []string
-//
-// Or use the config wrapper methods:
-//   - config.GetEndpointsForListener(listenerID string) iter.Seq[Endpoint]
-//   - config.GetEndpointIDsForListener(listenerID string)
+// Endpoints are associated with listeners through their ListenerID field.
+// Use the endpoints collection methods or config wrapper methods to query this relationship.
 //
 // Thread Safety:
 // The listener configuration objects are not thread-safe and should be protected when

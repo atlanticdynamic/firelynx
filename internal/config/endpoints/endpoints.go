@@ -104,13 +104,15 @@ func (ec EndpointCollection) FindByListenerID(listenerID string) iter.Seq[Endpoi
 	}
 }
 
-// GetIDsForListener returns the IDs of endpoints that are attached to a listener ID
-func (ec EndpointCollection) GetIDsForListener(listenerID string) []string {
-	var ids []string
-	for endpoint := range ec.FindByListenerID(listenerID) {
-		ids = append(ids, endpoint.ID)
+// GetIDsForListener returns an iterator over endpoint IDs attached to a listener ID
+func (ec EndpointCollection) GetIDsForListener(listenerID string) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for endpoint := range ec.FindByListenerID(listenerID) {
+			if !yield(endpoint.ID) {
+				return
+			}
+		}
 	}
-	return ids
 }
 
 // GetListenerIDMapping creates a mapping from endpoint IDs to their listener IDs.
