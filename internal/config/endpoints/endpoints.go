@@ -14,34 +14,11 @@
 // The endpoint configuration objects are not thread-safe and should be protected when
 // accessed concurrently. These objects are typically loaded during startup or configuration
 // reload operations, which should be synchronized.
-//
-// Usage Example:
-//
-//	// Create an endpoint with HTTP routes
-//	endpoint := endpoints.Endpoint{
-//	    ID:          "main-api",
-//	    ListenerIDs: []string{"http-main"},
-//	    Routes: routes.RouteCollection{
-//	        {
-//	            AppID:     "echo-app",
-//	            Condition: conditions.NewHTTP("/api/echo"),
-//	            StaticData: map[string]any{
-//	                "version": "1.0",
-//	            },
-//	        },
-//	    },
-//	}
-//
-//	// Get structured HTTP routes for this endpoint
-//	httpRoutes := endpoint.GetStructuredHTTPRoutes()
-//
-//	// Process HTTP routes
-//	for _, route := range httpRoutes {
-//	    fmt.Printf("Path: %s, App: %s\n", route.Path, route.AppID)
-//	}
 package endpoints
 
 import (
+	"iter"
+
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 )
@@ -91,4 +68,58 @@ func (e *Endpoint) getMergedMiddleware(r *routes.Route) middleware.MiddlewareCol
 		return e.Middlewares
 	}
 	return e.Middlewares.Merge(r.Middlewares)
+}
+
+// All returns an iterator over all endpoints in the collection.
+func (ec EndpointCollection) All() iter.Seq[Endpoint] {
+	return func(yield func(Endpoint) bool) {
+		for _, endpoint := range ec {
+			if !yield(endpoint) {
+				return
+			}
+		}
+	}
+}
+
+// FindByID finds an endpoint by ID, returning (Endpoint, bool)
+func (ec EndpointCollection) FindByID(id string) (Endpoint, bool) {
+	for _, e := range ec {
+		if e.ID == id {
+			return e, true
+		}
+	}
+	return Endpoint{}, false
+}
+
+// FindByListenerID returns an iterator over endpoints attached to a specific listener ID.
+func (ec EndpointCollection) FindByListenerID(listenerID string) iter.Seq[Endpoint] {
+	return func(yield func(Endpoint) bool) {
+		for _, endpoint := range ec {
+			if endpoint.ListenerID == listenerID {
+				if !yield(endpoint) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// GetIDsForListener returns an iterator over endpoint IDs attached to a listener ID
+func (ec EndpointCollection) GetIDsForListener(listenerID string) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for endpoint := range ec.FindByListenerID(listenerID) {
+			if !yield(endpoint.ID) {
+				return
+			}
+		}
+	}
+}
+
+// GetListenerIDMapping creates a mapping from endpoint IDs to their listener IDs.
+func (ec EndpointCollection) GetListenerIDMapping() map[string]string {
+	result := make(map[string]string)
+	for endpoint := range ec.All() {
+		result[endpoint.ID] = endpoint.ListenerID
+	}
+	return result
 }

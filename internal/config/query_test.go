@@ -1,6 +1,7 @@
 package config
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -155,7 +156,7 @@ func TestGetListenerByID(t *testing.T) {
 			expectedResult: "http_listener_2",
 		},
 		{
-			name:          "Non-existent listener returns nil",
+			name:          "Non-existent listener returns not found",
 			listenerID:    "missing_listener",
 			expectedFound: false,
 		},
@@ -163,12 +164,13 @@ func TestGetListenerByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetListenerByID(tt.listenerID)
+			result, found := config.GetListenerByID(tt.listenerID)
 			if tt.expectedFound {
-				require.NotNil(t, result)
+				require.True(t, found)
 				assert.Equal(t, tt.expectedResult, result.ID)
 			} else {
-				assert.Nil(t, result)
+				assert.False(t, found)
+				assert.Equal(t, "", result.ID) // Zero value when not found
 			}
 		})
 	}
@@ -190,7 +192,7 @@ func TestFindListener(t *testing.T) {
 			expectedResult: "http_listener",
 		},
 		{
-			name:          "Non-existent listener returns nil",
+			name:          "Non-existent listener returns not found",
 			listenerID:    "missing_listener",
 			expectedFound: false,
 		},
@@ -198,12 +200,13 @@ func TestFindListener(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetListenerByID(tt.listenerID)
+			result, found := config.GetListenerByID(tt.listenerID)
 			if tt.expectedFound {
-				require.NotNil(t, result)
+				require.True(t, found)
 				assert.Equal(t, tt.expectedResult, result.ID)
 			} else {
-				assert.Nil(t, result)
+				assert.False(t, found)
+				assert.Equal(t, "", result.ID) // Zero value when not found
 			}
 		})
 	}
@@ -236,7 +239,7 @@ func TestGetEndpointsForListener(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetEndpointsForListener(tt.listenerID)
+			result := slices.Collect(config.GetEndpointsForListener(tt.listenerID))
 			assert.Len(t, result, tt.expectedCount)
 		})
 	}
@@ -264,7 +267,7 @@ func TestFindEndpoint(t *testing.T) {
 			expectedResult: "http_endpoint_2",
 		},
 		{
-			name:          "Non-existent endpoint returns nil",
+			name:          "Non-existent endpoint returns not found",
 			endpointID:    "missing_endpoint",
 			expectedFound: false,
 		},
@@ -272,12 +275,13 @@ func TestFindEndpoint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetEndpointByID(tt.endpointID)
+			result, found := config.GetEndpointByID(tt.endpointID)
 			if tt.expectedFound {
-				require.NotNil(t, result)
+				require.True(t, found)
 				assert.Equal(t, tt.expectedResult, result.ID)
 			} else {
-				assert.Nil(t, result)
+				assert.False(t, found)
+				assert.Equal(t, "", result.ID) // Zero value when not found
 			}
 		})
 	}
@@ -299,7 +303,7 @@ func TestGetEndpointByID(t *testing.T) {
 			expectedResult: "http_endpoint",
 		},
 		{
-			name:          "Non-existent endpoint returns nil",
+			name:          "Non-existent endpoint returns not found",
 			endpointID:    "missing_endpoint",
 			expectedFound: false,
 		},
@@ -307,18 +311,19 @@ func TestGetEndpointByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetEndpointByID(tt.endpointID)
+			result, found := config.GetEndpointByID(tt.endpointID)
 			if tt.expectedFound {
-				require.NotNil(t, result)
+				require.True(t, found)
 				assert.Equal(t, tt.expectedResult, result.ID)
 			} else {
-				assert.Nil(t, result)
+				assert.False(t, found)
+				assert.Equal(t, "", result.ID) // Zero value when not found
 			}
 		})
 	}
 }
 
-func TestFindApp(t *testing.T) {
+func TestAppCollectionFindByID(t *testing.T) {
 	config := setupTestConfig()
 
 	tests := []struct {
@@ -340,7 +345,7 @@ func TestFindApp(t *testing.T) {
 			expectedResult: "risor_app",
 		},
 		{
-			name:          "Non-existent app returns nil",
+			name:          "Non-existent app returns not found",
 			appID:         "missing_app",
 			expectedFound: false,
 		},
@@ -348,46 +353,14 @@ func TestFindApp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.FindApp(tt.appID)
+			app, found := config.Apps.FindByID(tt.appID)
 			if tt.expectedFound {
-				require.NotNil(t, result)
-				assert.Equal(t, tt.expectedResult, result.ID)
+				require.True(t, found)
+				assert.Equal(t, tt.expectedResult, app.ID)
 			} else {
-				assert.Nil(t, result)
+				assert.False(t, found)
+				assert.Equal(t, "", app.ID) // Zero value when not found
 			}
-		})
-	}
-}
-
-func TestGetAppsByType(t *testing.T) {
-	config := setupTestConfig()
-
-	tests := []struct {
-		name          string
-		evalType      string
-		expectedCount int
-	}{
-		{
-			name:          "Get Risor evaluator apps",
-			evalType:      "Risor",
-			expectedCount: 1,
-		},
-		{
-			name:          "Get Starlark evaluator apps",
-			evalType:      "Starlark",
-			expectedCount: 1,
-		},
-		{
-			name:          "Non-existent eval type returns empty list",
-			evalType:      "missing_type",
-			expectedCount: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetAppsByType(tt.evalType)
-			assert.Len(t, result, tt.expectedCount)
 		})
 	}
 }
@@ -409,7 +382,7 @@ func TestGetListenersByType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetListenersByType(tt.listenerType)
+			result := slices.Collect(config.GetListenersByType(tt.listenerType))
 			assert.Len(t, result, tt.expectedCount)
 		})
 	}
@@ -417,45 +390,12 @@ func TestGetListenersByType(t *testing.T) {
 
 func TestGetHTTPListeners(t *testing.T) {
 	config := setupTestConfig()
-	result := config.GetHTTPListeners()
+	result := slices.Collect(config.GetHTTPListeners())
 	assert.Len(t, result, 2)
 	// Check that we have both HTTP listeners
 	ids := []string{result[0].ID, result[1].ID}
 	assert.Contains(t, ids, "http_listener")
 	assert.Contains(t, ids, "http_listener_2")
-}
-
-func TestGetEndpointsByListenerID(t *testing.T) {
-	config := setupTestConfig()
-
-	tests := []struct {
-		name          string
-		listenerID    string
-		expectedCount int
-	}{
-		{
-			name:          "Get endpoints for HTTP listener",
-			listenerID:    "http_listener",
-			expectedCount: 2, // http_endpoint and multi_http_endpoint
-		},
-		{
-			name:          "Get endpoints for second HTTP listener",
-			listenerID:    "http_listener_2",
-			expectedCount: 2, // http_endpoint_2 and multi_http_endpoint_2
-		},
-		{
-			name:          "Non-existent listener returns empty list",
-			listenerID:    "missing_listener",
-			expectedCount: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetEndpointsByListenerID(tt.listenerID)
-			assert.Len(t, result, tt.expectedCount)
-		})
-	}
 }
 
 func TestGetEndpointIDsForListener(t *testing.T) {
@@ -489,7 +429,7 @@ func TestGetEndpointIDsForListener(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := config.GetEndpointIDsForListener(tt.listenerID)
+			result := slices.Collect(config.GetEndpointIDsForListener(tt.listenerID))
 			assert.Len(t, result, tt.expectedCount)
 
 			// Check that all expected IDs are in the result

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"sort"
 	"time"
 
@@ -67,7 +68,8 @@ func NewAdapter(provider ConfigProvider, logger *slog.Logger) (*Adapter, error) 
 	}
 
 	// Extract HTTP listeners
-	listeners, listenersErr := extractListeners(cfg.GetHTTPListeners())
+	httpListeners := slices.Collect(cfg.GetHTTPListeners())
+	listeners, listenersErr := extractListeners(httpListeners)
 	if listenersErr != nil {
 		return nil, fmt.Errorf("failed to extract HTTP listeners: %w", listenersErr)
 	}
@@ -153,11 +155,8 @@ func extractRoutes(
 	for id := range listeners {
 		routes[id] = []httpserver.Route{}
 
-		// Get all endpoints for this HTTP listener
-		endpointsForListener := cfg.GetEndpointsForListener(id)
-
-		// Process each endpoint for this listener
-		for _, endpoint := range endpointsForListener {
+		// Process each endpoint for this HTTP listener
+		for endpoint := range cfg.GetEndpointsForListener(id) {
 			// Process HTTP routes for this endpoint
 			endpointRoutes, err := extractEndpointRoutes(
 				&endpoint,

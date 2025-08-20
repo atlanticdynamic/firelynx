@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
+	"iter"
+
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 )
@@ -11,103 +11,48 @@ import (
 // Hierarchical query methods (top-down)
 //
 
-// GetListenerByID finds a listener by its ID (top-level object)
-func (c *Config) GetListenerByID(id string) *listeners.Listener {
-	for i, l := range c.Listeners {
-		if l.ID == id {
-			return &c.Listeners[i]
-		}
-	}
-	return nil
+// GetListenerByID finds a listener by its ID
+// Deprecated: Use c.Listeners.FindByID(id) directly instead.
+func (c *Config) GetListenerByID(id string) (listeners.Listener, bool) {
+	return c.Listeners.FindByID(id)
 }
 
-// GetEndpointsForListener returns all endpoints attached to a specific listener ID (top-down)
-func (c *Config) GetEndpointsForListener(listenerID string) []endpoints.Endpoint {
-	var result []endpoints.Endpoint
-	for _, ep := range c.Endpoints {
-		if ep.ListenerID == listenerID {
-			result = append(result, ep)
-		}
-	}
-	return result
+// GetEndpointsForListener returns an iterator over endpoints attached to a specific listener ID (top-down)
+// Deprecated: Use c.Endpoints.FindByListenerID(listenerID) directly instead.
+func (c *Config) GetEndpointsForListener(listenerID string) iter.Seq[endpoints.Endpoint] {
+	return c.Endpoints.FindByListenerID(listenerID)
 }
 
 // GetEndpointByID finds an endpoint by its ID
-func (c *Config) GetEndpointByID(id string) *endpoints.Endpoint {
-	for i, e := range c.Endpoints {
-		if e.ID == id {
-			return &c.Endpoints[i]
-		}
-	}
-	return nil
-}
-
-// FindApp finds an application by ID (alias for apps.FindByID)
-// Deprecated: Direct usage of c.Apps.FindByID() is preferred.
-func (c *Config) FindApp(id string) *apps.App {
-	if app, found := c.Apps.FindByID(id); found {
-		return &app
-	}
-	return nil
+// Deprecated: Use c.Endpoints.FindByID(id) directly instead.
+func (c *Config) GetEndpointByID(id string) (endpoints.Endpoint, bool) {
+	return c.Endpoints.FindByID(id)
 }
 
 //
 // Type-based query methods
 //
 
-// GetAppsByType returns all apps with a specific evaluator type
-func (c *Config) GetAppsByType(evalType string) []apps.App {
-	var result []apps.App
-	for app := range c.Apps.All() {
-		if scriptApp, ok := app.Config.(*scripts.AppScript); ok {
-			if scriptApp.Evaluator.Type().String() == evalType {
-				result = append(result, app)
-			}
-		}
-	}
-	return result
+// GetListenersByType returns an iterator over listeners of a specific type
+// Deprecated: Use c.Listeners.FindByType(listenerType) directly instead.
+func (c *Config) GetListenersByType(listenerType listeners.Type) iter.Seq[listeners.Listener] {
+	return c.Listeners.FindByType(listenerType)
 }
 
-// GetListenersByType returns all listeners of a specific type
-func (c *Config) GetListenersByType(listenerType listeners.Type) []listeners.Listener {
-	var result []listeners.Listener
-	for _, l := range c.Listeners {
-		if l.Type == listenerType {
-			result = append(result, l)
-		}
-	}
-	return result
-}
-
-// GetHTTPListeners returns only the listeners of HTTP type
-func (c *Config) GetHTTPListeners() listeners.ListenerCollection {
-	return c.GetListenersByType(listeners.TypeHTTP)
+// GetHTTPListeners returns an iterator over HTTP listeners
+// Deprecated: Use c.Listeners.GetHTTPListeners() directly instead.
+func (c *Config) GetHTTPListeners() iter.Seq[listeners.Listener] {
+	return c.Listeners.GetHTTPListeners()
 }
 
 //
 // Reverse lookup and convenience methods
 //
 
-// GetEndpointsByListenerID returns all endpoints that reference a specific listener
-// Deprecated: Use GetEndpointsForListener instead.
-func (c *Config) GetEndpointsByListenerID(listenerID string) []endpoints.Endpoint {
-	var result []endpoints.Endpoint
-	for _, ep := range c.Endpoints {
-		if ep.ListenerID == listenerID {
-			result = append(result, ep)
-		}
-	}
-	return result
-}
-
-// GetEndpointIDsForListener returns the IDs of endpoints that are attached to a listener ID
-func (c *Config) GetEndpointIDsForListener(listenerID string) []string {
-	endpoints := c.GetEndpointsForListener(listenerID)
-	ids := make([]string, 0, len(endpoints))
-	for _, e := range endpoints {
-		ids = append(ids, e.ID)
-	}
-	return ids
+// GetEndpointIDsForListener returns an iterator over endpoint IDs attached to a listener ID
+// Deprecated: Use c.Endpoints.GetIDsForListener(listenerID) directly instead.
+func (c *Config) GetEndpointIDsForListener(listenerID string) iter.Seq[string] {
+	return c.Endpoints.GetIDsForListener(listenerID)
 }
 
 // GetEndpointToListenerIDMapping creates a mapping from endpoint IDs to their associated listener IDs.
@@ -116,10 +61,8 @@ func (c *Config) GetEndpointIDsForListener(listenerID string) []string {
 // Returns:
 //   - A map where keys are endpoint IDs and values are listener IDs
 //   - For example: map[string]string{"endpoint-1": "http-listener-1", "endpoint-2": "grpc-listener-1"}
+//
+// Deprecated: Use c.Endpoints.GetListenerIDMapping() directly instead.
 func (c *Config) GetEndpointToListenerIDMapping() map[string]string {
-	result := make(map[string]string)
-	for _, endpoint := range c.Endpoints {
-		result[endpoint.ID] = endpoint.ListenerID
-	}
-	return result
+	return c.Endpoints.GetListenerIDMapping()
 }
