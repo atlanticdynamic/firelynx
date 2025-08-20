@@ -46,10 +46,29 @@ cfg, _ := config.NewConfig("config.toml")
 _ = cfg.Validate()
 
 fmt.Println(cfg.Version)
-listener := cfg.Listeners.FindByID("public-http")
+
+// Use direct collection methods
+listener, found := cfg.Listeners.FindByID("public-http")
+if found {
+    fmt.Printf("Listener: %s at %s\n", listener.ID, listener.Address)
+}
+
+// Iterate over apps using Go 1.23 iterator pattern
+for app := range cfg.Apps.All() {
+    fmt.Printf("App: %s\n", app.GetID())
+}
 ```
 
 The rest of the server interacts with configuration exclusively through this API, allowing the TOML and protobuf schemas to evolve without touching runtime code.
+
+## Collection Architecture
+
+Configuration uses structured collections with consistent APIs:
+
+- **AppCollection**: Struct with encapsulated app instances and iterator methods
+- **ListenerCollection, EndpointCollection**: Slice types with finder methods
+- **Go 1.23 Iterators**: All collections provide `All()` and specialized finders returning `iter.Seq[T]`
+- **Direct Collection Access**: Use `config.Listeners.GetHTTPListeners()` instead of deprecated config-level wrappers
 
 ## Default Value Pattern
 

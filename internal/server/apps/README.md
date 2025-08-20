@@ -39,3 +39,9 @@ Future implementations:
 ## Integration
 
 The app registry routes HTTP requests to configured application instances based on path mappings.
+
+## Architecture
+
+- **Domain Integration**: Apps instantiated from domain `AppCollection` struct via factory pattern
+- **Server Registry**: Simple map-based registry (`AppInstances`) for runtime lookup
+- **Iterator Support**: Both domain and server layers use Go 1.23 `All()` methods for clean iteration
