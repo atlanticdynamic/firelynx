@@ -74,6 +74,7 @@ func TestEndToEndInterpolation(t *testing.T) {
 
 	t.Run("echo app response interpolation", func(t *testing.T) {
 		app := &echo.EchoApp{
+			ID:       "test-echo",
 			Response: "Hello from ${TEST_HOST} running version ${APP_VERSION}",
 		}
 
@@ -142,6 +143,7 @@ func TestEndToEndInterpolation(t *testing.T) {
 
 	t.Run("interpolation error handling", func(t *testing.T) {
 		app := &echo.EchoApp{
+			ID:       "test-echo",
 			Response: "Error test: ${MISSING_VAR}",
 		}
 
@@ -194,6 +196,7 @@ func TestEndToEndInterpolation(t *testing.T) {
 
 	t.Run("idempotent validation", func(t *testing.T) {
 		app := &echo.EchoApp{
+			ID:       "test-echo",
 			Response: "Host: ${TEST_HOST}",
 		}
 

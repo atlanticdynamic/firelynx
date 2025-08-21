@@ -13,8 +13,6 @@ import (
 )
 
 func TestWaitForCompletion(t *testing.T) {
-	t.Parallel()
-
 	t.Run("returns immediately when already in terminal state", func(t *testing.T) {
 		terminalStates := []string{
 			finitestate.StateCompleted,
