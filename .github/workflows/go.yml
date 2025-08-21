@@ -24,6 +24,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          cache-dependency-path: "**/*.sum"
 
       - name: Cache Go modules and build
         uses: actions/cache@v4
