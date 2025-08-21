@@ -43,9 +43,8 @@ jobs:
 
       - name: Go test
         run: |
-          # Run short tests first for quick feedback
           go test -short -timeout 1m ./...
-          # Run comprehensive tests with coverage for SonarQube
+          # Run full test suite with coverage report for SonarQube
           go test -race -cover -coverprofile=unit.coverage.out -timeout 5m -tags "integration e2e" ./...
 
       - name: SonarQube Scan
