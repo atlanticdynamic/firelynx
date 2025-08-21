@@ -14,13 +14,15 @@ import (
 
 // EchoApp contains echo app-specific configuration
 type EchoApp struct {
+	ID       string `env_interpolation:"no"`
 	Response string `env_interpolation:"yes"`
 }
 
-// New creates a new EchoApp configuration with the specified response string
-func New() *EchoApp {
+// New creates a new EchoApp configuration with the specified ID and response
+func New(id, response string) *EchoApp {
 	return &EchoApp{
-		Response: "Hello from Echo App",
+		ID:       id,
+		Response: response,
 	}
 }
 
@@ -32,6 +34,10 @@ func (e *EchoApp) Validate() error {
 	// Interpolate all tagged fields
 	if err := interpolation.InterpolateStruct(e); err != nil {
 		return fmt.Errorf("interpolation failed for echo app: %w", err)
+	}
+
+	if e.ID == "" {
+		return fmt.Errorf("%w: echo app ID", errz.ErrMissingRequiredField)
 	}
 
 	if e.Response == "" {

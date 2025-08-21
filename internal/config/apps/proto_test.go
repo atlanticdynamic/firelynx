@@ -418,8 +418,7 @@ func TestToProtoConversions(t *testing.T) {
 
 	t.Run("EchoApp", func(t *testing.T) {
 		// Create a domain App with echo config
-		echoApp := echo.New()
-		echoApp.Response = "Hello, world!"
+		echoApp := echo.New("test-echo-app", "Hello, world!")
 
 		app := App{
 			ID:     "test-echo-app",
@@ -452,8 +451,7 @@ func TestToProtoConversions(t *testing.T) {
 		compApp := composite.NewCompositeScript([]string{"app1"}, nil)
 
 		// Echo app
-		echoApp := echo.New()
-		echoApp.Response = "Echo response"
+		echoApp := echo.New("echo-app", "Echo response")
 
 		apps := []App{
 			{ID: "script-app", Config: scriptApp},

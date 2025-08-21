@@ -511,13 +511,13 @@ func TestConvertToAppDefinitions(t *testing.T) {
 			input: apps.NewAppCollection(
 				apps.App{
 					ID:     "test-echo",
-					Config: &echo.EchoApp{Response: "test"},
+					Config: &echo.EchoApp{ID: "test-echo", Response: "test"},
 				},
 			),
 			expected: []serverApps.AppDefinition{
 				{
 					ID:     "test-echo",
-					Config: &echo.EchoApp{Response: "test"},
+					Config: &echo.EchoApp{ID: "test-echo", Response: "test"},
 				},
 			},
 		},
@@ -787,8 +787,6 @@ func TestParticipantFunctionality(t *testing.T) {
 }
 
 func TestConcurrentAccess(t *testing.T) {
-	t.Parallel()
-
 	t.Run("concurrent IsValid operations are safe", func(t *testing.T) {
 		tx, _ := setupTest(t)
 
@@ -953,7 +951,7 @@ func TestGetAppCollection(t *testing.T) {
 		cfg.Apps = apps.NewAppCollection(
 			apps.App{
 				ID:     "test-echo",
-				Config: &echo.EchoApp{Response: "test response"},
+				Config: &echo.EchoApp{ID: "test-echo", Response: "test response"},
 			},
 		)
 
@@ -1031,11 +1029,11 @@ func TestAppFactoryIntegration(t *testing.T) {
 		cfg.Apps = apps.NewAppCollection(
 			apps.App{
 				ID:     "echo1",
-				Config: &echo.EchoApp{Response: "Hello 1"},
+				Config: &echo.EchoApp{ID: "app1", Response: "Hello 1"},
 			},
 			apps.App{
 				ID:     "echo2",
-				Config: &echo.EchoApp{Response: "Hello 2"},
+				Config: &echo.EchoApp{ID: "app2", Response: "Hello 2"},
 			},
 		)
 
@@ -1271,7 +1269,7 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		cfg.Apps = apps.NewAppCollection(
 			apps.App{
 				ID:     "test-app",
-				Config: &echo.EchoApp{Response: "test response"},
+				Config: &echo.EchoApp{ID: "test-echo", Response: "test response"},
 			},
 		)
 		cfg.Endpoints = endpoints.EndpointCollection{
@@ -1356,11 +1354,11 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		cfg.Apps = apps.NewAppCollection(
 			apps.App{
 				ID:     "app1",
-				Config: &echo.EchoApp{Response: "app1 response"},
+				Config: &echo.EchoApp{ID: "app1", Response: "app1 response"},
 			},
 			apps.App{
 				ID:     "app2",
-				Config: &echo.EchoApp{Response: "app2 response"},
+				Config: &echo.EchoApp{ID: "app2", Response: "app2 response"},
 			},
 		)
 		cfg.Endpoints = endpoints.EndpointCollection{
@@ -1434,11 +1432,11 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 		cfg.Apps = apps.NewAppCollection(
 			apps.App{
 				ID:     "app1",
-				Config: &echo.EchoApp{Response: "app1 response"},
+				Config: &echo.EchoApp{ID: "app1", Response: "app1 response"},
 			},
 			apps.App{
 				ID:     "app2",
-				Config: &echo.EchoApp{Response: "app2 response"},
+				Config: &echo.EchoApp{ID: "app2", Response: "app2 response"},
 			},
 		)
 		cfg.Endpoints = endpoints.EndpointCollection{
@@ -1564,11 +1562,11 @@ func createDualLoggerConfig(t *testing.T, output1, output2 string) *config.Confi
 	cfg.Apps = apps.NewAppCollection(
 		apps.App{
 			ID:     "app1",
-			Config: &echo.EchoApp{Response: "app1 response"},
+			Config: &echo.EchoApp{ID: "app1", Response: "app1 response"},
 		},
 		apps.App{
 			ID:     "app2",
-			Config: &echo.EchoApp{Response: "app2 response"},
+			Config: &echo.EchoApp{ID: "app2", Response: "app2 response"},
 		},
 	)
 	cfg.Endpoints = endpoints.EndpointCollection{

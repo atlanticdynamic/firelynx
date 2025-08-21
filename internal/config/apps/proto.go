@@ -254,6 +254,7 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 
 		// Convert Echo app config
 		echoApp := echo.EchoFromProto(pbEcho)
+		echoApp.ID = app.ID // Set ID from AppDefinition
 		app.Config = echoApp
 		return app, nil
 

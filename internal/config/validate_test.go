@@ -303,7 +303,7 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					Apps: apps.NewAppCollection(
 						apps.App{
 							ID:     "echo-app",
-							Config: &echo.EchoApp{Response: "Hello"},
+							Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
 						},
 					),
 					Endpoints: endpoints.EndpointCollection{
@@ -330,7 +330,7 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					Apps: apps.NewAppCollection(
 						apps.App{
 							ID:     "echo-app",
-							Config: &echo.EchoApp{Response: "Hello"},
+							Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
 						},
 					),
 					Endpoints: endpoints.EndpointCollection{
@@ -357,7 +357,7 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					Apps: apps.NewAppCollection(
 						apps.App{
 							ID:     "echo-app",
-							Config: &echo.EchoApp{Response: "Hello"},
+							Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
 						},
 					),
 					Endpoints: endpoints.EndpointCollection{
@@ -657,7 +657,7 @@ func TestConfig_Validate(t *testing.T) {
 				Apps: apps.NewAppCollection(
 					apps.App{
 						ID:     "echo-app",
-						Config: &echo.EchoApp{Response: "Hello"},
+						Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
 					},
 				),
 			},
@@ -764,11 +764,11 @@ func TestConfig_Validate(t *testing.T) {
 				Apps: apps.NewAppCollection(
 					apps.App{
 						ID:     "app1",
-						Config: &echo.EchoApp{Response: "Hello from app1"},
+						Config: &echo.EchoApp{ID: "app1", Response: "Hello from app1"},
 					},
 					apps.App{
 						ID:     "app2",
-						Config: &echo.EchoApp{Response: "Hello from app2"},
+						Config: &echo.EchoApp{ID: "app2", Response: "Hello from app2"},
 					},
 				),
 			},
@@ -807,7 +807,7 @@ func TestConfig_Validate(t *testing.T) {
 				Apps: apps.NewAppCollection(
 					apps.App{
 						ID:     "app1",
-						Config: &echo.EchoApp{Response: "Hello"},
+						Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
 					},
 				),
 			},
