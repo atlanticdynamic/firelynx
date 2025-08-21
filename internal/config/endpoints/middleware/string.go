@@ -37,11 +37,16 @@ func (mc MiddlewareCollection) ToTree() *fancy.ComponentTree {
 	)
 
 	for _, middleware := range mc {
+		// Create middleware tree with ID as header (like Apps do)
 		middlewareTree := fancy.NewComponentTree(
 			fancy.MiddlewareText(middleware.ID),
 		)
 
-		// Add the middleware's own tree as a child
+		// Add Type field first with proper formatting
+		typeText := fmt.Sprintf("Type: %s", middleware.Config.Type())
+		middlewareTree.AddChild(typeText)
+
+		// Add middleware configuration using standard ToTree method
 		configTree := middleware.Config.ToTree()
 		middlewareTree.AddChild(configTree.Tree())
 

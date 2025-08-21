@@ -12,8 +12,18 @@ import (
 
 const HeadersType = "headers"
 
+type HeaderOperationsType string
+
+const (
+	RequestHeaderOperationsType  HeaderOperationsType = "Request"
+	ResponseHeaderOperationsType HeaderOperationsType = "Response"
+)
+
 // HeaderOperations represents header manipulation operations
 type HeaderOperations struct {
+	// Title identifies the context (e.g., "Request" or "Response")
+	Title HeaderOperationsType
+
 	// Headers to set (replace existing values)
 	SetHeaders map[string]string `json:"setHeaders" toml:"set_headers" env_interpolation:"yes"`
 
@@ -34,20 +44,48 @@ type Headers struct {
 }
 
 // NewHeaderOperations creates a new header operations configuration
-func NewHeaderOperations() *HeaderOperations {
+func NewHeaderOperations(title HeaderOperationsType) *HeaderOperations {
 	return &HeaderOperations{
+		Title:         title,
 		SetHeaders:    make(map[string]string),
 		AddHeaders:    make(map[string]string),
 		RemoveHeaders: []string{},
 	}
 }
 
-// NewHeaders creates a new headers middleware configuration with default settings
-func NewHeaders() *Headers {
+// NewHeaders creates a new headers middleware configuration
+func NewHeaders(request, response *HeaderOperations) *Headers {
 	return &Headers{
-		Request:  nil, // No request operations by default
-		Response: nil, // No response operations by default
+		Request:  request,
+		Response: response,
 	}
+}
+
+// HasOperations checks if HeaderOperations has any operations
+func (ho *HeaderOperations) HasOperations() bool {
+	return len(ho.SetHeaders) > 0 || len(ho.AddHeaders) > 0 || len(ho.RemoveHeaders) > 0
+}
+
+// ToTree returns a tree representation using the operation's title
+func (ho *HeaderOperations) ToTree() *fancy.ComponentTree {
+	tree := fancy.NewComponentTree(string(ho.Title) + " Operations:")
+
+	// Set headers
+	for key, value := range ho.SetHeaders {
+		tree.AddChild(fmt.Sprintf("Set: \"%s: %s\"", key, value))
+	}
+
+	// Add headers
+	for key, value := range ho.AddHeaders {
+		tree.AddChild(fmt.Sprintf("Add: \"%s: %s\"", key, value))
+	}
+
+	// Remove headers
+	for _, key := range ho.RemoveHeaders {
+		tree.AddChild(fmt.Sprintf("Remove: \"%s\"", key))
+	}
+
+	return tree
 }
 
 // Type returns the middleware type
@@ -57,10 +95,6 @@ func (h *Headers) Type() string {
 
 // Validate validates the header operations
 func (ho *HeaderOperations) Validate() error {
-	if ho == nil {
-		return nil
-	}
-
 	var errs []error
 
 	// Interpolate all tagged fields (map values)
@@ -97,13 +131,17 @@ func (h *Headers) Validate() error {
 	var errs []error
 
 	// Validate request operations
-	if err := h.Request.Validate(); err != nil {
-		errs = append(errs, fmt.Errorf("invalid request header operations: %w", err))
+	if h.Request != nil {
+		if err := h.Request.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("invalid request header operations: %w", err))
+		}
 	}
 
 	// Validate response operations
-	if err := h.Response.Validate(); err != nil {
-		errs = append(errs, fmt.Errorf("invalid response header operations: %w", err))
+	if h.Response != nil {
+		if err := h.Response.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("invalid response header operations: %w", err))
+		}
 	}
 
 	// At least one operation must be configured
@@ -119,10 +157,6 @@ func (h *Headers) Validate() error {
 
 // String returns a string representation of the header operations
 func (ho *HeaderOperations) String() string {
-	if ho == nil {
-		return "No operations"
-	}
-
 	var parts []string
 
 	if len(ho.SetHeaders) > 0 {
@@ -149,11 +183,11 @@ func (h *Headers) String() string {
 	var parts []string
 
 	if h.Request != nil {
-		parts = append(parts, fmt.Sprintf("Request: %s", h.Request.String()))
+		parts = append(parts, fmt.Sprintf("%s: %s", string(RequestHeaderOperationsType), h.Request.String()))
 	}
 
 	if h.Response != nil {
-		parts = append(parts, fmt.Sprintf("Response: %s", h.Response.String()))
+		parts = append(parts, fmt.Sprintf("%s: %s", string(ResponseHeaderOperationsType), h.Response.String()))
 	}
 
 	if len(parts) == 0 {
@@ -163,63 +197,26 @@ func (h *Headers) String() string {
 	return strings.Join(parts, ", ")
 }
 
-// addOperationsToTree adds header operations to a tree node
-func addOperationsToTree(tree *fancy.ComponentTree, prefix string, ho *HeaderOperations) {
-	if ho == nil {
-		tree.AddChild(fmt.Sprintf("%s: No operations", prefix))
-		return
-	}
-
-	hasOperations := false
-
-	// Set headers
-	if len(ho.SetHeaders) > 0 {
-		setNode := tree.AddChild(fmt.Sprintf("%s Set Headers:", prefix))
-		for key, value := range ho.SetHeaders {
-			setNode.Child(fmt.Sprintf("%s: %s", key, value))
-		}
-		hasOperations = true
-	}
-
-	// Add headers
-	if len(ho.AddHeaders) > 0 {
-		addNode := tree.AddChild(fmt.Sprintf("%s Add Headers:", prefix))
-		for key, value := range ho.AddHeaders {
-			addNode.Child(fmt.Sprintf("%s: %s", key, value))
-		}
-		hasOperations = true
-	}
-
-	// Remove headers
-	if len(ho.RemoveHeaders) > 0 {
-		removeNode := tree.AddChild(fmt.Sprintf("%s Remove Headers:", prefix))
-		for _, key := range ho.RemoveHeaders {
-			removeNode.Child(key)
-		}
-		hasOperations = true
-	}
-
-	if !hasOperations {
-		tree.AddChild(fmt.Sprintf("%s: No operations", prefix))
-	}
-}
-
 // ToTree returns a tree representation of the headers configuration
 func (h *Headers) ToTree() *fancy.ComponentTree {
-	tree := fancy.NewComponentTree(fancy.MiddlewareText("Headers Middleware"))
+	// Check if we have any operations at all
+	hasRequestOps := h.Request != nil && h.Request.HasOperations()
+	hasResponseOps := h.Response != nil && h.Response.HasOperations()
 
-	// Request operations
-	if h.Request != nil {
-		addOperationsToTree(tree, "Request", h.Request)
-	} else {
-		tree.AddChild("Request: No operations")
+	// Return empty tree if no operations exist
+	if !hasRequestOps && !hasResponseOps {
+		return fancy.NewComponentTree("")
 	}
 
-	// Response operations
-	if h.Response != nil {
-		addOperationsToTree(tree, "Response", h.Response)
-	} else {
-		tree.AddChild("Response: No operations")
+	tree := fancy.NewComponentTree("Config:")
+
+	// Add Request and Response as children
+	if hasRequestOps {
+		tree.AddChild(h.Request.ToTree().Tree())
+	}
+
+	if hasResponseOps {
+		tree.AddChild(h.Response.ToTree().Tree())
 	}
 
 	return tree

@@ -271,7 +271,7 @@ func (c *ConsoleLogger) String() string {
 
 // ToTree returns a tree representation of the console logger
 func (c *ConsoleLogger) ToTree() *fancy.ComponentTree {
-	tree := fancy.NewComponentTree("Console Logger")
+	tree := fancy.NewComponentTree("Config:")
 
 	// General options
 	tree.AddChild(fmt.Sprintf("Format: %s", c.Options.Format))

@@ -38,13 +38,14 @@ func (h *Headers) ToProto() any {
 	return config
 }
 
-// convertHeaderOperations converts protobuf HeaderOperations to domain HeaderOperations
-func convertHeaderOperations(pbOps *pb.HeadersConfig_HeaderOperations) *HeaderOperations {
+// newHeaderOperationsFromProto converts protobuf HeaderOperations to domain HeaderOperations
+func newHeaderOperationsFromProto(title HeaderOperationsType, pbOps *pb.HeadersConfig_HeaderOperations) *HeaderOperations {
 	if pbOps == nil {
 		return nil
 	}
 
 	ops := &HeaderOperations{
+		Title:         title,
 		SetHeaders:    make(map[string]string),
 		AddHeaders:    make(map[string]string),
 		RemoveHeaders: make([]string, 0),
@@ -75,10 +76,11 @@ func FromProto(pbConfig *pb.HeadersConfig) (*Headers, error) {
 		return nil, fmt.Errorf("nil headers config")
 	}
 
-	config := &Headers{
-		Request:  convertHeaderOperations(pbConfig.Request),
-		Response: convertHeaderOperations(pbConfig.Response),
-	}
+	requestOps := newHeaderOperationsFromProto(
+		RequestHeaderOperationsType, pbConfig.Request)
 
-	return config, nil
+	responseOps := newHeaderOperationsFromProto(
+		ResponseHeaderOperationsType, pbConfig.Response)
+
+	return NewHeaders(requestOps, responseOps), nil
 }

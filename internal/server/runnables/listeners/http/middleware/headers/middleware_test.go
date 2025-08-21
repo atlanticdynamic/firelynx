@@ -77,7 +77,7 @@ func TestNewHeadersMiddleware(t *testing.T) {
 	})
 
 	t.Run("invalid configuration - empty", func(t *testing.T) {
-		cfg := headers.NewHeaders() // No operations configured
+		cfg := headers.NewHeaders(nil, nil) // No operations configured
 		middleware, err := NewHeadersMiddleware("test", cfg)
 		assert.Error(t, err)
 		assert.Nil(t, middleware)

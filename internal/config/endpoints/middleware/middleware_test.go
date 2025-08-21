@@ -363,6 +363,6 @@ func TestMiddlewareCollection_ToTree(t *testing.T) {
 		assert.Contains(t, treeString, "test-logger")
 
 		// Verify config content appears in the tree
-		assert.Contains(t, treeString, "Console Logger")
+		assert.Contains(t, treeString, "Config:")
 	})
 }
