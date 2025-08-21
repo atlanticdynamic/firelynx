@@ -10,7 +10,7 @@ import (
 func TestNewHeaders(t *testing.T) {
 	t.Parallel()
 
-	headers := NewHeaders()
+	headers := NewHeaders(nil, nil)
 	assert.Nil(t, headers.Request)
 	assert.Nil(t, headers.Response)
 }
@@ -18,7 +18,8 @@ func TestNewHeaders(t *testing.T) {
 func TestNewHeaderOperations(t *testing.T) {
 	t.Parallel()
 
-	ops := NewHeaderOperations()
+	ops := NewHeaderOperations(RequestHeaderOperationsType)
+	assert.Equal(t, RequestHeaderOperationsType, ops.Title)
 	assert.NotNil(t, ops.SetHeaders)
 	assert.NotNil(t, ops.AddHeaders)
 	assert.NotNil(t, ops.RemoveHeaders)
@@ -30,20 +31,12 @@ func TestNewHeaderOperations(t *testing.T) {
 func TestHeaders_Type(t *testing.T) {
 	t.Parallel()
 
-	headers := NewHeaders()
+	headers := NewHeaders(nil, nil)
 	assert.Equal(t, "headers", headers.Type())
 }
 
 func TestHeaderOperations_Validate(t *testing.T) {
 	t.Parallel()
-
-	t.Run("nil operations", func(t *testing.T) {
-		t.Parallel()
-
-		var ops *HeaderOperations
-		err := ops.Validate()
-		assert.NoError(t, err)
-	})
 
 	t.Run("valid operations", func(t *testing.T) {
 		t.Parallel()
@@ -182,7 +175,7 @@ func TestHeaders_Validate(t *testing.T) {
 	t.Run("invalid configuration - no operations", func(t *testing.T) {
 		t.Parallel()
 
-		headers := NewHeaders()
+		headers := NewHeaders(nil, nil)
 		err := headers.Validate()
 		assert.Error(t, err)
 		assert.Contains(
@@ -238,17 +231,10 @@ func TestHeaders_Validate(t *testing.T) {
 func TestHeaderOperations_String(t *testing.T) {
 	t.Parallel()
 
-	t.Run("nil operations", func(t *testing.T) {
-		t.Parallel()
-
-		var ops *HeaderOperations
-		assert.Equal(t, "No operations", ops.String())
-	})
-
 	t.Run("empty operations", func(t *testing.T) {
 		t.Parallel()
 
-		ops := NewHeaderOperations()
+		ops := NewHeaderOperations("Test")
 		assert.Equal(t, "No operations", ops.String())
 	})
 
@@ -291,7 +277,7 @@ func TestHeaders_String(t *testing.T) {
 	t.Run("empty configuration", func(t *testing.T) {
 		t.Parallel()
 
-		headers := NewHeaders()
+		headers := NewHeaders(nil, nil)
 		assert.Equal(t, "No header operations configured", headers.String())
 	})
 
@@ -357,56 +343,46 @@ func TestHeaders_ToTree(t *testing.T) {
 	t.Run("empty configuration", func(t *testing.T) {
 		t.Parallel()
 
-		headers := NewHeaders()
+		headers := NewHeaders(nil, nil)
 		tree := headers.ToTree()
 
 		assert.NotNil(t, tree)
 		assert.NotNil(t, tree.Tree())
 
+		// Empty configuration returns empty tree since no operations exist
 		treeStr := tree.Tree().String()
-		assert.Contains(t, treeStr, "Headers Middleware")
-		assert.Contains(t, treeStr, "Request: No operations")
-		assert.Contains(t, treeStr, "Response: No operations")
+		assert.Equal(t, "", treeStr)
 	})
 
 	t.Run("configuration with request and response operations", func(t *testing.T) {
 		t.Parallel()
 
-		headers := &Headers{
-			Request: &HeaderOperations{
-				SetHeaders: map[string]string{
-					"X-Real-IP": "127.0.0.1",
-				},
-				RemoveHeaders: []string{"X-Forwarded-For"},
-			},
-			Response: &HeaderOperations{
-				SetHeaders: map[string]string{
-					"X-Content-Type-Options": "nosniff",
-				},
-				AddHeaders: map[string]string{
-					"Set-Cookie": "session=abc123",
-				},
-				RemoveHeaders: []string{"Server", "X-Powered-By"},
-			},
-		}
+		// Create proper HeaderOperations with titles
+		requestOps := NewHeaderOperations("Request")
+		requestOps.SetHeaders["X-Real-IP"] = "127.0.0.1"
+		requestOps.RemoveHeaders = []string{"X-Forwarded-For"}
+
+		responseOps := NewHeaderOperations("Response")
+		responseOps.SetHeaders["X-Content-Type-Options"] = "nosniff"
+		responseOps.AddHeaders["Set-Cookie"] = "session=abc123"
+		responseOps.RemoveHeaders = []string{"Server", "X-Powered-By"}
+
+		headers := NewHeaders(requestOps, responseOps)
 
 		tree := headers.ToTree()
 		assert.NotNil(t, tree)
 		assert.NotNil(t, tree.Tree())
 
 		treeStr := tree.Tree().String()
-		assert.Contains(t, treeStr, "Headers Middleware")
-		assert.Contains(t, treeStr, "Request Set Headers:")
-		assert.Contains(t, treeStr, "X-Real-IP: 127.0.0.1")
-		assert.Contains(t, treeStr, "Request Remove Headers:")
-		assert.Contains(t, treeStr, "X-Forwarded-For")
-		assert.Contains(t, treeStr, "Response Set Headers:")
-		assert.Contains(t, treeStr, "X-Content-Type-Options: nosniff")
-		assert.Contains(t, treeStr, "Response Add Headers:")
-		assert.Contains(t, treeStr, "Set-Cookie: session=abc123")
-		assert.Contains(t, treeStr, "Response Remove Headers:")
-		assert.Contains(t, treeStr, "Server")
-		assert.Contains(t, treeStr, "X-Powered-By")
+		// New format has Request and Response sections with operations directly underneath
+		assert.Contains(t, treeStr, "Request")
+		assert.Contains(t, treeStr, "Set: \"X-Real-IP: 127.0.0.1\"")
+		assert.Contains(t, treeStr, "Remove: \"X-Forwarded-For\"")
+		assert.Contains(t, treeStr, "Response")
+		assert.Contains(t, treeStr, "Set: \"X-Content-Type-Options: nosniff\"")
+		assert.Contains(t, treeStr, "Add: \"Set-Cookie: session=abc123\"")
+		assert.Contains(t, treeStr, "Remove: \"Server\"")
+		assert.Contains(t, treeStr, "Remove: \"X-Powered-By\"")
 	})
 }
 

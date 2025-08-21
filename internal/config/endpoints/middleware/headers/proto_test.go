@@ -12,7 +12,7 @@ func TestHeaders_ToProto(t *testing.T) {
 	t.Parallel()
 
 	t.Run("empty configuration", func(t *testing.T) {
-		headers := NewHeaders()
+		headers := NewHeaders(nil, nil)
 		proto := headers.ToProto()
 
 		pbConfig, ok := proto.(*pb.HeadersConfig)
@@ -295,7 +295,7 @@ func TestRoundTripConversion(t *testing.T) {
 	})
 
 	t.Run("empty configuration round trip", func(t *testing.T) {
-		original := NewHeaders()
+		original := NewHeaders(nil, nil)
 
 		proto := original.ToProto()
 		pbConfig, ok := proto.(*pb.HeadersConfig)
