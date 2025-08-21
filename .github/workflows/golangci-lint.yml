@@ -8,11 +8,7 @@ on:
 
 permissions:
   contents: read
-
-  # Optional: allow read access to pull request. Use with `only-new-issues` option.
   pull-requests: read
-
-  # Optional: allow write access to checks to allow the action to annotate code in the PR.
   checks: write
 
 jobs:
@@ -27,7 +23,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-          cache-dependency-path: go.sum
+          cache-dependency-path: "**/*.sum"
 
       - name: Display Go version
         run: go version
