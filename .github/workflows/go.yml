@@ -31,11 +31,12 @@ jobs:
       - name: go mod tidy (fails if changes are needed)
         run: go mod tidy --diff
 
-      - name: Go test (short)
-        run: make test-short
-
-      - name: Go test (all) with coverage
-        run: go test -race -cover -coverprofile=unit.coverage.out -timeout 5m -tags "integration e2e" ./...
+      - name: Go test
+        run: |
+          make test-short
+          make test
+          make test-all
+          go test -race -cover -coverprofile=unit.coverage.out -timeout 5m -tags "integration e2e" ./...
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
