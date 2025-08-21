@@ -23,8 +23,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
-          cache-dependency-path: "**/*.sum"
+          cache: false
 
       - name: Cache Go modules and build
         uses: actions/cache@v4
