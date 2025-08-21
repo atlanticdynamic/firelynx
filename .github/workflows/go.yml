@@ -19,11 +19,21 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
-          cache-dependency-path: go.sum
+          cache: false
+
+      - name: Cache Go modules and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ steps.setup-go.outputs.go-version }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ steps.setup-go.outputs.go-version }}-
 
       - name: Display Go version
         run: go version
@@ -31,11 +41,11 @@ jobs:
       - name: go mod tidy (fails if changes are needed)
         run: go mod tidy --diff
 
-      - name: Go test (short)
-        run: make test-short
-
-      - name: Go test (all) with coverage
-        run: go test -race -cover -coverprofile=unit.coverage.out -timeout 5m -tags "integration e2e" ./...
+      - name: Go test
+        run: |
+          go test -short -timeout 1m ./...
+          # Run full test suite with coverage report for SonarQube
+          go test -race -cover -coverprofile=unit.coverage.out -timeout 5m -tags "integration e2e" ./...
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
