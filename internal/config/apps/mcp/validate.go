@@ -796,13 +796,15 @@ func extractArguments(arguments any) (map[string]any, error) {
 		return args, nil
 	}
 
-	// If it's json.RawMessage or []byte, unmarshal it
+	// If it's json.RawMessage, []byte, or string, unmarshal it
 	var jsonData []byte
 	switch v := arguments.(type) {
 	case json.RawMessage:
 		jsonData = v
 	case []byte:
 		jsonData = v
+	case string:
+		jsonData = []byte(v)
 	default:
 		// Try to marshal it to JSON first
 		var err error
