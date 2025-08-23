@@ -252,9 +252,11 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 
 		pbEcho := config.Echo
 
-		// Convert Echo app config
-		echoApp := echo.EchoFromProto(pbEcho)
-		echoApp.ID = app.ID // Set ID from AppDefinition
+		// Convert Echo app config, and copy the ID from parent AppDefinition
+		echoApp := echo.EchoFromProto(app.ID, pbEcho)
+		if echoApp == nil {
+			return App{}, fmt.Errorf("echo app '%s' config is nil", app.ID)
+		}
 		app.Config = echoApp
 		return app, nil
 
