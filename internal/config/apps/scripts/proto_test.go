@@ -38,6 +38,7 @@ func TestFromProto(t *testing.T) {
 				},
 			},
 			want: &AppScript{
+				ID: "test-id",
 				Evaluator: &evaluators.RisorEvaluator{
 					Code: "print('hello')",
 				},
@@ -48,7 +49,7 @@ func TestFromProto(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := FromProto(tt.proto)
+			got, err := FromProto("test-id", tt.proto)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

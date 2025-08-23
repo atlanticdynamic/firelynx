@@ -34,6 +34,7 @@ func TestAppScript_Validate(t *testing.T) {
 
 	t.Run("valid script with all fields", func(t *testing.T) {
 		script := &AppScript{
+			ID:         "valid-script",
 			StaticData: validStaticData,
 			Evaluator:  validEvaluator,
 		}
@@ -43,6 +44,7 @@ func TestAppScript_Validate(t *testing.T) {
 
 	t.Run("valid script without static data", func(t *testing.T) {
 		script := &AppScript{
+			ID:        "simple-script",
 			Evaluator: validEvaluator,
 		}
 		err := script.Validate()

@@ -328,6 +328,7 @@ func TestConfigWithMultipleAppsTypes(t *testing.T) {
 			apps.App{
 				ID: "risor-app",
 				Config: scripts.NewAppScript(
+					"risor-app",
 					nil,
 					&evaluators.RisorEvaluator{Code: "risor code"},
 				),
@@ -335,6 +336,7 @@ func TestConfigWithMultipleAppsTypes(t *testing.T) {
 			apps.App{
 				ID: "starlark-app",
 				Config: scripts.NewAppScript(
+					"starlark-app",
 					nil,
 					&evaluators.StarlarkEvaluator{Code: "starlark code"},
 				),

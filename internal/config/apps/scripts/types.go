@@ -8,6 +8,9 @@ import (
 
 // AppScript represents a single script-based application.
 type AppScript struct {
+	// ID is the unique identifier for this script app.
+	ID string `env_interpolation:"no"`
+
 	// StaticData contains configuration values passed to the script.
 	StaticData *staticdata.StaticData
 
@@ -15,9 +18,10 @@ type AppScript struct {
 	Evaluator evaluators.Evaluator
 }
 
-// NewAppScript creates a new AppScript with the given static data and evaluator.
-func NewAppScript(data *staticdata.StaticData, evaluator evaluators.Evaluator) *AppScript {
+// NewAppScript creates a new AppScript with the given ID, static data and evaluator.
+func NewAppScript(id string, data *staticdata.StaticData, evaluator evaluators.Evaluator) *AppScript {
 	return &AppScript{
+		ID:         id,
 		StaticData: data,
 		Evaluator:  evaluator,
 	}

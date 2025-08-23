@@ -102,6 +102,7 @@ func TestConfigString(t *testing.T) {
 						apps.App{
 							ID: "script-app",
 							Config: scripts.NewAppScript(
+								"script-app",
 								nil,
 								&evaluators.RisorEvaluator{
 									Code: "return { body: 'Hello' }",
