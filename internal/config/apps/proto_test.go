@@ -199,6 +199,7 @@ func TestFromProtoConversions(t *testing.T) {
 		echoConfig, ok := app.Config.(*echo.EchoApp)
 		require.True(t, ok, "Expected EchoApp config type")
 		assert.Equal(t, "Hello, world!", echoConfig.Response)
+		assert.Equal(t, "test-echo-app", echoConfig.ID)
 	})
 
 	t.Run("TypeMismatch", func(t *testing.T) {
