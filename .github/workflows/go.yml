@@ -19,16 +19,38 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
+        id: setup-go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+
+      - name: Set Go cache date
+        shell: bash
+        run: echo "GO_CACHE_MONTH=$(date +%Y-%m)" >> $GITHUB_ENV
+
+      - name: Restore Go cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-cache-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ env.GO_CACHE_MONTH }}
+          restore-keys: |
+            go-cache-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}-
+            go-cache-${{ runner.os }}-
 
       - name: Display Go version
         run: go version
 
       - name: go mod tidy (fails if changes are needed)
         run: go mod tidy --diff
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          cache-invalidation-interval: 30
 
       - name: Go test
         run: |
@@ -51,3 +73,12 @@ jobs:
             -Dsonar.test.inclusions=**/*_test.go,**/internal/server/integration_tests/**
             -Dsonar.language=go
             -Dsonar.sourceEncoding=UTF-8
+
+      - name: Save Go cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-cache-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ env.GO_CACHE_MONTH }}
