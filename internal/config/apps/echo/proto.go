@@ -8,12 +8,12 @@ import (
 )
 
 // EchoFromProto creates an EchoApp configuration from its protocol buffer representation
-func EchoFromProto(proto *pbApps.EchoApp) *EchoApp {
+func EchoFromProto(id string, proto *pbApps.EchoApp) *EchoApp {
 	if proto == nil {
 		return nil
 	}
 	// Note: ID will be set by the calling code from AppDefinition
-	return New("", proto.GetResponse())
+	return New(id, proto.GetResponse())
 }
 
 // ToProto converts the EchoApp configuration to its protocol buffer representation

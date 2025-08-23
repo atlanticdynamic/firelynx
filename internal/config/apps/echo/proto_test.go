@@ -10,16 +10,19 @@ import (
 func TestEchoFromProto(t *testing.T) {
 	tests := []struct {
 		name  string
+		id    string
 		proto *pbApps.EchoApp
 		want  *EchoApp
 	}{
 		{
 			name:  "normal conversion",
+			id:    "test-id",
 			proto: &pbApps.EchoApp{},
-			want:  &EchoApp{},
+			want:  &EchoApp{ID: "test-id"},
 		},
 		{
 			name:  "nil proto",
+			id:    "test-id",
 			proto: nil,
 			want:  nil,
 		},
@@ -27,7 +30,7 @@ func TestEchoFromProto(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := EchoFromProto(tt.proto)
+			got := EchoFromProto(tt.id, tt.proto)
 			assert.Equal(t, tt.want, got)
 		})
 	}
