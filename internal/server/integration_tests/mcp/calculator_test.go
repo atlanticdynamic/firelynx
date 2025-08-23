@@ -134,11 +134,13 @@ func (s *MCPScriptToolsIntegrationTestSuite) SetupSuite() {
 	s.Require().Eventually(func() bool {
 		// Try to connect with MCP client to verify server is ready
 		mcpURL := fmt.Sprintf("http://127.0.0.1:%d/mcp", s.port)
-		transport := mcpsdk.NewStreamableClientTransport(mcpURL, &mcpsdk.StreamableClientTransportOptions{})
+		transport := &mcpsdk.StreamableClientTransport{
+			Endpoint: mcpURL,
+		}
 
 		// Create temporary client to test connectivity
 		tempClient := mcpsdk.NewClient(&mcpsdk.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
-		session, err := tempClient.Connect(s.ctx, transport)
+		session, err := tempClient.Connect(s.ctx, transport, nil)
 		if err != nil {
 			return false
 		}
@@ -148,11 +150,13 @@ func (s *MCPScriptToolsIntegrationTestSuite) SetupSuite() {
 
 	// Create the MCP client for tests
 	mcpURL := fmt.Sprintf("http://127.0.0.1:%d/mcp", s.port)
-	transport := mcpsdk.NewStreamableClientTransport(mcpURL, &mcpsdk.StreamableClientTransportOptions{})
+	transport := &mcpsdk.StreamableClientTransport{
+		Endpoint: mcpURL,
+	}
 	s.mcpClient = mcpsdk.NewClient(&mcpsdk.Implementation{Name: "script-test-client", Version: "1.0.0"}, nil)
 
 	// Establish the MCP session
-	s.mcpSession, err = s.mcpClient.Connect(s.ctx, transport)
+	s.mcpSession, err = s.mcpClient.Connect(s.ctx, transport, nil)
 	s.Require().NoError(err, "Failed to establish MCP session")
 }
 
@@ -297,13 +301,17 @@ func TestEnhancedCalculatorOperations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			params := &mcpsdk.CallToolParamsFor[map[string]any]{
+			params := &mcpsdk.CallToolParams{
 				Arguments: map[string]any{
 					"expression": tc.expression,
 				},
 			}
 
-			result, err := mcpHandler(ctx, nil, params)
+			req := &mcpsdk.CallToolRequest{
+				Params: params,
+			}
+
+			result, err := mcpHandler(ctx, req)
 			assert.NoError(t, err, "Tool call should succeed at protocol level")
 			assert.NotNil(t, result, "Result should not be nil")
 

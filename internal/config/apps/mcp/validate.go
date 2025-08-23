@@ -8,7 +8,7 @@ import (
 	"maps"
 
 	"github.com/atlanticdynamic/firelynx/internal/interpolation"
-	mcpsdk_jsonschema "github.com/modelcontextprotocol/go-sdk/jsonschema"
+	"github.com/google/jsonschema-go/jsonschema"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/robbyt/go-polyscript/platform"
 	"github.com/robbyt/go-polyscript/platform/constants"
@@ -320,8 +320,15 @@ func (s *ScriptToolHandler) CreateMCPTool() (*mcpsdk.Tool, mcpsdk.ToolHandler, e
 		Description: "", // Will be set by caller
 	}
 
-	handler := func(ctx context.Context, ss *mcpsdk.ServerSession, params *mcpsdk.CallToolParamsFor[map[string]any]) (*mcpsdk.CallToolResultFor[any], error) {
-		return s.executeScriptTool(ctx, compiledEvaluator, staticProvider, params.Arguments)
+	handler := func(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+		args, err := extractArguments(req.Params.Arguments)
+		if err != nil {
+			return &mcpsdk.CallToolResult{
+				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("Error extracting arguments: %v", err)}},
+				IsError: true,
+			}, nil
+		}
+		return s.executeScriptTool(ctx, compiledEvaluator, staticProvider, args)
 	}
 
 	return tool, handler, nil
@@ -333,7 +340,7 @@ func (s *ScriptToolHandler) executeScriptTool(
 	evaluator platform.Evaluator,
 	staticProvider data.Provider,
 	arguments map[string]any,
-) (*mcpsdk.CallToolResultFor[any], error) {
+) (*mcpsdk.CallToolResult, error) {
 	timeout := s.Evaluator.GetTimeout()
 	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -384,7 +391,7 @@ func (s *ScriptToolHandler) prepareScriptContext(
 }
 
 // convertToMCPContent converts script execution results to MCP content format.
-func (s *ScriptToolHandler) convertToMCPContent(result platform.EvaluatorResponse) (*mcpsdk.CallToolResultFor[any], error) {
+func (s *ScriptToolHandler) convertToMCPContent(result platform.EvaluatorResponse) (*mcpsdk.CallToolResult, error) {
 	value := result.Interface()
 
 	switch v := value.(type) {
@@ -393,7 +400,7 @@ func (s *ScriptToolHandler) convertToMCPContent(result platform.EvaluatorRespons
 		if errMsg, hasError := v["error"].(string); hasError {
 			// Per MCP spec: tool errors should be returned as results with IsError=true
 			// so the LLM can see the error and potentially self-correct
-			return &mcpsdk.CallToolResultFor[any]{
+			return &mcpsdk.CallToolResult{
 				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: errMsg}},
 				IsError: true,
 			}, nil
@@ -404,25 +411,25 @@ func (s *ScriptToolHandler) convertToMCPContent(result platform.EvaluatorRespons
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal JSON response: %w", err)
 		}
-		return &mcpsdk.CallToolResultFor[any]{
+		return &mcpsdk.CallToolResult{
 			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: string(jsonBytes)}},
 		}, nil
 
 	case string:
 		// Return as text content
-		return &mcpsdk.CallToolResultFor[any]{
+		return &mcpsdk.CallToolResult{
 			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: v}},
 		}, nil
 
 	case []byte:
 		// Convert bytes to text
-		return &mcpsdk.CallToolResultFor[any]{
+		return &mcpsdk.CallToolResult{
 			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: string(v)}},
 		}, nil
 
 	default:
 		// Convert other types to string
-		return &mcpsdk.CallToolResultFor[any]{
+		return &mcpsdk.CallToolResult{
 			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("%v", v)}},
 		}, nil
 	}
@@ -447,9 +454,9 @@ func (b *BuiltinToolHandler) createEchoTool() (*mcpsdk.Tool, mcpsdk.ToolHandler,
 	tool := &mcpsdk.Tool{
 		Name:        "", // Will be set by caller
 		Description: "", // Will be set by caller
-		InputSchema: &mcpsdk_jsonschema.Schema{
+		InputSchema: &jsonschema.Schema{
 			Type: "object",
-			Properties: map[string]*mcpsdk_jsonschema.Schema{
+			Properties: map[string]*jsonschema.Schema{
 				"message": {
 					Type:        "string",
 					Description: "The message to echo back",
@@ -459,10 +466,10 @@ func (b *BuiltinToolHandler) createEchoTool() (*mcpsdk.Tool, mcpsdk.ToolHandler,
 		},
 	}
 
-	handler := func(ctx context.Context, ss *mcpsdk.ServerSession, params *mcpsdk.CallToolParamsFor[map[string]any]) (*mcpsdk.CallToolResultFor[any], error) {
+	handler := func(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 		// Echo back the input arguments
-		return &mcpsdk.CallToolResultFor[any]{
-			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("Echo: %v", params.Arguments)}},
+		return &mcpsdk.CallToolResult{
+			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("Echo: %v", req.Params.Arguments)}},
 		}, nil
 	}
 
@@ -474,9 +481,9 @@ func (b *BuiltinToolHandler) createCalculationTool() (*mcpsdk.Tool, mcpsdk.ToolH
 	tool := &mcpsdk.Tool{
 		Name:        "", // Will be set by caller
 		Description: "", // Will be set by caller
-		InputSchema: &mcpsdk_jsonschema.Schema{
+		InputSchema: &jsonschema.Schema{
 			Type: "object",
-			Properties: map[string]*mcpsdk_jsonschema.Schema{
+			Properties: map[string]*jsonschema.Schema{
 				"expression": {
 					Type:        "string",
 					Description: "The mathematical expression to calculate",
@@ -486,11 +493,19 @@ func (b *BuiltinToolHandler) createCalculationTool() (*mcpsdk.Tool, mcpsdk.ToolH
 		},
 	}
 
-	handler := func(ctx context.Context, ss *mcpsdk.ServerSession, params *mcpsdk.CallToolParamsFor[map[string]any]) (*mcpsdk.CallToolResultFor[any], error) {
+	handler := func(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 		// Simple calculation placeholder
-		expression, ok := params.Arguments["expression"].(string)
+		args, err := extractArguments(req.Params.Arguments)
+		if err != nil {
+			return &mcpsdk.CallToolResult{
+				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("Error extracting arguments: %v", err)}},
+				IsError: true,
+			}, nil
+		}
+
+		expression, ok := args["expression"].(string)
 		if !ok {
-			return &mcpsdk.CallToolResultFor[any]{
+			return &mcpsdk.CallToolResult{
 				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: "Error: expression parameter required"}},
 				IsError: true,
 			}, nil
@@ -498,7 +513,7 @@ func (b *BuiltinToolHandler) createCalculationTool() (*mcpsdk.Tool, mcpsdk.ToolH
 
 		// TODO: Implement safe expression evaluation
 		result := fmt.Sprintf("Calculation result for: %s (not implemented)", expression)
-		return &mcpsdk.CallToolResultFor[any]{
+		return &mcpsdk.CallToolResult{
 			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: result}},
 		}, nil
 	}
@@ -511,9 +526,9 @@ func (b *BuiltinToolHandler) createFileReadTool() (*mcpsdk.Tool, mcpsdk.ToolHand
 	tool := &mcpsdk.Tool{
 		Name:        "", // Will be set by caller
 		Description: "", // Will be set by caller
-		InputSchema: &mcpsdk_jsonschema.Schema{
+		InputSchema: &jsonschema.Schema{
 			Type: "object",
-			Properties: map[string]*mcpsdk_jsonschema.Schema{
+			Properties: map[string]*jsonschema.Schema{
 				"path": {
 					Type:        "string",
 					Description: "The file path to read",
@@ -525,10 +540,18 @@ func (b *BuiltinToolHandler) createFileReadTool() (*mcpsdk.Tool, mcpsdk.ToolHand
 
 	baseDir := b.Config["base_directory"]
 
-	handler := func(ctx context.Context, ss *mcpsdk.ServerSession, params *mcpsdk.CallToolParamsFor[map[string]any]) (*mcpsdk.CallToolResultFor[any], error) {
-		path, ok := params.Arguments["path"].(string)
+	handler := func(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
+		args, err := extractArguments(req.Params.Arguments)
+		if err != nil {
+			return &mcpsdk.CallToolResult{
+				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("Error extracting arguments: %v", err)}},
+				IsError: true,
+			}, nil
+		}
+
+		path, ok := args["path"].(string)
 		if !ok {
-			return &mcpsdk.CallToolResultFor[any]{
+			return &mcpsdk.CallToolResult{
 				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: "Error: path parameter required"}},
 				IsError: true,
 			}, nil
@@ -536,7 +559,7 @@ func (b *BuiltinToolHandler) createFileReadTool() (*mcpsdk.Tool, mcpsdk.ToolHand
 
 		// TODO: Implement secure file reading with path validation
 		result := fmt.Sprintf("File read from %s/%s (not implemented)", baseDir, path)
-		return &mcpsdk.CallToolResultFor[any]{
+		return &mcpsdk.CallToolResult{
 			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: result}},
 		}, nil
 	}
@@ -595,14 +618,14 @@ func validateJSONSchema(schemaString string) error {
 }
 
 // parseJSONSchema parses a JSON Schema string into the MCP SDK format.
-func parseJSONSchema(schemaString string) (*mcpsdk_jsonschema.Schema, error) {
+func parseJSONSchema(schemaString string) (*jsonschema.Schema, error) {
 	var schemaMap map[string]interface{}
 	if err := json.Unmarshal([]byte(schemaString), &schemaMap); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON schema: %w", err)
 	}
 
 	// Convert to MCP SDK schema format
-	schema := &mcpsdk_jsonschema.Schema{}
+	schema := &jsonschema.Schema{}
 	if schemaType, ok := schemaMap["type"].(string); ok {
 		schema.Type = schemaType
 	}
@@ -610,10 +633,10 @@ func parseJSONSchema(schemaString string) (*mcpsdk_jsonschema.Schema, error) {
 		schema.Description = description
 	}
 	if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
-		schema.Properties = make(map[string]*mcpsdk_jsonschema.Schema)
+		schema.Properties = make(map[string]*jsonschema.Schema)
 		for key, prop := range properties {
 			if propMap, ok := prop.(map[string]interface{}); ok {
-				propSchema := &mcpsdk_jsonschema.Schema{}
+				propSchema := &jsonschema.Schema{}
 				if propType, ok := propMap["type"].(string); ok {
 					propSchema.Type = propType
 				}
@@ -637,13 +660,13 @@ func parseJSONSchema(schemaString string) (*mcpsdk_jsonschema.Schema, error) {
 }
 
 // getDefaultInputSchema returns a default input schema for built-in tools.
-func getDefaultInputSchema(handler ToolHandler) (*mcpsdk_jsonschema.Schema, error) {
+func getDefaultInputSchema(handler ToolHandler) (*jsonschema.Schema, error) {
 	if builtin, ok := handler.(*BuiltinToolHandler); ok {
 		switch builtin.BuiltinType {
 		case BuiltinEcho:
-			return &mcpsdk_jsonschema.Schema{
+			return &jsonschema.Schema{
 				Type: "object",
-				Properties: map[string]*mcpsdk_jsonschema.Schema{
+				Properties: map[string]*jsonschema.Schema{
 					"message": {
 						Type:        "string",
 						Description: "Message to echo back",
@@ -652,9 +675,9 @@ func getDefaultInputSchema(handler ToolHandler) (*mcpsdk_jsonschema.Schema, erro
 				Required: []string{"message"},
 			}, nil
 		case BuiltinCalculation:
-			return &mcpsdk_jsonschema.Schema{
+			return &jsonschema.Schema{
 				Type: "object",
-				Properties: map[string]*mcpsdk_jsonschema.Schema{
+				Properties: map[string]*jsonschema.Schema{
 					"expression": {
 						Type:        "string",
 						Description: "Mathematical expression to evaluate",
@@ -663,9 +686,9 @@ func getDefaultInputSchema(handler ToolHandler) (*mcpsdk_jsonschema.Schema, erro
 				Required: []string{"expression"},
 			}, nil
 		case BuiltinFileRead:
-			return &mcpsdk_jsonschema.Schema{
+			return &jsonschema.Schema{
 				Type: "object",
-				Properties: map[string]*mcpsdk_jsonschema.Schema{
+				Properties: map[string]*jsonschema.Schema{
 					"path": {
 						Type:        "string",
 						Description: "Path to the file to read",
@@ -677,7 +700,7 @@ func getDefaultInputSchema(handler ToolHandler) (*mcpsdk_jsonschema.Schema, erro
 	}
 
 	// Default fallback schema for script tools or unknown types
-	return &mcpsdk_jsonschema.Schema{
+	return &jsonschema.Schema{
 		Type:        "object",
 		Description: "Tool input parameters",
 	}, nil
@@ -759,4 +782,42 @@ func convertAnnotationsToMCPSDK(annotations *ToolAnnotations) *mcpsdk.ToolAnnota
 	}
 
 	return mcpAnnotations
+}
+
+// extractArguments safely extracts arguments from the MCP request, handling both
+// map[string]any and json.RawMessage formats.
+func extractArguments(arguments any) (map[string]any, error) {
+	if arguments == nil {
+		return make(map[string]any), nil
+	}
+
+	// If it's already a map[string]any, return it directly
+	if args, ok := arguments.(map[string]any); ok {
+		return args, nil
+	}
+
+	// If it's json.RawMessage, []byte, or string, unmarshal it
+	var jsonData []byte
+	switch v := arguments.(type) {
+	case json.RawMessage:
+		jsonData = v
+	case []byte:
+		jsonData = v
+	case string:
+		jsonData = []byte(v)
+	default:
+		// Try to marshal it to JSON first
+		var err error
+		jsonData, err = json.Marshal(arguments)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal arguments to JSON: %w", err)
+		}
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(jsonData, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal arguments from JSON: %w", err)
+	}
+
+	return result, nil
 }

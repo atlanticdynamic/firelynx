@@ -14,6 +14,65 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// mockEvaluatorAdapter adapts evalMocks.Evaluator to implement evaluators.Evaluator interface
+type mockEvaluatorAdapter struct {
+	mock.Mock
+	PlatformEvaluator *evalMocks.Evaluator
+}
+
+func (m *mockEvaluatorAdapter) Type() evaluators.EvaluatorType {
+	args := m.Called()
+	return args.Get(0).(evaluators.EvaluatorType)
+}
+
+func (m *mockEvaluatorAdapter) Validate() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockEvaluatorAdapter) GetCompiledEvaluator() (platform.Evaluator, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(platform.Evaluator), args.Error(1)
+}
+
+func (m *mockEvaluatorAdapter) GetTimeout() time.Duration {
+	args := m.Called()
+	return args.Get(0).(time.Duration)
+}
+
+// mockDataProvider mocks the data provider interface for script tool tests
+type mockDataProvider struct {
+	mock.Mock
+}
+
+func (m *mockDataProvider) GetData(ctx context.Context) (map[string]any, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(map[string]any), args.Error(1)
+}
+
+func (m *mockDataProvider) AddDataToContext(ctx context.Context, d ...map[string]any) (context.Context, error) {
+	args := m.Called(ctx, d)
+	return args.Get(0).(context.Context), args.Error(1)
+}
+
+// mockToolHandler for testing unknown handler types
+type mockToolHandler struct{}
+
+func (m *mockToolHandler) CreateMCPTool() (*mcpsdk.Tool, mcpsdk.ToolHandler, error) {
+	return nil, nil, nil
+}
+
+func (m *mockToolHandler) Validate() error {
+	return nil
+}
+
+func (m *mockToolHandler) Type() string {
+	return "mock"
+}
+
 func TestApp_Validate(t *testing.T) {
 	t.Run("valid minimal app", func(t *testing.T) {
 		app := &App{
@@ -381,9 +440,14 @@ func TestScriptToolHandler_Validate(t *testing.T) {
 			},
 		}
 
+		mockEval := &mockEvaluatorAdapter{
+			PlatformEvaluator: &evalMocks.Evaluator{},
+		}
+		mockEval.On("Validate").Return(nil)
+
 		handler := &ScriptToolHandler{
 			StaticData: validStaticData,
-			Evaluator:  &mockEvaluator{}, // We need a mock since the interface isn't implemented
+			Evaluator:  mockEval,
 		}
 
 		err := handler.Validate()
@@ -548,8 +612,13 @@ func TestBuiltinToolHandler_CreateMCPTool(t *testing.T) {
 
 func TestScriptToolHandler_CreateMCPTool(t *testing.T) {
 	t.Run("script tool with mock evaluator error", func(t *testing.T) {
+		mockEval := &mockEvaluatorAdapter{
+			PlatformEvaluator: &evalMocks.Evaluator{},
+		}
+		mockEval.On("GetCompiledEvaluator").Return(nil, nil)
+
 		handler := &ScriptToolHandler{
-			Evaluator: &mockEvaluator{},
+			Evaluator: mockEval,
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
@@ -570,25 +639,6 @@ func TestScriptToolHandler_CreateMCPTool(t *testing.T) {
 		assert.Nil(t, mcpHandler)
 		assert.Contains(t, err.Error(), "script tool handler requires an evaluator")
 	})
-}
-
-// Mock evaluator for testing
-type mockEvaluator struct{}
-
-func (m *mockEvaluator) Type() evaluators.EvaluatorType {
-	return evaluators.EvaluatorTypeRisor
-}
-
-func (m *mockEvaluator) Validate() error {
-	return nil
-}
-
-func (m *mockEvaluator) GetCompiledEvaluator() (platform.Evaluator, error) {
-	return nil, nil // Return nil to test error handling
-}
-
-func (m *mockEvaluator) GetTimeout() time.Duration {
-	return time.Minute
 }
 
 func TestPrompt_Validate(t *testing.T) {
@@ -877,49 +927,13 @@ func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
 	})
 }
 
-type mockDataProvider struct {
-	mock.Mock
-}
-
-func (m *mockDataProvider) GetData(ctx context.Context) (map[string]any, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(map[string]any), args.Error(1)
-}
-
-func (m *mockDataProvider) AddDataToContext(ctx context.Context, d ...map[string]any) (context.Context, error) {
-	args := m.Called(ctx, d)
-	return args.Get(0).(context.Context), args.Error(1)
-}
-
-type mockScriptEvaluator struct {
-	mock.Mock
-}
-
-func (m *mockScriptEvaluator) Type() evaluators.EvaluatorType {
-	args := m.Called()
-	return args.Get(0).(evaluators.EvaluatorType)
-}
-
-func (m *mockScriptEvaluator) Validate() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
-func (m *mockScriptEvaluator) GetCompiledEvaluator() (platform.Evaluator, error) {
-	args := m.Called()
-	return args.Get(0).(platform.Evaluator), args.Error(1)
-}
-
-func (m *mockScriptEvaluator) GetTimeout() time.Duration {
-	args := m.Called()
-	return args.Get(0).(time.Duration)
-}
-
 func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 	t.Parallel()
 
 	t.Run("with static data", func(t *testing.T) {
-		mockEval := &mockScriptEvaluator{}
+		mockEval := &mockEvaluatorAdapter{
+			PlatformEvaluator: &evalMocks.Evaluator{},
+		}
 
 		handler := &ScriptToolHandler{
 			Evaluator: mockEval,
@@ -944,7 +958,9 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 	})
 
 	t.Run("empty static data", func(t *testing.T) {
-		mockEval := &mockScriptEvaluator{}
+		mockEval := &mockEvaluatorAdapter{
+			PlatformEvaluator: &evalMocks.Evaluator{},
+		}
 
 		handler := &ScriptToolHandler{
 			Evaluator: mockEval,
@@ -966,7 +982,9 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 	})
 
 	t.Run("provider error", func(t *testing.T) {
-		mockEval := &mockScriptEvaluator{}
+		mockEval := &mockEvaluatorAdapter{
+			PlatformEvaluator: &evalMocks.Evaluator{},
+		}
 
 		handler := &ScriptToolHandler{
 			Evaluator: mockEval,
@@ -1086,5 +1104,258 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to prepare script context")
 
 		provider.AssertExpectations(t)
+	})
+}
+
+// Additional tests for compileMCPServer edge cases to improve coverage
+func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
+	t.Run("tool with Title field", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools: []*Tool{
+				{
+					Name:        "test-tool",
+					Description: "Test tool",
+					Title:       "Custom Title",
+					Handler: &BuiltinToolHandler{
+						BuiltinType: BuiltinEcho,
+						Config:      map[string]string{},
+					},
+				},
+			},
+		}
+
+		err := app.Validate()
+		assert.NoError(t, err)
+		assert.NotNil(t, app.compiledServer)
+	})
+
+	t.Run("tool with custom InputSchema", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools: []*Tool{
+				{
+					Name:        "test-tool",
+					Description: "Test tool",
+					InputSchema: `{"type":"object","properties":{"input":{"type":"string"}},"required":["input"]}`,
+					Handler: &BuiltinToolHandler{
+						BuiltinType: BuiltinEcho,
+						Config:      map[string]string{},
+					},
+				},
+			},
+		}
+
+		err := app.Validate()
+		assert.NoError(t, err)
+		assert.NotNil(t, app.compiledServer)
+	})
+
+	t.Run("tool with custom OutputSchema", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools: []*Tool{
+				{
+					Name:         "test-tool",
+					Description:  "Test tool",
+					OutputSchema: `{"type":"object","properties":{"result":{"type":"string"}}}`,
+					Handler: &BuiltinToolHandler{
+						BuiltinType: BuiltinEcho,
+						Config:      map[string]string{},
+					},
+				},
+			},
+		}
+
+		err := app.Validate()
+		assert.NoError(t, err)
+		assert.NotNil(t, app.compiledServer)
+	})
+
+	t.Run("tool with Annotations", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools: []*Tool{
+				{
+					Name:        "test-tool",
+					Description: "Test tool",
+					Annotations: &ToolAnnotations{
+						Title:           "Annotated Tool",
+						ReadOnlyHint:    true,
+						IdempotentHint:  true,
+						DestructiveHint: &[]bool{false}[0],
+						OpenWorldHint:   &[]bool{true}[0],
+					},
+					Handler: &BuiltinToolHandler{
+						BuiltinType: BuiltinEcho,
+						Config:      map[string]string{},
+					},
+				},
+			},
+		}
+
+		err := app.Validate()
+		assert.NoError(t, err)
+		assert.NotNil(t, app.compiledServer)
+	})
+
+	t.Run("invalid custom InputSchema", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools: []*Tool{
+				{
+					Name:        "test-tool",
+					Description: "Test tool",
+					InputSchema: `{"type":"invalid-type"}`, // Invalid JSON schema
+					Handler: &BuiltinToolHandler{
+						BuiltinType: BuiltinEcho,
+						Config:      map[string]string{},
+					},
+				},
+			},
+		}
+
+		err := app.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid JSON Schema type: invalid-type")
+	})
+
+	t.Run("invalid custom OutputSchema", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools: []*Tool{
+				{
+					Name:         "test-tool",
+					Description:  "Test tool",
+					OutputSchema: `{"type":"invalid-type"}`, // Invalid JSON schema
+					Handler: &BuiltinToolHandler{
+						BuiltinType: BuiltinEcho,
+						Config:      map[string]string{},
+					},
+				},
+			},
+		}
+
+		err := app.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid JSON Schema type: invalid-type")
+	})
+
+	t.Run("unparseable custom InputSchema JSON", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools: []*Tool{
+				{
+					Name:        "test-tool",
+					Description: "Test tool",
+					InputSchema: `{"type":"object",}`, // Invalid JSON
+					Handler: &BuiltinToolHandler{
+						BuiltinType: BuiltinEcho,
+						Config:      map[string]string{},
+					},
+				},
+			},
+		}
+
+		err := app.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid JSON: invalid character")
+	})
+
+	t.Run("unparseable custom OutputSchema JSON", func(t *testing.T) {
+		app := &App{
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools: []*Tool{
+				{
+					Name:         "test-tool",
+					Description:  "Test tool",
+					OutputSchema: `{"type":"object",}`, // Invalid JSON
+					Handler: &BuiltinToolHandler{
+						BuiltinType: BuiltinEcho,
+						Config:      map[string]string{},
+					},
+				},
+			},
+		}
+
+		err := app.Validate()
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid JSON: invalid character")
+	})
+}
+
+// Test validateJSONSchema edge cases
+func TestValidateJSONSchemaEdgeCases(t *testing.T) {
+	t.Run("invalid JSON Schema type", func(t *testing.T) {
+		schema := `{"type":"invalid-type"}`
+		err := validateJSONSchema(schema)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid JSON Schema type")
+	})
+
+	t.Run("non-string type field", func(t *testing.T) {
+		schema := `{"type":123}`
+		err := validateJSONSchema(schema)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JSON Schema 'type' must be a string")
+	})
+
+	t.Run("invalid properties structure", func(t *testing.T) {
+		schema := `{"type":"object","properties":"not-an-object"}`
+		err := validateJSONSchema(schema)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JSON Schema 'properties' must be an object")
+	})
+
+	t.Run("invalid required array", func(t *testing.T) {
+		schema := `{"type":"object","required":"not-an-array"}`
+		err := validateJSONSchema(schema)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JSON Schema 'required' must be an array")
+	})
+
+	t.Run("invalid required array element", func(t *testing.T) {
+		schema := `{"type":"object","required":[123]}`
+		err := validateJSONSchema(schema)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JSON Schema 'required' array element 0 must be a string")
+	})
+}
+
+// Test getDefaultInputSchema edge cases
+func TestGetDefaultInputSchemaEdgeCases(t *testing.T) {
+	t.Run("script tool handler", func(t *testing.T) {
+		handler := &ScriptToolHandler{}
+		schema, err := getDefaultInputSchema(handler)
+		assert.NoError(t, err)
+		assert.NotNil(t, schema)
+		assert.Equal(t, "object", schema.Type)
+		assert.Equal(t, "Tool input parameters", schema.Description)
+	})
+
+	t.Run("unknown handler type", func(t *testing.T) {
+		// Create a mock handler that doesn't match any known types
+		handler := &mockToolHandler{}
+		schema, err := getDefaultInputSchema(handler)
+		assert.NoError(t, err)
+		assert.NotNil(t, schema)
+		assert.Equal(t, "object", schema.Type)
+		assert.Equal(t, "Tool input parameters", schema.Description)
 	})
 }

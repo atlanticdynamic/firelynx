@@ -65,13 +65,16 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		require.NotNil(t, mcpHandler)
 
 		// Test tool execution
-		params := &mcpsdk.CallToolParamsFor[map[string]any]{
+		params := &mcpsdk.CallToolParams{
 			Arguments: map[string]any{
 				"expression": "10 + 5",
 			},
 		}
 
-		result, err := mcpHandler(ctx, nil, params)
+		req := &mcpsdk.CallToolRequest{
+			Params: params,
+		}
+		result, err := mcpHandler(ctx, req)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -101,13 +104,16 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		require.NoError(t, err)
 
 		// Test with division by zero
-		params := &mcpsdk.CallToolParamsFor[map[string]any]{
+		params := &mcpsdk.CallToolParams{
 			Arguments: map[string]any{
 				"expression": "10 / 0",
 			},
 		}
 
-		result, err := mcpHandler(ctx, nil, params)
+		req := &mcpsdk.CallToolRequest{
+			Params: params,
+		}
+		result, err := mcpHandler(ctx, req)
 		assert.NoError(t, err, "Handler should not return Go error for script runtime errors")
 		assert.NotNil(t, result, "Result should be returned")
 		assert.True(t, result.IsError, "Result should indicate error")
@@ -150,7 +156,7 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
 		// Test with JSON data
-		params := &mcpsdk.CallToolParamsFor[map[string]any]{
+		params := &mcpsdk.CallToolParams{
 			Arguments: map[string]any{
 				"data": map[string]any{
 					"name":  "John",
@@ -161,7 +167,10 @@ func TestScriptBridgeDirectly(t *testing.T) {
 			},
 		}
 
-		result, err := mcpHandler(ctx, nil, params)
+		req := &mcpsdk.CallToolRequest{
+			Params: params,
+		}
+		result, err := mcpHandler(ctx, req)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -200,11 +209,14 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		assert.Empty(t, tool.Name, "Tool name should be empty as it's set by the caller during tool registration")
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
-		params := &mcpsdk.CallToolParamsFor[map[string]any]{
+		params := &mcpsdk.CallToolParams{
 			Arguments: map[string]any{},
 		}
 
-		result, err := mcpHandler(ctx, nil, params)
+		req := &mcpsdk.CallToolRequest{
+			Params: params,
+		}
+		result, err := mcpHandler(ctx, req)
 		require.NoError(t, err)
 
 		textContent, ok := result.Content[0].(*mcpsdk.TextContent)
@@ -234,14 +246,17 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		assert.Empty(t, tool.Name, "Tool name should be empty as it's set by the caller during tool registration")
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
-		params := &mcpsdk.CallToolParamsFor[map[string]any]{
+		params := &mcpsdk.CallToolParams{
 			Arguments: map[string]any{
 				"name":  "Alice",
 				"count": 42,
 			},
 		}
 
-		result, err := mcpHandler(ctx, nil, params)
+		req := &mcpsdk.CallToolRequest{
+			Params: params,
+		}
+		result, err := mcpHandler(ctx, req)
 		require.NoError(t, err)
 
 		textContent, ok := result.Content[0].(*mcpsdk.TextContent)
@@ -276,13 +291,16 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
 		// Test error case
-		params := &mcpsdk.CallToolParamsFor[map[string]any]{
+		params := &mcpsdk.CallToolParams{
 			Arguments: map[string]any{
 				"error": true,
 			},
 		}
 
-		result, err := mcpHandler(ctx, nil, params)
+		req := &mcpsdk.CallToolRequest{
+			Params: params,
+		}
+		result, err := mcpHandler(ctx, req)
 		assert.NoError(t, err, "Handler should not return Go error for script runtime errors")
 		assert.NotNil(t, result, "Result should be returned")
 		assert.True(t, result.IsError, "Result should indicate error")
@@ -294,8 +312,11 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		assert.Contains(t, textContent.Text, "Something went wrong", "Error message should be in content")
 
 		// Test success case
-		params.Arguments["error"] = false
-		result, err = mcpHandler(ctx, nil, params)
+		params.Arguments.(map[string]any)["error"] = false
+		req = &mcpsdk.CallToolRequest{
+			Params: params,
+		}
+		result, err = mcpHandler(ctx, req)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 	})
@@ -327,11 +348,14 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		assert.Empty(t, tool.Name, "Tool name should be empty as it's set by the caller during tool registration")
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
-		params := &mcpsdk.CallToolParamsFor[map[string]any]{
+		params := &mcpsdk.CallToolParams{
 			Arguments: map[string]any{},
 		}
 
-		result, err := mcpHandler(ctx, nil, params)
+		req := &mcpsdk.CallToolRequest{
+			Params: params,
+		}
+		result, err := mcpHandler(ctx, req)
 		assert.Error(t, err, "Script execution should timeout with very short timeout")
 		assert.Nil(t, result, "Result should be nil when script execution times out")
 		assert.Contains(t, err.Error(), "timeout", "Error message should indicate timeout occurred")
