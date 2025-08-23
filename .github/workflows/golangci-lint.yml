@@ -27,7 +27,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-          cache-dependency-path: go.sum
 
       - name: Display Go version
         run: go version
