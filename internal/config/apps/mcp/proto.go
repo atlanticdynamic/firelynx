@@ -10,22 +10,23 @@ import (
 )
 
 // FromProto creates an MCP App from its protocol buffer representation.
-func FromProto(proto *pbApps.McpApp) (*App, error) {
+func FromProto(id string, proto *pbApps.McpApp) (*App, error) {
 	if proto == nil {
 		return nil, nil
 	}
 
-	app := NewApp()
-
-	// Server information
+	serverName := ""
 	if proto.ServerName != nil {
-		app.ServerName = *proto.ServerName
-	}
-	if proto.ServerVersion != nil {
-		app.ServerVersion = *proto.ServerVersion
+		serverName = *proto.ServerName
 	}
 
-	// Transport configuration
+	serverVersion := ""
+	if proto.ServerVersion != nil {
+		serverVersion = *proto.ServerVersion
+	}
+
+	app := NewApp(id, serverName, serverVersion)
+
 	if proto.Transport != nil {
 		transport, err := transportFromProto(proto.Transport)
 		if err != nil {
@@ -34,41 +35,45 @@ func FromProto(proto *pbApps.McpApp) (*App, error) {
 		app.Transport = transport
 	}
 
-	// Tools configuration
+	tools := make([]*Tool, 0, len(proto.Tools))
 	for _, toolProto := range proto.Tools {
 		tool, err := toolFromProto(toolProto)
 		if err != nil {
 			return nil, fmt.Errorf("%w: tool conversion: %w", ErrProtoConversion, err)
 		}
-		app.Tools = append(app.Tools, tool)
+		tools = append(tools, tool)
 	}
+	app.Tools = tools
 
-	// Resources configuration (future phases)
+	resources := make([]*Resource, 0, len(proto.Resources))
 	for _, resourceProto := range proto.Resources {
 		resource, err := resourceFromProto(resourceProto)
 		if err != nil {
 			return nil, fmt.Errorf("%w: resource conversion: %w", ErrProtoConversion, err)
 		}
-		app.Resources = append(app.Resources, resource)
+		resources = append(resources, resource)
 	}
+	app.Resources = resources
 
-	// Prompts configuration (future phases)
+	prompts := make([]*Prompt, 0, len(proto.Prompts))
 	for _, promptProto := range proto.Prompts {
 		prompt, err := promptFromProto(promptProto)
 		if err != nil {
 			return nil, fmt.Errorf("%w: prompt conversion: %w", ErrProtoConversion, err)
 		}
-		app.Prompts = append(app.Prompts, prompt)
+		prompts = append(prompts, prompt)
 	}
+	app.Prompts = prompts
 
-	// Middlewares configuration
+	middlewares := make([]*Middleware, 0, len(proto.Middlewares))
 	for _, middlewareProto := range proto.Middlewares {
 		middleware, err := middlewareFromProto(middlewareProto)
 		if err != nil {
 			return nil, fmt.Errorf("%w: middleware conversion: %w", ErrProtoConversion, err)
 		}
-		app.Middlewares = append(app.Middlewares, middleware)
+		middlewares = append(middlewares, middleware)
 	}
+	app.Middlewares = middlewares
 
 	return app, nil
 }

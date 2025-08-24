@@ -16,7 +16,7 @@ func TestFromProto(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil proto", func(t *testing.T) {
-		app, err := FromProto(nil)
+		app, err := FromProto("test-id", nil)
 		assert.NoError(t, err)
 		assert.Nil(t, app)
 	})
@@ -27,9 +27,10 @@ func TestFromProto(t *testing.T) {
 			ServerVersion: proto.String("1.0.0"),
 		}
 
-		app, err := FromProto(proto)
+		app, err := FromProto("test-server", proto)
 		assert.NoError(t, err)
 		assert.NotNil(t, app)
+		assert.Equal(t, "test-server", app.ID)
 		assert.Equal(t, "Test Server", app.ServerName)
 		assert.Equal(t, "1.0.0", app.ServerVersion)
 		assert.NotNil(t, app.Transport)
@@ -49,8 +50,9 @@ func TestFromProto(t *testing.T) {
 			},
 		}
 
-		app, err := FromProto(proto)
+		app, err := FromProto("transport-test", proto)
 		assert.NoError(t, err)
+		assert.Equal(t, "transport-test", app.ID)
 		assert.NotNil(t, app.Transport)
 		assert.True(t, app.Transport.SSEEnabled)
 		assert.Equal(t, "/events", app.Transport.SSEPath)
@@ -76,8 +78,9 @@ func TestFromProto(t *testing.T) {
 			},
 		}
 
-		app, err := FromProto(proto)
+		app, err := FromProto("builtin-test", proto)
 		assert.NoError(t, err)
+		assert.Equal(t, "builtin-test", app.ID)
 		assert.Len(t, app.Tools, 1)
 		assert.Equal(t, "echo", app.Tools[0].Name)
 		assert.Equal(t, "Echo tool", app.Tools[0].Description)
@@ -102,8 +105,9 @@ func TestFromProto(t *testing.T) {
 			},
 		}
 
-		app, err := FromProto(proto)
+		app, err := FromProto("middleware-test", proto)
 		assert.NoError(t, err)
+		assert.Equal(t, "middleware-test", app.ID)
 		assert.Len(t, app.Middlewares, 1)
 		assert.Equal(t, MiddlewareRateLimiting, app.Middlewares[0].Type)
 		assert.Equal(t, "100", app.Middlewares[0].Config["rate"])
@@ -123,8 +127,9 @@ func TestFromProto(t *testing.T) {
 			},
 		}
 
-		app, err := FromProto(proto)
+		app, err := FromProto("resources-test", proto)
 		assert.NoError(t, err)
+		assert.Equal(t, "resources-test", app.ID)
 		assert.Len(t, app.Resources, 1)
 		assert.Equal(t, "test://resource", app.Resources[0].URI)
 		assert.Equal(t, "Test Resource", app.Resources[0].Name)
@@ -142,8 +147,9 @@ func TestFromProto(t *testing.T) {
 			},
 		}
 
-		app, err := FromProto(proto)
+		app, err := FromProto("prompts-test", proto)
 		assert.NoError(t, err)
+		assert.Equal(t, "prompts-test", app.ID)
 		assert.Len(t, app.Prompts, 1)
 		assert.Equal(t, "Test Prompt", app.Prompts[0].Name)
 		assert.Equal(t, "A test prompt", app.Prompts[0].Description)

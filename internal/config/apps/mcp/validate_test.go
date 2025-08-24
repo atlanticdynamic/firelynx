@@ -75,15 +75,7 @@ func (m *mockToolHandler) Type() string {
 
 func TestApp_Validate(t *testing.T) {
 	t.Run("valid minimal app", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         []*Tool{},
-			Resources:     []*Resource{},
-			Prompts:       []*Prompt{},
-			Middlewares:   []*Middleware{},
-		}
+		app := NewApp("test-id", "Test Server", "1.0.0")
 
 		err := app.Validate()
 		assert.NoError(t, err)
@@ -92,8 +84,13 @@ func TestApp_Validate(t *testing.T) {
 
 	t.Run("missing server name", func(t *testing.T) {
 		app := &App{
+			ID:            "test-id",
 			ServerVersion: "1.0.0",
 			Transport:     &Transport{},
+			Tools:         make([]*Tool, 0),
+			Resources:     make([]*Resource, 0),
+			Prompts:       make([]*Prompt, 0),
+			Middlewares:   make([]*Middleware, 0),
 		}
 
 		err := app.Validate()
@@ -103,8 +100,13 @@ func TestApp_Validate(t *testing.T) {
 
 	t.Run("missing server version", func(t *testing.T) {
 		app := &App{
-			ServerName: "Test Server",
-			Transport:  &Transport{},
+			ID:          "test-id",
+			ServerName:  "Test Server",
+			Transport:   &Transport{},
+			Tools:       make([]*Tool, 0),
+			Resources:   make([]*Resource, 0),
+			Prompts:     make([]*Prompt, 0),
+			Middlewares: make([]*Middleware, 0),
 		}
 
 		err := app.Validate()
@@ -162,18 +164,14 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("valid app with tools", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:        "echo",
-					Description: "Echo tool",
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("test-id", "Test Server", "1.0.0")
+		app.Tools = []*Tool{
+			{
+				Name:        "echo",
+				Description: "Echo tool",
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
@@ -236,20 +234,16 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("valid app with prompts", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Prompts: []*Prompt{
-				{
-					Name:        "test_prompt",
-					Description: "Test prompt",
-					Arguments: []*PromptArgument{
-						{
-							Name:        "input",
-							Description: "Input parameter",
-							Required:    true,
-						},
+		app := NewApp("test-id", "Test Server", "1.0.0")
+		app.Prompts = []*Prompt{
+			{
+				Name:        "test_prompt",
+				Description: "Test prompt",
+				Arguments: []*PromptArgument{
+					{
+						Name:        "input",
+						Description: "Input parameter",
+						Required:    true,
 					},
 				},
 			},
@@ -1110,19 +1104,15 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 // Additional tests for compileMCPServer edge cases to improve coverage
 func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	t.Run("tool with Title field", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:        "test-tool",
-					Description: "Test tool",
-					Title:       "Custom Title",
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("test-id", "Test Server", "1.0.0")
+		app.Tools = []*Tool{
+			{
+				Name:        "test-tool",
+				Description: "Test tool",
+				Title:       "Custom Title",
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
@@ -1133,19 +1123,15 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with custom InputSchema", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:        "test-tool",
-					Description: "Test tool",
-					InputSchema: `{"type":"object","properties":{"input":{"type":"string"}},"required":["input"]}`,
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("test-id", "Test Server", "1.0.0")
+		app.Tools = []*Tool{
+			{
+				Name:        "test-tool",
+				Description: "Test tool",
+				InputSchema: `{"type":"object","properties":{"input":{"type":"string"}},"required":["input"]}`,
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
@@ -1156,19 +1142,15 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with custom OutputSchema", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:         "test-tool",
-					Description:  "Test tool",
-					OutputSchema: `{"type":"object","properties":{"result":{"type":"string"}}}`,
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("test-id", "Test Server", "1.0.0")
+		app.Tools = []*Tool{
+			{
+				Name:         "test-tool",
+				Description:  "Test tool",
+				OutputSchema: `{"type":"object","properties":{"result":{"type":"string"}}}`,
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
@@ -1179,25 +1161,21 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with Annotations", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:        "test-tool",
-					Description: "Test tool",
-					Annotations: &ToolAnnotations{
-						Title:           "Annotated Tool",
-						ReadOnlyHint:    true,
-						IdempotentHint:  true,
-						DestructiveHint: &[]bool{false}[0],
-						OpenWorldHint:   &[]bool{true}[0],
-					},
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("test-id", "Test Server", "1.0.0")
+		app.Tools = []*Tool{
+			{
+				Name:        "test-tool",
+				Description: "Test tool",
+				Annotations: &ToolAnnotations{
+					Title:           "Annotated Tool",
+					ReadOnlyHint:    true,
+					IdempotentHint:  true,
+					DestructiveHint: &[]bool{false}[0],
+					OpenWorldHint:   &[]bool{true}[0],
+				},
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
