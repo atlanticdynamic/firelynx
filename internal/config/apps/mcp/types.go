@@ -10,6 +10,52 @@ import (
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// BuiltinType represents the type of built-in tool.
+type BuiltinType int
+
+const (
+	BuiltinEcho BuiltinType = iota
+	BuiltinCalculation
+	BuiltinFileRead
+)
+
+// String returns the string representation of BuiltinType.
+func (t BuiltinType) String() string {
+	switch t {
+	case BuiltinEcho:
+		return "ECHO"
+	case BuiltinCalculation:
+		return "CALCULATION"
+	case BuiltinFileRead:
+		return "FILE_READ"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// MiddlewareType represents the type of MCP middleware.
+type MiddlewareType int
+
+const (
+	MiddlewareRateLimiting MiddlewareType = iota
+	MiddlewareLogging
+	MiddlewareAuthentication
+)
+
+// String returns the string representation of MiddlewareType.
+func (t MiddlewareType) String() string {
+	switch t {
+	case MiddlewareRateLimiting:
+		return "RATE_LIMITING"
+	case MiddlewareLogging:
+		return "MCP_LOGGING"
+	case MiddlewareAuthentication:
+		return "MCP_AUTHENTICATION"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 // App represents a Model Context Protocol (MCP) application.
 type App struct {
 	// ID is the unique identifier for this MCP app.
@@ -38,6 +84,44 @@ type App struct {
 
 	// compiledServer is the pre-compiled MCP server (created during validation)
 	compiledServer *mcpsdk.Server
+}
+
+// NewApp creates a new MCP App with the specified configuration.
+func NewApp(id, serverName, serverVersion string) *App {
+	return &App{
+		ID:            id,
+		ServerName:    serverName,
+		ServerVersion: serverVersion,
+		Transport:     &Transport{},
+		Tools:         make([]*Tool, 0),
+		Resources:     make([]*Resource, 0),
+		Prompts:       make([]*Prompt, 0),
+		Middlewares:   make([]*Middleware, 0),
+	}
+}
+
+// Type returns the type of this application.
+func (a *App) Type() string {
+	return "mcp"
+}
+
+// GetCompiledServer returns the pre-compiled MCP server.
+func (a *App) GetCompiledServer() *mcpsdk.Server {
+	return a.compiledServer
+}
+
+// String returns a string representation of the MCP app.
+func (a *App) String() string {
+	return fmt.Sprintf("MCP App (server: %s v%s, tools: %d)", a.ServerName, a.ServerVersion, len(a.Tools))
+}
+
+// ToTree returns a tree representation of the MCP app.
+func (a *App) ToTree() *fancy.ComponentTree {
+	tree := fancy.NewComponentTree("MCP App")
+	tree.AddChild("Type: mcp")
+	tree.AddChild(fmt.Sprintf("Server: %s v%s", a.ServerName, a.ServerVersion))
+	tree.AddChild(fmt.Sprintf("Tools: %d configured", len(a.Tools)))
+	return tree
 }
 
 // Transport configures MCP transport options.
@@ -107,6 +191,11 @@ type ScriptToolHandler struct {
 	Evaluator evaluators.Evaluator
 }
 
+// Type returns the tool handler type.
+func (s *ScriptToolHandler) Type() string {
+	return "script"
+}
+
 // BuiltinToolHandler implements common built-in tools.
 type BuiltinToolHandler struct {
 	// BuiltinType specifies which built-in tool to use
@@ -116,14 +205,10 @@ type BuiltinToolHandler struct {
 	Config map[string]string `env_interpolation:"yes"`
 }
 
-// BuiltinType represents the type of built-in tool.
-type BuiltinType int
-
-const (
-	BuiltinEcho BuiltinType = iota
-	BuiltinCalculation
-	BuiltinFileRead
-)
+// Type returns the tool handler type.
+func (b *BuiltinToolHandler) Type() string {
+	return "builtin"
+}
 
 // Resource represents an MCP resource configuration (future phases).
 type Resource struct {
@@ -177,89 +262,4 @@ type Middleware struct {
 
 	// Config contains middleware-specific configuration
 	Config map[string]string `env_interpolation:"yes"`
-}
-
-// MiddlewareType represents the type of MCP middleware.
-type MiddlewareType int
-
-const (
-	MiddlewareRateLimiting MiddlewareType = iota
-	MiddlewareLogging
-	MiddlewareAuthentication
-)
-
-// NewApp creates a new MCP App with the specified configuration.
-func NewApp(id, serverName, serverVersion string) *App {
-	return &App{
-		ID:            id,
-		ServerName:    serverName,
-		ServerVersion: serverVersion,
-		Transport:     &Transport{},
-		Tools:         make([]*Tool, 0),
-		Resources:     make([]*Resource, 0),
-		Prompts:       make([]*Prompt, 0),
-		Middlewares:   make([]*Middleware, 0),
-	}
-}
-
-// Type returns the type of this application.
-func (a *App) Type() string {
-	return "mcp"
-}
-
-// GetCompiledServer returns the pre-compiled MCP server.
-func (a *App) GetCompiledServer() *mcpsdk.Server {
-	return a.compiledServer
-}
-
-// Type returns the tool handler type.
-func (s *ScriptToolHandler) Type() string {
-	return "script"
-}
-
-// Type returns the tool handler type.
-func (b *BuiltinToolHandler) Type() string {
-	return "builtin"
-}
-
-// String returns the string representation of BuiltinType.
-func (t BuiltinType) String() string {
-	switch t {
-	case BuiltinEcho:
-		return "ECHO"
-	case BuiltinCalculation:
-		return "CALCULATION"
-	case BuiltinFileRead:
-		return "FILE_READ"
-	default:
-		return "UNKNOWN"
-	}
-}
-
-// String returns the string representation of MiddlewareType.
-func (t MiddlewareType) String() string {
-	switch t {
-	case MiddlewareRateLimiting:
-		return "RATE_LIMITING"
-	case MiddlewareLogging:
-		return "MCP_LOGGING"
-	case MiddlewareAuthentication:
-		return "MCP_AUTHENTICATION"
-	default:
-		return "UNKNOWN"
-	}
-}
-
-// String returns a string representation of the MCP app.
-func (a *App) String() string {
-	return fmt.Sprintf("MCP App (server: %s v%s, tools: %d)", a.ServerName, a.ServerVersion, len(a.Tools))
-}
-
-// ToTree returns a tree representation of the MCP app.
-func (a *App) ToTree() *fancy.ComponentTree {
-	tree := fancy.NewComponentTree("MCP App")
-	tree.AddChild("Type: mcp")
-	tree.AddChild(fmt.Sprintf("Server: %s v%s", a.ServerName, a.ServerVersion))
-	tree.AddChild(fmt.Sprintf("Tools: %d configured", len(a.Tools)))
-	return tree
 }
