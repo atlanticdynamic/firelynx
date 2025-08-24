@@ -29,6 +29,7 @@ func TestAppValidate(t *testing.T) {
 			app: App{
 				ID: "valid-app",
 				Config: scripts.NewAppScript(
+					"valid-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.RisorEvaluator{Code: validRisorCode42},
 				),
@@ -40,6 +41,7 @@ func TestAppValidate(t *testing.T) {
 			app: App{
 				ID: "",
 				Config: scripts.NewAppScript(
+					"valid-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.RisorEvaluator{Code: validRisorCode42},
 				),
@@ -70,6 +72,7 @@ func TestAppValidate(t *testing.T) {
 			app: App{
 				ID: "invalid id with spaces",
 				Config: scripts.NewAppScript(
+					"valid-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.RisorEvaluator{Code: validRisorCode42},
 				),
@@ -81,6 +84,7 @@ func TestAppValidate(t *testing.T) {
 			app: App{
 				ID: "invalid@id!",
 				Config: scripts.NewAppScript(
+					"valid-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.RisorEvaluator{Code: validRisorCode42},
 				),
@@ -122,6 +126,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "app1",
 					Config: scripts.NewAppScript(
+						"test-app",
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
@@ -129,6 +134,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "app2",
 					Config: scripts.NewAppScript(
+						"test-app2",
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),
@@ -142,6 +148,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "app1",
 					Config: scripts.NewAppScript(
+						"test-app",
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
@@ -149,6 +156,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "app1",
 					Config: scripts.NewAppScript(
+						"test-app2",
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),
@@ -162,6 +170,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "script1",
 					Config: scripts.NewAppScript(
+						"test-app",
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
@@ -202,6 +211,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "script1",
 					Config: scripts.NewAppScript(
+						"test-app",
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
@@ -209,6 +219,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "script2",
 					Config: scripts.NewAppScript(
+						"test-app2",
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),
@@ -222,6 +233,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "", // Invalid ID
 					Config: scripts.NewAppScript(
+						"test-app",
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
@@ -229,6 +241,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "valid-app",
 					Config: scripts.NewAppScript(
+						"test-app2",
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),
@@ -242,6 +255,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "script1",
 					Config: scripts.NewAppScript(
+						"test-app",
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
@@ -266,6 +280,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "duplicate",
 					Config: scripts.NewAppScript(
+						"test-app",
 						&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode42},
 					),
@@ -273,6 +288,7 @@ func TestAppCollectionValidate(t *testing.T) {
 				App{
 					ID: "duplicate", // Duplicate ID
 					Config: scripts.NewAppScript(
+						"test-app2",
 						&staticdata.StaticData{Data: map[string]any{"key": "value2"}},
 						&evaluators.RisorEvaluator{Code: validRisorCode43},
 					),

@@ -9,7 +9,7 @@ import (
 )
 
 // FromProto creates an AppScript from its protocol buffer representation.
-func FromProto(proto *pbApps.ScriptApp) (*AppScript, error) {
+func FromProto(id string, proto *pbApps.ScriptApp) (*AppScript, error) {
 	if proto == nil {
 		return nil, nil
 	}
@@ -27,10 +27,7 @@ func FromProto(proto *pbApps.ScriptApp) (*AppScript, error) {
 	}
 
 	// Create the AppScript
-	script := &AppScript{
-		StaticData: staticData,
-		Evaluator:  eval,
-	}
+	script := NewAppScript(id, staticData, eval)
 
 	return script, nil
 }

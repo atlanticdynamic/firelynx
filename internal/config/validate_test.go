@@ -381,6 +381,7 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 			setupConfig: func() *Config {
 				// Create an invalid script with empty code and negative timeout, which will fail validation
 				invalidScript := scripts.NewAppScript(
+					"invalid-script",
 					nil,
 					&evaluators.RisorEvaluator{Code: "", Timeout: -1 * time.Second},
 				)

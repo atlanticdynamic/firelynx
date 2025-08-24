@@ -28,6 +28,7 @@ func TestAppString(t *testing.T) {
 			app: App{
 				ID: "script-app",
 				Config: scripts.NewAppScript(
+					"script-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.RisorEvaluator{Code: "return 42"},
 				),
@@ -39,6 +40,7 @@ func TestAppString(t *testing.T) {
 			app: App{
 				ID: "starlark-app",
 				Config: scripts.NewAppScript(
+					"starlark-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.StarlarkEvaluator{Code: "def main(): return 42"},
 				),
@@ -50,6 +52,7 @@ func TestAppString(t *testing.T) {
 			app: App{
 				ID: "extism-app",
 				Config: scripts.NewAppScript(
+					"test-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.ExtismEvaluator{Code: "module code...", Entrypoint: "main"},
 				),
@@ -61,6 +64,7 @@ func TestAppString(t *testing.T) {
 			app: App{
 				ID: "no-eval-app",
 				Config: scripts.NewAppScript(
+					"test-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					nil,
 				),
@@ -116,6 +120,7 @@ func TestAppToTree(t *testing.T) {
 			app: App{
 				ID: "script-app",
 				Config: scripts.NewAppScript(
+					"test-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.RisorEvaluator{Code: "return 42", Timeout: 5 * time.Second},
 				),
@@ -126,6 +131,7 @@ func TestAppToTree(t *testing.T) {
 			app: App{
 				ID: "starlark-app",
 				Config: scripts.NewAppScript(
+					"test-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.StarlarkEvaluator{
 						Code:    "def main(): return 42",
@@ -139,6 +145,7 @@ func TestAppToTree(t *testing.T) {
 			app: App{
 				ID: "extism-app",
 				Config: scripts.NewAppScript(
+					"test-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					&evaluators.ExtismEvaluator{Code: "module code...", Entrypoint: "main"},
 				),
@@ -149,6 +156,7 @@ func TestAppToTree(t *testing.T) {
 			app: App{
 				ID: "no-eval-app",
 				Config: scripts.NewAppScript(
+					"test-app",
 					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 					nil,
 				),
@@ -193,6 +201,7 @@ func TestAppCollectionToTree(t *testing.T) {
 		App{
 			ID: "script-app",
 			Config: scripts.NewAppScript(
+				"test-app",
 				&staticdata.StaticData{Data: map[string]any{"key": "value"}},
 				&evaluators.RisorEvaluator{Code: "return 42"},
 			),

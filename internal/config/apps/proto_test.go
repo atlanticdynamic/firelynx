@@ -446,7 +446,7 @@ func TestToProtoConversions(t *testing.T) {
 			Code:    "return 'script'",
 			Timeout: timeout,
 		}
-		scriptApp := scripts.NewAppScript(nil, risorEval)
+		scriptApp := scripts.NewAppScript("script-app", nil, risorEval)
 
 		// Composite app
 		compApp := composite.NewCompositeScript([]string{"app1"}, nil)
@@ -519,7 +519,7 @@ func TestToProtoConversions(t *testing.T) {
 				"key2": 42,
 			},
 		}
-		scriptApp := scripts.NewAppScript(staticDataStruct, risorEval)
+		scriptApp := scripts.NewAppScript("script-with-static", staticDataStruct, risorEval)
 
 		app := App{
 			ID:     "script-with-static",
@@ -564,7 +564,7 @@ func TestToProtoConversions(t *testing.T) {
 			Code:    "return 'risor test'",
 			Timeout: 8 * time.Second,
 		}
-		scriptApp := scripts.NewAppScript(nil, risorEval)
+		scriptApp := scripts.NewAppScript("risor-app", nil, risorEval)
 
 		app := App{
 			ID:     "risor-app",
@@ -586,7 +586,7 @@ func TestToProtoConversions(t *testing.T) {
 			Code:    "result = 'starlark test'",
 			Timeout: 10 * time.Second,
 		}
-		scriptApp := scripts.NewAppScript(nil, starlarkEval)
+		scriptApp := scripts.NewAppScript("starlark-app", nil, starlarkEval)
 
 		app := App{
 			ID:     "starlark-app",
@@ -608,7 +608,7 @@ func TestToProtoConversions(t *testing.T) {
 			Code:    "base64encodedwasm",
 			Timeout: 15 * time.Second,
 		}
-		scriptApp := scripts.NewAppScript(nil, extismEval)
+		scriptApp := scripts.NewAppScript("extism-app", nil, extismEval)
 
 		app := App{
 			ID:     "extism-app",

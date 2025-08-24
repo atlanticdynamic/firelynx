@@ -226,7 +226,9 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 			return App{}, fmt.Errorf("script app '%s' has an unknown or empty evaluator", app.ID)
 		}
 
-		app.Config = scripts.NewAppScript(staticData, evaluator)
+		// Convert Script app config, and copy the ID from parent AppDefinition
+		scriptApp := scripts.NewAppScript(app.ID, staticData, evaluator)
+		app.Config = scriptApp
 		return app, nil
 
 	case *pb.AppDefinition_CompositeScript:
