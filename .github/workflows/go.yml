@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: go-workflow
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -30,6 +34,7 @@ jobs:
         run: echo "GO_CACHE_MONTH=$(date +%Y-%m)" >> $GITHUB_ENV
 
       - name: Restore Go cache
+        id: cache-restore
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -76,7 +81,7 @@ jobs:
 
       - name: Save Go cache
         uses: actions/cache/save@v4
-        if: always()
+        if: always() && steps.cache-restore.outputs.cache-hit != 'true'
         with:
           path: |
             ~/go/pkg/mod
