@@ -626,9 +626,7 @@ func TestToProtoConversions(t *testing.T) {
 
 	t.Run("MCPApp", func(t *testing.T) {
 		// Create a domain App with MCP config
-		mcpApp := mcp.NewApp()
-		mcpApp.ServerName = "test-server"
-		mcpApp.ServerVersion = "1.0.0"
+		mcpApp := mcp.NewApp("mcp-test-app", "test-server", "1.0.0")
 
 		app := App{
 			ID:     "test-mcp-app",

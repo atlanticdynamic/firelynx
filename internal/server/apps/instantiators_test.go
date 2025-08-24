@@ -425,6 +425,7 @@ func TestCreateMCPApp(t *testing.T) {
 			name: "creates MCP app with valid config",
 			id:   "test-mcp-app",
 			config: &configMCP.App{
+				ID:            "test-mcp-app",
 				ServerName:    "Test MCP Server",
 				ServerVersion: "1.0.0",
 				Transport:     &configMCP.Transport{},
@@ -439,6 +440,7 @@ func TestCreateMCPApp(t *testing.T) {
 			name: "creates MCP app with tools",
 			id:   "test-mcp-with-tools",
 			config: &configMCP.App{
+				ID:            "test-mcp-with-tools",
 				ServerName:    "MCP Server with Tools",
 				ServerVersion: "1.0.0",
 				Transport:     &configMCP.Transport{},
@@ -476,6 +478,7 @@ func TestCreateMCPApp(t *testing.T) {
 			name: "fails with unvalidated config",
 			id:   "test-unvalidated",
 			config: &configMCP.App{
+				ID:            "test-unvalidated",
 				ServerName:    "Unvalidated Server",
 				ServerVersion: "1.0.0",
 				// Not calling Validate() - should fail with no compiled server
@@ -543,6 +546,7 @@ func TestCreateMCPApp_EdgeCases(t *testing.T) {
 
 	t.Run("handles empty app ID", func(t *testing.T) {
 		config := &configMCP.App{
+			ID:            "test-empty-id",
 			ServerName:    "Test Server",
 			ServerVersion: "1.0.0",
 			Transport:     &configMCP.Transport{},
@@ -567,6 +571,7 @@ func TestCreateMCPApp_EdgeCases(t *testing.T) {
 	t.Run("handles very long app ID", func(t *testing.T) {
 		longID := "very-long-mcp-app-id-that-exceeds-normal-length-expectations-and-tests-boundary-conditions"
 		config := &configMCP.App{
+			ID:            longID,
 			ServerName:    "Test Server",
 			ServerVersion: "1.0.0",
 			Transport:     &configMCP.Transport{},
@@ -589,6 +594,7 @@ func TestCreateMCPApp_EdgeCases(t *testing.T) {
 
 	t.Run("fails validation with SSE enabled", func(t *testing.T) {
 		config := &configMCP.App{
+			ID:            "test-sse-server",
 			ServerName:    "SSE Test Server",
 			ServerVersion: "1.0.0",
 			Transport: &configMCP.Transport{

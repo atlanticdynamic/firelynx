@@ -14,6 +14,7 @@ func TestNew(t *testing.T) {
 	t.Run("valid config with compiled server", func(t *testing.T) {
 		// Create and validate MCP config to get compiled server
 		config := &mcpconfig.App{
+			ID:            "test-server",
 			ServerName:    "Test Server",
 			ServerVersion: "1.0.0",
 			Transport:     &mcpconfig.Transport{},
@@ -38,6 +39,7 @@ func TestNew(t *testing.T) {
 	t.Run("config without compiled server", func(t *testing.T) {
 		// Create config without validation (no compiled server)
 		config := &mcpconfig.App{
+			ID:            "test-no-compile",
 			ServerName:    "Test Server",
 			ServerVersion: "1.0.0",
 		}
@@ -51,6 +53,7 @@ func TestNew(t *testing.T) {
 	t.Run("SSE enabled should fail validation", func(t *testing.T) {
 		// Create config with SSE enabled
 		config := &mcpconfig.App{
+			ID:            "test-sse",
 			ServerName:    "Test Server",
 			ServerVersion: "1.0.0",
 			Transport: &mcpconfig.Transport{
@@ -82,6 +85,7 @@ func TestApp_HandleHTTP(t *testing.T) {
 	t.Run("successful HTTP handling", func(t *testing.T) {
 		// Create valid MCP config
 		config := &mcpconfig.App{
+			ID:            "test-http",
 			ServerName:    "Test Server",
 			ServerVersion: "1.0.0",
 			Transport:     &mcpconfig.Transport{},
@@ -122,8 +126,12 @@ func TestApp_HandleHTTP(t *testing.T) {
 	t.Run("nil handler edge case", func(t *testing.T) {
 		// Create app with nil handler (should not happen in practice)
 		app := &App{
-			id:      "test",
-			config:  &mcpconfig.App{},
+			id: "test",
+			config: &mcpconfig.App{
+				ID:            "test-nil-handler",
+				ServerName:    "Test Server",
+				ServerVersion: "1.0.0",
+			},
 			handler: nil,
 		}
 
@@ -142,6 +150,7 @@ func TestApp_Integration(t *testing.T) {
 	t.Run("end-to-end MCP app creation and HTTP handling", func(t *testing.T) {
 		// Create MCP config with multiple tools
 		config := &mcpconfig.App{
+			ID:            "test-integration",
 			ServerName:    "Integration Test Server",
 			ServerVersion: "1.0.0",
 			Transport: &mcpconfig.Transport{

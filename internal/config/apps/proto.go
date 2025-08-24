@@ -269,8 +269,7 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 
 		pbMcp := config.Mcp
 
-		// Convert MCP app config
-		mcpApp, err := mcp.FromProto(pbMcp)
+		mcpApp, err := mcp.FromProto(app.ID, pbMcp)
 		if err != nil {
 			return App{}, fmt.Errorf("error converting MCP app: %w", err)
 		}

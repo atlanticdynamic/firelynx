@@ -12,6 +12,9 @@ import (
 
 // App represents a Model Context Protocol (MCP) application.
 type App struct {
+	// ID is the unique identifier for this MCP app.
+	ID string `env_interpolation:"no"`
+
 	// ServerName is the name of the MCP server implementation
 	ServerName string `env_interpolation:"yes"`
 
@@ -185,14 +188,17 @@ const (
 	MiddlewareAuthentication
 )
 
-// NewApp creates a new MCP App with defaults.
-func NewApp() *App {
+// NewApp creates a new MCP App with the specified configuration.
+func NewApp(id, serverName, serverVersion string) *App {
 	return &App{
-		Transport:   &Transport{},
-		Tools:       []*Tool{},
-		Resources:   []*Resource{},
-		Prompts:     []*Prompt{},
-		Middlewares: []*Middleware{},
+		ID:            id,
+		ServerName:    serverName,
+		ServerVersion: serverVersion,
+		Transport:     &Transport{},
+		Tools:         make([]*Tool, 0),
+		Resources:     make([]*Resource, 0),
+		Prompts:       make([]*Prompt, 0),
+		Middlewares:   make([]*Middleware, 0),
 	}
 }
 

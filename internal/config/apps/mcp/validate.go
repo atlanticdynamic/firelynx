@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/interpolation"
 	"github.com/google/jsonschema-go/jsonschema"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -22,6 +23,11 @@ func (a *App) Validate() error {
 	// Environment variable interpolation FIRST
 	if err := interpolation.InterpolateStruct(a); err != nil {
 		errs = append(errs, fmt.Errorf("interpolation failed: %w", err))
+	}
+
+	// ID must be present
+	if a.ID == "" {
+		errs = append(errs, fmt.Errorf("%w: mcp app ID", errz.ErrMissingRequiredField))
 	}
 
 	// Basic validation
