@@ -1,0 +1,57 @@
+name: Cache Dependencies
+
+on:
+  push:
+    branches: ["main"]
+  schedule:
+    # Refresh cache monthly on the 1st at 2 AM UTC
+    - cron: '0 2 1 * *'
+
+jobs:
+  build-cache:
+    name: Build Go Cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Set Go cache date
+        shell: bash
+        run: echo "GO_CACHE_MONTH=$(date +%Y-%m)" >> $GITHUB_ENV
+
+      - name: Restore Go cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-cache-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ env.GO_CACHE_MONTH }}
+          restore-keys: |
+            go-cache-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}-
+            go-cache-${{ runner.os }}-
+
+      - name: Download Go modules
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        run: go mod download
+
+      - name: Build test dependencies
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        run: |
+          # Pre-compile test dependencies and race detector builds
+          go test -race -run=NonExistentTest ./... || true
+          go build ./...
+
+      - name: Save Go cache
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-cache-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ env.GO_CACHE_MONTH }}
