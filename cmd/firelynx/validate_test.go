@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -323,7 +322,7 @@ func TestValidateAction(t *testing.T) {
 			if tt.wantError {
 				require.Error(t, err)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+					require.ErrorContains(t, err, tt.errorMsg)
 				}
 			} else {
 				require.NoError(t, err)
@@ -389,14 +388,14 @@ func TestValidateRemoteShutdownTiming(t *testing.T) {
 				return !cfgServiceRunner.IsRunning()
 			}, 2*time.Second, 10*time.Millisecond, "gRPC config service should stop")
 
-			// Check for any server errors
+			// Check for any unexpected server errors (with timeout)
 			select {
 			case err := <-errCh:
-				if err != nil && !errors.Is(err, context.Canceled) {
-					t.Errorf("Server exited with error: %v", err)
+				if err != nil {
+					require.ErrorIs(t, err, context.Canceled, "Server should only exit due to context cancellation")
 				}
-			default:
-				// Server still running or no error yet
+			case <-time.After(100 * time.Millisecond):
+				// Expected - server should still be running or cleanly shut down
 			}
 
 			shutdownDuration := time.Since(shutdownStart)
