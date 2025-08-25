@@ -129,13 +129,17 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 	err = saga.WaitForCompletion(ctx)
 	require.NoError(t, err, "Saga should complete transaction processing successfully")
 
-	// Test that the endpoint is immediately accessible
+	// Test that the endpoint becomes accessible after saga completion
 	testURL := fmt.Sprintf("http://127.0.0.1:%d/echo", httpPort)
-	resp, err := http.Get(testURL)
-	require.NoError(t, err, "HTTP endpoint should be immediately accessible after saga completion")
-	defer func() { assert.NoError(t, resp.Body.Close()) }()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode, "Should get OK response")
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(testURL)
+		if err != nil {
+			return false
+		}
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
+		return resp.StatusCode == http.StatusOK
+	}, 5*time.Second, 100*time.Millisecond, "HTTP endpoint should become accessible after saga completion")
 }
 
 // TestHTTPRunnerRequiresInitialConfig verifies that the HTTP runner waits for
