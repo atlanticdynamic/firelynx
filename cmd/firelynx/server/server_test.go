@@ -5,7 +5,6 @@ package server
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -93,12 +92,9 @@ func TestServerWithConfigFile(t *testing.T) {
 	require.NoError(t, err, "Should get response from echo endpoint")
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 
-	body := make([]byte, 1024)
-	n, err := resp.Body.Read(body)
-	if err != nil && !errors.Is(err, io.EOF) {
-		require.NoError(t, err, "Should be able to read response body")
-	}
-	responseText := string(body[:n])
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Should be able to read response body")
+	responseText := string(body)
 	assert.Contains(
 		t,
 		responseText,
@@ -211,13 +207,9 @@ func TestServerWithGRPCConfig(t *testing.T) {
 	require.NoError(t, err, "Should get response from echo endpoint")
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 
-	body := make([]byte, 1024)
-	n, err := resp.Body.Read(body)
-	// EOF is expected when reading full body
-	if err != nil && !errors.Is(err, io.EOF) {
-		require.NoError(t, err)
-	}
-	responseText := string(body[:n])
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Should be able to read response body")
+	responseText := string(body)
 	assert.Contains(
 		t,
 		responseText,
@@ -453,13 +445,9 @@ response = "New path response"`
 	require.NoError(t, err, "Should get response from new endpoint")
 	defer func() { assert.NoError(t, resp.Body.Close()) }()
 
-	body := make([]byte, 1024)
-	n, err := resp.Body.Read(body)
-	// EOF is expected when reading full body
-	if err != nil && !errors.Is(err, io.EOF) {
-		require.NoError(t, err)
-	}
-	responseText := string(body[:n])
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Should be able to read response body")
+	responseText := string(body)
 	assert.Contains(
 		t,
 		responseText,
@@ -492,7 +480,7 @@ func TestServerRequiresConfigSource(t *testing.T) {
 
 	err := Run(ctx, logger, "", "")
 	require.Error(t, err, "Server should require at least one config source")
-	assert.Contains(t, err.Error(), "no configuration source specified")
+	assert.ErrorContains(t, err, "no configuration source specified")
 }
 
 // TestNewConfigFromBytes validates that we can create configs from embedded bytes
