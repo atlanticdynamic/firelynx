@@ -1,7 +1,6 @@
 package config
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -180,8 +179,8 @@ func TestConfigString(t *testing.T) {
 
 			// Verify it contains all expected substrings
 			for _, substr := range tc.expectedSubstr {
-				assert.True(t,
-					strings.Contains(result, substr),
+				assert.Contains(t,
+					result, substr,
 					"Expected string representation to contain '%s', but got:\n%s",
 					substr, result)
 			}

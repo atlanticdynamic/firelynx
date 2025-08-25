@@ -63,7 +63,7 @@ func TestProcessListenerType(t *testing.T) {
 					tc.expectedErrMsg,
 					"Error message should match expected",
 				)
-				assert.ErrorIs(
+				require.ErrorIs(
 					t,
 					errs[0],
 					errz.ErrUnsupportedListenerType,
@@ -154,7 +154,7 @@ func TestProcessListeners(t *testing.T) {
 		errs := processListeners(config, configMap)
 		assert.NotEmpty(t, errs, "Expected errors for invalid listener format")
 		assert.Contains(t, errs[0].Error(), "invalid listener format")
-		assert.ErrorIs(t, errs[0], errz.ErrInvalidListenerFormat)
+		require.ErrorIs(t, errs[0], errz.ErrInvalidListenerFormat)
 	})
 
 	// Test with listeners array but no type field

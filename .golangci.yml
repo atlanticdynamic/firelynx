@@ -27,6 +27,7 @@ linters:
     - staticcheck    # Advanced static analysis
     - tagalign       # Check struct tag alignment
     - tagliatelle    # Enforce struct tag formatting
+    - testifylint    # Avoid common testify mistakes
     - thelper        # Ensure test helpers use t.Helper()
     - unconvert      # Remove unnecessary type conversions
     - unused         # Detect unused code

@@ -69,7 +69,7 @@ func TestApplyConfigFromPath_Integration(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { require.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 200*time.Millisecond, "Server should become ready")
 
@@ -80,7 +80,7 @@ func TestApplyConfigFromPath_Integration(t *testing.T) {
 
 	// Apply the updated config via gRPC
 	err = client.ApplyConfigFromPath(ctx, updatedConfigPath)
-	assert.NoError(t, err, "Should apply config successfully")
+	require.NoError(t, err, "Should apply config successfully")
 
 	// Test that the new endpoint becomes available
 	require.Eventually(t, func() bool {
@@ -88,7 +88,7 @@ func TestApplyConfigFromPath_Integration(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { require.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 200*time.Millisecond, "Updated endpoint should become available")
 
@@ -98,7 +98,7 @@ func TestApplyConfigFromPath_Integration(t *testing.T) {
 	// Wait for clean shutdown
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
+		require.NoError(t, err, "Server should shut down cleanly")
 	case <-time.After(30 * time.Second):
 		t.Error("Server did not shut down within timeout")
 	}
@@ -146,7 +146,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { require.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 200*time.Millisecond, "Server should become ready")
 
@@ -158,7 +158,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	// Test GetCurrentConfigTransaction (should work without error)
 	t.Run("GetCurrentConfigTransaction_Basic", func(t *testing.T) {
 		transaction, err := client.GetCurrentConfigTransaction(ctx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, transaction, "Transaction should not be nil")
 		assert.NotNil(t, transaction.GetCreatedAt(), "Transaction should have creation time")
 	})
@@ -166,7 +166,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	// Test ListConfigTransactions (should work without error)
 	t.Run("ListConfigTransactions_Basic", func(t *testing.T) {
 		transactions, nextPageToken, err := client.ListConfigTransactions(ctx, "", 10, "", "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, transactions, "Should return transactions slice (may be empty)")
 		assert.Empty(t, nextPageToken, "Should have no next page token with small dataset")
 	})
@@ -181,14 +181,14 @@ func TestConfigTransactions_Integration(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { require.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 200*time.Millisecond, "Updated endpoint should become available")
 
 	// Test GetCurrentConfigTransaction (should exist after update)
 	t.Run("GetCurrentConfigTransaction_AfterUpdate", func(t *testing.T) {
 		transaction, err := client.GetCurrentConfigTransaction(ctx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, transaction, "Transaction should not be nil")
 		assert.NotEmpty(t, transaction.GetId(), "Transaction should have an ID")
 		assert.NotNil(t, transaction.GetCreatedAt(), "Transaction should have creation time")
@@ -204,7 +204,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	var transactionID string
 	t.Run("ListConfigTransactions_AfterUpdate", func(t *testing.T) {
 		transactions, nextPageToken, err := client.ListConfigTransactions(ctx, "", 10, "", "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotEmpty(t, transactions, "Should have transactions after update")
 		assert.Empty(t, nextPageToken, "Should have no next page token with small dataset")
 
@@ -219,7 +219,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 		require.NotEmpty(t, transactionID, "Transaction ID should be available from previous test")
 
 		transaction, err := client.GetConfigTransaction(ctx, transactionID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, transaction, "Should retrieve specific transaction")
 		assert.Equal(t, transactionID, transaction.GetId(), "Should return correct transaction")
 		require.NotNil(t, transaction.GetConfig(), "Transaction should have config")
@@ -234,13 +234,13 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	t.Run("ListConfigTransactions_WithFilters", func(t *testing.T) {
 		// Test with page size
 		transactions, _, err := client.ListConfigTransactions(ctx, "", 1, "", "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.LessOrEqual(t, len(transactions), 1, "Should respect page size limit")
 
 		// Test with state filter (if transactions have states)
-		transactions, _, err = client.ListConfigTransactions(ctx, "", 10, "COMMITTED", "")
-		assert.NoError(t, err)
-		// Don't assert on count since we don't know the exact state values
+		transactions, _, err = client.ListConfigTransactions(ctx, "", 10, "completed", "")
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(transactions), 1, "Should have at least 1 completed transaction")
 	})
 
 	// Test ClearConfigTransactions
@@ -260,7 +260,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 
 		// Clear all but the last one
 		clearedCount, err := client.ClearConfigTransactions(ctx, 1)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Verify the clear operation
 		if initialCount > 1 {
@@ -277,8 +277,8 @@ func TestConfigTransactions_Integration(t *testing.T) {
 
 		// Verify remaining transactions
 		transactions, _, err = client.ListConfigTransactions(ctx, "", 100, "", "")
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(transactions), "Should have exactly 1 transaction remaining")
+		require.NoError(t, err)
+		assert.Len(t, transactions, 1, "Should have exactly 1 transaction remaining")
 	})
 
 	// Shutdown server
@@ -287,7 +287,7 @@ func TestConfigTransactions_Integration(t *testing.T) {
 	// Wait for clean shutdown
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
+		require.NoError(t, err, "Server should shut down cleanly")
 	case <-time.After(30 * time.Second):
 		t.Error("Server did not shut down within timeout")
 	}
@@ -335,7 +335,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { require.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 200*time.Millisecond, "Server should become ready")
 
@@ -372,7 +372,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			defer resp.Body.Close()
+			defer func() { require.NoError(t, resp.Body.Close()) }()
 			return resp.StatusCode == http.StatusOK
 		}, 10*time.Second, 200*time.Millisecond, "Updated endpoint should become available")
 
@@ -395,7 +395,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 			resp.StatusCode,
 			"/updated endpoint should be available before rollback",
 		)
-		resp.Body.Close()
+		require.NoError(t, resp.Body.Close())
 
 		// Perform rollback
 		err = client.ApplyConfigFromTransaction(ctx, initialTransactionID)
@@ -407,7 +407,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 			if err != nil {
 				return true // Connection error means endpoint is gone
 			}
-			defer resp.Body.Close()
+			defer func() { require.NoError(t, resp.Body.Close()) }()
 			return resp.StatusCode == http.StatusNotFound
 		}, 10*time.Second, 200*time.Millisecond, "/updated endpoint should be removed after rollback")
 
@@ -415,7 +415,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 		resp, err = http.Get(fmt.Sprintf("http://localhost:%d/test", httpPort))
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode, "/test endpoint should still be available")
-		resp.Body.Close()
+		require.NoError(t, resp.Body.Close())
 
 		// Verify we now have 3 transactions (initial, update, rollback)
 		transactions, _, err := client.ListConfigTransactions(ctx, "", 10, "", "")
@@ -427,7 +427,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 	t.Run("RollbackErrorCases", func(t *testing.T) {
 		// Test non-existent transaction ID
 		err := client.ApplyConfigFromTransaction(ctx, "non-existent-transaction-id")
-		assert.Error(t, err, "Should fail with non-existent transaction ID")
+		require.Error(t, err, "Should fail with non-existent transaction ID")
 		assert.Contains(
 			t,
 			err.Error(),
@@ -437,11 +437,11 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 
 		// Test empty transaction ID
 		err = client.ApplyConfigFromTransaction(ctx, "")
-		assert.Error(t, err, "Should fail with empty transaction ID")
+		require.Error(t, err, "Should fail with empty transaction ID")
 
 		// Test malformed transaction ID
 		err = client.ApplyConfigFromTransaction(ctx, "invalid-format")
-		assert.Error(t, err, "Should fail with malformed transaction ID")
+		require.Error(t, err, "Should fail with malformed transaction ID")
 	})
 
 	// Test rolling back to the most recent transaction (should be a no-op but valid)
@@ -456,7 +456,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 
 		// Roll back to current transaction (should succeed)
 		err = client.ApplyConfigFromTransaction(ctx, currentID)
-		assert.NoError(t, err, "Rollback to current transaction should succeed")
+		require.NoError(t, err, "Rollback to current transaction should succeed")
 
 		// Verify we have one more transaction (the rollback itself)
 		transactions, _, err := client.ListConfigTransactions(ctx, "", 10, "", "")
@@ -476,7 +476,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			defer resp.Body.Close()
+			defer func() { require.NoError(t, resp.Body.Close()) }()
 			return resp.StatusCode == http.StatusOK
 		}, 10*time.Second, 200*time.Millisecond, "/updated endpoint should be available again")
 
@@ -505,7 +505,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 			if err != nil {
 				return true
 			}
-			defer resp.Body.Close()
+			defer func() { require.NoError(t, resp.Body.Close()) }()
 			return resp.StatusCode == http.StatusNotFound
 		}, 10*time.Second, 200*time.Millisecond, "/updated should be gone after rollback")
 
@@ -519,7 +519,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			defer resp.Body.Close()
+			defer func() { require.NoError(t, resp.Body.Close()) }()
 			return resp.StatusCode == http.StatusOK
 		}, 10*time.Second, 200*time.Millisecond, "/updated should be back after second rollback")
 	})
@@ -530,7 +530,7 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 	// Wait for clean shutdown
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
+		require.NoError(t, err, "Server should shut down cleanly")
 	case <-time.After(30 * time.Second):
 		t.Error("Server did not shut down within timeout")
 	}

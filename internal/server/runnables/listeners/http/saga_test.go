@@ -20,7 +20,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 
 		tx := createMockTransaction(t)
 		err = runner.StageConfig(t.Context(), tx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("StageConfig with nil transaction", func(t *testing.T) {
@@ -28,7 +28,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		err = runner.StageConfig(t.Context(), nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "transaction is nil")
 	})
 
@@ -37,7 +37,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		err = runner.CommitConfig(t.Context())
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("CommitConfig with pending changes", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		err = runner.CompensateConfig(t.Context(), tx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("CompensateConfig with nil transaction", func(t *testing.T) {
@@ -75,7 +75,7 @@ func TestRunner_SagaOperations(t *testing.T) {
 		require.NoError(t, err)
 
 		err = runner.CompensateConfig(t.Context(), nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "transaction is nil")
 	})
 }
@@ -258,7 +258,7 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 
 		ctx := t.Context()
 		err = runner.waitForClusterRunning(ctx, 50*time.Millisecond)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, context.DeadlineExceeded, err)
 	})
 
@@ -271,7 +271,7 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 		cancel() // Cancel immediately
 
 		err = runner.waitForClusterRunning(ctx, 1*time.Second)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, context.Canceled, err)
 	})
 
@@ -295,13 +295,13 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 
 		// Now waitForClusterRunning should succeed immediately
 		err = runner.waitForClusterRunning(ctx, 100*time.Millisecond)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Clean shutdown
 		cancel()
 		select {
 		case err := <-clusterErr:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("cluster.Run should have returned after context cancellation")
 		}
@@ -337,7 +337,7 @@ func TestRunner_SendConfigToCluster(t *testing.T) {
 
 		// Don't consume from siphon to trigger timeout
 		err = runner.sendConfigToCluster(ctx, adapter)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "timeout sending configuration to cluster")
 	})
 
@@ -370,7 +370,7 @@ func TestRunner_SendConfigToCluster(t *testing.T) {
 		cancel()
 
 		err = runner.sendConfigToCluster(ctx, adapter)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "timeout sending configuration to cluster")
 	})
 }

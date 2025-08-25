@@ -65,7 +65,7 @@ func TestNewFromProto_ErrorHandling(t *testing.T) {
 
 	t.Run("Nil protobuf config", func(t *testing.T) {
 		config, err := NewFromProto(nil)
-		assert.Error(t, err, "Should return error for nil protobuf config")
+		require.Error(t, err, "Should return error for nil protobuf config")
 		assert.Nil(t, config, "Config should be nil when error occurs")
 		assert.Contains(t, err.Error(), "nil protobuf config", "Error should mention nil protobuf")
 	})
@@ -89,7 +89,7 @@ func TestNewFromProto_ErrorHandling(t *testing.T) {
 
 		config, err := NewFromProto(pbConfig)
 		// Should return a config with empty apps and an error about app conversion
-		assert.Error(t, err, "Should return error when app conversion fails")
+		require.Error(t, err, "Should return error when app conversion fails")
 		assert.NotNil(t, config, "Should still return a config object")
 		assert.NotNil(t, config.Apps, "Apps should be initialized")
 		assert.Equal(t, 0, config.Apps.Len(), "Apps should be empty on conversion failure")
@@ -107,7 +107,7 @@ func TestNewConfigFromBytes_ErrorHandling(t *testing.T) {
 		`)
 
 		config, err := NewConfigFromBytes(invalidTOML)
-		assert.Error(t, err, "Should return error for invalid TOML")
+		require.Error(t, err, "Should return error for invalid TOML")
 		assert.Nil(t, config, "Config should be nil when error occurs")
 		assert.Contains(t, err.Error(), "failed to load config", "Error should mention load failure")
 	})
@@ -117,7 +117,7 @@ func TestNewConfigFromBytes_ErrorHandling(t *testing.T) {
 
 		config, err := NewConfigFromBytes(emptyTOML)
 		// Empty bytes may cause loader to fail - this is expected behavior
-		assert.Error(t, err, "Should return error for empty TOML data")
+		require.Error(t, err, "Should return error for empty TOML data")
 		assert.Nil(t, config, "Config should be nil when loader fails")
 		assert.Contains(t, err.Error(), "failed to load config", "Error should mention load failure")
 	})
@@ -126,7 +126,7 @@ func TestNewConfigFromBytes_ErrorHandling(t *testing.T) {
 		invalidVersionTOML := []byte(`version = "unsupported_version_999"`)
 
 		config, err := NewConfigFromBytes(invalidVersionTOML)
-		assert.Error(t, err, "Should return error for unsupported version")
+		require.Error(t, err, "Should return error for unsupported version")
 		assert.Nil(t, config, "Config should be nil when version is unsupported")
 	})
 }
@@ -139,7 +139,7 @@ func TestNewConfigFromReader_ErrorHandling(t *testing.T) {
 		reader := strings.NewReader(validTOML)
 
 		config, err := NewConfigFromReader(reader)
-		assert.NoError(t, err, "Should handle valid TOML from reader")
+		require.NoError(t, err, "Should handle valid TOML from reader")
 		assert.NotNil(t, config, "Should return valid config")
 		assert.Equal(t, version.Version, config.Version, "Should preserve version from TOML")
 	})
@@ -149,7 +149,7 @@ func TestNewConfigFromReader_ErrorHandling(t *testing.T) {
 		reader := strings.NewReader(invalidTOML)
 
 		config, err := NewConfigFromReader(reader)
-		assert.Error(t, err, "Should return error for invalid TOML from reader")
+		require.Error(t, err, "Should return error for invalid TOML from reader")
 		assert.Nil(t, config, "Config should be nil when error occurs")
 		assert.Contains(t, err.Error(), "failed to load config", "Error should mention load failure")
 	})
@@ -159,7 +159,7 @@ func TestNewConfigFromReader_ErrorHandling(t *testing.T) {
 
 		config, err := NewConfigFromReader(reader)
 		// Empty reader may cause loader to fail - this is expected behavior
-		assert.Error(t, err, "Should return error for empty reader")
+		require.Error(t, err, "Should return error for empty reader")
 		assert.Nil(t, config, "Config should be nil when loader fails")
 		assert.Contains(t, err.Error(), "failed to load config", "Error should mention load failure")
 	})
@@ -169,7 +169,7 @@ func TestNewConfigFromReader_ErrorHandling(t *testing.T) {
 		errorReader := &errorReader{err: io.ErrUnexpectedEOF}
 
 		config, err := NewConfigFromReader(errorReader)
-		assert.Error(t, err, "Should return error when reader fails")
+		require.Error(t, err, "Should return error when reader fails")
 		assert.Nil(t, config, "Config should be nil when reader error occurs")
 		assert.Contains(t, err.Error(), "failed to load config", "Error should mention load failure")
 	})
@@ -189,7 +189,7 @@ func TestNewConfig_ErrorHandling(t *testing.T) {
 
 	t.Run("Non-existent file", func(t *testing.T) {
 		config, err := NewConfig("/path/that/does/not/exist.toml")
-		assert.Error(t, err, "Should return error for non-existent file")
+		require.Error(t, err, "Should return error for non-existent file")
 		assert.Nil(t, config, "Config should be nil when file doesn't exist")
 		assert.Contains(t, err.Error(), "failed to load config", "Error should mention load failure")
 	})
@@ -197,7 +197,7 @@ func TestNewConfig_ErrorHandling(t *testing.T) {
 	t.Run("Directory instead of file", func(t *testing.T) {
 		// Try to load a directory as a config file
 		config, err := NewConfig("/tmp")
-		assert.Error(t, err, "Should return error when trying to load directory as file")
+		require.Error(t, err, "Should return error when trying to load directory as file")
 		assert.Nil(t, config, "Config should be nil when path is directory")
 		assert.Contains(t, err.Error(), "failed to load config", "Error should mention load failure")
 	})

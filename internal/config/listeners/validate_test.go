@@ -115,15 +115,15 @@ func TestListener_Validate(t *testing.T) {
 			err := tt.listener.Validate()
 
 			if tt.wantError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errIs != nil {
-					assert.ErrorIs(t, err, tt.errIs)
+					require.ErrorIs(t, err, tt.errIs)
 				}
 				if tt.errContains != "" {
 					assert.Contains(t, err.Error(), tt.errContains)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -193,7 +193,7 @@ func TestListener_ValidateMultipleErrors(t *testing.T) {
 
 	// Test errors.Is behavior with joined errors
 	// Note: No longer checking for errz.ErrEmptyID since validation.ValidateID returns a different error type
-	assert.ErrorIs(t, err, ErrInvalidListenerType)
+	require.ErrorIs(t, err, ErrInvalidListenerType)
 }
 
 // Test that the Validate method correctly returns multiple errors

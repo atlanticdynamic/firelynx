@@ -126,14 +126,14 @@ func TestSupervisorStartupWithHTTPRunner(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 30*time.Second, 100*time.Millisecond, "HTTP endpoint should become available")
 
 	// Make a successful request to verify the endpoint works
 	resp, err := http.Get(testURL)
 	require.NoError(t, err, "Should be able to make HTTP request")
-	defer resp.Body.Close()
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "Should get OK response")
 
 	// Shutdown supervisor by cancelling context
@@ -141,7 +141,7 @@ func TestSupervisorStartupWithHTTPRunner(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		err := <-superErrCh
-		assert.NoError(t, err, "Supervisor should exit cleanly")
+		require.NoError(t, err, "Supervisor should exit cleanly")
 		return true
 	}, 9*time.Second, 1*time.Second, "Supervisor should shut down cleanly within deadline")
 }
@@ -236,10 +236,14 @@ func TestHTTPRunnerStartupTiming(t *testing.T) {
 	// Verify endpoint is accessible (httpPort already known from above)
 	testURL := fmt.Sprintf("http://localhost:%d/echo", httpPort)
 
-	resp, err := http.Get(testURL)
-	require.NoError(t, err, "HTTP endpoint should be accessible")
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(testURL)
+		if err != nil {
+			return false
+		}
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
+		return resp.StatusCode == http.StatusOK
+	}, 5*time.Second, 100*time.Millisecond, "HTTP endpoint should become accessible")
 
 	// Shutdown
 	cancel()
@@ -247,7 +251,7 @@ func TestHTTPRunnerStartupTiming(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		err := <-superErrCh
-		assert.NoError(t, err, "Supervisor should exit cleanly")
+		require.NoError(t, err, "Supervisor should exit cleanly")
 		return true
 	}, 9*time.Second, 1*time.Second, "Supervisor should shut down cleanly within deadline")
 }

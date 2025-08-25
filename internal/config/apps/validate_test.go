@@ -73,7 +73,7 @@ func TestNewValidationContext(t *testing.T) {
 			assert.NotNil(t, vc.AppIDs)
 
 			// Check length
-			assert.Equal(t, tc.expectedLength, len(vc.AppIDs))
+			assert.Len(t, vc.AppIDs, tc.expectedLength)
 
 			// Check expected IDs are present
 			for _, id := range tc.expectedIDs {
@@ -158,12 +158,12 @@ func TestValidateAppReference(t *testing.T) {
 			err := vc.ValidateAppReference(tc.appID)
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tc.errorType != nil {
-					assert.ErrorIs(t, err, tc.errorType)
+					require.ErrorIs(t, err, tc.errorType)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -230,7 +230,7 @@ func TestValidateRouteReferences(t *testing.T) {
 			err := vc.ValidateRouteReferences(tc.routes)
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tc.errorCount > 0 {
 					// This is a simplistic check - in a real scenario you might want to parse
 					// the error message more carefully to count the errors
@@ -240,7 +240,7 @@ func TestValidateRouteReferences(t *testing.T) {
 					}
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -322,9 +322,9 @@ func TestValidateCompositeAppReferences(t *testing.T) {
 			err := vc.ValidateCompositeAppReferences(tc.app)
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewHeaders(t *testing.T) {
@@ -58,7 +59,7 @@ func TestHeaderOperations_Validate(t *testing.T) {
 		}
 
 		err := ops.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("invalid set header - empty name", func(t *testing.T) {
@@ -71,7 +72,7 @@ func TestHeaderOperations_Validate(t *testing.T) {
 		}
 
 		err := ops.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "header name cannot be empty")
 	})
 
@@ -85,7 +86,7 @@ func TestHeaderOperations_Validate(t *testing.T) {
 		}
 
 		err := ops.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "header name cannot be empty")
 	})
 
@@ -97,7 +98,7 @@ func TestHeaderOperations_Validate(t *testing.T) {
 		}
 
 		err := ops.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "remove header name cannot be empty")
 	})
 
@@ -111,7 +112,7 @@ func TestHeaderOperations_Validate(t *testing.T) {
 		}
 
 		err := ops.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid header name")
 	})
 }
@@ -139,7 +140,7 @@ func TestHeaders_Validate(t *testing.T) {
 		}
 
 		err := headers.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("valid configuration with only request", func(t *testing.T) {
@@ -154,7 +155,7 @@ func TestHeaders_Validate(t *testing.T) {
 		}
 
 		err := headers.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("valid configuration with only response", func(t *testing.T) {
@@ -169,7 +170,7 @@ func TestHeaders_Validate(t *testing.T) {
 		}
 
 		err := headers.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("invalid configuration - no operations", func(t *testing.T) {
@@ -177,7 +178,7 @@ func TestHeaders_Validate(t *testing.T) {
 
 		headers := NewHeaders(nil, nil)
 		err := headers.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(
 			t,
 			err.Error(),
@@ -202,7 +203,7 @@ func TestHeaders_Validate(t *testing.T) {
 		}
 
 		err := headers.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid request header operations")
 	})
 
@@ -223,7 +224,7 @@ func TestHeaders_Validate(t *testing.T) {
 		}
 
 		err := headers.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid response header operations")
 	})
 }
@@ -351,7 +352,7 @@ func TestHeaders_ToTree(t *testing.T) {
 
 		// Empty configuration returns empty tree since no operations exist
 		treeStr := tree.Tree().String()
-		assert.Equal(t, "", treeStr)
+		assert.Empty(t, treeStr)
 	})
 
 	t.Run("configuration with request and response operations", func(t *testing.T) {
@@ -402,7 +403,7 @@ func TestValidateHeader(t *testing.T) {
 
 		for key, value := range validHeaders {
 			err := validateHeader(key, value)
-			assert.NoError(t, err, "Header '%s: %s' should be valid", key, value)
+			require.NoError(t, err, "Header '%s: %s' should be valid", key, value)
 		}
 	})
 
@@ -419,7 +420,7 @@ func TestValidateHeader(t *testing.T) {
 
 		for _, name := range invalidNames {
 			err := validateHeader(name, "value")
-			assert.Error(t, err, "Header name '%s' should be invalid", name)
+			require.Error(t, err, "Header name '%s' should be invalid", name)
 		}
 	})
 
@@ -428,15 +429,15 @@ func TestValidateHeader(t *testing.T) {
 
 		// Empty value should be valid
 		err := validateHeader("X-Empty", "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Unicode value should be valid
 		err = validateHeader("X-Unicode", "café")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Long value should be valid
 		longValue := "very-long-value-" + strings.Repeat("x", 1000)
 		err = validateHeader("X-Long", longValue)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }

@@ -7,12 +7,13 @@ import (
 	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFromProto(t *testing.T) {
 	t.Run("nil proto", func(t *testing.T) {
 		result, err := FromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, result)
 	})
 
@@ -20,7 +21,7 @@ func TestFromProto(t *testing.T) {
 		proto := &pbApps.CompositeScriptApp{}
 		result, err := FromProto(proto)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Empty(t, result.ScriptAppIDs)
 		assert.Nil(t, result.StaticData)
@@ -32,7 +33,7 @@ func TestFromProto(t *testing.T) {
 		}
 		result, err := FromProto(proto)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, []string{"script1", "script2"}, result.ScriptAppIDs)
 		assert.Nil(t, result.StaticData)
@@ -46,7 +47,7 @@ func TestFromProto(t *testing.T) {
 		}
 		result, err := FromProto(proto)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.NotNil(t, result.StaticData)
 	})

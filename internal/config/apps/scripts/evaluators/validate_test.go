@@ -1,10 +1,8 @@
 package evaluators
 
 import (
-	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,7 +45,7 @@ func TestValidateEvaluatorType(t *testing.T) {
 
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.True(t, errors.Is(err, ErrInvalidEvaluatorType))
+				require.ErrorIs(t, err, ErrInvalidEvaluatorType)
 			} else {
 				require.NoError(t, err)
 			}

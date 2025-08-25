@@ -1,11 +1,10 @@
 package routes
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRoute_Validate(t *testing.T) {
@@ -76,17 +75,17 @@ func TestRoute_Validate(t *testing.T) {
 
 			err := tc.route.Validate()
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tc.errorType != nil {
-					assert.True(
+					require.ErrorIs(
 						t,
-						errors.Is(err, tc.errorType),
+						err, tc.errorType,
 						"Expected error to wrap %v",
 						tc.errorType,
 					)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -99,9 +100,9 @@ func TestAppValidate(t *testing.T) {
 			err := tc.app.Validate()
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -304,9 +305,9 @@ func TestAppCollectionValidate(t *testing.T) {
 			err := tc.apps.Validate()
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -400,10 +401,10 @@ func TestAppCollectionFindByID(t *testing.T) {
 				// Verify the modified copy is not in the collection
 				modifiedApp, modifiedFound := apps.FindByID("modified")
 				assert.False(t, modifiedFound, "Modified app should not be found in collection")
-				assert.Equal(t, "", modifiedApp.ID, "Modified app should be zero value")
+				assert.Empty(t, modifiedApp.ID, "Modified app should be zero value")
 			} else {
 				assert.False(t, found, "App should not be found")
-				assert.Equal(t, "", app.ID, "App should be zero value when not found")
+				assert.Empty(t, app.ID, "App should be zero value when not found")
 			}
 		})
 	}
@@ -413,7 +414,7 @@ func TestAppCollectionFindByID(t *testing.T) {
 		emptyApps := NewAppCollection()
 		app, found := emptyApps.FindByID("any")
 		assert.False(t, found, "Should not find app in empty collection")
-		assert.Equal(t, "", app.ID, "Should return zero value for empty collection")
+		assert.Empty(t, app.ID, "Should return zero value for empty collection")
 	})
 }
 
@@ -570,12 +571,10 @@ func TestAppCollection_ValidateRouteAppReferences(t *testing.T) {
 			err := apps.ValidateRouteAppReferences(tc.routes)
 
 			if tc.expectError {
-				assert.Error(t, err, "Should return error for invalid app references")
-				if tc.errorMsg != "" {
-					assert.Contains(t, err.Error(), tc.errorMsg, "Error should contain expected message")
-				}
+				require.Error(t, err, "Should return error for invalid app references")
+				assert.ErrorContains(t, err, tc.errorMsg, "Error should contain expected message")
 			} else {
-				assert.NoError(t, err, "Should not return error for valid app references")
+				require.NoError(t, err, "Should not return error for valid app references")
 			}
 		})
 	}
@@ -588,7 +587,7 @@ func TestAppCollection_ValidateRouteAppReferences(t *testing.T) {
 		}
 
 		err := emptyApps.ValidateRouteAppReferences(routes)
-		assert.Error(t, err, "Should return error when no apps exist")
+		require.Error(t, err, "Should return error when no apps exist")
 		assert.Contains(t, err.Error(), "app not found", "Error should indicate app not found")
 	})
 }

@@ -70,7 +70,6 @@ func TestLoggingConfigurationPipeline(t *testing.T) {
 		logCollector := loglater.NewLogCollector(nil)
 
 		// Create a new console logger with our collector as the handler
-		jsonHandler := centralLogger.SetupHandlerJSON("info", nil)
 		testLogger := slog.New(logCollector).WithGroup("http")
 
 		// Create a context and test log entry
@@ -95,10 +94,10 @@ func TestLoggingConfigurationPipeline(t *testing.T) {
 
 		// Convert to JSON for verification
 		var buf bytes.Buffer
-		jsonHandler = slog.NewJSONHandler(&buf, &slog.HandlerOptions{
+		jsonHandler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		})
-		jsonHandler.Handle(logCtx, record)
+		require.NoError(t, jsonHandler.Handle(logCtx, record))
 
 		logOutput := buf.String()
 		t.Logf("Captured log output: %s", logOutput)

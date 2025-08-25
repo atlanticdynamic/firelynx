@@ -36,7 +36,7 @@ func TestNewParticipant(t *testing.T) {
 		assert.NotNil(t, participant.logger)
 		assert.NotNil(t, participant.fsm)
 		assert.NotZero(t, participant.timestamp)
-		assert.Nil(t, participant.err)
+		require.NoError(t, participant.err)
 	})
 }
 
@@ -95,11 +95,11 @@ func TestParticipantStateMachine(t *testing.T) {
 		// Skip directly to mark compensated without proper flow
 		// This should fail because the FSM can't transition from not_started to compensated
 		err := p.MarkCompensated()
-		assert.Error(t, err)
+		require.Error(t, err)
 
 		// We're testing that an error occurs, but not specifically checking the error message
 		// since that's an implementation detail of the fsm package
-		assert.NotNil(t, err)
+		require.Error(t, err)
 		t.Logf("Got expected error: %v", err)
 	})
 }
@@ -145,7 +145,7 @@ func TestParticipantCollection(t *testing.T) {
 
 		// Try to add the same participant again
 		err = collection.AddParticipant("component1")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
 	})
 

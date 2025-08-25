@@ -74,7 +74,7 @@ func TestEndpoint_ToProto(t *testing.T) {
 			if len(tc.expected.Routes) == 0 {
 				assert.Empty(t, actual.Routes)
 			} else {
-				assert.Equal(t, len(tc.expected.Routes), len(actual.Routes))
+				assert.Len(t, actual.Routes, len(tc.expected.Routes))
 				for i, expectedRoute := range tc.expected.Routes {
 					actualRoute := actual.Routes[i]
 					assert.Equal(t, expectedRoute.AppId, actualRoute.AppId)
@@ -234,13 +234,13 @@ func TestEndpoints_ToProto(t *testing.T) {
 	}
 
 	actual := endpoints.ToProto()
-	assert.Equal(t, len(expected), len(actual))
+	assert.Len(t, actual, len(expected))
 
 	for i, expectedEndpoint := range expected {
 		actualEndpoint := actual[i]
 		assert.Equal(t, expectedEndpoint.Id, actualEndpoint.Id)
 		assert.Equal(t, expectedEndpoint.ListenerId, actualEndpoint.ListenerId)
-		assert.Equal(t, len(expectedEndpoint.Routes), len(actualEndpoint.Routes))
+		assert.Len(t, actualEndpoint.Routes, len(expectedEndpoint.Routes))
 
 		for j, expectedRoute := range expectedEndpoint.Routes {
 			actualRoute := actualEndpoint.Routes[j]
@@ -398,7 +398,7 @@ func TestFromProto(t *testing.T) {
 			actual, err := FromProto(tc.pbEndpoints)
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
@@ -409,13 +409,13 @@ func TestFromProto(t *testing.T) {
 				return
 			}
 
-			assert.Equal(t, len(tc.expected), len(actual))
+			assert.Len(t, actual, len(tc.expected))
 
 			for i, expectedEndpoint := range tc.expected {
 				actualEndpoint := actual[i]
 				assert.Equal(t, expectedEndpoint.ID, actualEndpoint.ID)
 				assert.Equal(t, expectedEndpoint.ListenerID, actualEndpoint.ListenerID)
-				assert.Equal(t, len(expectedEndpoint.Routes), len(actualEndpoint.Routes))
+				assert.Len(t, actualEndpoint.Routes, len(expectedEndpoint.Routes))
 
 				for j, expectedRoute := range expectedEndpoint.Routes {
 					actualRoute := actualEndpoint.Routes[j]

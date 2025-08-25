@@ -53,7 +53,7 @@ func TestType_Values(t *testing.T) {
 	t.Parallel()
 
 	// Ensure type constants have expected values
-	assert.Equal(t, options.Type("http"), options.TypeHTTP)
+	assert.Equal(t, options.TypeHTTP, options.Type("http"))
 
 	// Ensure types are implemented correctly
 	var httpOpts options.Options = options.HTTP{}
@@ -70,7 +70,7 @@ func TestType_StringConversion(t *testing.T) {
 	assert.Equal(t, "http", string(httpType))
 
 	// Test conversion back to Type
-	assert.Equal(t, options.Type("http"), options.TypeHTTP)
+	assert.Equal(t, options.TypeHTTP, options.Type("http"))
 }
 
 // Test type assertion patterns

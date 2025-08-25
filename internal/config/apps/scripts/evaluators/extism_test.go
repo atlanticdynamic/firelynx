@@ -2,7 +2,6 @@ package evaluators
 
 import (
 	"encoding/base64"
-	"errors"
 	"testing"
 	"time"
 
@@ -61,7 +60,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		err := evaluator.Validate()
 		require.NoError(t, err)
 		compiled, err := evaluator.GetCompiledEvaluator()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compiled)
 	})
 
@@ -73,7 +72,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
+		require.ErrorIs(t, err, ErrMissingCodeAndURI)
 	})
 
 	t.Run("both code and uri", func(t *testing.T) {
@@ -84,7 +83,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrBothCodeAndURI)
+		require.ErrorIs(t, err, ErrBothCodeAndURI)
 	})
 
 	t.Run("empty entrypoint", func(t *testing.T) {
@@ -94,7 +93,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrEmptyEntrypoint))
+		require.ErrorIs(t, err, ErrEmptyEntrypoint)
 	})
 
 	t.Run("multiple errors", func(t *testing.T) {
@@ -105,8 +104,8 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
-		assert.ErrorIs(t, err, ErrEmptyEntrypoint)
+		require.ErrorIs(t, err, ErrMissingCodeAndURI)
+		require.ErrorIs(t, err, ErrEmptyEntrypoint)
 	})
 
 	t.Run("negative timeout", func(t *testing.T) {
@@ -118,7 +117,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrNegativeTimeout)
+		require.ErrorIs(t, err, ErrNegativeTimeout)
 	})
 
 	t.Run("uri only valid", func(t *testing.T) {
@@ -129,7 +128,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		// This will fail at build stage due to file not existing
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrCompilationFailed)
+		require.ErrorIs(t, err, ErrCompilationFailed)
 	})
 
 	t.Run("invalid base64 code", func(t *testing.T) {
@@ -139,7 +138,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrCompilationFailed)
+		require.ErrorIs(t, err, ErrCompilationFailed)
 		assert.Contains(t, err.Error(), "failed to decode base64 WASM")
 	})
 
@@ -151,7 +150,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrCompilationFailed)
+		require.ErrorIs(t, err, ErrCompilationFailed)
 	})
 }
 
@@ -162,8 +161,8 @@ func TestExtismEvaluator_GetCompiledEvaluator(t *testing.T) {
 			Entrypoint: "handle_request",
 		}
 		result, err := evaluator.GetCompiledEvaluator()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrCompilationFailed)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrCompilationFailed)
 		assert.Nil(t, result)
 	})
 
@@ -174,7 +173,7 @@ func TestExtismEvaluator_GetCompiledEvaluator(t *testing.T) {
 			Entrypoint: wasmdata.EntrypointGreet,
 		}
 		result, err := evaluator.GetCompiledEvaluator()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
 }

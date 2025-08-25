@@ -4,6 +4,7 @@ package http_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -85,7 +86,7 @@ func TestHTTPListenerMinimalSaga(t *testing.T) {
 	// Check that the runner didn't error
 	select {
 	case err := <-runnerErrCh:
-		if err != nil && err != context.Canceled {
+		if err != nil && !errors.Is(err, context.Canceled) {
 			t.Logf("Runner error: %v", err)
 		}
 	default:

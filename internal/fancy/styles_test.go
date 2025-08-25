@@ -133,8 +133,19 @@ func TestMultipleCallConsistency(t *testing.T) {
 	sampleText := "Test Text"
 
 	// Each style function should produce the same output when called multiple times
-	assert.Equal(t, fancy.EndpointText(sampleText), fancy.EndpointText(sampleText))
-	assert.Equal(t, fancy.RouteText(sampleText), fancy.RouteText(sampleText))
-	assert.Equal(t, fancy.ListenerText(sampleText), fancy.ListenerText(sampleText))
-	assert.Equal(t, fancy.AppText(sampleText), fancy.AppText(sampleText))
+	firstCall := fancy.EndpointText(sampleText)
+	secondCall := fancy.EndpointText(sampleText)
+	assert.Equal(t, firstCall, secondCall)
+
+	firstRouteCall := fancy.RouteText(sampleText)
+	secondRouteCall := fancy.RouteText(sampleText)
+	assert.Equal(t, firstRouteCall, secondRouteCall)
+
+	firstListenerCall := fancy.ListenerText(sampleText)
+	secondListenerCall := fancy.ListenerText(sampleText)
+	assert.Equal(t, firstListenerCall, secondListenerCall)
+
+	firstAppCall := fancy.AppText(sampleText)
+	secondAppCall := fancy.AppText(sampleText)
+	assert.Equal(t, firstAppCall, secondAppCall)
 }

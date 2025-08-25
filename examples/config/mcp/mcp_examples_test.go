@@ -48,7 +48,7 @@ func TestConfigValidation(t *testing.T) {
 
 			// Validate configuration
 			err = cfg.Validate()
-			assert.NoError(t, err, "Config should validate successfully")
+			require.NoError(t, err, "Config should validate successfully")
 
 			// Verify it has MCP apps
 			assert.NotEmpty(t, cfg.Apps, "Should have at least one app")
@@ -59,7 +59,7 @@ func TestConfigValidation(t *testing.T) {
 					mcpApps++
 				}
 			}
-			assert.Greater(t, mcpApps, 0, "Should have at least one MCP app")
+			assert.Positive(t, mcpApps, "Should have at least one MCP app")
 		})
 	}
 }

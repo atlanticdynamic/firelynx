@@ -133,7 +133,7 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 	testURL := fmt.Sprintf("http://127.0.0.1:%d/echo", httpPort)
 	resp, err := http.Get(testURL)
 	require.NoError(t, err, "HTTP endpoint should be immediately accessible after saga completion")
-	defer resp.Body.Close()
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
 
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "Should get OK response")
 }

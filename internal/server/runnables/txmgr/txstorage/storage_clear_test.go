@@ -130,7 +130,7 @@ func TestMemoryStorage_Clear_InvalidKeepLast(t *testing.T) {
 
 	// Test negative keepLast
 	cleared, err := storage.Clear(-1)
-	assert.Error(t, err, "should return error for negative keepLast")
+	require.Error(t, err, "should return error for negative keepLast")
 	assert.Equal(t, 0, cleared, "should not clear any transactions on error")
 	assert.Contains(t, err.Error(), "keepLast must be non-negative")
 }

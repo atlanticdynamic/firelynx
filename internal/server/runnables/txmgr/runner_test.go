@@ -142,7 +142,7 @@ func TestRunnerReceivesConfig(t *testing.T) {
 
 	// Clean shutdown
 	err := h.stop()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestRunnerRunLifecycle(t *testing.T) {
@@ -165,7 +165,7 @@ func TestRunnerRunLifecycle(t *testing.T) {
 
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	case <-time.After(time.Second):
 		t.Fatal("Runner did not complete within timeout")
 	}
@@ -198,7 +198,7 @@ func TestRunnerConfigUpdate(t *testing.T) {
 
 	// Clean shutdown
 	err := h.stop()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestRunnerStateChan(t *testing.T) {
@@ -268,7 +268,7 @@ func TestRunnerStateChan(t *testing.T) {
 		// Wait for Run() to complete
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(time.Second):
 			t.Fatal("Runner did not complete within timeout")
 		}
@@ -350,7 +350,7 @@ func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
 	// Clean shutdown
 	cancel()
 	shutdownErr := <-errCh
-	assert.NoError(t, shutdownErr)
+	require.NoError(t, shutdownErr)
 }
 
 func TestRunnerString(t *testing.T) {
@@ -380,7 +380,7 @@ func TestRunnerStop(t *testing.T) {
 
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(time.Second):
 			t.Fatal("Runner did not complete within timeout")
 		}
@@ -408,5 +408,5 @@ func TestRunnerErrorHandling(t *testing.T) {
 
 	// Clean shutdown
 	err := h.stop()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

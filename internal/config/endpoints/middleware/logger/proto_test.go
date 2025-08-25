@@ -243,7 +243,7 @@ func TestFromProto(t *testing.T) {
 		t.Parallel()
 
 		config, err := FromProto(nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, config)
 		assert.Contains(t, err.Error(), "nil console logger config")
 	})

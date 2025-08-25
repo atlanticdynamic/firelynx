@@ -1,6 +1,7 @@
 # Variables
 BINARY_NAME := firelynx
 VERSION := 0.1.0
+ALL_BUILD_TAGS := "integration e2e"
 
 .PHONY: all
 all: help
@@ -64,18 +65,18 @@ test-integration:
 ## test-all: Run all tests (unit, integration, and e2e)
 .PHONY: test-all
 test-all:
-	go test -race -cover -timeout 5m -tags "integration e2e" ./...
+	go test -race -cover -timeout 5m -tags $(ALL_BUILD_TAGS) ./...
 
 ## lint: Run golangci-lint code quality checks
 .PHONY: lint
 lint: protogen
-	golangci-lint run ./...
+	golangci-lint run --build-tags $(ALL_BUILD_TAGS) ./...
 
 ## lint-fix: Run golangci-lint with auto-fix for common issues
 .PHONY: lint-fix
 lint-fix: protogen
 	golangci-lint fmt
-	golangci-lint run --fix ./...
+	golangci-lint run --build-tags $(ALL_BUILD_TAGS) --fix ./...
 
 ## wasm-char-counter: Build the char counter WASM plugin
 .PHONY: wasm-char-counter

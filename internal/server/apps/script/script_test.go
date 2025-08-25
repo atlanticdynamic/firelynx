@@ -58,7 +58,7 @@ func TestScriptApp_New_ValidationErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app, err := New(tt.id, tt.config, slog.Default())
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantError)
 			assert.Nil(t, app)
 		})
@@ -125,7 +125,7 @@ func TestScriptApp_HandleHTTP_RisorScript(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 	assert.Contains(t, w.Body.String(), "Hello from Risor!")
@@ -160,7 +160,7 @@ func TestScriptApp_HandleHTTP_WithStaticData(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "static_value")
 }
@@ -173,7 +173,7 @@ func TestScriptApp_HandleHTTP_ScriptError(t *testing.T) {
 
 	// Validation should fail for invalid syntax
 	err := risorEval.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "compilation failed")
 
 	// Since validation failed, we shouldn't try to create the app
@@ -208,7 +208,7 @@ func TestScriptApp_HandleHTTP_Timeout(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, http.StatusGatewayTimeout, w.Code)
 }
 
@@ -239,7 +239,7 @@ _ = result`,
 	w := httptest.NewRecorder()
 
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 	assert.Contains(t, w.Body.String(), "Hello from Starlark!")
@@ -279,7 +279,7 @@ _ = result`,
 	w := httptest.NewRecorder()
 
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), "production")
 }
@@ -307,7 +307,7 @@ func TestScriptApp_HandleHTTP_PrepareScriptDataError(t *testing.T) {
 
 	// This should work fine since prepareScriptData doesn't fail for valid inputs
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestScriptApp_HandleHTTP_ExtismDataStructure(t *testing.T) {
@@ -343,7 +343,7 @@ func TestScriptApp_HandleHTTP_ExtismDataStructure(t *testing.T) {
 
 	// For non-Extism evaluators, data field should be available as-is
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestScriptApp_HandleHTTP_StringResult(t *testing.T) {
@@ -366,7 +366,7 @@ func TestScriptApp_HandleHTTP_StringResult(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
 	assert.Equal(t, "Plain text response", w.Body.String())
@@ -392,7 +392,7 @@ func TestScriptApp_HandleHTTP_NumericResult(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
 	assert.Equal(t, "42", w.Body.String())
@@ -421,7 +421,7 @@ func TestScriptApp_HandleHTTP_ExecutionError(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	err = app.HandleHTTP(t.Context(), w, req)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
@@ -438,7 +438,7 @@ func TestScriptApp_New_EvaluatorCompilationError(t *testing.T) {
 	}
 
 	app, err := New("test-app", config, slog.Default())
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create and compile go-polyscript evaluator")
 	assert.Nil(t, app)
 }

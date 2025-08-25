@@ -29,7 +29,7 @@ func TestNew(t *testing.T) {
 		require.NotNil(t, config.GetCompiledServer(), "compiled server should exist after validation")
 
 		app, err := New("test-app", config)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app)
 		assert.Equal(t, "test-app", app.id)
 		assert.Equal(t, config, app.config)
@@ -45,7 +45,7 @@ func TestNew(t *testing.T) {
 		}
 
 		app, err := New("test-app", config)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, app)
 		require.ErrorIs(t, err, ErrServerNotCompiled)
 	})
@@ -68,7 +68,7 @@ func TestNew(t *testing.T) {
 
 		// SSE enabled should fail validation
 		err := config.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 }
@@ -117,7 +117,7 @@ func TestApp_HandleHTTP(t *testing.T) {
 
 		// HandleHTTP should not return an error (MCP SDK handles errors internally)
 		err = app.HandleHTTP(ctx, w, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// The actual response depends on MCP SDK implementation
 		// We just verify that the handler was called without panicking
@@ -191,7 +191,7 @@ func TestApp_Integration(t *testing.T) {
 		ctx := t.Context()
 
 		err = app.HandleHTTP(ctx, w, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Response handling is delegated to MCP SDK
 		// We verify the app was created successfully and handled the request

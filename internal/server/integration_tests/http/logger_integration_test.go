@@ -7,6 +7,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -44,15 +45,15 @@ type HTTPLogData struct {
 	Method      string         `json:"method,omitempty"`
 	Path        string         `json:"path,omitempty"`
 	StatusCode  int            `json:"status,omitempty"`
-	ClientIP    string         `json:"client_ip,omitempty"`
+	ClientIP    string         `json:"client_ip,omitempty"` //nolint:tagliatelle // Must match actual log output
 	Duration    int            `json:"duration,omitempty"`
-	Query       string         `json:"query,omitempty"`        // Query string as used by logger
-	QueryParams map[string]any `json:"query_params,omitempty"` // Keep for backward compatibility
+	Query       string         `json:"query,omitempty"`
+	QueryParams map[string]any `json:"query_params,omitempty"` //nolint:tagliatelle // Must match actual log output
 	Protocol    string         `json:"protocol,omitempty"`
 	Host        string         `json:"host,omitempty"`
 	Scheme      string         `json:"scheme,omitempty"`
-	UserAgent   string         `json:"user_agent,omitempty"`
-	BodySize    *int           `json:"body_size,omitempty"`
+	UserAgent   string         `json:"user_agent,omitempty"` //nolint:tagliatelle // Must match actual log output
+	BodySize    *int           `json:"body_size,omitempty"`  //nolint:tagliatelle // Must match actual log output
 	Request     struct {
 		Headers map[string][]string `json:"headers,omitempty"`
 	} `json:"request,omitempty"`
@@ -84,7 +85,8 @@ func (le *LogEntry) UnmarshalJSON(data []byte) error {
 			if _, hasMethod := httpData["method"]; hasMethod {
 				// Use a temporary JSON round-trip for clean unmarshaling
 				if httpBytes, err := json.Marshal(httpData); err == nil {
-					json.Unmarshal(httpBytes, &le.HTTP)
+					// Unmarshal errors are acceptable, use empty HTTP struct if unmarshal fails
+					json.Unmarshal(httpBytes, &le.HTTP) //nolint:errcheck
 				}
 				break
 			}
@@ -130,9 +132,9 @@ func (s *LoggerIntegrationTestSuite) SetupSuite() {
 	}
 
 	// Set test environment variables
-	os.Setenv("FIRELYNX_LOG_DIR", s.envLogDir)
-	os.Setenv("HOSTNAME", "test-host")
-	os.Setenv("TEST_SESSION", "session-123")
+	s.NoError(os.Setenv("FIRELYNX_LOG_DIR", s.envLogDir))
+	s.NoError(os.Setenv("HOSTNAME", "test-host"))
+	s.NoError(os.Setenv("TEST_SESSION", "session-123"))
 
 	// Template variables
 	templateVars := struct {
@@ -228,7 +230,7 @@ func (s *LoggerIntegrationTestSuite) SetupSuite() {
 		if err != nil {
 			return false
 		}
-		resp.Body.Close()
+		s.NoError(resp.Body.Close())
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
 }
@@ -251,7 +253,7 @@ func (s *LoggerIntegrationTestSuite) TearDownSuite() {
 		// Wait for background goroutine to complete
 		select {
 		case err := <-s.runnerErrCh:
-			if err != nil && err != context.Canceled {
+			if err != nil && !errors.Is(err, context.Canceled) {
 				s.T().Logf("HTTP runner exited with error: %v", err)
 			}
 		case <-time.After(2 * time.Second):
@@ -262,9 +264,9 @@ func (s *LoggerIntegrationTestSuite) TearDownSuite() {
 	// Restore environment variables
 	for key, value := range s.originalEnv {
 		if value == "" {
-			os.Unsetenv(key)
+			s.NoError(os.Unsetenv(key))
 		} else {
-			os.Setenv(key, value)
+			s.NoError(os.Setenv(key, value))
 		}
 	}
 }
@@ -273,7 +275,7 @@ func (s *LoggerIntegrationTestSuite) TestStandardLogger() {
 	// Make a request to generate logs
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/test", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -330,7 +332,7 @@ func (s *LoggerIntegrationTestSuite) TestEnvironmentVariableLogger() {
 
 	resp, err := client.Do(req)
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
@@ -377,7 +379,7 @@ func (s *LoggerIntegrationTestSuite) TestMinimalLogger() {
 	// Make a request to test minimal preset
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/minimal-test", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
@@ -433,7 +435,7 @@ func (s *LoggerIntegrationTestSuite) TestManualLogger() {
 
 	resp, err := client.Do(req)
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	var logEntries []LogEntry
 	s.Eventually(func() bool {
@@ -477,7 +479,7 @@ func (s *LoggerIntegrationTestSuite) TestManualLogger() {
 func (s *LoggerIntegrationTestSuite) TestPresetFunctionality() {
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/preset-test", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	presetLogFile := s.logFile + ".preset"
 	var logEntries []LogEntry
@@ -510,11 +512,11 @@ func (s *LoggerIntegrationTestSuite) TestPresetFunctionality() {
 func (s *LoggerIntegrationTestSuite) TestPathFiltering() {
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/health", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	resp2, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/normal", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp2.Body.Close()
+	defer func() { s.NoError(resp2.Body.Close()) }()
 
 	filteringLogFile := s.logFile + ".filtering"
 	var logEntries []LogEntry
@@ -554,7 +556,7 @@ func (s *LoggerIntegrationTestSuite) TestEnvironmentVariableInterpolation() {
 	// Make a request to ensure the loggers create the files
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/env-interpolation-test", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	resp.Body.Close()
+	s.NoError(resp.Body.Close())
 
 	for _, expectedFile := range expectedFiles {
 		filePath := filepath.Join(s.envLogDir, expectedFile)
@@ -572,7 +574,7 @@ func (s *LoggerIntegrationTestSuite) TestMultipleMiddlewarePerEndpoint() {
 	// Test GET request - should only appear in get-only.log
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/multi-middleware", s.port))
 	s.Require().NoError(err, "Failed to make GET request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK for GET")
 
@@ -583,7 +585,7 @@ func (s *LoggerIntegrationTestSuite) TestMultipleMiddlewarePerEndpoint() {
 		strings.NewReader(`{"test": "data"}`),
 	)
 	s.Require().NoError(err, "Failed to make POST request")
-	defer postResp.Body.Close()
+	defer func() { s.NoError(postResp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, postResp.StatusCode, "Expected 200 OK for POST")
 
@@ -661,7 +663,7 @@ func (s *LoggerIntegrationTestSuite) TestMethodExclusion() {
 	s.Require().NoError(err)
 	getResp, err := client.Do(getReq)
 	s.Require().NoError(err)
-	defer getResp.Body.Close()
+	defer func() { s.NoError(getResp.Body.Close()) }()
 
 	// Make a HEAD request - should NOT be logged
 	headReq, err := http.NewRequest(
@@ -672,7 +674,7 @@ func (s *LoggerIntegrationTestSuite) TestMethodExclusion() {
 	s.Require().NoError(err)
 	headResp, err := client.Do(headReq)
 	s.Require().NoError(err)
-	defer headResp.Body.Close()
+	defer func() { s.NoError(headResp.Body.Close()) }()
 
 	// Make an OPTIONS request - should NOT be logged
 	optionsReq, err := http.NewRequest(
@@ -683,7 +685,7 @@ func (s *LoggerIntegrationTestSuite) TestMethodExclusion() {
 	s.Require().NoError(err)
 	optionsResp, err := client.Do(optionsReq)
 	s.Require().NoError(err)
-	defer optionsResp.Body.Close()
+	defer func() { s.NoError(optionsResp.Body.Close()) }()
 
 	// Wait for logs and verify
 	excludeLogFile := s.logFile + ".exclude-methods.log"
@@ -712,7 +714,7 @@ func (s *LoggerIntegrationTestSuite) TestTextFormatLogger() {
 	// Test standard preset with text format
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/text-standard", s.port))
 	s.Require().NoError(err, "Failed to make request to /text-standard")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -725,7 +727,7 @@ func (s *LoggerIntegrationTestSuite) TestTextFormatLogger() {
 	// Test detailed preset with text format
 	resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/text-detailed?test=value", s.port))
 	s.Require().NoError(err, "Failed to make request to /text-detailed")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -783,7 +785,7 @@ func (s *LoggerIntegrationTestSuite) readLogEntries(logFilePath string) []LogEnt
 		s.T().Logf("Log file %s does not exist or cannot be opened: %v", logFilePath, err)
 		return nil
 	}
-	defer file.Close()
+	defer func() { s.NoError(file.Close()) }()
 
 	var entries []LogEntry
 	scanner := bufio.NewScanner(file)

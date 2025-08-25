@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -52,7 +53,7 @@ func TestValidateLocal(t *testing.T) {
 		results := validateLocal(t.Context(), []string{configPath})
 		assert.Len(t, results, 1)
 		assert.True(t, results[0].Valid)
-		assert.NoError(t, results[0].Error)
+		require.NoError(t, results[0].Error)
 		assert.NotNil(t, results[0].Config)
 		assert.Equal(t, configPath, results[0].Path)
 		assert.False(t, results[0].Remote)
@@ -64,7 +65,7 @@ func TestValidateLocal(t *testing.T) {
 		results := validateLocal(t.Context(), []string{configPath})
 		assert.Len(t, results, 1)
 		assert.False(t, results[0].Valid)
-		assert.Error(t, results[0].Error)
+		require.Error(t, results[0].Error)
 		assert.Contains(t, results[0].Error.Error(), "duplicate ID")
 		assert.Equal(t, configPath, results[0].Path)
 		assert.False(t, results[0].Remote)
@@ -78,15 +79,15 @@ func TestValidateLocal(t *testing.T) {
 		assert.Len(t, results, 2)
 		assert.True(t, results[0].Valid)
 		assert.True(t, results[1].Valid)
-		assert.NoError(t, results[0].Error)
-		assert.NoError(t, results[1].Error)
+		require.NoError(t, results[0].Error)
+		require.NoError(t, results[1].Error)
 	})
 
 	t.Run("nonexistent_file", func(t *testing.T) {
 		results := validateLocal(t.Context(), []string{"/path/that/does/not/exist.toml"})
 		assert.Len(t, results, 1)
 		assert.False(t, results[0].Valid)
-		assert.Error(t, results[0].Error)
+		require.Error(t, results[0].Error)
 		assert.Contains(t, results[0].Error.Error(), "no such file or directory")
 	})
 
@@ -100,7 +101,7 @@ func TestValidateLocal(t *testing.T) {
 		results := validateLocal(ctx, []string{configPath})
 		assert.Len(t, results, 1)
 		assert.False(t, results[0].Valid)
-		assert.Error(t, results[0].Error)
+		require.Error(t, results[0].Error)
 		assert.Contains(t, results[0].Error.Error(), "validation canceled")
 		assert.Contains(t, results[0].Error.Error(), "context canceled")
 	})
@@ -140,7 +141,7 @@ func TestValidateRemote(t *testing.T) {
 		results := validateRemote(t.Context(), []string{configPath}, grpcAddr)
 		assert.Len(t, results, 1)
 		assert.True(t, results[0].Valid)
-		assert.NoError(t, results[0].Error)
+		require.NoError(t, results[0].Error)
 		assert.NotNil(t, results[0].Config)
 		assert.Equal(t, configPath, results[0].Path)
 		assert.True(t, results[0].Remote)
@@ -160,7 +161,7 @@ func TestValidateRemote(t *testing.T) {
 		results := validateRemote(t.Context(), []string{configPath}, grpcAddr)
 		assert.Len(t, results, 1)
 		assert.False(t, results[0].Valid)
-		assert.Error(t, results[0].Error)
+		require.Error(t, results[0].Error)
 		assert.Contains(t, results[0].Error.Error(), "remote validation failed")
 		assert.Contains(t, results[0].Error.Error(), "duplicate ID")
 		assert.Equal(t, configPath, results[0].Path)
@@ -183,15 +184,15 @@ func TestValidateRemote(t *testing.T) {
 		assert.Len(t, results, 2)
 		assert.True(t, results[0].Valid)
 		assert.True(t, results[1].Valid)
-		assert.NoError(t, results[0].Error)
-		assert.NoError(t, results[1].Error)
+		require.NoError(t, results[0].Error)
+		require.NoError(t, results[1].Error)
 	})
 
 	t.Run("nonexistent_file", func(t *testing.T) {
 		results := validateRemote(t.Context(), []string{"/path/that/does/not/exist.toml"}, grpcAddr)
 		assert.Len(t, results, 1)
 		assert.False(t, results[0].Valid)
-		assert.Error(t, results[0].Error)
+		require.Error(t, results[0].Error)
 		assert.Contains(t, results[0].Error.Error(), "no such file or directory")
 	})
 
@@ -202,7 +203,7 @@ func TestValidateRemote(t *testing.T) {
 		results := validateRemote(t.Context(), []string{configPath}, "localhost:99999")
 		assert.Len(t, results, 1)
 		assert.False(t, results[0].Valid)
-		assert.Error(t, results[0].Error)
+		require.Error(t, results[0].Error)
 		assert.Contains(t, results[0].Error.Error(), "remote validation failed")
 	})
 
@@ -216,7 +217,7 @@ func TestValidateRemote(t *testing.T) {
 		results := validateRemote(ctx, []string{configPath}, grpcAddr)
 		assert.Len(t, results, 1)
 		assert.False(t, results[0].Valid)
-		assert.Error(t, results[0].Error)
+		require.Error(t, results[0].Error)
 		assert.Contains(t, results[0].Error.Error(), "validation canceled")
 		assert.Contains(t, results[0].Error.Error(), "context canceled")
 	})
@@ -320,12 +321,12 @@ func TestValidateAction(t *testing.T) {
 			err := cmd.Run(t.Context(), tt.args)
 
 			if tt.wantError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorMsg != "" {
 					assert.Contains(t, err.Error(), tt.errorMsg)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -353,8 +354,9 @@ func TestValidateRemoteShutdownTiming(t *testing.T) {
 			require.NoError(t, err)
 
 			// Start the server
+			errCh := make(chan error, 1)
 			go func() {
-				_ = cfgServiceRunner.Run(t.Context())
+				errCh <- cfgServiceRunner.Run(t.Context())
 			}()
 
 			// Wait for server to start
@@ -369,7 +371,7 @@ func TestValidateRemoteShutdownTiming(t *testing.T) {
 				results := validateRemote(t.Context(), []string{configPath}, grpcAddr)
 				assert.Len(results, 1)
 				assert.True(results[0].Valid)
-				assert.NoError(results[0].Error)
+				require.NoError(t, results[0].Error)
 			}
 
 			// Verify no transactions were sent to siphon using assert.Never
@@ -386,6 +388,16 @@ func TestValidateRemoteShutdownTiming(t *testing.T) {
 			assert.Eventually(func() bool {
 				return !cfgServiceRunner.IsRunning()
 			}, 2*time.Second, 10*time.Millisecond, "gRPC config service should stop")
+
+			// Check for any server errors
+			select {
+			case err := <-errCh:
+				if err != nil && !errors.Is(err, context.Canceled) {
+					t.Errorf("Server exited with error: %v", err)
+				}
+			default:
+				// Server still running or no error yet
+			}
 
 			shutdownDuration := time.Since(shutdownStart)
 			t.Logf(

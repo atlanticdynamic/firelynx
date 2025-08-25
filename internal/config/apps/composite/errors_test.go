@@ -1,18 +1,18 @@
 package composite
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestErrors(t *testing.T) {
 	// Test error wrapping relationships
-	assert.True(t, errors.Is(ErrNoScriptsSpecified, ErrAppCompositeScript))
-	assert.True(t, errors.Is(ErrEmptyScriptID, ErrAppCompositeScript))
-	assert.True(t, errors.Is(ErrInvalidStaticData, ErrAppCompositeScript))
-	assert.True(t, errors.Is(ErrProtoConversion, ErrAppCompositeScript))
+	require.ErrorIs(t, ErrNoScriptsSpecified, ErrAppCompositeScript)
+	require.ErrorIs(t, ErrEmptyScriptID, ErrAppCompositeScript)
+	require.ErrorIs(t, ErrInvalidStaticData, ErrAppCompositeScript)
+	require.ErrorIs(t, ErrProtoConversion, ErrAppCompositeScript)
 }
 
 func TestErrorMessages(t *testing.T) {

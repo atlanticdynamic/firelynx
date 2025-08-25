@@ -86,14 +86,14 @@ func TestIntegration_HTTP(t *testing.T) {
 	echoHandler := func(w http.ResponseWriter, r *http.Request) {
 		// Call echo app directly
 		err := echoApp.HandleHTTP(r.Context(), w, r)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	// Create admin route handler
 	adminHandler := func(w http.ResponseWriter, r *http.Request) {
 		// Call admin app directly
 		err := adminApp.HandleHTTP(r.Context(), w, r)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 
 	// Create echo route

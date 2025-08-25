@@ -168,11 +168,11 @@ func TestCleanupUnixSocket(t *testing.T) {
 
 			// Check results
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				// If we expect the socket to still exist, verify it
 				if tc.checkExistsAt != "" {
 					_, statErr := os.Stat(tc.checkExistsAt)
-					assert.NoError(
+					require.NoError(
 						t,
 						statErr,
 						"Expected socket to still exist at %s",
@@ -180,7 +180,7 @@ func TestCleanupUnixSocket(t *testing.T) {
 					)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				// Verify socket is gone
 				_, statErr := os.Stat(tc.socketPath)
 				assert.True(t, os.IsNotExist(statErr), "Expected socket to be removed at %s", tc.socketPath)

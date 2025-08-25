@@ -17,7 +17,7 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("nil proto", func(t *testing.T) {
 		app, err := FromProto("test-id", nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, app)
 	})
 
@@ -28,7 +28,7 @@ func TestFromProto(t *testing.T) {
 		}
 
 		app, err := FromProto("test-server", proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app)
 		assert.Equal(t, "test-server", app.ID)
 		assert.Equal(t, "Test Server", app.ServerName)
@@ -51,7 +51,7 @@ func TestFromProto(t *testing.T) {
 		}
 
 		app, err := FromProto("transport-test", proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "transport-test", app.ID)
 		assert.NotNil(t, app.Transport)
 		assert.True(t, app.Transport.SSEEnabled)
@@ -79,7 +79,7 @@ func TestFromProto(t *testing.T) {
 		}
 
 		app, err := FromProto("builtin-test", proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "builtin-test", app.ID)
 		assert.Len(t, app.Tools, 1)
 		assert.Equal(t, "echo", app.Tools[0].Name)
@@ -106,7 +106,7 @@ func TestFromProto(t *testing.T) {
 		}
 
 		app, err := FromProto("middleware-test", proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "middleware-test", app.ID)
 		assert.Len(t, app.Middlewares, 1)
 		assert.Equal(t, MiddlewareRateLimiting, app.Middlewares[0].Type)
@@ -128,7 +128,7 @@ func TestFromProto(t *testing.T) {
 		}
 
 		app, err := FromProto("resources-test", proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "resources-test", app.ID)
 		assert.Len(t, app.Resources, 1)
 		assert.Equal(t, "test://resource", app.Resources[0].URI)
@@ -148,7 +148,7 @@ func TestFromProto(t *testing.T) {
 		}
 
 		app, err := FromProto("prompts-test", proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "prompts-test", app.ID)
 		assert.Len(t, app.Prompts, 1)
 		assert.Equal(t, "Test Prompt", app.Prompts[0].Name)
@@ -342,7 +342,7 @@ func TestTransportFromProto(t *testing.T) {
 
 	t.Run("nil proto", func(t *testing.T) {
 		transport, err := transportFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, transport)
 		assert.False(t, transport.SSEEnabled)
 		assert.Empty(t, transport.SSEPath)
@@ -355,7 +355,7 @@ func TestTransportFromProto(t *testing.T) {
 		}
 
 		transport, err := transportFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, transport.SSEEnabled)
 		assert.Equal(t, "/events", transport.SSEPath)
 	})
@@ -366,7 +366,7 @@ func TestTransportFromProto(t *testing.T) {
 		}
 
 		transport, err := transportFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, transport.SSEEnabled)
 		assert.Empty(t, transport.SSEPath)
 	})
@@ -410,7 +410,7 @@ func TestToolFromProto(t *testing.T) {
 
 	t.Run("nil proto", func(t *testing.T) {
 		tool, err := toolFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, tool)
 	})
 
@@ -429,7 +429,7 @@ func TestToolFromProto(t *testing.T) {
 		}
 
 		tool, err := toolFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tool)
 		assert.Equal(t, "echo", tool.Name)
 		assert.Equal(t, "Echo tool", tool.Description)
@@ -456,7 +456,7 @@ func TestToolFromProto(t *testing.T) {
 		}
 
 		tool, err := toolFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tool)
 		assert.Equal(t, "script", tool.Name)
 		assert.Equal(t, "Script tool", tool.Description)
@@ -473,7 +473,7 @@ func TestToolFromProto(t *testing.T) {
 		}
 
 		tool, err := toolFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tool)
 		assert.Equal(t, "empty", tool.Name)
 		assert.Nil(t, tool.Handler)
@@ -503,13 +503,13 @@ func TestToolFromProto(t *testing.T) {
 		}
 
 		tool, err := toolFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tool)
 		assert.Equal(t, "complete", tool.Name)
 		assert.Equal(t, "Complete tool", tool.Description)
 		assert.Equal(t, "Complete Tool", tool.Title)
-		assert.Equal(t, `{"type": "object"}`, tool.InputSchema)
-		assert.Equal(t, `{"type": "string"}`, tool.OutputSchema)
+		assert.JSONEq(t, `{"type": "object"}`, tool.InputSchema)
+		assert.JSONEq(t, `{"type": "string"}`, tool.OutputSchema)
 		assert.NotNil(t, tool.Annotations)
 		assert.Equal(t, "Annotation Title", tool.Annotations.Title)
 		assert.True(t, tool.Annotations.ReadOnlyHint)
@@ -525,7 +525,7 @@ func TestBuiltinHandlerFromProto(t *testing.T) {
 
 	t.Run("nil proto", func(t *testing.T) {
 		handler, err := builtinHandlerFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, handler)
 	})
 
@@ -538,7 +538,7 @@ func TestBuiltinHandlerFromProto(t *testing.T) {
 		}
 
 		handler, err := builtinHandlerFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, handler)
 		assert.Equal(t, BuiltinEcho, handler.BuiltinType)
 		assert.Equal(t, "value", handler.Config["key"])
@@ -550,7 +550,7 @@ func TestBuiltinHandlerFromProto(t *testing.T) {
 		}
 
 		handler, err := builtinHandlerFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, BuiltinCalculation, handler.BuiltinType)
 	})
 
@@ -560,7 +560,7 @@ func TestBuiltinHandlerFromProto(t *testing.T) {
 		}
 
 		handler, err := builtinHandlerFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, BuiltinFileRead, handler.BuiltinType)
 	})
 }
@@ -617,7 +617,7 @@ func TestMiddlewareFromProto(t *testing.T) {
 
 	t.Run("nil proto", func(t *testing.T) {
 		middleware, err := middlewareFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, middleware)
 	})
 
@@ -630,7 +630,7 @@ func TestMiddlewareFromProto(t *testing.T) {
 		}
 
 		middleware, err := middlewareFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, middleware)
 		assert.Equal(t, MiddlewareRateLimiting, middleware.Type)
 		assert.Equal(t, "100", middleware.Config["rate"])
@@ -642,7 +642,7 @@ func TestMiddlewareFromProto(t *testing.T) {
 		}
 
 		middleware, err := middlewareFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, MiddlewareLogging, middleware.Type)
 	})
 
@@ -652,7 +652,7 @@ func TestMiddlewareFromProto(t *testing.T) {
 		}
 
 		middleware, err := middlewareFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, MiddlewareAuthentication, middleware.Type)
 	})
 }
@@ -662,7 +662,7 @@ func TestScriptHandlerFromProto(t *testing.T) {
 
 	t.Run("nil proto", func(t *testing.T) {
 		handler, err := scriptHandlerFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, handler)
 	})
 
@@ -676,7 +676,7 @@ func TestScriptHandlerFromProto(t *testing.T) {
 		}
 
 		handler, err := scriptHandlerFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, handler)
 		assert.NotNil(t, handler.StaticData)
 		assert.Equal(t, "value", handler.StaticData.Data["key"])
@@ -686,7 +686,7 @@ func TestScriptHandlerFromProto(t *testing.T) {
 		proto := &pbApps.McpScriptHandler{}
 
 		handler, err := scriptHandlerFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, handler)
 		assert.Nil(t, handler.StaticData)
 		assert.Nil(t, handler.Evaluator)
@@ -698,7 +698,7 @@ func TestResourceFromProto(t *testing.T) {
 
 	t.Run("nil proto", func(t *testing.T) {
 		resource, err := resourceFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, resource)
 	})
 
@@ -711,7 +711,7 @@ func TestResourceFromProto(t *testing.T) {
 		}
 
 		resource, err := resourceFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, resource)
 		assert.Equal(t, "test://resource", resource.URI)
 		assert.Equal(t, "Test Resource", resource.Name)
@@ -725,7 +725,7 @@ func TestPromptFromProto(t *testing.T) {
 
 	t.Run("nil proto", func(t *testing.T) {
 		prompt, err := promptFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, prompt)
 	})
 
@@ -736,7 +736,7 @@ func TestPromptFromProto(t *testing.T) {
 		}
 
 		prompt, err := promptFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, prompt)
 		assert.Equal(t, "Test Prompt", prompt.Name)
 		assert.Equal(t, "A test prompt", prompt.Description)
@@ -892,7 +892,7 @@ func TestMiddlewareToProto(t *testing.T) {
 func TestToolAnnotationsFromProto(t *testing.T) {
 	t.Run("nil proto", func(t *testing.T) {
 		annotations, err := toolAnnotationsFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, annotations)
 	})
 
@@ -908,7 +908,7 @@ func TestToolAnnotationsFromProto(t *testing.T) {
 		}
 
 		annotations, err := toolAnnotationsFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, annotations)
 		assert.Equal(t, "Test Tool", annotations.Title)
 		assert.True(t, annotations.ReadOnlyHint)
@@ -921,7 +921,7 @@ func TestToolAnnotationsFromProto(t *testing.T) {
 		proto := &pbApps.McpToolAnnotations{}
 
 		annotations, err := toolAnnotationsFromProto(proto)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, annotations)
 		assert.Empty(t, annotations.Title)
 		assert.False(t, annotations.ReadOnlyHint)

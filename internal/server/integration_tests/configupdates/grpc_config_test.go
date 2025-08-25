@@ -220,7 +220,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 				t.Logf("HTTP request failed: %v", err)
 				return false
 			}
-			defer httpResp.Body.Close()
+			defer func() { assert.NoError(t, httpResp.Body.Close()) }()
 
 			if httpResp.StatusCode != http.StatusOK {
 				t.Logf("Received non-OK status: %d", httpResp.StatusCode)
@@ -264,7 +264,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			defer httpResp.Body.Close()
+			defer func() { assert.NoError(t, httpResp.Body.Close()) }()
 
 			if httpResp.StatusCode != http.StatusOK {
 				return false
@@ -285,7 +285,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			defer httpResp.Body.Close()
+			defer func() { assert.NoError(t, httpResp.Body.Close()) }()
 
 			if httpResp.StatusCode != http.StatusOK {
 				return false
@@ -322,7 +322,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 				t.Logf("Single route request failed: %v", err)
 				return false
 			}
-			defer httpResp.Body.Close()
+			defer func() { assert.NoError(t, httpResp.Body.Close()) }()
 
 			if httpResp.StatusCode != http.StatusOK {
 				return false
@@ -351,7 +351,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			defer httpResp.Body.Close()
+			defer func() { assert.NoError(t, httpResp.Body.Close()) }()
 
 			if httpResp.StatusCode != http.StatusOK {
 				return false
@@ -371,7 +371,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 			if err != nil {
 				return false
 			}
-			defer httpResp.Body.Close()
+			defer func() { assert.NoError(t, httpResp.Body.Close()) }()
 
 			if httpResp.StatusCode != http.StatusOK {
 				return false
@@ -392,7 +392,7 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 				// Connection refused is expected since the route was replaced
 				return true
 			}
-			defer httpResp.Body.Close()
+			defer func() { assert.NoError(t, httpResp.Body.Close()) }()
 			// Route should return 404 since it's not in the new config
 			return httpResp.StatusCode == http.StatusNotFound
 		}, 2*time.Second, 250*time.Millisecond, "Old /echo route should be removed after reconfiguration")
@@ -483,7 +483,7 @@ func TestValidateConfigIntegration(t *testing.T) {
 		isValid, validationErr := testClient.ValidateConfig(ctx, cfg)
 		require.False(t, isValid)
 		require.Error(t, validationErr)
-		assert.ErrorIs(t, validationErr, client.ErrConfigRejected)
+		require.ErrorIs(t, validationErr, client.ErrConfigRejected)
 
 		select {
 		case tx := <-txSiphon:

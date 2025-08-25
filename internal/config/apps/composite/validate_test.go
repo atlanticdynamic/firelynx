@@ -1,11 +1,11 @@
 package composite
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCompositeScript_Validate(t *testing.T) {
@@ -30,7 +30,7 @@ func TestCompositeScript_Validate(t *testing.T) {
 			StaticData:   validStaticData,
 		}
 		err := script.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("valid script without static data", func(t *testing.T) {
@@ -38,7 +38,7 @@ func TestCompositeScript_Validate(t *testing.T) {
 			ScriptAppIDs: validScriptIDs,
 		}
 		err := script.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("no scripts specified", func(t *testing.T) {
@@ -46,8 +46,8 @@ func TestCompositeScript_Validate(t *testing.T) {
 			StaticData: validStaticData,
 		}
 		err := script.Validate()
-		assert.Error(t, err)
-		assert.True(t, errors.Is(err, ErrNoScriptsSpecified))
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrNoScriptsSpecified)
 	})
 
 	t.Run("empty script ID", func(t *testing.T) {
@@ -56,7 +56,7 @@ func TestCompositeScript_Validate(t *testing.T) {
 			StaticData:   validStaticData,
 		}
 		err := script.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "empty script ID: at index 1")
 	})
 
@@ -66,8 +66,8 @@ func TestCompositeScript_Validate(t *testing.T) {
 			StaticData:   invalidStaticData,
 		}
 		err := script.Validate()
-		assert.Error(t, err)
-		assert.True(t, errors.Is(err, ErrInvalidStaticData))
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidStaticData)
 	})
 
 	t.Run("multiple validation errors", func(t *testing.T) {
@@ -76,9 +76,9 @@ func TestCompositeScript_Validate(t *testing.T) {
 			StaticData:   invalidStaticData,
 		}
 		err := script.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "empty script ID: at index 0")
 		assert.Contains(t, err.Error(), "empty script ID: at index 1")
-		assert.True(t, errors.Is(err, ErrInvalidStaticData))
+		require.ErrorIs(t, err, ErrInvalidStaticData)
 	})
 }

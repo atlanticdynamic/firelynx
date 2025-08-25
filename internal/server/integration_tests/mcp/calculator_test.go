@@ -144,7 +144,7 @@ func (s *MCPScriptToolsIntegrationTestSuite) SetupSuite() {
 		if err != nil {
 			return false
 		}
-		session.Close()
+		session.Close() //nolint:errcheck // Session close errors are acceptable in readiness checks
 		return true
 	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept MCP connections")
 
@@ -163,7 +163,7 @@ func (s *MCPScriptToolsIntegrationTestSuite) SetupSuite() {
 func (s *MCPScriptToolsIntegrationTestSuite) TearDownSuite() {
 	// Close MCP session if it exists
 	if s.mcpSession != nil {
-		s.mcpSession.Close()
+		s.mcpSession.Close() //nolint:errcheck // Session close errors are acceptable in teardown
 	}
 
 	// Cancel context to signal shutdown
@@ -312,7 +312,7 @@ func TestEnhancedCalculatorOperations(t *testing.T) {
 			}
 
 			result, err := mcpHandler(ctx, req)
-			assert.NoError(t, err, "Tool call should succeed at protocol level")
+			require.NoError(t, err, "Tool call should succeed at protocol level")
 			assert.NotNil(t, result, "Result should not be nil")
 
 			if tc.wantError {

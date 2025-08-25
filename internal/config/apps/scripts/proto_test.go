@@ -51,7 +51,7 @@ func TestFromProto(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := FromProto("test-id", tt.proto)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
@@ -75,7 +75,7 @@ func TestFromProto(t *testing.T) {
 			// Check static data if present
 			if tt.want.StaticData != nil {
 				assert.NotNil(t, got.StaticData)
-				assert.Equal(t, len(tt.want.StaticData.Data), len(got.StaticData.Data))
+				assert.Len(t, got.StaticData.Data, len(tt.want.StaticData.Data))
 				for k, v := range tt.want.StaticData.Data {
 					gotVal, ok := got.StaticData.Data[k]
 					assert.True(t, ok, "Key %s should exist in static data", k)

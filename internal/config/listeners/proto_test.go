@@ -117,7 +117,7 @@ func TestToProto(t *testing.T) {
 				assert.Nil(t, result)
 				return
 			}
-			require.Equal(t, len(tc.expected), len(result))
+			require.Len(t, result, len(tc.expected))
 
 			// Check each listener
 			for i, expectedListener := range tc.expected {
@@ -318,18 +318,18 @@ func TestFromProto(t *testing.T) {
 			result, err := FromProto(tc.pbListeners)
 
 			if tc.expectedError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				return
 			}
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			if tc.expected == nil {
 				assert.Nil(t, result)
 				return
 			}
 
-			require.Equal(t, len(tc.expected), len(result))
+			require.Len(t, result, len(tc.expected))
 
 			// Check each listener
 			for i, expectedListener := range tc.expected {
@@ -428,7 +428,7 @@ func TestRoundTripConversion(t *testing.T) {
 	// Convert back to domain model
 	result, err := FromProto(protoListeners)
 	require.NoError(t, err)
-	require.Equal(t, len(original), len(result))
+	require.Len(t, result, len(original))
 
 	// Verify conversion for each listener
 	for i, orig := range original {

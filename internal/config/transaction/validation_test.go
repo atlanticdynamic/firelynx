@@ -41,9 +41,9 @@ func TestRunValidation_ShouldReturnValidationErrors(t *testing.T) {
 		err = tx.RunValidation()
 
 		// EXPECTED BEHAVIOR (currently fails):
-		assert.Error(t, err, "RunValidation should return validation errors")
-		assert.ErrorIs(t, err, ErrValidationFailed, "Should return ErrValidationFailed")
-		assert.ErrorIs(
+		require.Error(t, err, "RunValidation should return validation errors")
+		require.ErrorIs(t, err, ErrValidationFailed, "Should return ErrValidationFailed")
+		require.ErrorIs(
 			t,
 			err,
 			errz.ErrUnsupportedConfigVer,
@@ -90,9 +90,9 @@ func TestRunValidation_ShouldReturnValidationErrors(t *testing.T) {
 		err = tx.RunValidation()
 
 		// EXPECTED BEHAVIOR (currently fails):
-		assert.Error(t, err, "RunValidation should return validation errors for duplicate IDs")
-		assert.ErrorIs(t, err, ErrValidationFailed, "Should return ErrValidationFailed")
-		assert.ErrorIs(
+		require.Error(t, err, "RunValidation should return validation errors for duplicate IDs")
+		require.ErrorIs(t, err, ErrValidationFailed, "Should return ErrValidationFailed")
+		require.ErrorIs(
 			t,
 			err,
 			errz.ErrDuplicateID,
@@ -123,7 +123,7 @@ func TestRunValidation_ShouldReturnValidationErrors(t *testing.T) {
 		err = tx.RunValidation()
 
 		// Should succeed
-		assert.NoError(t, err, "Valid config should pass validation")
+		require.NoError(t, err, "Valid config should pass validation")
 		assert.Equal(t, finitestate.StateValidated, tx.GetState())
 		assert.True(t, tx.IsValid.Load())
 	})
@@ -168,15 +168,15 @@ func TestRunValidation_CalledMultipleTimes(t *testing.T) {
 
 	// First call should succeed
 	err = tx.RunValidation()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateValidated, tx.GetState())
 	assert.True(t, tx.IsValid.Load())
 
 	// Second call should fail because we're no longer in StateCreated
 	err = tx.RunValidation()
-	assert.Error(t, err)
+	require.Error(t, err)
 	// The error will be from FSM transition failure - check that it's not a validation error
-	assert.NotErrorIs(t, err, ErrValidationFailed)
+	require.NotErrorIs(t, err, ErrValidationFailed)
 
 	// State should remain validated from first call
 	assert.Equal(t, finitestate.StateValidated, tx.GetState())
@@ -247,7 +247,7 @@ func TestRunValidation_FullLifecycle(t *testing.T) {
 
 		// Run validation
 		err = tx.RunValidation()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Final state should be validated
 		assert.Equal(t, finitestate.StateValidated, tx.GetState())
@@ -275,8 +275,8 @@ func TestRunValidation_FullLifecycle(t *testing.T) {
 
 		// Run validation
 		err = tx.RunValidation()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrValidationFailed)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrValidationFailed)
 
 		// Final state should be invalid
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
@@ -312,8 +312,8 @@ func TestRunValidation_StateTransitionLogging(t *testing.T) {
 		err = tx.RunValidation()
 
 		// Should fail with validation error
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrValidationFailed)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrValidationFailed)
 
 		// Should be in invalid state
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
@@ -342,9 +342,9 @@ func TestRunValidation_StateTransitionLogging(t *testing.T) {
 
 		// Try to run validation - should fail because not in created state
 		err = tx.RunValidation()
-		assert.Error(t, err)
+		require.Error(t, err)
 		// Should get state transition error, not validation failed
-		assert.NotErrorIs(t, err, ErrValidationFailed)
+		require.NotErrorIs(t, err, ErrValidationFailed)
 
 		// State should remain invalid
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())

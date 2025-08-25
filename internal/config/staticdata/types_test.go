@@ -8,9 +8,9 @@ import (
 
 func TestStaticDataMergeModeValues(t *testing.T) {
 	// Verify that our constant values match the expected values
-	assert.Equal(t, StaticDataMergeMode(0), StaticDataMergeModeUnspecified)
-	assert.Equal(t, StaticDataMergeMode(1), StaticDataMergeModeLast)
-	assert.Equal(t, StaticDataMergeMode(2), StaticDataMergeModeUnique)
+	assert.Equal(t, StaticDataMergeModeUnspecified, StaticDataMergeMode(0))
+	assert.Equal(t, StaticDataMergeModeLast, StaticDataMergeMode(1))
+	assert.Equal(t, StaticDataMergeModeUnique, StaticDataMergeMode(2))
 }
 
 func TestStaticDataStructure(t *testing.T) {

@@ -66,7 +66,7 @@ func TestRisorEvaluator_ToProto(t *testing.T) {
 		evaluator := &RisorEvaluator{}
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
-		assert.Equal(t, "", got.GetCode())
+		assert.Empty(t, got.GetCode())
 		assert.Nil(t, got.Timeout)
 	})
 
@@ -82,7 +82,7 @@ func TestRisorEvaluator_ToProto(t *testing.T) {
 		evaluator := &RisorEvaluator{Timeout: 0}
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
-		assert.Equal(t, "", got.GetCode())
+		assert.Empty(t, got.GetCode())
 		assert.Nil(t, got.Timeout)
 	})
 
@@ -90,7 +90,7 @@ func TestRisorEvaluator_ToProto(t *testing.T) {
 		evaluator := &RisorEvaluator{Timeout: 5 * time.Second}
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
-		assert.Equal(t, "", got.GetCode())
+		assert.Empty(t, got.GetCode())
 		assert.NotNil(t, got.Timeout)
 		assert.Equal(t, 5*time.Second, got.Timeout.AsDuration())
 	})
@@ -160,7 +160,7 @@ func TestStarlarkEvaluator_ToProto(t *testing.T) {
 		evaluator := &StarlarkEvaluator{}
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
-		assert.Equal(t, "", got.GetCode())
+		assert.Empty(t, got.GetCode())
 		assert.Nil(t, got.Timeout)
 	})
 
@@ -176,7 +176,7 @@ func TestStarlarkEvaluator_ToProto(t *testing.T) {
 		evaluator := &StarlarkEvaluator{Timeout: 0}
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
-		assert.Equal(t, "", got.GetCode())
+		assert.Empty(t, got.GetCode())
 		assert.Nil(t, got.Timeout)
 	})
 
@@ -184,7 +184,7 @@ func TestStarlarkEvaluator_ToProto(t *testing.T) {
 		evaluator := &StarlarkEvaluator{Timeout: 5 * time.Second}
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
-		assert.Equal(t, "", got.GetCode())
+		assert.Empty(t, got.GetCode())
 		assert.NotNil(t, got.Timeout)
 		assert.Equal(t, 5*time.Second, got.Timeout.AsDuration())
 	})
@@ -253,8 +253,8 @@ func TestExtismEvaluator_ToProto(t *testing.T) {
 		evaluator := &ExtismEvaluator{}
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
-		assert.Equal(t, "", got.GetCode())
-		assert.Equal(t, "", got.GetEntrypoint())
+		assert.Empty(t, got.GetCode())
+		assert.Empty(t, got.GetEntrypoint())
 	})
 
 	t.Run("with code", func(t *testing.T) {
@@ -262,14 +262,14 @@ func TestExtismEvaluator_ToProto(t *testing.T) {
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
 		assert.Equal(t, "base64content", got.GetCode())
-		assert.Equal(t, "", got.GetEntrypoint())
+		assert.Empty(t, got.GetEntrypoint())
 	})
 
 	t.Run("with entrypoint", func(t *testing.T) {
 		evaluator := &ExtismEvaluator{Entrypoint: "handle_request"}
 		got := evaluator.ToProto()
 		assert.NotNil(t, got)
-		assert.Equal(t, "", got.GetCode())
+		assert.Empty(t, got.GetCode())
 		assert.Equal(t, "handle_request", got.GetEntrypoint())
 	})
 

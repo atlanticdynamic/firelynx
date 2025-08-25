@@ -90,7 +90,7 @@ func TestConfigTransaction_BeginValidation(t *testing.T) {
 		tx, _ := setupTest(t)
 
 		err := tx.BeginValidation()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, finitestate.StateValidating, tx.GetState())
 	})
 
@@ -99,11 +99,11 @@ func TestConfigTransaction_BeginValidation(t *testing.T) {
 
 		// Move to a state that can't transition to validating
 		err := tx.BeginExecution()
-		assert.Error(t, err) // Should fail because not validated
+		require.Error(t, err) // Should fail because not validated
 
 		// Try to begin validation from wrong state
 		err = tx.BeginValidation()
-		assert.NoError(t, err) // Actually, from created state this should work
+		require.NoError(t, err) // Actually, from created state this should work
 	})
 }
 
@@ -121,7 +121,7 @@ func TestConfigTransaction_MarkValidated(t *testing.T) {
 		tx.IsValid.Store(true)
 
 		err = tx.MarkValidated()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, finitestate.StateValidated, tx.GetState())
 	})
 
@@ -134,7 +134,7 @@ func TestConfigTransaction_MarkValidated(t *testing.T) {
 
 		// Don't mark as valid (IsValid remains false)
 		err = tx.MarkValidated()
-		assert.NoError(t, err) // MarkValidated returns nil when it successfully marks as invalid
+		require.NoError(t, err) // MarkValidated returns nil when it successfully marks as invalid
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
 	})
@@ -151,7 +151,7 @@ func TestConfigTransaction_MarkInvalid(t *testing.T) {
 
 	validationErr := errors.New("validation error")
 	err = tx.MarkInvalid(validationErr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 }
 
@@ -170,7 +170,7 @@ func TestConfigTransaction_BeginExecution(t *testing.T) {
 
 		// Now begin execution
 		err = tx.BeginExecution()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, finitestate.StateExecuting, tx.GetState())
 	})
 
@@ -199,7 +199,7 @@ func TestConfigTransaction_MarkSucceeded(t *testing.T) {
 
 	// Mark as succeeded
 	err = tx.MarkSucceeded()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateSucceeded, tx.GetState())
 }
 
@@ -225,7 +225,7 @@ func TestConfigTransaction_MarkCompleted(t *testing.T) {
 
 	// Now mark as completed
 	err = tx.MarkCompleted()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateCompleted, tx.GetState())
 }
 
@@ -247,7 +247,7 @@ func TestConfigTransaction_BeginReload(t *testing.T) {
 
 	// Begin reload
 	err = tx.BeginReload()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateReloading, tx.GetState())
 }
 
@@ -273,7 +273,7 @@ func TestConfigTransaction_BeginCompensation(t *testing.T) {
 
 	// Now can begin compensation
 	err = tx.BeginCompensation()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateCompensating, tx.GetState())
 }
 
@@ -298,7 +298,7 @@ func TestConfigTransaction_MarkCompensated(t *testing.T) {
 
 	// Mark as compensated
 	err = tx.MarkCompensated()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateCompensated, tx.GetState())
 }
 
@@ -309,7 +309,7 @@ func TestConfigTransaction_MarkError(t *testing.T) {
 
 	errorMsg := errors.New("unrecoverable error")
 	err := tx.MarkError(errorMsg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateError, tx.GetState())
 }
 
@@ -331,7 +331,7 @@ func TestConfigTransaction_MarkFailed(t *testing.T) {
 	// Mark as failed
 	failErr := errors.New("execution failed")
 	err = tx.MarkFailed(ctx, failErr)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, finitestate.StateFailed, tx.GetState())
 }
 
@@ -357,7 +357,7 @@ func TestConfigTransaction_RunValidation(t *testing.T) {
 		tx, _ := setupTest(t)
 
 		err := tx.RunValidation()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, finitestate.StateValidated, tx.GetState())
 		assert.True(t, tx.IsValid.Load())
 	})
@@ -380,8 +380,8 @@ func TestConfigTransaction_RunValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		err = tx.RunValidation()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrValidationFailed)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrValidationFailed)
 		assert.Equal(t, finitestate.StateInvalid, tx.GetState())
 		assert.False(t, tx.IsValid.Load())
 	})
@@ -652,7 +652,7 @@ func TestNew_ErrorConditions(t *testing.T) {
 		err = tx.RunValidation()
 		require.Error(t, err)
 		// The error will be wrapped in ErrValidationFailed, but should contain app creation error
-		assert.ErrorIs(t, err, ErrValidationFailed)
+		require.ErrorIs(t, err, ErrValidationFailed)
 		assert.Contains(t, err.Error(), "app instantiation validation failed")
 	})
 }
@@ -668,7 +668,7 @@ func TestMarkFailed_ContextCancellation(t *testing.T) {
 		cancel() // Cancel immediately
 
 		err := tx.MarkFailed(ctx, errors.New("test error"))
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, context.Canceled, err)
 
 		// State should remain unchanged
@@ -686,7 +686,7 @@ func TestMarkFailed_ContextCancellation(t *testing.T) {
 		time.Sleep(1 * time.Millisecond)
 
 		err := tx.MarkFailed(ctx, errors.New("test error"))
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, context.DeadlineExceeded, err)
 	})
 
@@ -701,7 +701,7 @@ func TestMarkFailed_ContextCancellation(t *testing.T) {
 
 		// Attempt to mark as failed from error state should be handled gracefully
 		err = tx.MarkFailed(ctx, errors.New("another error"))
-		assert.NoError(t, err) // Should not return error due to graceful handling
+		require.NoError(t, err) // Should not return error due to graceful handling
 
 		// State should remain error
 		assert.Equal(t, finitestate.StateError, tx.GetState())
@@ -732,7 +732,7 @@ func TestParticipantFunctionality(t *testing.T) {
 		tx, _ := setupTest(t)
 
 		err := tx.RegisterParticipant("test-participant")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		participants := tx.GetParticipantStates()
 		assert.Contains(t, participants, "test-participant")
@@ -744,11 +744,11 @@ func TestParticipantFunctionality(t *testing.T) {
 
 		// Add participant first time
 		err := tx.RegisterParticipant("duplicate")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Add same participant again
 		err = tx.RegisterParticipant("duplicate")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("GetParticipants returns collection", func(t *testing.T) {
@@ -878,7 +878,7 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 		mockFSM.On("Transition", finitestate.StateValidating).Return(expectedErr)
 
 		err = tx.BeginValidation()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, expectedErr, err)
 
 		mockFSM.AssertExpectations(t)
@@ -900,7 +900,7 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 		mockFSM.On("Transition", finitestate.StateSucceeded).Return(expectedErr)
 
 		err = tx.MarkSucceeded()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, expectedErr, err)
 
 		mockFSM.AssertExpectations(t)
@@ -923,7 +923,7 @@ func TestFSMTransitionErrorHandling(t *testing.T) {
 
 		originalErr := errors.New("original error")
 		err = tx.MarkError(originalErr)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, expectedErr, err)
 
 		mockFSM.AssertExpectations(t)
@@ -985,7 +985,7 @@ func TestPlaybackLogs(t *testing.T) {
 
 		// Playback should work without error
 		err := tx.PlaybackLogs(handler)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -1167,7 +1167,7 @@ func TestCreateMiddleware(t *testing.T) {
 
 		middlewares := middleware.MiddlewareCollection{mw}
 		_, err = tx.middleware.factory.CreateFromDefinitions(middlewares)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported middleware type")
 	})
 
@@ -1193,7 +1193,7 @@ func TestCreateMiddleware(t *testing.T) {
 
 		middlewares := middleware.MiddlewareCollection{mw}
 		_, err = tx.middleware.factory.CreateFromDefinitions(middlewares)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to create middleware")
 	})
 }
@@ -1527,7 +1527,7 @@ func TestCreateMiddlewareInstances(t *testing.T) {
 
 		// Validation should fail when trying to create middleware instances
 		err = tx.RunValidation()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "middleware instantiation validation failed")
 	})
 }
@@ -1626,7 +1626,7 @@ func TestMiddlewareDuplicateOutputFileValidation(t *testing.T) {
 		// Validation should fail due to duplicate output files
 		err = tx.RunValidation()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrResourceConflict)
+		require.ErrorIs(t, err, ErrResourceConflict)
 		assert.Contains(t, err.Error(), "duplicate output file")
 		assert.Contains(t, err.Error(), logFile)
 	})
@@ -1637,22 +1637,22 @@ func TestMiddlewareDuplicateOutputFileValidation(t *testing.T) {
 			filepath.Join(tmpDir, "test1.log"),
 			filepath.Join(tmpDir, "test2.log"))
 		tx, err := New(SourceTest, "test", "", cfg, handler)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tx)
 
 		// Validation should pass with different files
 		err = tx.RunValidation()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("allows multiple stdout/stderr loggers", func(t *testing.T) {
 		cfg := createDualLoggerConfig(t, "stdout", "stderr")
 		tx, err := New(SourceTest, "test", "", cfg, handler)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Validation should pass with stdout/stderr
 		err = tx.RunValidation()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tx)
 	})
 }

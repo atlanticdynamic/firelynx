@@ -6,6 +6,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEndpoint_Validate(t *testing.T) {
@@ -119,12 +120,12 @@ func TestEndpoint_Validate(t *testing.T) {
 			err := tc.endpoint.Validate()
 
 			if tc.errExpected {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tc.errContains != "" {
 					assert.Contains(t, err.Error(), tc.errContains)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

@@ -8,6 +8,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAppScript_Validate(t *testing.T) {
@@ -39,7 +40,7 @@ func TestAppScript_Validate(t *testing.T) {
 			Evaluator:  validEvaluator,
 		}
 		err := script.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("valid script without static data", func(t *testing.T) {
@@ -48,7 +49,7 @@ func TestAppScript_Validate(t *testing.T) {
 			Evaluator: validEvaluator,
 		}
 		err := script.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("missing evaluator", func(t *testing.T) {
@@ -56,8 +57,8 @@ func TestAppScript_Validate(t *testing.T) {
 			StaticData: validStaticData,
 		}
 		err := script.Validate()
-		assert.Error(t, err)
-		assert.True(t, errors.Is(err, ErrMissingEvaluator))
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingEvaluator)
 	})
 
 	t.Run("invalid evaluator", func(t *testing.T) {
@@ -66,8 +67,8 @@ func TestAppScript_Validate(t *testing.T) {
 			Evaluator:  invalidEvaluator,
 		}
 		err := script.Validate()
-		assert.Error(t, err)
-		assert.True(t, errors.Is(err, ErrInvalidEvaluator))
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidEvaluator)
 	})
 
 	t.Run("invalid static data", func(t *testing.T) {
@@ -76,8 +77,8 @@ func TestAppScript_Validate(t *testing.T) {
 			Evaluator:  validEvaluator,
 		}
 		err := script.Validate()
-		assert.Error(t, err)
-		assert.True(t, errors.Is(err, ErrInvalidStaticData))
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidStaticData)
 	})
 
 	t.Run("multiple validation errors", func(t *testing.T) {
@@ -86,7 +87,7 @@ func TestAppScript_Validate(t *testing.T) {
 			Evaluator:  invalidEvaluator,
 		}
 		err := script.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		// Should contain both error types
 		assert.True(
 			t,

@@ -50,15 +50,15 @@ func TestMarkFailedOnErrorStateTransaction(t *testing.T) {
 	cancel() // Cancel immediately
 
 	err = tx.MarkFailed(canceledCtx, errors.New("saga processing failed: context canceled"))
-	assert.Error(t, err, "MarkFailed should return context error when context is canceled")
-	assert.ErrorIs(t, err, context.Canceled, "Should return context.Canceled error")
+	require.Error(t, err, "MarkFailed should return context error when context is canceled")
+	require.ErrorIs(t, err, context.Canceled, "Should return context.Canceled error")
 
 	// With non-canceled context, should handle invalid transition gracefully
 	err = tx.MarkFailed(
 		t.Context(),
 		errors.New("saga processing failed: context canceled"),
 	)
-	assert.NoError(
+	require.NoError(
 		t,
 		err,
 		"MarkFailed should handle invalid transition gracefully when transaction is already in StateError",
@@ -141,7 +141,7 @@ func TestTransactionManagerWithErroredTransaction(t *testing.T) {
 	// (the original CI issue was shutdown timeouts)
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err, "Runner should shutdown cleanly")
+		require.NoError(t, err, "Runner should shutdown cleanly")
 	case <-time.After(2 * time.Second):
 		t.Fatal("Runner shutdown timed out - this reproduces the CI issue")
 	}

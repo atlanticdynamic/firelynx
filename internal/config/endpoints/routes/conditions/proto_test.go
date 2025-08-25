@@ -50,7 +50,7 @@ func TestCondition_FromProto(t *testing.T) {
 		httpCond, ok := cond.(*HTTP)
 		assert.True(t, ok)
 		assert.Equal(t, pathPrefix, httpCond.PathPrefix)
-		assert.Equal(t, "", httpCond.Method)
+		assert.Empty(t, httpCond.Method)
 	})
 
 	t.Run("NoRule", func(t *testing.T) {

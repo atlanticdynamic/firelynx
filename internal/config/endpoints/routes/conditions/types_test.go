@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTypeConstants(t *testing.T) {
 	// Test type constants
-	assert.Equal(t, Type(""), Unknown)
-	assert.Equal(t, Type("http_path"), TypeHTTP)
-	assert.Equal(t, Type("mcp_resource"), TypeMCP)
+	assert.Equal(t, Unknown, Type(""))
+	assert.Equal(t, TypeHTTP, Type("http_path"))
+	assert.Equal(t, TypeMCP, Type("mcp_resource"))
 
 	// Test string representation
 	assert.Equal(t, "http_path", string(TypeHTTP))
@@ -18,12 +19,12 @@ func TestTypeConstants(t *testing.T) {
 
 func TestErrors(t *testing.T) {
 	// Test error definitions
-	assert.NotNil(t, ErrInvalidHTTPCondition)
-	assert.NotNil(t, ErrEmptyValue)
-	assert.NotNil(t, ErrInvalidConditionType)
+	require.Error(t, ErrInvalidHTTPCondition)
+	require.Error(t, ErrEmptyValue)
+	require.Error(t, ErrInvalidConditionType)
 
 	// Ensure errors have meaningful messages
-	assert.Contains(t, ErrInvalidHTTPCondition.Error(), "HTTP")
+	assert.ErrorContains(t, ErrInvalidHTTPCondition, "HTTP")
 }
 
 func TestTypeString(t *testing.T) {

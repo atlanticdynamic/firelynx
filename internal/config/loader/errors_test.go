@@ -7,6 +7,7 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestFormatFileError tests the FormatFileError function
@@ -20,7 +21,7 @@ func TestFormatFileError(t *testing.T) {
 	// Check the error message
 	assert.Contains(t, formattedErr.Error(), "/path/to/file.txt")
 	assert.Contains(t, formattedErr.Error(), "base error")
-	assert.ErrorIs(t, formattedErr, baseErr)
+	require.ErrorIs(t, formattedErr, baseErr)
 }
 
 // TestFormatValidationError tests the FormatValidationError function
@@ -34,7 +35,7 @@ func TestFormatValidationError(t *testing.T) {
 	// Check the error message
 	assert.Contains(t, formattedErr.Error(), "config validation")
 	assert.Contains(t, formattedErr.Error(), "validation failed")
-	assert.ErrorIs(t, formattedErr, baseErr)
+	require.ErrorIs(t, formattedErr, baseErr)
 }
 
 // TestFormatListenerError tests the FormatListenerError function
@@ -48,7 +49,7 @@ func TestFormatListenerError(t *testing.T) {
 	// Check the error message
 	assert.Contains(t, formattedErr.Error(), "listener at index 2")
 	assert.Contains(t, formattedErr.Error(), "listener error")
-	assert.ErrorIs(t, formattedErr, baseErr)
+	require.ErrorIs(t, formattedErr, baseErr)
 }
 
 // TestFormatEndpointError tests the FormatEndpointError function
@@ -62,7 +63,7 @@ func TestFormatEndpointError(t *testing.T) {
 	// Check the error message
 	assert.Contains(t, formattedErr.Error(), "endpoint at index 3")
 	assert.Contains(t, formattedErr.Error(), "endpoint error")
-	assert.ErrorIs(t, formattedErr, baseErr)
+	require.ErrorIs(t, formattedErr, baseErr)
 }
 
 // TestFormatRouteError tests the FormatRouteError function
@@ -76,7 +77,7 @@ func TestFormatRouteError(t *testing.T) {
 	// Check the error message
 	assert.Contains(t, formattedErr.Error(), "route 1 in endpoint 'test-endpoint'")
 	assert.Contains(t, formattedErr.Error(), "route error")
-	assert.ErrorIs(t, formattedErr, baseErr)
+	require.ErrorIs(t, formattedErr, baseErr)
 }
 
 // TestFormatAppError tests the FormatAppError function
@@ -90,7 +91,7 @@ func TestFormatAppError(t *testing.T) {
 	// Check the error message
 	assert.Contains(t, formattedErr.Error(), "app at index 4")
 	assert.Contains(t, formattedErr.Error(), "app error")
-	assert.ErrorIs(t, formattedErr, baseErr)
+	require.ErrorIs(t, formattedErr, baseErr)
 }
 
 // TestNestedErrorFormatting tests the composition of multiple error formatting functions
@@ -110,7 +111,7 @@ func TestNestedErrorFormatting(t *testing.T) {
 	assert.Contains(t, fileErr.Error(), "field is required")
 
 	// Check that we can unwrap to the base error
-	assert.ErrorIs(t, fileErr, baseErr)
+	require.ErrorIs(t, fileErr, baseErr)
 }
 
 // TestErrorJoining tests how errors can be joined together
@@ -133,6 +134,6 @@ func TestErrorJoining(t *testing.T) {
 	assert.Contains(t, errStr, "error 2")
 
 	// Test we can still use errors.Is with the wrapped errors
-	assert.ErrorIs(t, joinedErr, errz.ErrEmptyID)
-	assert.ErrorIs(t, joinedErr, errz.ErrMissingRequiredField)
+	require.ErrorIs(t, joinedErr, errz.ErrEmptyID)
+	require.ErrorIs(t, joinedErr, errz.ErrMissingRequiredField)
 }

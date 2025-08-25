@@ -27,11 +27,11 @@ func TestGetCurrentConfigEdgeCases(t *testing.T) {
 	tempDir := t.TempDir()
 	outputPath := filepath.Join(tempDir, "output.toml")
 	err := GetCurrentConfig(ctx, "invalid:1234", "toml", outputPath)
-	assert.Error(t, err, "Should fail with invalid server when using toml format with output path")
+	require.Error(t, err, "Should fail with invalid server when using toml format with output path")
 
 	// Test GetCurrentConfig with toml format but no output path
 	err = GetCurrentConfig(ctx, "invalid:1234", "toml", "")
-	assert.Error(
+	require.Error(
 		t,
 		err,
 		"Should fail with invalid server when using toml format without output path",
@@ -39,11 +39,11 @@ func TestGetCurrentConfigEdgeCases(t *testing.T) {
 
 	// Test GetCurrentConfig with json format
 	err = GetCurrentConfig(ctx, "invalid:1234", "json", "")
-	assert.Error(t, err, "Should fail with invalid server when using json format")
+	require.Error(t, err, "Should fail with invalid server when using json format")
 
 	// Test GetCurrentConfig with text format
 	err = GetCurrentConfig(ctx, "invalid:1234", "text", outputPath)
-	assert.Error(t, err, "Should fail with invalid server when using text format")
+	require.Error(t, err, "Should fail with invalid server when using text format")
 }
 
 func TestGetConfigEdgeCases(t *testing.T) {
@@ -51,13 +51,13 @@ func TestGetConfigEdgeCases(t *testing.T) {
 
 	// Test GetConfig with invalid server and empty output path
 	err := GetConfig(ctx, "invalid:1234", "")
-	assert.Error(t, err, "Should fail with invalid server when printing to stdout")
+	require.Error(t, err, "Should fail with invalid server when printing to stdout")
 
 	// Test GetConfig with invalid server and output path
 	tempDir := t.TempDir()
 	outputPath := filepath.Join(tempDir, "output.toml")
 	err = GetConfig(ctx, "invalid:1234", outputPath)
-	assert.Error(t, err, "Should fail with invalid server when saving to file")
+	require.Error(t, err, "Should fail with invalid server when saving to file")
 }
 
 func TestGetConfigInvalidServer(t *testing.T) {
@@ -65,7 +65,7 @@ func TestGetConfigInvalidServer(t *testing.T) {
 
 	// Test with invalid server address
 	err := GetConfig(ctx, "invalid:1234", "")
-	assert.Error(t, err, "Should fail with invalid server")
+	require.Error(t, err, "Should fail with invalid server")
 }
 
 func TestGetConfigE2E(t *testing.T) {
@@ -103,7 +103,7 @@ func TestGetConfigE2E(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 200*time.Millisecond, "Server should become ready")
 
@@ -111,7 +111,7 @@ func TestGetConfigE2E(t *testing.T) {
 	grpcAddr := fmt.Sprintf("localhost:%d", grpcPort)
 	outputPath := filepath.Join(tempDir, "output_config.toml")
 	err = GetConfig(ctx, grpcAddr, outputPath)
-	assert.NoError(t, err, "Should get config successfully")
+	require.NoError(t, err, "Should get config successfully")
 
 	// Verify output file exists and has content
 	assert.FileExists(t, outputPath, "Output file should exist")
@@ -121,7 +121,7 @@ func TestGetConfigE2E(t *testing.T) {
 
 	// Test GetConfig without output path (prints to stdout)
 	err = GetConfig(ctx, grpcAddr, "")
-	assert.NoError(t, err, "Should get config and print to stdout")
+	require.NoError(t, err, "Should get config and print to stdout")
 
 	// Shutdown server
 	serverCancel()
@@ -129,7 +129,7 @@ func TestGetConfigE2E(t *testing.T) {
 	// Wait for clean shutdown
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
+		require.NoError(t, err, "Server should shut down cleanly")
 	case <-time.After(30 * time.Second):
 		t.Error("Server did not shut down within timeout")
 	}

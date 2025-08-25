@@ -178,7 +178,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			require.NotNil(t, got)
 			assert.Equal(t, tt.want.GetLevel(), got.GetLevel())
 			assert.Equal(t, tt.want.GetMessage(), got.GetMessage())
-			assert.Equal(t, len(tt.want.Attrs), len(got.Attrs))
+			assert.Len(t, got.Attrs, len(tt.want.Attrs))
 
 			// Check attributes
 			for key, expectedVal := range tt.want.Attrs {
@@ -222,7 +222,7 @@ func TestGetLogsVsPlaybackLogs(t *testing.T) {
 	}
 
 	// Verify we captured log records
-	assert.Greater(t, len(logRecords), 0, "GetLogs should capture log records")
+	assert.NotEmpty(t, logRecords, "GetLogs should capture log records")
 
 	// Verify the transaction converted to protobuf correctly
 	pbTx := tx.ToProto()
