@@ -26,6 +26,11 @@ import (
 // EndpointCollection is a collection of Endpoint objects
 type EndpointCollection []Endpoint
 
+// NewEndpointCollection creates a new EndpointCollection with the given endpoints.
+func NewEndpointCollection(endpoints ...Endpoint) EndpointCollection {
+	return endpoints
+}
+
 // Endpoint represents a routing configuration for incoming requests
 type Endpoint struct {
 	ID          string
