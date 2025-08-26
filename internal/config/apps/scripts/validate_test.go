@@ -1,13 +1,11 @@
 package scripts
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,10 +86,8 @@ func TestAppScript_Validate(t *testing.T) {
 		}
 		err := script.Validate()
 		require.Error(t, err)
-		// Should contain both error types
-		assert.True(
-			t,
-			errors.Is(err, ErrInvalidEvaluator) || errors.Is(err, ErrInvalidStaticData),
-		)
+		// Should contain both error types when both validations fail
+		require.ErrorIs(t, err, ErrInvalidEvaluator, "Should contain evaluator error")
+		require.ErrorIs(t, err, ErrInvalidStaticData, "Should contain static data error")
 	})
 }

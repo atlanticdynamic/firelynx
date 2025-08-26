@@ -4,7 +4,6 @@ package http_test
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -83,14 +82,14 @@ func TestHTTPListenerMinimalSaga(t *testing.T) {
 		return !httpRunner.IsRunning()
 	}, time.Second, 10*time.Millisecond)
 
-	// Check that the runner didn't error
+	// Check for any unexpected runner errors (with timeout)
 	select {
 	case err := <-runnerErrCh:
-		if err != nil && !errors.Is(err, context.Canceled) {
-			t.Logf("Runner error: %v", err)
+		if err != nil {
+			require.ErrorIs(t, err, context.Canceled, "Runner should only exit due to context cancellation")
 		}
-	default:
-		// Runner might still be shutting down, that's ok
+	case <-time.After(100 * time.Millisecond):
+		// Expected - runner should still be shutting down or completed
 	}
 }
 

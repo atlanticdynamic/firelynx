@@ -5,7 +5,6 @@ package http_test
 import (
 	"context"
 	_ "embed"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -126,8 +125,8 @@ func (s *HeadersIntegrationTestSuite) TearDownSuite() {
 
 		select {
 		case err := <-s.runnerErrCh:
-			if err != nil && !errors.Is(err, context.Canceled) {
-				s.T().Logf("HTTP runner exited with error: %v", err)
+			if err != nil {
+				s.Require().ErrorIs(err, context.Canceled, "HTTP runner should only exit due to context cancellation")
 			}
 		case <-time.After(2 * time.Second):
 			s.T().Log("Timeout waiting for HTTP runner goroutine to complete")

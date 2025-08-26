@@ -6,7 +6,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -141,8 +140,8 @@ func (s *StaticDataIntegrationSuite) TearDownSuite() {
 		defer cancel()
 		select {
 		case err := <-s.runnerErrCh:
-			if err != nil && !errors.Is(err, context.Canceled) {
-				s.T().Logf("HTTP runner error: %v", err)
+			if err != nil {
+				s.Require().ErrorIs(err, context.Canceled, "HTTP runner should only exit due to context cancellation")
 			}
 		case <-ctx.Done():
 			s.T().Log("HTTP runner shutdown timeout")

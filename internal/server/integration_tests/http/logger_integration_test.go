@@ -7,7 +7,6 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -253,8 +252,8 @@ func (s *LoggerIntegrationTestSuite) TearDownSuite() {
 		// Wait for background goroutine to complete
 		select {
 		case err := <-s.runnerErrCh:
-			if err != nil && !errors.Is(err, context.Canceled) {
-				s.T().Logf("HTTP runner exited with error: %v", err)
+			if err != nil {
+				s.Require().ErrorIs(err, context.Canceled, "HTTP runner should only exit due to context cancellation")
 			}
 		case <-time.After(2 * time.Second):
 			s.T().Log("Timeout waiting for HTTP runner goroutine to complete")
