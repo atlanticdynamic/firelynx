@@ -76,16 +76,9 @@ func (m *mockToolHandler) Type() string {
 
 func TestApp_Validate(t *testing.T) {
 	t.Run("valid minimal app", func(t *testing.T) {
-		app := &App{
-			ID:            "test-id",
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         make([]*Tool, 0),
-			Resources:     make([]*Resource, 0),
-			Prompts:       make([]*Prompt, 0),
-			Middlewares:   make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
 
 		err := app.Validate()
 		require.NoError(t, err)
@@ -93,15 +86,8 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("missing server name", func(t *testing.T) {
-		app := &App{
-			ID:            "test-id",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         make([]*Tool, 0),
-			Resources:     make([]*Resource, 0),
-			Prompts:       make([]*Prompt, 0),
-			Middlewares:   make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerVersion = "1.0.0"
 
 		err := app.Validate()
 		require.Error(t, err)
@@ -109,15 +95,8 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("missing server version", func(t *testing.T) {
-		app := &App{
-			ID:          "test-id",
-			ServerName:  "Test Server",
-			Transport:   &Transport{},
-			Tools:       make([]*Tool, 0),
-			Resources:   make([]*Resource, 0),
-			Prompts:     make([]*Prompt, 0),
-			Middlewares: make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerName = "Test Server"
 
 		err := app.Validate()
 		require.Error(t, err)
@@ -125,13 +104,12 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("invalid transport", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport: &Transport{
-				SSEEnabled: true,
-				SSEPath:    "", // Missing path when SSE enabled
-			},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Transport = &Transport{
+			SSEEnabled: true,
+			SSEPath:    "", // Missing path when SSE enabled
 		}
 
 		err := app.Validate()
@@ -140,14 +118,12 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("invalid tool", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name: "", // Missing name
-				},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Tools = []*Tool{
+			{
+				Name: "", // Missing name
 			},
 		}
 
@@ -157,14 +133,12 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("invalid middleware", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Middlewares: []*Middleware{
-				{
-					Type: 999, // Invalid type
-				},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Middlewares = []*Middleware{
+			{
+				Type: 999, // Invalid type
 			},
 		}
 
@@ -174,16 +148,9 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("valid app with tools", func(t *testing.T) {
-		app := &App{
-			ID:            "test-id",
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         make([]*Tool, 0),
-			Resources:     make([]*Resource, 0),
-			Prompts:       make([]*Prompt, 0),
-			Middlewares:   make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
 		app.Tools = []*Tool{
 			{
 				Name:        "echo",
@@ -201,26 +168,24 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("duplicate tool names", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:        "duplicate",
-					Description: "First tool",
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Tools = []*Tool{
+			{
+				Name:        "duplicate",
+				Description: "First tool",
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
-				{
-					Name:        "duplicate",
-					Description: "Second tool",
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinCalculation,
-						Config:      map[string]string{},
-					},
+			},
+			{
+				Name:        "duplicate",
+				Description: "Second tool",
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinCalculation,
+					Config:      map[string]string{},
 				},
 			},
 		}
@@ -231,19 +196,17 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("duplicate prompt names", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Prompts: []*Prompt{
-				{
-					Name:        "duplicate",
-					Description: "First prompt",
-				},
-				{
-					Name:        "duplicate",
-					Description: "Second prompt",
-				},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Prompts = []*Prompt{
+			{
+				Name:        "duplicate",
+				Description: "First prompt",
+			},
+			{
+				Name:        "duplicate",
+				Description: "Second prompt",
 			},
 		}
 
@@ -253,16 +216,9 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("valid app with prompts", func(t *testing.T) {
-		app := &App{
-			ID:            "test-id",
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         make([]*Tool, 0),
-			Resources:     make([]*Resource, 0),
-			Prompts:       make([]*Prompt, 0),
-			Middlewares:   make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
 		app.Prompts = []*Prompt{
 			{
 				Name:        "test_prompt",
@@ -1132,16 +1088,9 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 // Additional tests for compileMCPServer edge cases to improve coverage
 func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	t.Run("tool with Title field", func(t *testing.T) {
-		app := &App{
-			ID:            "test-id",
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         make([]*Tool, 0),
-			Resources:     make([]*Resource, 0),
-			Prompts:       make([]*Prompt, 0),
-			Middlewares:   make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
 		app.Tools = []*Tool{
 			{
 				Name:        "test-tool",
@@ -1160,16 +1109,9 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with custom InputSchema", func(t *testing.T) {
-		app := &App{
-			ID:            "test-id",
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         make([]*Tool, 0),
-			Resources:     make([]*Resource, 0),
-			Prompts:       make([]*Prompt, 0),
-			Middlewares:   make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
 		app.Tools = []*Tool{
 			{
 				Name:        "test-tool",
@@ -1188,16 +1130,9 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with custom OutputSchema", func(t *testing.T) {
-		app := &App{
-			ID:            "test-id",
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         make([]*Tool, 0),
-			Resources:     make([]*Resource, 0),
-			Prompts:       make([]*Prompt, 0),
-			Middlewares:   make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
 		app.Tools = []*Tool{
 			{
 				Name:         "test-tool",
@@ -1216,16 +1151,9 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with Annotations", func(t *testing.T) {
-		app := &App{
-			ID:            "test-id",
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools:         make([]*Tool, 0),
-			Resources:     make([]*Resource, 0),
-			Prompts:       make([]*Prompt, 0),
-			Middlewares:   make([]*Middleware, 0),
-		}
+		app := NewApp("test-id")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
 		app.Tools = []*Tool{
 			{
 				Name:        "test-tool",
@@ -1250,19 +1178,17 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("invalid custom InputSchema", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:        "test-tool",
-					Description: "Test tool",
-					InputSchema: `{"type":"invalid-type"}`, // Invalid JSON schema
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Tools = []*Tool{
+			{
+				Name:        "test-tool",
+				Description: "Test tool",
+				InputSchema: `{"type":"invalid-type"}`, // Invalid JSON schema
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
@@ -1273,19 +1199,17 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("invalid custom OutputSchema", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:         "test-tool",
-					Description:  "Test tool",
-					OutputSchema: `{"type":"invalid-type"}`, // Invalid JSON schema
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Tools = []*Tool{
+			{
+				Name:         "test-tool",
+				Description:  "Test tool",
+				OutputSchema: `{"type":"invalid-type"}`, // Invalid JSON schema
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
@@ -1296,19 +1220,17 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("unparseable custom InputSchema JSON", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:        "test-tool",
-					Description: "Test tool",
-					InputSchema: `{"type":"object",}`, // Invalid JSON
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Tools = []*Tool{
+			{
+				Name:        "test-tool",
+				Description: "Test tool",
+				InputSchema: `{"type":"object",}`, // Invalid JSON
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
@@ -1319,19 +1241,17 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("unparseable custom OutputSchema JSON", func(t *testing.T) {
-		app := &App{
-			ServerName:    "Test Server",
-			ServerVersion: "1.0.0",
-			Transport:     &Transport{},
-			Tools: []*Tool{
-				{
-					Name:         "test-tool",
-					Description:  "Test tool",
-					OutputSchema: `{"type":"object",}`, // Invalid JSON
-					Handler: &BuiltinToolHandler{
-						BuiltinType: BuiltinEcho,
-						Config:      map[string]string{},
-					},
+		app := NewApp("")
+		app.ServerName = "Test Server"
+		app.ServerVersion = "1.0.0"
+		app.Tools = []*Tool{
+			{
+				Name:         "test-tool",
+				Description:  "Test tool",
+				OutputSchema: `{"type":"object",}`, // Invalid JSON
+				Handler: &BuiltinToolHandler{
+					BuiltinType: BuiltinEcho,
+					Config:      map[string]string{},
 				},
 			},
 		}
