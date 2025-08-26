@@ -66,7 +66,7 @@ func TestEndpointWithMissingListenerID(t *testing.T) {
 		err,
 		"NewFromProto should return an error for endpoint with missing listener ID",
 	)
-	assert.Nil(t, config, "Config should be nil when NewFromProto returns an error")
+	assert.NotNil(t, config, "A partially constructed config should be returned for debugging")
 	t.Logf("Actual error: %v", err)
 	assert.Contains(t, err.Error(), "empty listener ID",
 		"Error should mention empty listener ID")

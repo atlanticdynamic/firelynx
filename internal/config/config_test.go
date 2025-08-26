@@ -93,7 +93,7 @@ func TestNewFromProto_ErrorHandling(t *testing.T) {
 		assert.NotNil(t, config, "Should still return a config object")
 		assert.NotNil(t, config.Apps, "Apps should be initialized")
 		assert.Equal(t, 0, config.Apps.Len(), "Apps should be empty on conversion failure")
-		assert.Contains(t, err.Error(), "failed to convert apps", "Error should mention app conversion failure")
+		assert.ErrorContains(t, err, "failed to convert config from proto", "Error should mention app conversion failure")
 	})
 }
 

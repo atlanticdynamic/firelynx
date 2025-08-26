@@ -60,6 +60,11 @@ const (
 // ListenerCollection is a collection of Listener objects
 type ListenerCollection []Listener
 
+// NewListenerCollection creates a new ListenerCollection with the given listeners.
+func NewListenerCollection(listeners ...Listener) ListenerCollection {
+	return listeners
+}
+
 // Listener represents a network listener configuration
 type Listener struct {
 	ID      string `env_interpolation:"no"`

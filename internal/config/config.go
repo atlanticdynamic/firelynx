@@ -78,44 +78,46 @@ func NewFromProto(pbConfig *pb.ServerConfig) (*Config, error) {
 
 	// Create a new domain config with reasonable defaults
 	config := &Config{
-		Version:  VersionLatest,
-		rawProto: pbConfig,
+		Version:   VersionLatest,
+		rawProto:  pbConfig,
+		Listeners: listeners.NewListenerCollection(),
+		Endpoints: endpoints.NewEndpointCollection(),
+		Apps:      apps.NewAppCollection(),
 	}
+	errz := make([]error, 0)
 
 	if pbConfig.Version != nil && *pbConfig.Version != "" {
 		config.Version = *pbConfig.Version
 	}
 
 	if pbConfig.Listeners != nil {
-		listeners, err := listeners.FromProto(pbConfig.Listeners)
+		l, err := listeners.FromProto(pbConfig.Listeners)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+			errz = append(errz, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err))
+		} else {
+			config.Listeners = l
 		}
-		config.Listeners = listeners
 	}
 
 	if pbConfig.Endpoints != nil {
-		// Convert endpoints using endpoints package's FromProto function
-		endpointsList, err := endpoints.FromProto(pbConfig.Endpoints)
+		e, err := endpoints.FromProto(pbConfig.Endpoints)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err)
+			errz = append(errz, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err))
+		} else {
+			config.Endpoints = e
 		}
-		config.Endpoints = endpointsList
 	}
 
-	// Convert apps - FromProto returns a valid AppCollection (empty if no apps)
-	var appErrz []error
-	appDefinitions, err := apps.FromProto(pbConfig.Apps)
-	if err != nil {
-		appErrz = append(appErrz, fmt.Errorf("failed to convert apps: %w", err))
-		// FromProto failed, use empty collection as fallback
-		config.Apps = apps.NewAppCollection()
-	} else {
-		// FromProto succeeded (returns empty collection if no apps)
-		config.Apps = appDefinitions
+	if pbConfig.Apps != nil {
+		a, err := apps.FromProto(pbConfig.Apps)
+		if err != nil {
+			errz = append(errz, fmt.Errorf("%w: %w", ErrFailedToConvertConfig, err))
+		} else {
+			config.Apps = a
+		}
 	}
 
-	return config, errors.Join(appErrz...)
+	return config, errors.Join(errz...)
 }
 
 // NewConfigFromBytes loads configuration from TOML bytes, converts it to the domain model. It does NOT validate the config.
