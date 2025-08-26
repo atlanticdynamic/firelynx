@@ -86,12 +86,12 @@ type App struct {
 	compiledServer *mcpsdk.Server
 }
 
-// NewApp creates a new MCP App with the specified configuration.
-func NewApp(id, serverName, serverVersion string) *App {
+// NewApp creates a new MCP App with the specified ID and sensible defaults
+func NewApp(id string) *App {
 	return &App{
 		ID:            id,
-		ServerName:    serverName,
-		ServerVersion: serverVersion,
+		ServerName:    "", // Caller can set this as needed
+		ServerVersion: "", // Caller can set this as needed
 		Transport:     &Transport{},
 		Tools:         make([]*Tool, 0),
 		Resources:     make([]*Resource, 0),

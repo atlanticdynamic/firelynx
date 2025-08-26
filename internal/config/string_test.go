@@ -91,22 +91,22 @@ func TestConfigString(t *testing.T) {
 		{
 			name: "Config with apps",
 			setupConfig: func() *Config {
+				echoApp := echo.New("echo-app")
+				echoApp.Response = "Hello World"
+				scriptApp := scripts.NewAppScript("script-app")
+				scriptApp.Evaluator = &evaluators.RisorEvaluator{
+					Code: "return { body: 'Hello' }",
+				}
 				return &Config{
 					Version: version.Version,
 					Apps: apps.NewAppCollection(
 						apps.App{
 							ID:     "echo-app",
-							Config: &echo.EchoApp{Response: "Hello World"},
+							Config: echoApp,
 						},
 						apps.App{
-							ID: "script-app",
-							Config: scripts.NewAppScript(
-								"script-app",
-								nil,
-								&evaluators.RisorEvaluator{
-									Code: "return { body: 'Hello' }",
-								},
-							),
+							ID:     "script-app",
+							Config: scriptApp,
 						},
 					),
 				}
@@ -122,6 +122,8 @@ func TestConfigString(t *testing.T) {
 		{
 			name: "Full config",
 			setupConfig: func() *Config {
+				echoApp := echo.New("echo-app")
+				echoApp.Response = "Hello World"
 				return &Config{
 					Version: version.Version,
 					Listeners: listeners.ListenerCollection{
@@ -149,7 +151,7 @@ func TestConfigString(t *testing.T) {
 					Apps: apps.NewAppCollection(
 						apps.App{
 							ID:     "echo-app",
-							Config: &echo.EchoApp{Response: "Hello World"},
+							Config: echoApp,
 						},
 					),
 				}
@@ -192,6 +194,8 @@ func TestConfigTree(t *testing.T) {
 	t.Parallel()
 
 	// Test that the ConfigTree function returns the same result as String
+	echoApp := echo.New("echo-app")
+	echoApp.Response = "Hello World"
 	config := &Config{
 		Version: version.Version,
 		Listeners: listeners.ListenerCollection{
@@ -219,7 +223,7 @@ func TestConfigTree(t *testing.T) {
 		Apps: apps.NewAppCollection(
 			apps.App{
 				ID:     "echo-app",
-				Config: &echo.EchoApp{Response: "Hello World"},
+				Config: echoApp,
 			},
 		),
 	}

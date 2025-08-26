@@ -27,9 +27,10 @@ func FromProto(id string, proto *pbApps.ScriptApp) (*AppScript, error) {
 	}
 
 	// Create the AppScript
-	script := NewAppScript(id, staticData, eval)
-
-	return script, nil
+	app := NewAppScript(id)
+	app.StaticData = staticData
+	app.Evaluator = eval
+	return app, nil
 }
 
 // ToProto converts an AppScript to its protocol buffer representation.

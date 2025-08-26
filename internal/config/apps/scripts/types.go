@@ -18,12 +18,12 @@ type AppScript struct {
 	Evaluator evaluators.Evaluator
 }
 
-// NewAppScript creates a new AppScript with the given ID, static data and evaluator.
-func NewAppScript(id string, data *staticdata.StaticData, evaluator evaluators.Evaluator) *AppScript {
+// NewAppScript creates a new AppScript with the given ID
+func NewAppScript(id string) *AppScript {
 	return &AppScript{
 		ID:         id,
-		StaticData: data,
-		Evaluator:  evaluator,
+		StaticData: nil, // Caller can set this as needed
+		Evaluator:  nil, // Caller can set this as needed
 	}
 }
 

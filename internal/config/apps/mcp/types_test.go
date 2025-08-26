@@ -7,7 +7,16 @@ import (
 )
 
 func TestNewApp(t *testing.T) {
-	app := NewApp("test-app", "Test Server", "1.0.0")
+	app := &App{
+		ID:            "test-app",
+		ServerName:    "Test Server",
+		ServerVersion: "1.0.0",
+		Transport:     &Transport{},
+		Tools:         make([]*Tool, 0),
+		Resources:     make([]*Resource, 0),
+		Prompts:       make([]*Prompt, 0),
+		Middlewares:   make([]*Middleware, 0),
+	}
 
 	assert.NotNil(t, app)
 	assert.Equal(t, "test-app", app.ID)

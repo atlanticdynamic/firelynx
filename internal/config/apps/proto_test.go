@@ -419,7 +419,8 @@ func TestToProtoConversions(t *testing.T) {
 
 	t.Run("EchoApp", func(t *testing.T) {
 		// Create a domain App with echo config
-		echoApp := echo.New("test-echo-app", "Hello, world!")
+		echoApp := echo.New("test-echo-app")
+		echoApp.Response = "Hello, world!"
 
 		app := App{
 			ID:     "test-echo-app",
@@ -446,13 +447,15 @@ func TestToProtoConversions(t *testing.T) {
 			Code:    "return 'script'",
 			Timeout: timeout,
 		}
-		scriptApp := scripts.NewAppScript("script-app", nil, risorEval)
+		scriptApp := scripts.NewAppScript("script-app")
+		scriptApp.Evaluator = risorEval
 
 		// Composite app
 		compApp := composite.NewCompositeScript([]string{"app1"}, nil)
 
 		// Echo app
-		echoApp := echo.New("echo-app", "Echo response")
+		echoApp := echo.New("echo-app")
+		echoApp.Response = "Echo response"
 
 		apps := []App{
 			{ID: "script-app", Config: scriptApp},
@@ -519,7 +522,9 @@ func TestToProtoConversions(t *testing.T) {
 				"key2": 42,
 			},
 		}
-		scriptApp := scripts.NewAppScript("script-with-static", staticDataStruct, risorEval)
+		scriptApp := scripts.NewAppScript("script-with-static")
+		scriptApp.StaticData = staticDataStruct
+		scriptApp.Evaluator = risorEval
 
 		app := App{
 			ID:     "script-with-static",
@@ -564,7 +569,8 @@ func TestToProtoConversions(t *testing.T) {
 			Code:    "return 'risor test'",
 			Timeout: 8 * time.Second,
 		}
-		scriptApp := scripts.NewAppScript("risor-app", nil, risorEval)
+		scriptApp := scripts.NewAppScript("risor-app")
+		scriptApp.Evaluator = risorEval
 
 		app := App{
 			ID:     "risor-app",
@@ -586,7 +592,8 @@ func TestToProtoConversions(t *testing.T) {
 			Code:    "result = 'starlark test'",
 			Timeout: 10 * time.Second,
 		}
-		scriptApp := scripts.NewAppScript("starlark-app", nil, starlarkEval)
+		scriptApp := scripts.NewAppScript("starlark-app")
+		scriptApp.Evaluator = starlarkEval
 
 		app := App{
 			ID:     "starlark-app",
@@ -608,7 +615,8 @@ func TestToProtoConversions(t *testing.T) {
 			Code:    "base64encodedwasm",
 			Timeout: 15 * time.Second,
 		}
-		scriptApp := scripts.NewAppScript("extism-app", nil, extismEval)
+		scriptApp := scripts.NewAppScript("extism-app")
+		scriptApp.Evaluator = extismEval
 
 		app := App{
 			ID:     "extism-app",
@@ -626,7 +634,9 @@ func TestToProtoConversions(t *testing.T) {
 
 	t.Run("MCPApp", func(t *testing.T) {
 		// Create a domain App with MCP config
-		mcpApp := mcp.NewApp("mcp-test-app", "test-server", "1.0.0")
+		mcpApp := mcp.NewApp("mcp-test-app")
+		mcpApp.ServerName = "test-server"
+		mcpApp.ServerVersion = "1.0.0"
 
 		app := App{
 			ID:     "test-mcp-app",

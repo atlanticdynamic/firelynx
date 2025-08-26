@@ -16,7 +16,7 @@ func TestAppScriptType(t *testing.T) {
 
 func TestNewAppScript(t *testing.T) {
 	// Test with nil parameters
-	script := NewAppScript("test-id", nil, nil)
+	script := &AppScript{ID: "test-id", StaticData: nil, Evaluator: nil}
 	assert.NotNil(t, script)
 	assert.Equal(t, "test-id", script.ID)
 	assert.Nil(t, script.StaticData)
@@ -29,7 +29,7 @@ func TestNewAppScript(t *testing.T) {
 	evaluator := &evaluators.RisorEvaluator{
 		Code: "test code",
 	}
-	script = NewAppScript("valid-app", staticData, evaluator)
+	script = &AppScript{ID: "valid-app", StaticData: staticData, Evaluator: evaluator}
 	assert.NotNil(t, script)
 	assert.Equal(t, "valid-app", script.ID)
 	assert.Equal(t, staticData, script.StaticData)

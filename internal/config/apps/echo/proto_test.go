@@ -37,7 +37,7 @@ func TestEchoFromProto(t *testing.T) {
 }
 
 func TestEchoApp_ToProto(t *testing.T) {
-	echo := New("test-echo", "test response")
+	echo := &EchoApp{ID: "test-echo", Response: "test response"}
 	proto := echo.ToProto()
 
 	// Verify the return value is not nil and is of the expected type
