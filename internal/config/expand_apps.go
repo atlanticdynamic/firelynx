@@ -62,9 +62,8 @@ func cloneAppWithMergedStaticData(
 	// Clone the config based on app type
 	switch config := originalApp.Config.(type) {
 	case *scripts.AppScript:
-		clonedConfig := &scripts.AppScript{
-			Evaluator: config.Evaluator, // Evaluator can be shared (immutable)
-		}
+		clonedConfig := scripts.NewAppScript(config.ID)
+		clonedConfig.Evaluator = config.Evaluator // Evaluator can be shared (immutable)
 
 		// Merge static data
 		clonedConfig.StaticData = mergeStaticDataForApp(config.StaticData, routeStaticData)

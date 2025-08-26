@@ -182,14 +182,14 @@ func TestAppToTree(t *testing.T) {
 		},
 		{
 			name: "Echo app",
-			app: App{
-				ID: "echo-app",
-				Config: func() *echo.EchoApp {
-					app := echo.New("echo-app")
-					app.Response = "Hello!"
-					return app
-				}(),
-			},
+			app: func() App {
+				echoApp := echo.New("echo-app")
+				echoApp.Response = "Hello!"
+				return App{
+					ID:     "echo-app",
+					Config: echoApp,
+				}
+			}(),
 		},
 	}
 
@@ -209,15 +209,17 @@ func TestAppCollectionToTree(t *testing.T) {
 	t.Parallel()
 
 	// Create a collection with different app types
+	scriptApp := scripts.NewAppScript("test-app")
+	scriptApp.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+	scriptApp.Evaluator = &evaluators.RisorEvaluator{Code: "return 42"}
+
+	echoApp := echo.New("echo-app")
+	echoApp.Response = "Hello!"
+
 	apps := NewAppCollection(
 		App{
-			ID: "script-app",
-			Config: func() *scripts.AppScript {
-				app := scripts.NewAppScript("test-app")
-				app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
-				app.Evaluator = &evaluators.RisorEvaluator{Code: "return 42"}
-				return app
-			}(),
+			ID:     "script-app",
+			Config: scriptApp,
 		},
 		App{
 			ID: "composite-app",
@@ -227,12 +229,8 @@ func TestAppCollectionToTree(t *testing.T) {
 			},
 		},
 		App{
-			ID: "echo-app",
-			Config: func() *echo.EchoApp {
-				app := echo.New("echo-app")
-				app.Response = "Hello!"
-				return app
-			}(),
+			ID:     "echo-app",
+			Config: echoApp,
 		},
 	)
 
