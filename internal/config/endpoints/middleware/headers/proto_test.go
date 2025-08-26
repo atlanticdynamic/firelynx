@@ -113,7 +113,7 @@ func TestFromProto(t *testing.T) {
 
 	t.Run("nil protobuf config", func(t *testing.T) {
 		headers, err := FromProto(nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, headers)
 		assert.Contains(t, err.Error(), "nil headers config")
 	})

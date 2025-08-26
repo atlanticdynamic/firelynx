@@ -103,7 +103,7 @@ func TestRunnerShutdownTimeout(t *testing.T) {
 		// Verify shutdown completed with timeout error
 		select {
 		case err := <-errCh:
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "context deadline exceeded")
 		case <-time.After(1 * time.Second):
 			t.Fatal("Runner did not complete within expected time")
@@ -136,7 +136,7 @@ func TestRunnerShutdownTimeout(t *testing.T) {
 		// Verify shutdown completed successfully
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(1 * time.Second):
 			t.Fatal("Runner did not complete within expected time")
 		}

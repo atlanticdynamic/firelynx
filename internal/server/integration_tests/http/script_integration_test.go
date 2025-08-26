@@ -27,7 +27,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/txmgr/txstorage"
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/robbyt/go-polyscript/engines/extism/wasmdata"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -66,131 +66,347 @@ type ScriptResponse struct {
 // StarlarkResponse represents the response structure from Starlark scripts
 type StarlarkResponse struct {
 	Message       string `json:"message"`
-	RequestMethod string `json:"request_method"`
-	RequestPath   string `json:"request_path"`
+	RequestMethod string `json:"requestMethod"`
+	RequestPath   string `json:"requestPath"`
 	Language      string `json:"language"`
 }
 
-// ScriptIntegrationTestSuite tests end-to-end script execution via HTTP
-type ScriptIntegrationTestSuite struct {
-	suite.Suite
-	ctx         context.Context
-	cancel      context.CancelFunc
-	port        int
-	httpRunner  *httplistener.Runner
-	saga        *orchestrator.SagaOrchestrator
-	runnerErrCh chan error
+// scriptSuiteFields represents common fields across all script test suites
+type scriptSuiteFields struct {
+	ctx          context.Context
+	cancel       context.CancelFunc
+	port         int
+	httpRunner   *httplistener.Runner
+	saga         *orchestrator.SagaOrchestrator
+	runnerErrCh  chan error
+	scriptPath   string           // Optional: used by file:// URI test suites
+	scriptServer *httptest.Server // Optional: used by HTTPS test suites
 }
 
-func (s *ScriptIntegrationTestSuite) SetupSuite() {
-	// Setup debug logging for better test debugging
+// setupScriptSuite is a helper function to reduce code duplication across script test suites
+func setupScriptSuite(t *testing.T, templateName, templateContent string, fields *scriptSuiteFields) {
+	t.Helper()
+	setupScriptSuiteWithEndpoint(t, templateName, templateContent, fields, "/hello", http.StatusOK, "Server should be ready to accept requests")
+}
+
+// setupScriptSuiteWithEndpoint is a helper function that allows customizing the readiness endpoint and expected status
+func setupScriptSuiteWithEndpoint(t *testing.T, templateName, templateContent string, fields *scriptSuiteFields, endpoint string, expectedStatus int, readyMessage string) {
+	t.Helper()
 	logging.SetupLogger("debug")
 
-	s.ctx, s.cancel = context.WithCancel(s.T().Context())
-	s.port = testutil.GetRandomPort(s.T())
-	s.runnerErrCh = make(chan error, 1)
+	fields.ctx, fields.cancel = context.WithCancel(t.Context())
+	fields.port = testutil.GetRandomPort(t)
+	fields.runnerErrCh = make(chan error, 1)
 
 	// Template variables
 	templateVars := struct {
 		Port int
 	}{
-		Port: s.port,
+		Port: fields.port,
 	}
 
 	// Render the configuration template
-	tmpl, err := template.New("script_risor_basic").Parse(scriptRisorBasicTemplate)
-	s.Require().NoError(err, "Failed to parse template")
+	tmpl, err := template.New(templateName).Parse(templateContent)
+	require.NoError(t, err, "Failed to parse template")
 
 	var configBuffer strings.Builder
 	err = tmpl.Execute(&configBuffer, templateVars)
-	s.Require().NoError(err, "Failed to render config template")
+	require.NoError(t, err, "Failed to render config template")
 
 	configData := configBuffer.String()
-	s.T().Logf("Rendered config:\n%s", configData)
+	t.Logf("Rendered config:\n%s", configData)
 
 	// Load and validate the configuration
 	cfg, err := config.NewConfigFromBytes([]byte(configData))
-	s.Require().NoError(err, "Failed to load config")
-	s.Require().NoError(cfg.Validate(), "Config validation failed")
+	require.NoError(t, err, "Failed to load config")
+	require.NoError(t, cfg.Validate(), "Config validation failed")
 
 	// Create transaction storage
 	txStore := txstorage.NewMemoryStorage()
 
 	// Create saga orchestrator
-	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+	fields.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
 
 	// Create HTTP runner
-	s.httpRunner, err = httplistener.NewRunner()
-	s.Require().NoError(err)
+	fields.httpRunner, err = httplistener.NewRunner()
+	require.NoError(t, err)
 
 	// Register HTTP runner with orchestrator
-	err = s.saga.RegisterParticipant(s.httpRunner)
-	s.Require().NoError(err)
+	err = fields.saga.RegisterParticipant(fields.httpRunner)
+	require.NoError(t, err)
 
 	// Start HTTP runner in background
 	go func() {
-		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
+		fields.runnerErrCh <- fields.httpRunner.Run(fields.ctx)
 	}()
 
 	// Wait for HTTP runner to start
-	s.Require().Eventually(func() bool {
+	require.Eventually(t, func() bool {
 		select {
-		case err := <-s.runnerErrCh:
-			s.T().Fatalf("HTTP runner failed to start: %v", err)
+		case err := <-fields.runnerErrCh:
+			t.Fatalf("HTTP runner failed to start: %v", err)
 			return false
 		default:
-			return s.httpRunner.IsRunning()
+			return fields.httpRunner.IsRunning()
 		}
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
 	// Create a config transaction
-	tx, err := transaction.FromTest(s.T().Name(), cfg, slog.Default().Handler())
-	s.Require().NoError(err)
+	tx, err := transaction.FromTest(t.Name(), cfg, slog.Default().Handler())
+	require.NoError(t, err)
 
 	// Validate the transaction
 	err = tx.RunValidation()
-	s.Require().NoError(err)
+	require.NoError(t, err)
 
 	// Process the transaction through the orchestrator
-	err = s.saga.ProcessTransaction(s.ctx, tx)
-	s.Require().NoError(err)
+	err = fields.saga.ProcessTransaction(fields.ctx, tx)
+	require.NoError(t, err)
 
 	// Verify the transaction completed successfully
-	s.Require().Equal("completed", tx.GetState())
+	require.Equal(t, "completed", tx.GetState())
 
 	// Wait for the server to be fully ready
-	s.Require().Eventually(func() bool {
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/hello", s.port))
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d%s", fields.port, endpoint))
 		if err != nil {
 			return false
 		}
-		resp.Body.Close()
+		require.NoError(t, resp.Body.Close())
+		return resp.StatusCode == expectedStatus
+	}, 10*time.Second, 100*time.Millisecond, readyMessage)
+}
+
+// setupScriptSuiteWithFile is a helper for file:// URI test suites
+func setupScriptSuiteWithFile(t *testing.T, templateName, templateContent, scriptFilename, scriptContent string, fields *scriptSuiteFields) {
+	t.Helper()
+	logging.SetupLogger("debug")
+
+	fields.ctx, fields.cancel = context.WithCancel(t.Context())
+	fields.port = testutil.GetRandomPort(t)
+	fields.runnerErrCh = make(chan error, 1)
+
+	// Create script file in temp directory
+	fields.scriptPath = createTempScript(t, scriptFilename, scriptContent)
+
+	// Template variables for file URI templates
+	templateVars := struct {
+		Port       int
+		ScriptPath string
+	}{
+		Port:       fields.port,
+		ScriptPath: fields.scriptPath,
+	}
+
+	// Render the configuration template
+	tmpl, err := template.New(templateName).Parse(templateContent)
+	require.NoError(t, err, "Failed to parse template")
+
+	var configBuffer strings.Builder
+	err = tmpl.Execute(&configBuffer, templateVars)
+	require.NoError(t, err, "Failed to render config template")
+
+	configData := configBuffer.String()
+	t.Logf("Rendered config:\n%s", configData)
+
+	// Load and validate the configuration
+	cfg, err := config.NewConfigFromBytes([]byte(configData))
+	require.NoError(t, err, "Failed to load config")
+	require.NoError(t, cfg.Validate(), "Config validation failed")
+
+	// Create transaction storage
+	txStore := txstorage.NewMemoryStorage()
+
+	// Create saga orchestrator
+	fields.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+
+	// Create HTTP runner
+	fields.httpRunner, err = httplistener.NewRunner()
+	require.NoError(t, err)
+
+	// Register HTTP runner with orchestrator
+	err = fields.saga.RegisterParticipant(fields.httpRunner)
+	require.NoError(t, err)
+
+	// Start HTTP runner in background
+	go func() {
+		fields.runnerErrCh <- fields.httpRunner.Run(fields.ctx)
+	}()
+
+	// Wait for HTTP runner to start
+	require.Eventually(t, func() bool {
+		select {
+		case err := <-fields.runnerErrCh:
+			t.Fatalf("HTTP runner failed to start: %v", err)
+			return false
+		default:
+			return fields.httpRunner.IsRunning()
+		}
+	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
+
+	// Create a config transaction
+	tx, err := transaction.FromTest(t.Name(), cfg, slog.Default().Handler())
+	require.NoError(t, err)
+
+	// Validate the transaction
+	err = tx.RunValidation()
+	require.NoError(t, err)
+
+	// Process the transaction through the orchestrator
+	err = fields.saga.ProcessTransaction(fields.ctx, tx)
+	require.NoError(t, err)
+
+	// Verify the transaction completed successfully
+	require.Equal(t, "completed", tx.GetState())
+
+	// Wait for the server to be fully ready
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/file-script", fields.port))
+		if err != nil {
+			return false
+		}
+		require.NoError(t, resp.Body.Close())
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
 }
 
-func (s *ScriptIntegrationTestSuite) TearDownSuite() {
+// setupScriptSuiteWithHTTPS is a helper for HTTPS test suites
+func setupScriptSuiteWithHTTPS(t *testing.T, templateName, templateContent, scriptPath string, fields *scriptSuiteFields) {
+	t.Helper()
+	logging.SetupLogger("debug")
+
+	fields.ctx, fields.cancel = context.WithCancel(t.Context())
+	fields.port = testutil.GetRandomPort(t)
+	fields.runnerErrCh = make(chan error, 1)
+
+	// Set up HTTP test server for serving test scripts
+	fields.scriptServer = setupHTTPTestServer()
+	t.Logf("Test script server running at: %s", fields.scriptServer.URL)
+
+	// Template variables with script server URL
+	templateVars := struct {
+		Port      int
+		ScriptURL string
+	}{
+		Port:      fields.port,
+		ScriptURL: fields.scriptServer.URL + scriptPath,
+	}
+
+	// Render the configuration template
+	tmpl, err := template.New(templateName).Parse(templateContent)
+	require.NoError(t, err, "Failed to parse template")
+
+	var configBuffer strings.Builder
+	err = tmpl.Execute(&configBuffer, templateVars)
+	require.NoError(t, err, "Failed to render config template")
+
+	configData := configBuffer.String()
+	t.Logf("Rendered HTTPS config:\n%s", configData)
+
+	// Load and validate the configuration
+	cfg, err := config.NewConfigFromBytes([]byte(configData))
+	require.NoError(t, err, "Failed to load config")
+	require.NoError(t, cfg.Validate(), "Config validation failed")
+
+	// Create transaction storage
+	txStore := txstorage.NewMemoryStorage()
+
+	// Create saga orchestrator
+	fields.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
+
+	// Create HTTP runner
+	fields.httpRunner, err = httplistener.NewRunner()
+	require.NoError(t, err)
+
+	// Register HTTP runner with orchestrator
+	err = fields.saga.RegisterParticipant(fields.httpRunner)
+	require.NoError(t, err)
+
+	// Start HTTP runner in background
+	go func() {
+		fields.runnerErrCh <- fields.httpRunner.Run(fields.ctx)
+	}()
+
+	// Wait for HTTP runner to start
+	require.Eventually(t, func() bool {
+		select {
+		case err := <-fields.runnerErrCh:
+			t.Fatalf("HTTP runner failed to start: %v", err)
+			return false
+		default:
+			return fields.httpRunner.IsRunning()
+		}
+	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
+
+	// Create a config transaction
+	tx, err := transaction.FromTest(t.Name(), cfg, slog.Default().Handler())
+	require.NoError(t, err)
+
+	// Validate the transaction
+	err = tx.RunValidation()
+	require.NoError(t, err)
+
+	// Process the transaction through the orchestrator
+	err = fields.saga.ProcessTransaction(fields.ctx, tx)
+	require.NoError(t, err)
+
+	// Verify the transaction completed successfully
+	require.Equal(t, "completed", tx.GetState())
+
+	// Wait for the server to be fully ready
+	require.Eventually(t, func() bool {
+		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/execute", fields.port))
+		if err != nil {
+			return false
+		}
+		require.NoError(t, resp.Body.Close())
+		return resp.StatusCode == http.StatusOK
+	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
+}
+
+// teardownScriptSuite is a helper function for common teardown logic
+func teardownScriptSuite(t *testing.T, fields *scriptSuiteFields) {
+	t.Helper()
+	// Close script server if it exists
+	if fields.scriptServer != nil {
+		fields.scriptServer.Close()
+	}
+
 	// Cancel context to signal shutdown
-	if s.cancel != nil {
-		s.cancel()
+	if fields.cancel != nil {
+		fields.cancel()
 	}
 
 	// Stop HTTP runner if it exists
-	if s.httpRunner != nil {
-		s.httpRunner.Stop()
+	if fields.httpRunner != nil {
+		fields.httpRunner.Stop()
 
 		// Wait for runner to stop
-		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
+		require.Eventually(t, func() bool {
+			return !fields.httpRunner.IsRunning()
 		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
 	}
+}
+
+// ScriptIntegrationTestSuite tests end-to-end script execution via HTTP
+type ScriptIntegrationTestSuite struct {
+	suite.Suite
+	scriptSuiteFields
+}
+
+func (s *ScriptIntegrationTestSuite) SetupSuite() {
+	setupScriptSuite(s.T(), "script_risor_basic", scriptRisorBasicTemplate, &s.scriptSuiteFields)
+}
+
+func (s *ScriptIntegrationTestSuite) TearDownSuite() {
+	teardownScriptSuite(s.T(), &s.scriptSuiteFields)
 }
 
 func (s *ScriptIntegrationTestSuite) TestRisorScriptBasicExecution() {
 	// Make a GET request to the script endpoint
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/hello", s.port))
 	s.Require().NoError(err, "Failed to make GET request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "Script should return 200 OK")
@@ -225,7 +441,7 @@ func (s *ScriptIntegrationTestSuite) TestRisorScriptPostExecution() {
 		nil,
 	)
 	s.Require().NoError(err, "Failed to make POST request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "Script should return 200 OK")
@@ -252,123 +468,22 @@ func TestScriptIntegrationSuite(t *testing.T) {
 // StarlarkIntegrationTestSuite tests Starlark script execution via HTTP
 type StarlarkIntegrationTestSuite struct {
 	suite.Suite
-	ctx         context.Context
-	cancel      context.CancelFunc
-	port        int
-	httpRunner  *httplistener.Runner
-	saga        *orchestrator.SagaOrchestrator
-	runnerErrCh chan error
+	scriptSuiteFields
 }
 
 func (s *StarlarkIntegrationTestSuite) SetupSuite() {
-	// Setup debug logging for better test debugging
-	logging.SetupLogger("debug")
-
-	s.ctx, s.cancel = context.WithCancel(s.T().Context())
-	s.port = testutil.GetRandomPort(s.T())
-	s.runnerErrCh = make(chan error, 1)
-
-	// Template variables
-	templateVars := struct {
-		Port int
-	}{
-		Port: s.port,
-	}
-
-	// Render the Starlark configuration template
-	tmpl, err := template.New("script_starlark_basic").Parse(scriptStarlarkBasicTemplate)
-	s.Require().NoError(err, "Failed to parse template")
-
-	var configBuffer strings.Builder
-	err = tmpl.Execute(&configBuffer, templateVars)
-	s.Require().NoError(err, "Failed to render config template")
-
-	configData := configBuffer.String()
-	s.T().Logf("Rendered Starlark config:\n%s", configData)
-
-	// Load and validate the configuration
-	cfg, err := config.NewConfigFromBytes([]byte(configData))
-	s.Require().NoError(err, "Failed to load config")
-	s.Require().NoError(cfg.Validate(), "Config validation failed")
-
-	// Create transaction storage
-	txStore := txstorage.NewMemoryStorage()
-
-	// Create saga orchestrator
-	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
-
-	// Create HTTP runner
-	s.httpRunner, err = httplistener.NewRunner()
-	s.Require().NoError(err)
-
-	// Register HTTP runner with orchestrator
-	err = s.saga.RegisterParticipant(s.httpRunner)
-	s.Require().NoError(err)
-
-	// Start HTTP runner in background
-	go func() {
-		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
-	}()
-
-	// Wait for HTTP runner to start
-	s.Require().Eventually(func() bool {
-		select {
-		case err := <-s.runnerErrCh:
-			s.T().Fatalf("HTTP runner failed to start: %v", err)
-			return false
-		default:
-			return s.httpRunner.IsRunning()
-		}
-	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
-
-	// Create a config transaction
-	tx, err := transaction.FromTest(s.T().Name(), cfg, slog.Default().Handler())
-	s.Require().NoError(err)
-
-	// Validate the transaction
-	err = tx.RunValidation()
-	s.Require().NoError(err)
-
-	// Process the transaction through the orchestrator
-	err = s.saga.ProcessTransaction(s.ctx, tx)
-	s.Require().NoError(err)
-
-	// Verify the transaction completed successfully
-	s.Require().Equal("completed", tx.GetState())
-
-	// Wait for the server to be fully ready
-	s.Require().Eventually(func() bool {
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/hello", s.port))
-		if err != nil {
-			return false
-		}
-		resp.Body.Close()
-		return resp.StatusCode == http.StatusOK
-	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
+	setupScriptSuite(s.T(), "script_starlark_basic", scriptStarlarkBasicTemplate, &s.scriptSuiteFields)
 }
 
 func (s *StarlarkIntegrationTestSuite) TearDownSuite() {
-	// Cancel context to signal shutdown
-	if s.cancel != nil {
-		s.cancel()
-	}
-
-	// Stop HTTP runner if it exists
-	if s.httpRunner != nil {
-		s.httpRunner.Stop()
-
-		// Wait for runner to stop
-		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
-		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
-	}
+	teardownScriptSuite(s.T(), &s.scriptSuiteFields)
 }
 
 func (s *StarlarkIntegrationTestSuite) TestStarlarkScriptBasicExecution() {
 	// Make a GET request to the script endpoint
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/hello", s.port))
 	s.Require().NoError(err, "Failed to make GET request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "Script should return 200 OK")
@@ -405,7 +520,7 @@ func (s *StarlarkIntegrationTestSuite) TestStarlarkScriptPostExecution() {
 		nil,
 	)
 	s.Require().NoError(err, "Failed to make POST request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "Script should return 200 OK")
@@ -434,128 +549,25 @@ func TestStarlarkIntegrationSuite(t *testing.T) {
 // ScriptErrorIntegrationTestSuite tests error scenarios for script execution via HTTP
 type ScriptErrorIntegrationTestSuite struct {
 	suite.Suite
-	ctx         context.Context
-	cancel      context.CancelFunc
-	port        int
-	httpRunner  *httplistener.Runner
-	saga        *orchestrator.SagaOrchestrator
-	runnerErrCh chan error
+	scriptSuiteFields
 }
 
 //go:embed testdata/script_timeout_test.toml.tmpl
 var scriptTimeoutTemplate string
 
-//go:embed testdata/script_syntax_error.toml.tmpl
-var scriptSyntaxErrorTemplate string
-
 func (s *ScriptErrorIntegrationTestSuite) SetupSuite() {
-	logging.SetupLogger("debug")
-
-	s.ctx, s.cancel = context.WithCancel(s.T().Context())
-	s.port = testutil.GetRandomPort(s.T())
-	s.runnerErrCh = make(chan error, 1)
-
-	// Template variables
-	templateVars := struct {
-		Port int
-	}{
-		Port: s.port,
-	}
-
-	// Render the timeout test configuration template
-	tmpl, err := template.New("script_timeout_test").Parse(scriptTimeoutTemplate)
-	s.Require().NoError(err, "Failed to parse template")
-
-	var configBuffer strings.Builder
-	err = tmpl.Execute(&configBuffer, templateVars)
-	s.Require().NoError(err, "Failed to render config template")
-
-	configData := configBuffer.String()
-	s.T().Logf("Rendered timeout config:\n%s", configData)
-
-	// Load and validate the configuration
-	cfg, err := config.NewConfigFromBytes([]byte(configData))
-	s.Require().NoError(err, "Failed to load config")
-	s.Require().NoError(cfg.Validate(), "Config validation failed")
-
-	// Create transaction storage
-	txStore := txstorage.NewMemoryStorage()
-
-	// Create saga orchestrator
-	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
-
-	// Create HTTP runner
-	s.httpRunner, err = httplistener.NewRunner()
-	s.Require().NoError(err)
-
-	// Register HTTP runner with orchestrator
-	err = s.saga.RegisterParticipant(s.httpRunner)
-	s.Require().NoError(err)
-
-	// Start HTTP runner in background
-	go func() {
-		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
-	}()
-
-	// Wait for HTTP runner to start
-	s.Require().Eventually(func() bool {
-		select {
-		case err := <-s.runnerErrCh:
-			s.T().Fatalf("HTTP runner failed to start: %v", err)
-			return false
-		default:
-			return s.httpRunner.IsRunning()
-		}
-	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
-
-	// Create a config transaction
-	tx, err := transaction.FromTest(s.T().Name(), cfg, slog.Default().Handler())
-	s.Require().NoError(err)
-
-	// Validate the transaction
-	err = tx.RunValidation()
-	s.Require().NoError(err)
-
-	// Process the transaction through the orchestrator
-	err = s.saga.ProcessTransaction(s.ctx, tx)
-	s.Require().NoError(err)
-
-	// Verify the transaction completed successfully
-	s.Require().Equal("completed", tx.GetState())
-
-	// Wait for the server to be fully ready
-	s.Require().Eventually(func() bool {
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/timeout", s.port))
-		if err != nil {
-			return false
-		}
-		resp.Body.Close()
-		return resp.StatusCode == http.StatusGatewayTimeout // We expect timeout for this endpoint
-	}, 10*time.Second, 100*time.Millisecond, "Server should be ready and timeout endpoint should timeout")
+	setupScriptSuiteWithEndpoint(s.T(), "script_timeout_test", scriptTimeoutTemplate, &s.scriptSuiteFields, "/timeout", http.StatusGatewayTimeout, "Server should be ready and timeout endpoint should timeout")
 }
 
 func (s *ScriptErrorIntegrationTestSuite) TearDownSuite() {
-	// Cancel context to signal shutdown
-	if s.cancel != nil {
-		s.cancel()
-	}
-
-	// Stop HTTP runner if it exists
-	if s.httpRunner != nil {
-		s.httpRunner.Stop()
-
-		// Wait for runner to stop
-		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
-		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
-	}
+	teardownScriptSuite(s.T(), &s.scriptSuiteFields)
 }
 
 func (s *ScriptErrorIntegrationTestSuite) TestScriptTimeout() {
 	// Make a GET request to the timeout endpoint
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/timeout", s.port))
 	s.Require().NoError(err, "Failed to make GET request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify timeout status code
 	s.Equal(http.StatusGatewayTimeout, resp.StatusCode, "Script should timeout and return 504")
@@ -580,7 +592,7 @@ func createTempScript(t *testing.T, filename, content string) string {
 	tempDir := t.TempDir()
 	scriptPath := filepath.Join(tempDir, filename)
 	err := os.WriteFile(scriptPath, []byte(content), 0o644)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	return scriptPath
 }
 
@@ -611,134 +623,28 @@ type ExtismReverseResponse struct {
 // RisorFileURIIntegrationTestSuite tests Risor script execution from file:// URIs
 type RisorFileURIIntegrationTestSuite struct {
 	suite.Suite
-	ctx         context.Context
-	cancel      context.CancelFunc
-	port        int
-	httpRunner  *httplistener.Runner
-	saga        *orchestrator.SagaOrchestrator
-	runnerErrCh chan error
-	scriptPath  string
+	scriptSuiteFields
 }
 
 func (s *RisorFileURIIntegrationTestSuite) SetupSuite() {
-	logging.SetupLogger("debug")
-
-	s.ctx, s.cancel = context.WithCancel(s.T().Context())
-	s.port = testutil.GetRandomPort(s.T())
-	s.runnerErrCh = make(chan error, 1)
-
-	// Create script file in temp directory
 	scriptContent := `// Example Risor script for URI loading test
 {
     "message": "Hello from Risor file URI!",
     "source": "file://",
     "timestamp": time.now().format("2006-01-02T15:04:05Z07:00")
 }`
-	s.scriptPath = createTempScript(s.T(), "example_risor_script.risor", scriptContent)
-
-	// Template variables
-	templateVars := struct {
-		Port       int
-		ScriptPath string
-	}{
-		Port:       s.port,
-		ScriptPath: s.scriptPath,
-	}
-
-	// Render the file URI configuration template
-	tmpl, err := template.New("script_risor_file_uri").Parse(scriptRisorFileURITemplate)
-	s.Require().NoError(err, "Failed to parse template")
-
-	var configBuffer strings.Builder
-	err = tmpl.Execute(&configBuffer, templateVars)
-	s.Require().NoError(err, "Failed to render config template")
-
-	configData := configBuffer.String()
-	s.T().Logf("Rendered Risor file URI config:\n%s", configData)
-
-	// Load and validate the configuration
-	cfg, err := config.NewConfigFromBytes([]byte(configData))
-	s.Require().NoError(err, "Failed to load config")
-	s.Require().NoError(cfg.Validate(), "Config validation failed")
-
-	// Create transaction storage
-	txStore := txstorage.NewMemoryStorage()
-
-	// Create saga orchestrator
-	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
-
-	// Create HTTP runner
-	s.httpRunner, err = httplistener.NewRunner()
-	s.Require().NoError(err)
-
-	// Register HTTP runner with orchestrator
-	err = s.saga.RegisterParticipant(s.httpRunner)
-	s.Require().NoError(err)
-
-	// Start HTTP runner in background
-	go func() {
-		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
-	}()
-
-	// Wait for HTTP runner to start
-	s.Require().Eventually(func() bool {
-		select {
-		case err := <-s.runnerErrCh:
-			s.T().Fatalf("HTTP runner failed to start: %v", err)
-			return false
-		default:
-			return s.httpRunner.IsRunning()
-		}
-	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
-
-	// Create a config transaction
-	tx, err := transaction.FromTest(s.T().Name(), cfg, slog.Default().Handler())
-	s.Require().NoError(err)
-
-	// Validate the transaction
-	err = tx.RunValidation()
-	s.Require().NoError(err)
-
-	// Process the transaction through the orchestrator
-	err = s.saga.ProcessTransaction(s.ctx, tx)
-	s.Require().NoError(err)
-
-	// Verify the transaction completed successfully
-	s.Require().Equal("completed", tx.GetState())
-
-	// Wait for the server to be fully ready
-	s.Require().Eventually(func() bool {
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/file-script", s.port))
-		if err != nil {
-			return false
-		}
-		resp.Body.Close()
-		return resp.StatusCode == http.StatusOK
-	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
+	setupScriptSuiteWithFile(s.T(), "script_risor_file_uri", scriptRisorFileURITemplate, "example_risor_script.risor", scriptContent, &s.scriptSuiteFields)
 }
 
 func (s *RisorFileURIIntegrationTestSuite) TearDownSuite() {
-	// Cancel context to signal shutdown
-	if s.cancel != nil {
-		s.cancel()
-	}
-
-	// Stop HTTP runner if it exists
-	if s.httpRunner != nil {
-		s.httpRunner.Stop()
-
-		// Wait for runner to stop
-		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
-		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
-	}
+	teardownScriptSuite(s.T(), &s.scriptSuiteFields)
 }
 
 func (s *RisorFileURIIntegrationTestSuite) TestRisorFileURIExecution() {
 	// Make a GET request to the file script endpoint
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/file-script", s.port))
 	s.Require().NoError(err, "Failed to make GET request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "Script should return 200 OK")
@@ -875,7 +781,7 @@ _ = result`
 		if err != nil {
 			return false
 		}
-		resp.Body.Close()
+		s.NoError(resp.Body.Close())
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
 }
@@ -901,7 +807,7 @@ func (s *StarlarkFileURIIntegrationTestSuite) TestStarlarkFileURIExecution() {
 	// Make a GET request to the file script endpoint
 	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/file-script", s.port))
 	s.Require().NoError(err, "Failed to make GET request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "Script should return 200 OK")
@@ -1031,7 +937,7 @@ func (s *ExtismIntegrationTestSuite) SetupSuite() {
 		if err != nil {
 			return false
 		}
-		resp.Body.Close()
+		s.NoError(resp.Body.Close())
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
 }
@@ -1062,7 +968,7 @@ func (s *ExtismIntegrationTestSuite) TestExtismGreetExecution() {
 		strings.NewReader(reqBody),
 	)
 	s.Require().NoError(err, "Failed to make POST request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "WASM script should return 200 OK")
@@ -1097,7 +1003,7 @@ func (s *ExtismIntegrationTestSuite) TestExtismCountVowelsExecution() {
 		strings.NewReader(reqBody),
 	)
 	s.Require().NoError(err, "Failed to make POST request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "WASM script should return 200 OK")
@@ -1126,7 +1032,7 @@ func (s *ExtismIntegrationTestSuite) TestExtismReverseStringExecution() {
 		strings.NewReader(reqBody),
 	)
 	s.Require().NoError(err, "Failed to make POST request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "WASM script should return 200 OK")
@@ -1163,7 +1069,9 @@ func setupHTTPTestServer() *httptest.Server {
   "evaluator": "risor",
   "timestamp": time.now().format("2006-01-02T15:04:05Z07:00")
 }`
-		w.Write([]byte(script))
+		if _, err := w.Write([]byte(script)); err != nil {
+			panic(err) // Test server write should not fail
+		}
 	})
 
 	// Serve Starlark test script
@@ -1178,13 +1086,17 @@ result = {
 }
 # The underscore variable is returned to Go
 _ = result`
-		w.Write([]byte(script))
+		if _, err := w.Write([]byte(script)); err != nil {
+			panic(err) // Test server write should not fail
+		}
 	})
 
 	// Serve WASM test module (base64 encoded)
 	mux.HandleFunc("/scripts/test.wasm", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/wasm")
-		w.Write(wasmdata.TestModule)
+		if _, err := w.Write(wasmdata.TestModule); err != nil {
+			panic(err) // Test server write should not fail
+		}
 	})
 
 	return httptest.NewServer(mux)
@@ -1193,145 +1105,42 @@ _ = result`
 // RisorHTTPSIntegrationTestSuite tests Risor script execution from HTTPS URIs
 type RisorHTTPSIntegrationTestSuite struct {
 	suite.Suite
-	ctx          context.Context
-	cancel       context.CancelFunc
-	port         int
-	httpRunner   *httplistener.Runner
-	saga         *orchestrator.SagaOrchestrator
-	runnerErrCh  chan error
-	scriptServer *httptest.Server
+	scriptSuiteFields
 }
 
 func (s *RisorHTTPSIntegrationTestSuite) SetupSuite() {
-	logging.SetupLogger("debug")
-
-	s.ctx, s.cancel = context.WithCancel(s.T().Context())
-	s.port = testutil.GetRandomPort(s.T())
-	s.runnerErrCh = make(chan error, 1)
-
-	// Set up HTTP server for serving test scripts
-	s.scriptServer = setupHTTPTestServer()
-	s.T().Logf("Test script server running at: %s", s.scriptServer.URL)
-
-	// Template variables with script server URL
-	templateVars := struct {
-		Port      int
-		ScriptURL string
-	}{
-		Port:      s.port,
-		ScriptURL: s.scriptServer.URL + "/scripts/test.risor",
-	}
-
-	// Render the HTTPS configuration template
-	tmpl, err := template.New("script_risor_https").Parse(scriptRisorHTTPSTemplate)
-	s.Require().NoError(err, "Failed to parse template")
-
-	var configBuffer strings.Builder
-	err = tmpl.Execute(&configBuffer, templateVars)
-	s.Require().NoError(err, "Failed to render config template")
-
-	configData := configBuffer.String()
-	s.T().Logf("Rendered HTTPS Risor config:\n%s", configData)
-
-	// Load and validate the configuration
-	cfg, err := config.NewConfigFromBytes([]byte(configData))
-	s.Require().NoError(err, "Failed to load config")
-	s.Require().NoError(cfg.Validate(), "Config validation failed")
-
-	// Create transaction storage
-	txStore := txstorage.NewMemoryStorage()
-
-	// Create saga orchestrator
-	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
-
-	// Create HTTP runner
-	s.httpRunner, err = httplistener.NewRunner()
-	s.Require().NoError(err)
-
-	// Register HTTP runner with orchestrator
-	err = s.saga.RegisterParticipant(s.httpRunner)
-	s.Require().NoError(err)
-
-	// Start HTTP runner in background
-	go func() {
-		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
-	}()
-
-	// Wait for HTTP runner to start
-	s.Require().Eventually(func() bool {
-		select {
-		case err := <-s.runnerErrCh:
-			s.T().Fatalf("HTTP runner failed to start: %v", err)
-			return false
-		default:
-			return s.httpRunner.IsRunning()
-		}
-	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
-
-	// Create a config transaction
-	tx, err := transaction.FromTest(s.T().Name(), cfg, slog.Default().Handler())
-	s.Require().NoError(err)
-
-	// Validate the transaction
-	err = tx.RunValidation()
-	s.Require().NoError(err)
-
-	// Process the transaction through the orchestrator
-	err = s.saga.ProcessTransaction(s.ctx, tx)
-	s.Require().NoError(err)
-
-	// Verify the transaction completed successfully
-	s.Require().Equal("completed", tx.GetState())
-
-	// Wait for the server to be fully ready
-	s.Require().Eventually(func() bool {
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/execute", s.port))
-		if err != nil {
-			return false
-		}
-		resp.Body.Close()
-		return resp.StatusCode == http.StatusOK
-	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
+	setupScriptSuiteWithHTTPS(s.T(), "script_risor_https", scriptRisorHTTPSTemplate, "/scripts/test.risor", &s.scriptSuiteFields)
 }
 
 func (s *RisorHTTPSIntegrationTestSuite) TearDownSuite() {
-	// Stop script server
-	if s.scriptServer != nil {
-		s.scriptServer.Close()
-	}
-
-	// Cancel context to signal shutdown
-	if s.cancel != nil {
-		s.cancel()
-	}
-
-	// Stop HTTP runner if it exists
-	if s.httpRunner != nil {
-		s.httpRunner.Stop()
-
-		// Wait for runner to stop
-		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
-		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
-	}
+	teardownScriptSuite(s.T(), &s.scriptSuiteFields)
 }
 
-func (s *RisorHTTPSIntegrationTestSuite) TestRisorHTTPSExecution() {
+// testHTTPSScriptExecution is a helper function to test HTTPS script execution
+// It reduces code duplication between different script type test suites
+func testHTTPSScriptExecution(suite interface {
+	T() *testing.T
+	Require() *require.Assertions
+	Equal(interface{}, interface{}, ...interface{}) bool
+	NotEmpty(interface{}, ...interface{}) bool
+	NoError(err error, msgAndArgs ...interface{}) bool
+}, port int, expectedMessage, expectedEvaluator string,
+) {
 	// Make a POST request with JSON input to test HTTPS script loading
 	reqBody := `{"name": "HTTPS Test"}`
 	resp, err := http.Post(
-		fmt.Sprintf("http://127.0.0.1:%d/execute", s.port),
+		fmt.Sprintf("http://127.0.0.1:%d/execute", port),
 		"application/json",
 		strings.NewReader(reqBody),
 	)
-	s.Require().NoError(err, "Failed to make POST request")
-	defer resp.Body.Close()
+	suite.Require().NoError(err, "Failed to make POST request")
+	defer func() { suite.NoError(resp.Body.Close()) }()
 
 	// Verify status code
-	s.Equal(http.StatusOK, resp.StatusCode, "HTTPS script should return 200 OK")
+	suite.Equal(http.StatusOK, resp.StatusCode, "HTTPS script should return 200 OK")
 
 	// Verify content type
-	s.Equal(
+	suite.Equal(
 		"application/json",
 		resp.Header.Get("Content-Type"),
 		"HTTPS script should return JSON content type",
@@ -1339,23 +1148,27 @@ func (s *RisorHTTPSIntegrationTestSuite) TestRisorHTTPSExecution() {
 
 	// Read and parse response body
 	body, err := io.ReadAll(resp.Body)
-	s.Require().NoError(err, "Failed to read response body")
+	suite.Require().NoError(err, "Failed to read response body")
 
 	var scriptResp ScriptResponse
 	err = json.Unmarshal(body, &scriptResp)
-	s.Require().NoError(err, "Failed to parse JSON response")
+	suite.Require().NoError(err, "Failed to parse JSON response")
 
 	// Verify script response content
-	s.Equal(
-		"Hello from HTTPS Risor!",
+	suite.Equal(
+		expectedMessage,
 		scriptResp.Message,
 		"HTTPS script should return expected message",
 	)
-	s.Equal("https", scriptResp.Source, "Script should indicate HTTPS source")
-	s.Equal("risor", scriptResp.Evaluator, "Script should indicate Risor evaluator")
-	s.NotEmpty(scriptResp.Timestamp, "Script should include timestamp")
+	suite.Equal("https", scriptResp.Source, "Script should indicate HTTPS source")
+	suite.Equal(expectedEvaluator, scriptResp.Evaluator, fmt.Sprintf("Script should indicate %s evaluator", expectedEvaluator))
+	suite.NotEmpty(scriptResp.Timestamp, "Script should include timestamp")
 
-	s.T().Logf("HTTPS Risor response: %+v", scriptResp)
+	suite.T().Logf("HTTPS %s response: %+v", expectedEvaluator, scriptResp)
+}
+
+func (s *RisorHTTPSIntegrationTestSuite) TestRisorHTTPSExecution() {
+	testHTTPSScriptExecution(s, s.port, "Hello from HTTPS Risor!", "risor")
 }
 
 func TestRisorHTTPSIntegrationSuite(t *testing.T) {
@@ -1365,169 +1178,19 @@ func TestRisorHTTPSIntegrationSuite(t *testing.T) {
 // StarlarkHTTPSIntegrationTestSuite tests Starlark script execution from HTTPS URIs
 type StarlarkHTTPSIntegrationTestSuite struct {
 	suite.Suite
-	ctx          context.Context
-	cancel       context.CancelFunc
-	port         int
-	httpRunner   *httplistener.Runner
-	saga         *orchestrator.SagaOrchestrator
-	runnerErrCh  chan error
-	scriptServer *httptest.Server
+	scriptSuiteFields
 }
 
 func (s *StarlarkHTTPSIntegrationTestSuite) SetupSuite() {
-	logging.SetupLogger("debug")
-
-	s.ctx, s.cancel = context.WithCancel(s.T().Context())
-	s.port = testutil.GetRandomPort(s.T())
-	s.runnerErrCh = make(chan error, 1)
-
-	// Set up HTTP server for serving test scripts
-	s.scriptServer = setupHTTPTestServer()
-	s.T().Logf("Test script server running at: %s", s.scriptServer.URL)
-
-	// Template variables with script server URL
-	templateVars := struct {
-		Port      int
-		ScriptURL string
-	}{
-		Port:      s.port,
-		ScriptURL: s.scriptServer.URL + "/scripts/test.star",
-	}
-
-	// Render the HTTPS configuration template
-	tmpl, err := template.New("script_starlark_https").Parse(scriptStarlarkHTTPSTemplate)
-	s.Require().NoError(err, "Failed to parse template")
-
-	var configBuffer strings.Builder
-	err = tmpl.Execute(&configBuffer, templateVars)
-	s.Require().NoError(err, "Failed to render config template")
-
-	configData := configBuffer.String()
-	s.T().Logf("Rendered HTTPS Starlark config:\n%s", configData)
-
-	// Load and validate the configuration
-	cfg, err := config.NewConfigFromBytes([]byte(configData))
-	s.Require().NoError(err, "Failed to load config")
-	s.Require().NoError(cfg.Validate(), "Config validation failed")
-
-	// Create transaction storage
-	txStore := txstorage.NewMemoryStorage()
-
-	// Create saga orchestrator
-	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
-
-	// Create HTTP runner
-	s.httpRunner, err = httplistener.NewRunner()
-	s.Require().NoError(err)
-
-	// Register HTTP runner with orchestrator
-	err = s.saga.RegisterParticipant(s.httpRunner)
-	s.Require().NoError(err)
-
-	// Start HTTP runner in background
-	go func() {
-		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
-	}()
-
-	// Wait for HTTP runner to start
-	s.Require().Eventually(func() bool {
-		select {
-		case err := <-s.runnerErrCh:
-			s.T().Fatalf("HTTP runner failed to start: %v", err)
-			return false
-		default:
-			return s.httpRunner.IsRunning()
-		}
-	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
-
-	// Create a config transaction
-	tx, err := transaction.FromTest(s.T().Name(), cfg, slog.Default().Handler())
-	s.Require().NoError(err)
-
-	// Validate the transaction
-	err = tx.RunValidation()
-	s.Require().NoError(err)
-
-	// Process the transaction through the orchestrator
-	err = s.saga.ProcessTransaction(s.ctx, tx)
-	s.Require().NoError(err)
-
-	// Verify the transaction completed successfully
-	s.Require().Equal("completed", tx.GetState())
-
-	// Wait for the server to be fully ready
-	s.Require().Eventually(func() bool {
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/execute", s.port))
-		if err != nil {
-			return false
-		}
-		resp.Body.Close()
-		return resp.StatusCode == http.StatusOK
-	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
+	setupScriptSuiteWithHTTPS(s.T(), "script_starlark_https", scriptStarlarkHTTPSTemplate, "/scripts/test.star", &s.scriptSuiteFields)
 }
 
 func (s *StarlarkHTTPSIntegrationTestSuite) TearDownSuite() {
-	// Stop script server
-	if s.scriptServer != nil {
-		s.scriptServer.Close()
-	}
-
-	// Cancel context to signal shutdown
-	if s.cancel != nil {
-		s.cancel()
-	}
-
-	// Stop HTTP runner if it exists
-	if s.httpRunner != nil {
-		s.httpRunner.Stop()
-
-		// Wait for runner to stop
-		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
-		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
-	}
+	teardownScriptSuite(s.T(), &s.scriptSuiteFields)
 }
 
 func (s *StarlarkHTTPSIntegrationTestSuite) TestStarlarkHTTPSExecution() {
-	// Make a POST request with JSON input to test HTTPS script loading
-	reqBody := `{"name": "HTTPS Test"}`
-	resp, err := http.Post(
-		fmt.Sprintf("http://127.0.0.1:%d/execute", s.port),
-		"application/json",
-		strings.NewReader(reqBody),
-	)
-	s.Require().NoError(err, "Failed to make POST request")
-	defer resp.Body.Close()
-
-	// Verify status code
-	s.Equal(http.StatusOK, resp.StatusCode, "HTTPS script should return 200 OK")
-
-	// Verify content type
-	s.Equal(
-		"application/json",
-		resp.Header.Get("Content-Type"),
-		"HTTPS script should return JSON content type",
-	)
-
-	// Read and parse response body
-	body, err := io.ReadAll(resp.Body)
-	s.Require().NoError(err, "Failed to read response body")
-
-	var scriptResp ScriptResponse
-	err = json.Unmarshal(body, &scriptResp)
-	s.Require().NoError(err, "Failed to parse JSON response")
-
-	// Verify script response content
-	s.Equal(
-		"Hello from HTTPS Starlark!",
-		scriptResp.Message,
-		"HTTPS script should return expected message",
-	)
-	s.Equal("https", scriptResp.Source, "Script should indicate HTTPS source")
-	s.Equal("starlark", scriptResp.Evaluator, "Script should indicate Starlark evaluator")
-	s.NotEmpty(scriptResp.Timestamp, "Script should include timestamp")
-
-	s.T().Logf("HTTPS Starlark response: %+v", scriptResp)
+	testHTTPSScriptExecution(s, s.port, "Hello from HTTPS Starlark!", "starlark")
 }
 
 func TestStarlarkHTTPSIntegrationSuite(t *testing.T) {
@@ -1537,127 +1200,15 @@ func TestStarlarkHTTPSIntegrationSuite(t *testing.T) {
 // ExtismHTTPSIntegrationTestSuite tests Extism/WASM script execution from HTTPS URIs
 type ExtismHTTPSIntegrationTestSuite struct {
 	suite.Suite
-	ctx          context.Context
-	cancel       context.CancelFunc
-	port         int
-	httpRunner   *httplistener.Runner
-	saga         *orchestrator.SagaOrchestrator
-	runnerErrCh  chan error
-	scriptServer *httptest.Server
+	scriptSuiteFields
 }
 
 func (s *ExtismHTTPSIntegrationTestSuite) SetupSuite() {
-	logging.SetupLogger("debug")
-
-	s.ctx, s.cancel = context.WithCancel(s.T().Context())
-	s.port = testutil.GetRandomPort(s.T())
-	s.runnerErrCh = make(chan error, 1)
-
-	// Set up HTTP server for serving test scripts
-	s.scriptServer = setupHTTPTestServer()
-	s.T().Logf("Test script server running at: %s", s.scriptServer.URL)
-
-	// Template variables with script server URL
-	templateVars := struct {
-		Port      int
-		ScriptURL string
-	}{
-		Port:      s.port,
-		ScriptURL: s.scriptServer.URL + "/scripts/test.wasm",
-	}
-
-	// Render the HTTPS configuration template
-	tmpl, err := template.New("script_extism_https").Parse(scriptExtismHTTPSTemplate)
-	s.Require().NoError(err, "Failed to parse template")
-
-	var configBuffer strings.Builder
-	err = tmpl.Execute(&configBuffer, templateVars)
-	s.Require().NoError(err, "Failed to render config template")
-
-	configData := configBuffer.String()
-	s.T().Logf("Rendered HTTPS Extism config:\n%s", configData)
-
-	// Load and validate the configuration
-	cfg, err := config.NewConfigFromBytes([]byte(configData))
-	s.Require().NoError(err, "Failed to load config")
-	s.Require().NoError(cfg.Validate(), "Config validation failed")
-
-	// Create transaction storage
-	txStore := txstorage.NewMemoryStorage()
-
-	// Create saga orchestrator
-	s.saga = orchestrator.NewSagaOrchestrator(txStore, slog.Default().Handler())
-
-	// Create HTTP runner
-	s.httpRunner, err = httplistener.NewRunner()
-	s.Require().NoError(err)
-
-	// Register HTTP runner with orchestrator
-	err = s.saga.RegisterParticipant(s.httpRunner)
-	s.Require().NoError(err)
-
-	// Start HTTP runner in background
-	go func() {
-		s.runnerErrCh <- s.httpRunner.Run(s.ctx)
-	}()
-
-	// Wait for HTTP runner to start
-	s.Require().Eventually(func() bool {
-		select {
-		case err := <-s.runnerErrCh:
-			s.T().Fatalf("HTTP runner failed to start: %v", err)
-			return false
-		default:
-			return s.httpRunner.IsRunning()
-		}
-	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
-
-	// Create a config transaction
-	tx, err := transaction.FromTest(s.T().Name(), cfg, slog.Default().Handler())
-	s.Require().NoError(err)
-
-	// Validate the transaction
-	err = tx.RunValidation()
-	s.Require().NoError(err)
-
-	// Process the transaction through the orchestrator
-	err = s.saga.ProcessTransaction(s.ctx, tx)
-	s.Require().NoError(err)
-
-	// Verify the transaction completed successfully
-	s.Require().Equal("completed", tx.GetState())
-
-	// Wait for the server to be fully ready
-	s.Require().Eventually(func() bool {
-		resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/execute", s.port))
-		if err != nil {
-			return false
-		}
-		resp.Body.Close()
-		return resp.StatusCode == http.StatusOK
-	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
+	setupScriptSuiteWithHTTPS(s.T(), "script_extism_https", scriptExtismHTTPSTemplate, "/scripts/test.wasm", &s.scriptSuiteFields)
 }
 
 func (s *ExtismHTTPSIntegrationTestSuite) TearDownSuite() {
-	// Stop script server
-	if s.scriptServer != nil {
-		s.scriptServer.Close()
-	}
-
-	// Cancel context to signal shutdown
-	if s.cancel != nil {
-		s.cancel()
-	}
-
-	// Stop HTTP runner if it exists
-	if s.httpRunner != nil {
-		s.httpRunner.Stop()
-
-		// Wait for runner to stop
-		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
-		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
-	}
+	teardownScriptSuite(s.T(), &s.scriptSuiteFields)
 }
 
 func (s *ExtismHTTPSIntegrationTestSuite) TestExtismHTTPSExecution() {
@@ -1669,7 +1220,7 @@ func (s *ExtismHTTPSIntegrationTestSuite) TestExtismHTTPSExecution() {
 		strings.NewReader(reqBody),
 	)
 	s.Require().NoError(err, "Failed to make POST request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Verify status code
 	s.Equal(http.StatusOK, resp.StatusCode, "HTTPS WASM script should return 200 OK")

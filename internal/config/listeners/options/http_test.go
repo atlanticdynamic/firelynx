@@ -1,12 +1,12 @@
 package options
 
 import (
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPOptions_Type(t *testing.T) {
@@ -149,11 +149,11 @@ func TestHTTPOptions_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.opts.Validate()
 			if tt.expectError {
-				assert.Error(t, err)
-				assert.ErrorContains(t, err, tt.errorContains)
-				assert.True(t, errors.Is(err, errz.ErrInvalidValue))
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.errorContains)
+				require.ErrorIs(t, err, errz.ErrInvalidValue)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

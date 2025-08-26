@@ -118,7 +118,7 @@ func TestCanceledContext(t *testing.T) {
 
 	// Start should return an error due to canceled context
 	err = srv.Start(ctx)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, context.Canceled, err)
 
 	t.Cleanup(func() {

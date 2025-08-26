@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateID(t *testing.T) {
@@ -136,12 +137,12 @@ func TestValidateID(t *testing.T) {
 			err := ValidateID(tc.id, tc.fieldName)
 
 			if tc.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tc.errMsg != "" {
 					assert.Contains(t, err.Error(), tc.errMsg)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

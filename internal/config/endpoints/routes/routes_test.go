@@ -79,7 +79,7 @@ func TestGetStructuredHTTPRoutes(t *testing.T) {
 
 			result := tc.routes.GetStructuredHTTPRoutes()
 
-			assert.Equal(t, tc.expectedCount, len(result))
+			assert.Len(t, result, tc.expectedCount)
 
 			if tc.expectNonEmpty {
 				assert.NotEmpty(t, result)

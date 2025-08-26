@@ -63,9 +63,9 @@ func TestExpandEnvVarsPatternValidation(t *testing.T) {
 
 			result, err := ExpandEnvVars(tt.input)
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, tt.expected, result)
 		})
@@ -193,9 +193,9 @@ func TestExpandEnvVarsWithDefaults(t *testing.T) {
 
 			result, err := ExpandEnvVars(tc.input)
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, tc.expected, result)
 		})

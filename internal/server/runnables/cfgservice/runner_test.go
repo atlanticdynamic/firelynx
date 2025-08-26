@@ -124,14 +124,14 @@ func TestRunner_New(t *testing.T) {
 		// Use a buffered channel for this test case
 		txSiphon := make(chan *transaction.ConfigTransaction, 1)
 		r, err := NewRunner("", txSiphon)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, r)
 		assert.Contains(t, err.Error(), "listen address cannot be empty")
 	})
 
 	t.Run("with nil tx siphon", func(t *testing.T) {
 		r, err := NewRunner(testutil.GetRandomListeningPort(t), nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, r)
 		assert.Contains(t, err.Error(), "transaction siphon cannot be nil")
 	})
@@ -416,7 +416,7 @@ func TestRun(t *testing.T) {
 
 		// Wait for the context to time out
 		chanErr := <-runErr
-		assert.NoError(t, chanErr)
+		require.NoError(t, chanErr)
 	})
 
 	t.Run("with_invalid_address", func(t *testing.T) {
@@ -430,7 +430,7 @@ func TestRun(t *testing.T) {
 		defer cancel()
 
 		err := r.Run(ctx)
-		assert.Error(
+		require.Error(
 			t,
 			err,
 			"Run should return an error when NewGRPCManager fails with an invalid address",
@@ -455,7 +455,7 @@ func TestRun(t *testing.T) {
 
 		// Wait for the context to time out
 		chanErr := <-runErr
-		assert.NoError(t, chanErr)
+		require.NoError(t, chanErr)
 	})
 
 	t.Run("stop_before_run", func(t *testing.T) {
@@ -472,7 +472,7 @@ func TestRun(t *testing.T) {
 
 		// Run should handle being stopped before starting
 		err := r.Run(ctx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("grpc_server_already_running", func(t *testing.T) {
@@ -487,7 +487,7 @@ func TestRun(t *testing.T) {
 		defer cancel()
 
 		err := r.Run(ctx)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "gRPC server is already running")
 	})
 }
@@ -500,7 +500,7 @@ func TestRunErrorHandling(t *testing.T) {
 		// Test failure during NewGRPCManager creation by using an address that's already in use
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
-		defer func() { assert.NoError(t, listener.Close()) }()
+		defer func() { require.NoError(t, listener.Close()) }()
 
 		// Use the address that's already being listened on
 		busyAddr := listener.Addr().String()
@@ -512,7 +512,7 @@ func TestRunErrorHandling(t *testing.T) {
 		defer cancel()
 
 		err = r.Run(ctx)
-		assert.Error(t, err)
+		require.Error(t, err)
 
 		// The FSM should be in error state after NewGRPCManager failure
 		assert.Equal(t, finitestate.StatusError, r.fsm.GetState())
@@ -576,7 +576,7 @@ func TestUpdateConfigErrorHandling(t *testing.T) {
 		})
 
 		// Should return gRPC error
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, resp)
 
 		// Should be InvalidArgument error
@@ -740,12 +740,12 @@ func TestEncodeDecodePageToken(t *testing.T) {
 
 		// Encode token
 		token, err := encodePageToken(offset, pageSize, state, source)
-		assert.NoError(t, err, "Should encode token successfully")
+		require.NoError(t, err, "Should encode token successfully")
 		assert.NotEmpty(t, token, "Token should not be empty")
 
 		// Decode token
 		decoded, err := decodePageToken(token)
-		assert.NoError(t, err, "Should decode token successfully")
+		require.NoError(t, err, "Should decode token successfully")
 		assert.Equal(t, offset, decoded.Offset, "Offset should match")
 		assert.Equal(t, pageSize, decoded.PageSize, "Page size should match")
 		assert.Equal(t, state, decoded.State, "State should match")
@@ -760,12 +760,12 @@ func TestEncodeDecodePageToken(t *testing.T) {
 
 		// Encode token
 		token, err := encodePageToken(offset, pageSize, state, source)
-		assert.NoError(t, err, "Should encode token with empty strings")
+		require.NoError(t, err, "Should encode token with empty strings")
 		assert.NotEmpty(t, token, "Token should not be empty")
 
 		// Decode token
 		decoded, err := decodePageToken(token)
-		assert.NoError(t, err, "Should decode token with empty strings")
+		require.NoError(t, err, "Should decode token with empty strings")
 		assert.Equal(t, offset, decoded.Offset, "Offset should match")
 		assert.Equal(t, pageSize, decoded.PageSize, "Page size should match")
 		assert.Equal(t, state, decoded.State, "State should match")
@@ -774,7 +774,7 @@ func TestEncodeDecodePageToken(t *testing.T) {
 
 	t.Run("Decode empty token", func(t *testing.T) {
 		decoded, err := decodePageToken("")
-		assert.NoError(t, err, "Should handle empty token gracefully")
+		require.NoError(t, err, "Should handle empty token gracefully")
 		assert.Equal(t, pageToken{}, decoded, "Should return zero value for empty token")
 	})
 
@@ -782,7 +782,7 @@ func TestEncodeDecodePageToken(t *testing.T) {
 		invalidToken := "invalid-base64-!@#$%"
 
 		decoded, err := decodePageToken(invalidToken)
-		assert.Error(t, err, "Should return error for invalid base64")
+		require.Error(t, err, "Should return error for invalid base64")
 		assert.Equal(t, pageToken{}, decoded, "Should return zero value on error")
 		assert.Contains(t, err.Error(), "invalid page token format", "Error should mention invalid format")
 	})
@@ -792,7 +792,7 @@ func TestEncodeDecodePageToken(t *testing.T) {
 		invalidJSON := base64.URLEncoding.EncodeToString([]byte("{invalid json syntax"))
 
 		decoded, err := decodePageToken(invalidJSON)
-		assert.Error(t, err, "Should return error for invalid JSON")
+		require.Error(t, err, "Should return error for invalid JSON")
 		assert.Equal(t, pageToken{}, decoded, "Should return zero value on error")
 		assert.Contains(t, err.Error(), "failed to unmarshal page token", "Error should mention unmarshal failure")
 	})
@@ -805,12 +805,12 @@ func TestEncodeDecodePageToken(t *testing.T) {
 
 		// Encode token
 		token, err := encodePageToken(offset, pageSize, state, source)
-		assert.NoError(t, err, "Should encode token with large values")
+		require.NoError(t, err, "Should encode token with large values")
 		assert.NotEmpty(t, token, "Token should not be empty")
 
 		// Decode token
 		decoded, err := decodePageToken(token)
-		assert.NoError(t, err, "Should decode token with large values")
+		require.NoError(t, err, "Should decode token with large values")
 		assert.Equal(t, offset, decoded.Offset, "Large offset should match")
 		assert.Equal(t, pageSize, decoded.PageSize, "Page size should match")
 		assert.Equal(t, state, decoded.State, "Long state should match")
@@ -825,11 +825,11 @@ func TestEncodeDecodePageToken(t *testing.T) {
 
 		// Encode token (should work even with negative values)
 		token, err := encodePageToken(offset, pageSize, state, source)
-		assert.NoError(t, err, "Should encode token with negative values")
+		require.NoError(t, err, "Should encode token with negative values")
 
 		// Decode token
 		decoded, err := decodePageToken(token)
-		assert.NoError(t, err, "Should decode token with negative values")
+		require.NoError(t, err, "Should decode token with negative values")
 		assert.Equal(t, offset, decoded.Offset, "Negative offset should be preserved")
 		assert.Equal(t, pageSize, decoded.PageSize, "Negative page size should be preserved")
 	})

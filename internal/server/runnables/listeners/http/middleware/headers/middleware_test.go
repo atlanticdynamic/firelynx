@@ -71,17 +71,17 @@ func TestNewHeadersMiddleware(t *testing.T) {
 
 	t.Run("nil configuration", func(t *testing.T) {
 		middleware, err := NewHeadersMiddleware("test", nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, middleware)
-		assert.ErrorIs(t, err, ErrNilConfig)
+		require.ErrorIs(t, err, ErrNilConfig)
 	})
 
 	t.Run("invalid configuration - empty", func(t *testing.T) {
 		cfg := headers.NewHeaders(nil, nil) // No operations configured
 		middleware, err := NewHeadersMiddleware("test", cfg)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, middleware)
-		assert.ErrorIs(t, err, ErrInvalidConfig)
+		require.ErrorIs(t, err, ErrInvalidConfig)
 	})
 
 	t.Run("invalid configuration - bad header name", func(t *testing.T) {
@@ -94,9 +94,9 @@ func TestNewHeadersMiddleware(t *testing.T) {
 		}
 
 		middleware, err := NewHeadersMiddleware("test", cfg)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, middleware)
-		assert.ErrorIs(t, err, ErrInvalidConfig)
+		require.ErrorIs(t, err, ErrInvalidConfig)
 	})
 }
 

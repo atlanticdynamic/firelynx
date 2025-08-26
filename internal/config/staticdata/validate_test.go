@@ -3,7 +3,7 @@ package staticdata
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidate(t *testing.T) {
@@ -58,10 +58,10 @@ func TestValidate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.staticData.Validate()
 			if tt.expectError {
-				assert.Error(t, err)
-				assert.ErrorIs(t, err, ErrInvalidMergeMode)
+				require.Error(t, err)
+				require.ErrorIs(t, err, ErrInvalidMergeMode)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -99,10 +99,10 @@ func TestValidateMergeMode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateMergeMode(tt.mode)
 			if tt.expectError {
-				assert.Error(t, err)
-				assert.ErrorIs(t, err, ErrInvalidMergeMode)
+				require.Error(t, err)
+				require.ErrorIs(t, err, ErrInvalidMergeMode)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

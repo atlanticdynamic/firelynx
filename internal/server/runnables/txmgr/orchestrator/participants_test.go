@@ -28,7 +28,7 @@ func TestSagaParticipantInterface_ReloadConflictFromMocks(t *testing.T) {
 
 	// Registration should return an error
 	err := orchestrator.RegisterParticipant(conflictParticipant)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(
 		t,
 		err.Error(),
@@ -53,27 +53,27 @@ func TestSagaParticipantInterface_ApplyPendingConfigFromMocks(t *testing.T) {
 
 	// Register participant
 	err := orchestrator.RegisterParticipant(participant)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Create and prepare transaction with a non-nil config
 	testConfig, err := config.NewFromProto(&pb.ServerConfig{})
 	require.NoError(t, err)
 	testConfig.Version = config.VersionLatest
 	tx, err := transaction.New(transaction.SourceTest, "test", "test-id", testConfig, handler)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.NoError(t, tx.BeginValidation())
+	require.NoError(t, tx.BeginValidation())
 	tx.IsValid.Store(true)
-	assert.NoError(t, tx.MarkValidated())
-	assert.NoError(t, tx.BeginExecution())
-	assert.NoError(t, tx.MarkSucceeded())
+	require.NoError(t, tx.MarkValidated())
+	require.NoError(t, tx.BeginExecution())
+	require.NoError(t, tx.MarkSucceeded())
 
 	// Store transaction
 	storage.SetCurrent(tx)
 
 	// Call TriggerReload
 	err = orchestrator.TriggerReload(ctx)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify transaction is completed
 	assert.Equal(t, finitestate.StateCompleted, tx.GetState())
@@ -93,14 +93,14 @@ func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 	testConfig.Version = config.VersionLatest
 
 	tx, err := transaction.New(transaction.SourceTest, "test", "test-request", testConfig, handler)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Mark transaction as succeeded (prerequisite for reload)
-	assert.NoError(t, tx.BeginValidation())
+	require.NoError(t, tx.BeginValidation())
 	tx.IsValid.Store(true)
-	assert.NoError(t, tx.MarkValidated())
-	assert.NoError(t, tx.BeginExecution())
-	assert.NoError(t, tx.MarkSucceeded())
+	require.NoError(t, tx.MarkValidated())
+	require.NoError(t, tx.BeginExecution())
+	require.NoError(t, tx.MarkSucceeded())
 
 	// Store transaction
 	storage.SetCurrent(tx)
@@ -122,13 +122,13 @@ func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 
 	// Register participants
 	err = orchestrator.RegisterParticipant(participant1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = orchestrator.RegisterParticipant(participant2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Trigger reload
 	err = orchestrator.TriggerReload(t.Context())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify transaction state
 	assert.Equal(t, finitestate.StateCompleted, tx.GetState())
@@ -149,14 +149,14 @@ func TestTriggerReload_FailureFromMocks(t *testing.T) {
 	testConfig.Version = config.VersionLatest
 
 	tx, err := transaction.New(transaction.SourceTest, "test", "test-request", testConfig, handler)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Mark transaction as succeeded (prerequisite for reload)
-	assert.NoError(t, tx.BeginValidation())
+	require.NoError(t, tx.BeginValidation())
 	tx.IsValid.Store(true)
-	assert.NoError(t, tx.MarkValidated())
-	assert.NoError(t, tx.BeginExecution())
-	assert.NoError(t, tx.MarkSucceeded())
+	require.NoError(t, tx.MarkValidated())
+	require.NoError(t, tx.BeginExecution())
+	require.NoError(t, tx.MarkSucceeded())
 
 	// Store transaction
 	storage.SetCurrent(tx)
@@ -182,13 +182,13 @@ func TestTriggerReload_FailureFromMocks(t *testing.T) {
 
 	// Register participants
 	err = orchestrator.RegisterParticipant(participant1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = orchestrator.RegisterParticipant(participant2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Trigger reload and verify it returns an error
 	err = orchestrator.TriggerReload(t.Context())
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Verify transaction state is now error
 	assert.Equal(t, finitestate.StateError, tx.GetState())

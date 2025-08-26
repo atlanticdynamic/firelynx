@@ -29,7 +29,7 @@ func TestGetCurrentTransactionFormats(t *testing.T) {
 
 	for _, format := range formats {
 		err := GetCurrentTransaction(ctx, "invalid:1234", format)
-		assert.Error(t, err, "Should fail with invalid server for format: %s", format)
+		require.Error(t, err, "Should fail with invalid server for format: %s", format)
 	}
 }
 
@@ -41,7 +41,7 @@ func TestListTransactionsFormats(t *testing.T) {
 
 	for _, format := range formats {
 		err := ListTransactions(ctx, "invalid:1234", 10, "", "", "", format)
-		assert.Error(t, err, "Should fail with invalid server for format: %s", format)
+		require.Error(t, err, "Should fail with invalid server for format: %s", format)
 	}
 }
 
@@ -53,20 +53,20 @@ func TestListTransactionsPagination(t *testing.T) {
 
 	for _, pageSize := range pageSizes {
 		err := ListTransactions(ctx, "invalid:1234", pageSize, "", "", "", "text")
-		assert.Error(t, err, "Should fail with invalid server for page size: %d", pageSize)
+		require.Error(t, err, "Should fail with invalid server for page size: %d", pageSize)
 	}
 
 	// Test with page token
 	err := ListTransactions(ctx, "invalid:1234", 10, "next-page-token", "", "", "text")
-	assert.Error(t, err, "Should fail with invalid server when using page token")
+	require.Error(t, err, "Should fail with invalid server when using page token")
 
 	// Test with state filter
 	err = ListTransactions(ctx, "invalid:1234", 10, "", "COMMITTED", "", "text")
-	assert.Error(t, err, "Should fail with invalid server when using state filter")
+	require.Error(t, err, "Should fail with invalid server when using state filter")
 
 	// Test with source filter
 	err = ListTransactions(ctx, "invalid:1234", 10, "", "", "file", "text")
-	assert.Error(t, err, "Should fail with invalid server when using source filter")
+	require.Error(t, err, "Should fail with invalid server when using source filter")
 }
 
 func TestGetTransactionFormats(t *testing.T) {
@@ -77,7 +77,7 @@ func TestGetTransactionFormats(t *testing.T) {
 
 	for _, format := range formats {
 		err := GetTransaction(ctx, "invalid:1234", "test-transaction-id", format)
-		assert.Error(t, err, "Should fail with invalid server for format: %s", format)
+		require.Error(t, err, "Should fail with invalid server for format: %s", format)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestGetTransactionWithEmptyID(t *testing.T) {
 
 	// Test with empty transaction ID
 	err := GetTransaction(ctx, "invalid:1234", "", "text")
-	assert.Error(t, err, "Should fail with invalid server even with empty transaction ID")
+	require.Error(t, err, "Should fail with invalid server even with empty transaction ID")
 }
 
 func TestClearTransactionsKeepLast(t *testing.T) {
@@ -97,7 +97,7 @@ func TestClearTransactionsKeepLast(t *testing.T) {
 
 	for _, keepLast := range keepLastValues {
 		err := ClearTransactions(ctx, "invalid:1234", keepLast)
-		assert.Error(t, err, "Should fail with invalid server for keepLast: %d", keepLast)
+		require.Error(t, err, "Should fail with invalid server for keepLast: %d", keepLast)
 	}
 }
 
@@ -106,23 +106,23 @@ func TestTransactionInvalidServer(t *testing.T) {
 
 	// Test GetCurrentTransaction with invalid server
 	err := GetCurrentTransaction(ctx, "invalid:1234", "text")
-	assert.Error(t, err, "Should fail with invalid server")
+	require.Error(t, err, "Should fail with invalid server")
 
 	// Test ListTransactions with invalid server
 	err = ListTransactions(ctx, "invalid:1234", 10, "", "", "", "text")
-	assert.Error(t, err, "Should fail with invalid server")
+	require.Error(t, err, "Should fail with invalid server")
 
 	// Test GetTransaction with invalid server
 	err = GetTransaction(ctx, "invalid:1234", "test-id", "text")
-	assert.Error(t, err, "Should fail with invalid server")
+	require.Error(t, err, "Should fail with invalid server")
 
 	// Test ClearTransactions with invalid server
 	err = ClearTransactions(ctx, "invalid:1234", 1)
-	assert.Error(t, err, "Should fail with invalid server")
+	require.Error(t, err, "Should fail with invalid server")
 
 	// Test RollbackToTransaction with invalid server
 	err = RollbackToTransaction(ctx, "invalid:1234", "test-id")
-	assert.Error(t, err, "Should fail with invalid server")
+	require.Error(t, err, "Should fail with invalid server")
 }
 
 func TestTransactionOperationsE2E(t *testing.T) {
@@ -168,7 +168,7 @@ func TestTransactionOperationsE2E(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 200*time.Millisecond, "Server should become ready")
 
@@ -177,29 +177,29 @@ func TestTransactionOperationsE2E(t *testing.T) {
 	// Test GetCurrentTransaction (should work without error)
 	t.Run("GetCurrentTransaction", func(t *testing.T) {
 		err := GetCurrentTransaction(ctx, grpcAddr, "text")
-		assert.NoError(t, err, "Should get current transaction")
+		require.NoError(t, err, "Should get current transaction")
 
 		// Test with JSON format
 		err = GetCurrentTransaction(ctx, grpcAddr, "json")
-		assert.NoError(t, err, "Should get current transaction in JSON format")
+		require.NoError(t, err, "Should get current transaction in JSON format")
 
 		// Test with TOML format
 		err = GetCurrentTransaction(ctx, grpcAddr, "toml")
-		assert.NoError(t, err, "Should get current transaction in TOML format")
+		require.NoError(t, err, "Should get current transaction in TOML format")
 	})
 
 	// Test ListTransactions (should work without error)
 	t.Run("ListTransactions", func(t *testing.T) {
 		err := ListTransactions(ctx, grpcAddr, 10, "", "", "", "text")
-		assert.NoError(t, err, "Should list transactions")
+		require.NoError(t, err, "Should list transactions")
 
 		// Test with pagination
 		err = ListTransactions(ctx, grpcAddr, 1, "", "", "", "text")
-		assert.NoError(t, err, "Should list transactions with page size limit")
+		require.NoError(t, err, "Should list transactions with page size limit")
 
 		// Test with filters
 		err = ListTransactions(ctx, grpcAddr, 10, "", "COMMITTED", "", "text")
-		assert.NoError(t, err, "Should list transactions with state filter")
+		require.NoError(t, err, "Should list transactions with state filter")
 	})
 
 	// Apply a config update to create transactions
@@ -212,26 +212,26 @@ func TestTransactionOperationsE2E(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 200*time.Millisecond, "Updated endpoint should become available")
 
 	// Test GetCurrentTransaction (should exist after update)
 	t.Run("GetCurrentTransaction_AfterUpdate", func(t *testing.T) {
 		err := GetCurrentTransaction(ctx, grpcAddr, "text")
-		assert.NoError(t, err, "Should get current transaction after update")
+		require.NoError(t, err, "Should get current transaction after update")
 	})
 
 	// Test ListTransactions (should have transactions after update)
 	t.Run("ListTransactions_AfterUpdate", func(t *testing.T) {
 		err := ListTransactions(ctx, grpcAddr, 10, "", "", "", "text")
-		assert.NoError(t, err, "Should list transactions after update")
+		require.NoError(t, err, "Should list transactions after update")
 	})
 
 	// Test RollbackToTransaction
 	t.Run("RollbackToTransaction", func(t *testing.T) {
 		err := RollbackToTransaction(ctx, grpcAddr, "non-existent-id")
-		assert.Error(t, err, "Should fail with non-existent transaction ID")
+		require.Error(t, err, "Should fail with non-existent transaction ID")
 
 		firelynxClient := client.New(client.Config{
 			ServerAddr: grpcAddr,
@@ -265,7 +265,7 @@ func TestTransactionOperationsE2E(t *testing.T) {
 		resp, err := http.Get(fmt.Sprintf("http://localhost:%d/updated", httpPort))
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
-		resp.Body.Close()
+		require.NoError(t, resp.Body.Close())
 
 		// Perform rollback
 		err = RollbackToTransaction(ctx, grpcAddr, firstTransaction.GetId())
@@ -277,7 +277,7 @@ func TestTransactionOperationsE2E(t *testing.T) {
 			if err != nil {
 				return true
 			}
-			defer resp.Body.Close()
+			defer func() { assert.NoError(t, resp.Body.Close()) }()
 			return resp.StatusCode == http.StatusNotFound
 		}, 10*time.Second, 200*time.Millisecond)
 	})
@@ -285,7 +285,7 @@ func TestTransactionOperationsE2E(t *testing.T) {
 	// Test ClearTransactions
 	t.Run("ClearTransactions", func(t *testing.T) {
 		err := ClearTransactions(ctx, grpcAddr, 1)
-		assert.NoError(t, err, "Should clear transactions")
+		require.NoError(t, err, "Should clear transactions")
 	})
 
 	// Shutdown server
@@ -294,7 +294,7 @@ func TestTransactionOperationsE2E(t *testing.T) {
 	// Wait for clean shutdown
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err, "Server should shut down cleanly")
+		require.NoError(t, err, "Server should shut down cleanly")
 	case <-time.After(30 * time.Second):
 		t.Error("Server did not shut down within timeout")
 	}

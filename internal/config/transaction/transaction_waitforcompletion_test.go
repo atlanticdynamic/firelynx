@@ -56,7 +56,7 @@ func TestWaitForCompletion(t *testing.T) {
 				err := tx.WaitForCompletion(ctx)
 				duration := time.Since(start)
 
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Less(
 					t,
 					duration,
@@ -107,7 +107,7 @@ func TestWaitForCompletion(t *testing.T) {
 		assert.Eventually(t, func() bool {
 			select {
 			case err := <-waitDone:
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				return true
 			default:
 				return false
@@ -158,8 +158,8 @@ func TestWaitForCompletion(t *testing.T) {
 		assert.Eventually(t, func() bool {
 			select {
 			case err := <-waitDone:
-				assert.Error(t, err)
-				assert.ErrorIs(t, err, context.Canceled)
+				require.Error(t, err)
+				require.ErrorIs(t, err, context.Canceled)
 				return true
 			default:
 				return false
@@ -182,8 +182,8 @@ func TestWaitForCompletion(t *testing.T) {
 
 		// WaitForCompletion should return with context.DeadlineExceeded
 		err := tx.WaitForCompletion(ctx)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, context.DeadlineExceeded)
+		require.Error(t, err)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
 	})
 
 	t.Run("handles multiple concurrent waiters", func(t *testing.T) {
@@ -240,7 +240,7 @@ func TestWaitForCompletion(t *testing.T) {
 			for i := 0; i < numWaiters; i++ {
 				select {
 				case err := <-waitDone:
-					assert.NoError(t, err, "Waiter %d should have completed successfully", i)
+					require.NoError(t, err, "Waiter %d should have completed successfully", i)
 				default:
 					return false
 				}
@@ -334,7 +334,7 @@ func TestWaitForCompletion(t *testing.T) {
 				assert.Eventually(t, func() bool {
 					select {
 					case err := <-waitDone:
-						assert.NoError(t, err)
+						require.NoError(t, err)
 						return true
 					default:
 						return false
@@ -376,7 +376,7 @@ func TestWaitForCompletion(t *testing.T) {
 			select {
 			case err := <-waitDone:
 				// Should return context.Canceled error since we canceled the context
-				assert.ErrorIs(t, err, context.Canceled)
+				require.ErrorIs(t, err, context.Canceled)
 				return true
 			default:
 				return false
@@ -426,7 +426,7 @@ func TestWaitForCompletion(t *testing.T) {
 
 		// Verify all waiters completed successfully
 		for i, err := range waitResults {
-			assert.NoError(t, err, "Waiter %d should have completed successfully", i)
+			require.NoError(t, err, "Waiter %d should have completed successfully", i)
 		}
 		assert.Equal(t, finitestate.StateCompleted, tx.GetState())
 	})

@@ -148,7 +148,7 @@ func TestEndToEndInterpolation(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(
+		require.Error(
 			t,
 			err,
 			"validation should fail when env var is missing and no default provided",

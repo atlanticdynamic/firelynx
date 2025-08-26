@@ -79,7 +79,7 @@ func TestApplyConfig(t *testing.T) {
 
 	// This should fail at connection time due to invalid address
 	err := client.ApplyConfig(t.Context(), mockLoader)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Verify the mock was called
 	mockLoader.AssertExpectations(t)
@@ -167,9 +167,9 @@ func TestConnect(t *testing.T) {
 
 			conn, err := client.connect(t.Context())
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.expectedErr != nil && err != nil {
-					assert.ErrorIs(t, err, tt.expectedErr)
+					require.ErrorIs(t, err, tt.expectedErr)
 				}
 				assert.Nil(t, conn)
 			} else {
@@ -219,9 +219,9 @@ func TestFormatConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := client.FormatConfig(tt.config)
 			if tt.wantErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.NotEmpty(t, result)
 			}
 		})
@@ -237,7 +237,7 @@ func TestGetConfig(t *testing.T) {
 
 	// This should fail at connection time
 	config, err := client.GetConfig(t.Context())
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, config)
 }
 
@@ -253,7 +253,7 @@ func TestValidateConfig(t *testing.T) {
 
 	// This should fail at connection time
 	isValid, err := client.ValidateConfig(t.Context(), testConfig)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.False(t, isValid)
 	assert.Contains(t, err.Error(), "failed to validate configuration")
 }
@@ -297,10 +297,10 @@ func TestApplyConfigWithMockLoader(t *testing.T) {
 
 			err := client.ApplyConfig(t.Context(), mockLoader)
 			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedErrMsg)
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.expectedErrMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			mockLoader.AssertExpectations(t)
@@ -315,7 +315,7 @@ func TestGetCurrentConfigTransaction(t *testing.T) {
 	})
 
 	_, err := client.GetCurrentConfigTransaction(t.Context())
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get current configuration transaction")
 }
 
@@ -326,7 +326,7 @@ func TestListConfigTransactions(t *testing.T) {
 	})
 
 	_, _, err := client.ListConfigTransactions(t.Context(), "", 10, "", "")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to list configuration transactions")
 }
 
@@ -337,7 +337,7 @@ func TestGetConfigTransaction(t *testing.T) {
 	})
 
 	_, err := client.GetConfigTransaction(t.Context(), "test-transaction-id")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to get configuration transaction")
 }
 
@@ -348,7 +348,7 @@ func TestClearConfigTransactions(t *testing.T) {
 	})
 
 	_, err := client.ClearConfigTransactions(t.Context(), 5)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to clear configuration transactions")
 }
 
@@ -398,7 +398,7 @@ func TestApplyConfigFromTransactionErrors(t *testing.T) {
 			})
 
 			err := client.ApplyConfigFromTransaction(t.Context(), tt.transactionID)
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
 		})
 	}
@@ -456,7 +456,7 @@ func TestApplyConfigFromTransactionValidation(t *testing.T) {
 			}
 
 			err := mockClient.ApplyConfigFromTransaction(t.Context(), "test-id")
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.expectedErrMsg)
 		})
 	}

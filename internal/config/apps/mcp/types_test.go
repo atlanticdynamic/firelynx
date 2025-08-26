@@ -91,14 +91,14 @@ func TestMiddlewareType_String(t *testing.T) {
 
 func TestBuiltinTypeConstants(t *testing.T) {
 	// Test that the constants have expected values for enum consistency
-	assert.Equal(t, BuiltinType(0), BuiltinEcho)
-	assert.Equal(t, BuiltinType(1), BuiltinCalculation)
-	assert.Equal(t, BuiltinType(2), BuiltinFileRead)
+	assert.Equal(t, BuiltinEcho, BuiltinType(0))
+	assert.Equal(t, BuiltinCalculation, BuiltinType(1))
+	assert.Equal(t, BuiltinFileRead, BuiltinType(2))
 }
 
 func TestMiddlewareTypeConstants(t *testing.T) {
 	// Test that the constants have expected values for enum consistency
-	assert.Equal(t, MiddlewareType(0), MiddlewareRateLimiting)
-	assert.Equal(t, MiddlewareType(1), MiddlewareLogging)
-	assert.Equal(t, MiddlewareType(2), MiddlewareAuthentication)
+	assert.Equal(t, MiddlewareRateLimiting, MiddlewareType(0))
+	assert.Equal(t, MiddlewareLogging, MiddlewareType(1))
+	assert.Equal(t, MiddlewareAuthentication, MiddlewareType(2))
 }

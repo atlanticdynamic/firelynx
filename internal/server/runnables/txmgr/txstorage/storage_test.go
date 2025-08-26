@@ -3,6 +3,7 @@ package txstorage
 import (
 	"log/slog"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,7 +149,7 @@ func TestTransactionStorageOperations(t *testing.T) {
 		storage := NewMemoryStorage()
 
 		err := storage.Add(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		storage.SetCurrent(nil)
 		assert.Nil(t, storage.GetCurrent())
@@ -317,27 +318,29 @@ func TestConcurrentOperations(t *testing.T) {
 		// Use a large max to avoid cleanup during concurrent operations
 		storage := NewMemoryStorage(WithMaxTransactions(1000))
 
-		// Add transactions concurrently
+		// Create transactions ahead of time to avoid using test helpers in goroutines
 		const numGoroutines = 10
 		const transactionsPerGoroutine = 5
 
-		done := make(chan struct{}, numGoroutines)
+		transactions := make([]*transaction.ConfigTransaction, numGoroutines*transactionsPerGoroutine)
+		for i := range transactions {
+			transactions[i] = createTestTransaction(t)
+		}
 
-		for range numGoroutines {
-			go func() {
-				defer func() { done <- struct{}{} }()
-				for range transactionsPerGoroutine {
-					tx := createTestTransaction(t)
+		var wg sync.WaitGroup
+
+		for i := range numGoroutines {
+			startIdx := i * transactionsPerGoroutine
+			wg.Go(func() {
+				for j := range transactionsPerGoroutine {
+					tx := transactions[startIdx+j]
 					err := storage.Add(tx)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 				}
-			}()
+			})
 		}
 
-		// Wait for all goroutines to complete
-		for range numGoroutines {
-			<-done
-		}
+		wg.Wait()
 
 		// Should have all transactions
 		txs := storage.GetAll()

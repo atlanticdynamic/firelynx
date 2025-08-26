@@ -12,6 +12,7 @@ import (
 	"github.com/robbyt/go-polyscript/platform"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // mockEvaluatorAdapter adapts evalMocks.Evaluator to implement evaluators.Evaluator interface
@@ -78,7 +79,7 @@ func TestApp_Validate(t *testing.T) {
 		app := NewApp("test-id", "Test Server", "1.0.0")
 
 		err := app.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app.compiledServer, "compiled server should be created")
 	})
 
@@ -94,8 +95,8 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingServerName)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingServerName)
 	})
 
 	t.Run("missing server version", func(t *testing.T) {
@@ -110,8 +111,8 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingServerVersion)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingServerVersion)
 	})
 
 	t.Run("invalid transport", func(t *testing.T) {
@@ -125,8 +126,8 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidTransport)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidTransport)
 	})
 
 	t.Run("invalid tool", func(t *testing.T) {
@@ -142,8 +143,8 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidTool)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidTool)
 	})
 
 	t.Run("invalid middleware", func(t *testing.T) {
@@ -159,8 +160,8 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidMiddleware)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidMiddleware)
 	})
 
 	t.Run("valid app with tools", func(t *testing.T) {
@@ -177,7 +178,7 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app.compiledServer)
 	})
 
@@ -207,8 +208,8 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrDuplicateToolName)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrDuplicateToolName)
 	})
 
 	t.Run("duplicate prompt names", func(t *testing.T) {
@@ -229,8 +230,8 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrDuplicatePromptName)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrDuplicatePromptName)
 	})
 
 	t.Run("valid app with prompts", func(t *testing.T) {
@@ -250,7 +251,7 @@ func TestApp_Validate(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app.compiledServer)
 	})
 }
@@ -263,7 +264,7 @@ func TestTransport_Validate(t *testing.T) {
 		}
 
 		err := transport.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("SSE enabled should fail validation", func(t *testing.T) {
@@ -273,7 +274,7 @@ func TestTransport_Validate(t *testing.T) {
 		}
 
 		err := transport.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 
@@ -284,7 +285,7 @@ func TestTransport_Validate(t *testing.T) {
 		}
 
 		err := transport.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 }
@@ -301,7 +302,7 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("missing name", func(t *testing.T) {
@@ -313,8 +314,8 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingToolName)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingToolName)
 	})
 
 	t.Run("description is optional", func(t *testing.T) {
@@ -326,7 +327,7 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.NoError(t, err, "description should be optional, not required")
+		require.NoError(t, err, "description should be optional, not required")
 	})
 
 	t.Run("missing handler", func(t *testing.T) {
@@ -337,8 +338,8 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingToolHandler)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingToolHandler)
 	})
 
 	t.Run("valid input schema", func(t *testing.T) {
@@ -352,7 +353,7 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("invalid input schema - bad JSON", func(t *testing.T) {
@@ -366,8 +367,8 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidJSONSchema)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidJSONSchema)
 	})
 
 	t.Run("invalid input schema - invalid type", func(t *testing.T) {
@@ -381,8 +382,8 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidJSONSchema)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidJSONSchema)
 	})
 
 	t.Run("valid output schema", func(t *testing.T) {
@@ -396,7 +397,7 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("invalid output schema", func(t *testing.T) {
@@ -410,8 +411,8 @@ func TestTool_Validate(t *testing.T) {
 		}
 
 		err := tool.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrInvalidJSONSchema)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrInvalidJSONSchema)
 	})
 }
 
@@ -423,8 +424,8 @@ func TestScriptToolHandler_Validate(t *testing.T) {
 		}
 
 		err := handler.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingEvaluator)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingEvaluator)
 	})
 
 	t.Run("valid with static data", func(t *testing.T) {
@@ -446,7 +447,7 @@ func TestScriptToolHandler_Validate(t *testing.T) {
 
 		err := handler.Validate()
 		// Mock evaluator returns no error, so validation should succeed
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -458,7 +459,7 @@ func TestBuiltinToolHandler_Validate(t *testing.T) {
 		}
 
 		err := handler.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("valid calculation handler", func(t *testing.T) {
@@ -468,7 +469,7 @@ func TestBuiltinToolHandler_Validate(t *testing.T) {
 		}
 
 		err := handler.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("valid file read handler", func(t *testing.T) {
@@ -480,7 +481,7 @@ func TestBuiltinToolHandler_Validate(t *testing.T) {
 		}
 
 		err := handler.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("file read handler missing base directory", func(t *testing.T) {
@@ -490,8 +491,8 @@ func TestBuiltinToolHandler_Validate(t *testing.T) {
 		}
 
 		err := handler.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingBaseDirectory)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingBaseDirectory)
 	})
 
 	t.Run("unknown builtin type", func(t *testing.T) {
@@ -501,8 +502,8 @@ func TestBuiltinToolHandler_Validate(t *testing.T) {
 		}
 
 		err := handler.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrUnknownBuiltinType)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrUnknownBuiltinType)
 	})
 }
 
@@ -514,7 +515,7 @@ func TestMiddleware_Validate(t *testing.T) {
 		}
 
 		err := middleware.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("valid logging middleware", func(t *testing.T) {
@@ -524,7 +525,7 @@ func TestMiddleware_Validate(t *testing.T) {
 		}
 
 		err := middleware.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("valid authentication middleware", func(t *testing.T) {
@@ -534,7 +535,7 @@ func TestMiddleware_Validate(t *testing.T) {
 		}
 
 		err := middleware.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("unknown middleware type", func(t *testing.T) {
@@ -544,8 +545,8 @@ func TestMiddleware_Validate(t *testing.T) {
 		}
 
 		err := middleware.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrUnknownMiddlewareType)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrUnknownMiddlewareType)
 	})
 }
 
@@ -557,11 +558,11 @@ func TestBuiltinToolHandler_CreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tool)
 		assert.NotNil(t, mcpHandler)
-		assert.Equal(t, "", tool.Name)        // Will be set by caller
-		assert.Equal(t, "", tool.Description) // Will be set by caller
+		assert.Empty(t, tool.Name)        // Will be set by caller
+		assert.Empty(t, tool.Description) // Will be set by caller
 	})
 
 	t.Run("create calculation tool", func(t *testing.T) {
@@ -571,7 +572,7 @@ func TestBuiltinToolHandler_CreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tool)
 		assert.NotNil(t, mcpHandler)
 	})
@@ -585,7 +586,7 @@ func TestBuiltinToolHandler_CreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, tool)
 		assert.NotNil(t, mcpHandler)
 	})
@@ -597,10 +598,10 @@ func TestBuiltinToolHandler_CreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, tool)
 		assert.Nil(t, mcpHandler)
-		assert.ErrorIs(t, err, ErrUnknownBuiltinType)
+		require.ErrorIs(t, err, ErrUnknownBuiltinType)
 	})
 }
 
@@ -616,7 +617,7 @@ func TestScriptToolHandler_CreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, tool)
 		assert.Nil(t, mcpHandler)
 		assert.Contains(t, err.Error(), "compiled evaluator is nil")
@@ -628,7 +629,7 @@ func TestScriptToolHandler_CreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, tool)
 		assert.Nil(t, mcpHandler)
 		assert.Contains(t, err.Error(), "script tool handler requires an evaluator")
@@ -651,7 +652,7 @@ func TestPrompt_Validate(t *testing.T) {
 		}
 
 		err := prompt.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("missing name", func(t *testing.T) {
@@ -660,8 +661,8 @@ func TestPrompt_Validate(t *testing.T) {
 		}
 
 		err := prompt.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingPromptName)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingPromptName)
 	})
 
 	t.Run("duplicate argument names", func(t *testing.T) {
@@ -681,8 +682,8 @@ func TestPrompt_Validate(t *testing.T) {
 		}
 
 		err := prompt.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrDuplicatePromptArgName)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrDuplicatePromptArgName)
 	})
 
 	t.Run("invalid argument", func(t *testing.T) {
@@ -697,7 +698,7 @@ func TestPrompt_Validate(t *testing.T) {
 		}
 
 		err := prompt.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "argument 0")
 		assert.Contains(t, err.Error(), "prompt argument name is required")
 	})
@@ -713,7 +714,7 @@ func TestPromptArgument_Validate(t *testing.T) {
 		}
 
 		err := arg.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("missing name", func(t *testing.T) {
@@ -722,8 +723,8 @@ func TestPromptArgument_Validate(t *testing.T) {
 		}
 
 		err := arg.Validate()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingPromptArgumentName)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrMissingPromptArgumentName)
 	})
 
 	t.Run("name only is valid", func(t *testing.T) {
@@ -732,7 +733,7 @@ func TestPromptArgument_Validate(t *testing.T) {
 		}
 
 		err := arg.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -757,7 +758,7 @@ func TestParseJSONSchema(t *testing.T) {
 		}`
 
 		schema, err := parseJSONSchema(schemaString)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "object", schema.Type)
 		assert.Equal(t, "Test schema", schema.Description)
 		assert.Len(t, schema.Properties, 2)
@@ -771,7 +772,7 @@ func TestParseJSONSchema(t *testing.T) {
 		schemaString := `{"type": "string"}`
 
 		schema, err := parseJSONSchema(schemaString)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "string", schema.Type)
 		assert.Empty(t, schema.Description)
 		assert.Nil(t, schema.Properties)
@@ -782,7 +783,7 @@ func TestParseJSONSchema(t *testing.T) {
 		schemaString := `{"type": "string"`
 
 		schema, err := parseJSONSchema(schemaString)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, schema)
 		assert.Contains(t, err.Error(), "failed to parse JSON schema")
 	})
@@ -796,9 +797,9 @@ func TestParseJSONSchema(t *testing.T) {
 		}`
 
 		schema, err := parseJSONSchema(schemaString)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "object", schema.Type)
-		assert.Len(t, schema.Properties, 0)
+		assert.Empty(t, schema.Properties)
 	})
 }
 
@@ -856,7 +857,7 @@ func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
 		})
 
 		result, err := handler.convertToMCPContent(mockResult)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.True(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -872,7 +873,7 @@ func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
 		})
 
 		result, err := handler.convertToMCPContent(mockResult)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.False(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -886,7 +887,7 @@ func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
 		mockResult.On("Interface").Return("test string result")
 
 		result, err := handler.convertToMCPContent(mockResult)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.False(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -899,7 +900,7 @@ func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
 		mockResult.On("Interface").Return([]byte("test bytes"))
 
 		result, err := handler.convertToMCPContent(mockResult)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.False(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -912,7 +913,7 @@ func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
 		mockResult.On("Interface").Return(42)
 
 		result, err := handler.convertToMCPContent(mockResult)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.False(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -943,7 +944,7 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 		}
 
 		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "test", result["config"])
 		assert.Equal(t, arguments, result["args"])
 
@@ -968,7 +969,7 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 		}
 
 		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, arguments, result["args"])
 
 		mockEval.AssertExpectations(t)
@@ -988,7 +989,7 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 		provider.On("GetData", mock.Anything).Return(map[string]any(nil), assert.AnError)
 
 		result, err := handler.prepareScriptContext(t.Context(), provider, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to get tool static data")
 
@@ -1021,10 +1022,10 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 		}
 
 		eval, err := handler.Evaluator.GetCompiledEvaluator()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		result, err := handler.executeScriptTool(t.Context(), eval, provider, arguments)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.False(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -1051,10 +1052,10 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 		provider.On("GetData", mock.Anything).Return(map[string]any{}, nil)
 
 		eval, err := handler.Evaluator.GetCompiledEvaluator()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		result, err := handler.executeScriptTool(t.Context(), eval, provider, map[string]any{})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "timeout")
 
@@ -1070,7 +1071,7 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 		}
 
 		eval, err := handler.Evaluator.GetCompiledEvaluator()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, eval)
 		assert.Contains(t, err.Error(), "undefined variable \"undefined_function\"")
 	})
@@ -1090,10 +1091,10 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 		provider.On("GetData", mock.Anything).Return(map[string]any(nil), assert.AnError)
 
 		eval, err := handler.Evaluator.GetCompiledEvaluator()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		result, err := handler.executeScriptTool(t.Context(), eval, provider, map[string]any{})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to prepare script context")
 
@@ -1118,7 +1119,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app.compiledServer)
 	})
 
@@ -1137,7 +1138,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app.compiledServer)
 	})
 
@@ -1156,7 +1157,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app.compiledServer)
 	})
 
@@ -1181,7 +1182,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app.compiledServer)
 	})
 
@@ -1204,7 +1205,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid JSON Schema type: invalid-type")
 	})
 
@@ -1227,7 +1228,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid JSON Schema type: invalid-type")
 	})
 
@@ -1250,7 +1251,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid JSON: invalid character")
 	})
 
@@ -1273,7 +1274,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 		}
 
 		err := app.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid JSON: invalid character")
 	})
 }
@@ -1283,35 +1284,35 @@ func TestValidateJSONSchemaEdgeCases(t *testing.T) {
 	t.Run("invalid JSON Schema type", func(t *testing.T) {
 		schema := `{"type":"invalid-type"}`
 		err := validateJSONSchema(schema)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid JSON Schema type")
 	})
 
 	t.Run("non-string type field", func(t *testing.T) {
 		schema := `{"type":123}`
 		err := validateJSONSchema(schema)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "JSON Schema 'type' must be a string")
 	})
 
 	t.Run("invalid properties structure", func(t *testing.T) {
 		schema := `{"type":"object","properties":"not-an-object"}`
 		err := validateJSONSchema(schema)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "JSON Schema 'properties' must be an object")
 	})
 
 	t.Run("invalid required array", func(t *testing.T) {
 		schema := `{"type":"object","required":"not-an-array"}`
 		err := validateJSONSchema(schema)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "JSON Schema 'required' must be an array")
 	})
 
 	t.Run("invalid required array element", func(t *testing.T) {
 		schema := `{"type":"object","required":[123]}`
 		err := validateJSONSchema(schema)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "JSON Schema 'required' array element 0 must be a string")
 	})
 }
@@ -1321,7 +1322,7 @@ func TestGetDefaultInputSchemaEdgeCases(t *testing.T) {
 	t.Run("script tool handler", func(t *testing.T) {
 		handler := &ScriptToolHandler{}
 		schema, err := getDefaultInputSchema(handler)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, schema)
 		assert.Equal(t, "object", schema.Type)
 		assert.Equal(t, "Tool input parameters", schema.Description)
@@ -1331,7 +1332,7 @@ func TestGetDefaultInputSchemaEdgeCases(t *testing.T) {
 		// Create a mock handler that doesn't match any known types
 		handler := &mockToolHandler{}
 		schema, err := getDefaultInputSchema(handler)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, schema)
 		assert.Equal(t, "object", schema.Type)
 		assert.Equal(t, "Tool input parameters", schema.Description)

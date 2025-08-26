@@ -121,7 +121,7 @@ func TestGRPCServer_InvalidAddress(t *testing.T) {
 	grpcServer, err := NewGRPCManager(logger, listenAddr, mockConfigServer)
 
 	// Verify that we got an error and no server
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, grpcServer)
 }
 
@@ -295,7 +295,7 @@ func TestClientServerCommunication(t *testing.T) {
 			require.NoError(t, err, "Failed to create client connection")
 			defer func() {
 				err := clientConn.Close()
-				assert.NoError(t, err, "Failed to close client connection")
+				require.NoError(t, err, "Failed to close client connection")
 			}()
 
 			// Create client

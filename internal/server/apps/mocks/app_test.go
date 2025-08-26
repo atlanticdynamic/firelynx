@@ -63,7 +63,7 @@ func TestMockApp(t *testing.T) {
 	err = customMock.HandleHTTP(ctx, newRecorder, r)
 
 	// Verify results
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, newRecorder.Code)
 	assert.Equal(t, "OK", newRecorder.Body.String())
 }

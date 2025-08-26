@@ -35,7 +35,7 @@ func TestResponseBuffer(t *testing.T) {
 		data := []byte("test response")
 
 		n, err := rb.Write(data)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, len(data), n)
 		assert.Equal(t, len(data), rb.Size())
 		assert.True(t, rb.Written())
@@ -547,7 +547,7 @@ func TestReadBody(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test", nil)
 		req.Body = nil // Explicitly set to nil
 		body, err := readBody(req, 1024)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, body)
 	})
 
@@ -588,7 +588,7 @@ func TestReadBody(t *testing.T) {
 		req.Body = io.NopCloser(errorReader{})
 
 		body, err := readBody(req, 1024)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, body)
 		assert.Contains(t, err.Error(), "simulated read error")
 	})
@@ -1059,7 +1059,7 @@ func TestConsoleLogger_captureAndRestoreResponse(t *testing.T) {
 
 		// But the full response is written to the original writer
 		assert.Equal(t, longResponse, originalWriter.buffer.Bytes())
-		assert.Equal(t, len(longResponse), len(originalWriter.buffer.Bytes()))
+		assert.Len(t, originalWriter.buffer.Bytes(), len(longResponse))
 	})
 
 	t.Run("Uses default status code when not set", func(t *testing.T) {

@@ -91,7 +91,7 @@ func TestSingleLoggerFileOutput(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 100*time.Millisecond)
 

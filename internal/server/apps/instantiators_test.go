@@ -290,7 +290,7 @@ func TestCreateScriptApp_EdgeCases(t *testing.T) {
 		require.NotNil(t, app)
 
 		// Should handle empty ID gracefully
-		assert.Equal(t, "", app.String())
+		assert.Empty(t, app.String())
 	})
 
 	t.Run("handles very long app ID", func(t *testing.T) {
@@ -380,7 +380,7 @@ func TestCreateScriptApp_Debug(t *testing.T) {
 		// Check what GetCompiledEvaluator returns for zero-value evaluator
 		compiledBefore, err := evaluator.GetCompiledEvaluator()
 		t.Logf("Zero value GetCompiledEvaluator: %v, err: %v", compiledBefore, err)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, compiledBefore)
 
 		// Now try with valid Code/Timeout
@@ -391,7 +391,7 @@ func TestCreateScriptApp_Debug(t *testing.T) {
 
 		compiledBefore2, err2 := evaluator2.GetCompiledEvaluator()
 		t.Logf("With fields GetCompiledEvaluator: %v, err: %v", compiledBefore2, err2)
-		assert.NoError(t, err2)
+		require.NoError(t, err2)
 		assert.NotNil(t, compiledBefore2)
 		t.Logf("Type of compiled evaluator: %T", compiledBefore2)
 
@@ -406,7 +406,7 @@ func TestCreateScriptApp_Debug(t *testing.T) {
 		app, err := createScriptApp("test-debug", config)
 		t.Logf("createScriptApp result: app=%v, err=%v", app, err)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app)
 	})
 }
@@ -565,7 +565,7 @@ func TestCreateMCPApp_EdgeCases(t *testing.T) {
 		require.NotNil(t, app)
 
 		// Should handle empty ID gracefully
-		assert.Equal(t, "", app.String())
+		assert.Empty(t, app.String())
 	})
 
 	t.Run("handles very long app ID", func(t *testing.T) {
@@ -609,7 +609,7 @@ func TestCreateMCPApp_EdgeCases(t *testing.T) {
 
 		// SSE enabled should fail validation
 		err := config.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "SSE transport is not yet implemented for MCP apps")
 	})
 }

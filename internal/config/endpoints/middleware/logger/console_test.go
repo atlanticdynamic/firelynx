@@ -102,9 +102,9 @@ func TestConsoleLogger_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.logger.Validate()
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -398,12 +398,12 @@ func TestConsoleLogger_validateOutputWritability(t *testing.T) {
 			err := logger.validateOutputWritability()
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.errorText != "" {
 					assert.Contains(t, err.Error(), tt.errorText)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

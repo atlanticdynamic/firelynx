@@ -64,7 +64,7 @@ func TestPostProcessConfig(t *testing.T) {
 
 		// Process configuration
 		err := loader.postProcessConfig(config, configMap)
-		assert.NoError(t, err, "Should not return errors for valid config")
+		require.NoError(t, err, "Should not return errors for valid config")
 
 		// Verify all components were processed correctly
 		assert.Equal(
@@ -155,7 +155,7 @@ func TestPostProcessConfig(t *testing.T) {
 
 		// Process configuration
 		err := loader.postProcessConfig(config, configMap)
-		assert.NoError(t, err, "Should not return errors for empty config")
+		require.NoError(t, err, "Should not return errors for empty config")
 	})
 
 	// Test with partial config (only listeners)
@@ -185,7 +185,7 @@ func TestPostProcessConfig(t *testing.T) {
 
 		// Process configuration
 		err := loader.postProcessConfig(config, configMap)
-		assert.NoError(t, err, "Should not return errors for listeners-only config")
+		require.NoError(t, err, "Should not return errors for listeners-only config")
 
 		// Verify listener was processed
 		assert.Equal(
@@ -221,7 +221,7 @@ func TestPostProcessConfig(t *testing.T) {
 
 		// Process configuration
 		err := loader.postProcessConfig(config, configMap)
-		assert.NoError(t, err, "Should not return errors for endpoints-only config")
+		require.NoError(t, err, "Should not return errors for endpoints-only config")
 
 		// Verify endpoint was processed
 		assert.Equal(
@@ -267,7 +267,7 @@ func TestPostProcessConfig(t *testing.T) {
 
 		// Process configuration
 		err := loader.postProcessConfig(config, configMap)
-		assert.NoError(t, err, "Should not return errors for middlewares-only config")
+		require.NoError(t, err, "Should not return errors for middlewares-only config")
 
 		// Verify middleware was processed
 		assert.Equal(

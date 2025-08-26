@@ -88,7 +88,7 @@ func TestSagaMachine(t *testing.T) {
 
 		// Should be a terminal state - no further transitions
 		err = machine.Transition(StateCreated)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, StateCompensated, machine.GetState()) // State unchanged
 	})
 
@@ -129,19 +129,19 @@ func TestSagaMachine(t *testing.T) {
 
 		// Try to skip a state
 		err := machine.Transition(StateValidated)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, StateCreated, machine.GetState()) // State unchanged
 
 		// Try to transition to a state that's not reachable from current state
 		err = machine.Transition(StateCompensating)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, StateCreated, machine.GetState()) // State unchanged
 
 		// Setup valid state then try invalid transition
 		err = machine.Transition(StateValidating)
 		require.NoError(t, err)
 		err = machine.Transition(StateCompensated)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, StateValidating, machine.GetState()) // State unchanged
 	})
 

@@ -120,7 +120,7 @@ func TestProcessEndpoints(t *testing.T) {
 		errs := processEndpoints(config, configMap)
 		assert.NotEmpty(t, errs, "Expected errors for invalid endpoint format")
 		assert.Contains(t, errs[0].Error(), "invalid endpoint format")
-		assert.ErrorIs(t, errs[0], errz.ErrInvalidEndpointFormat)
+		require.ErrorIs(t, errs[0], errz.ErrInvalidEndpointFormat)
 	})
 
 	// Test with more endpoint entries in the map than in the config

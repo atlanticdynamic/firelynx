@@ -8,10 +8,10 @@ import (
 
 func TestEvaluatorTypeConstants(t *testing.T) {
 	// Verify the evaluator type constants
-	assert.Equal(t, EvaluatorType(0), EvaluatorTypeUnspecified)
-	assert.Equal(t, EvaluatorType(1), EvaluatorTypeRisor)
-	assert.Equal(t, EvaluatorType(2), EvaluatorTypeStarlark)
-	assert.Equal(t, EvaluatorType(3), EvaluatorTypeExtism)
+	assert.Equal(t, EvaluatorTypeUnspecified, EvaluatorType(0))
+	assert.Equal(t, EvaluatorTypeRisor, EvaluatorType(1))
+	assert.Equal(t, EvaluatorTypeStarlark, EvaluatorType(2))
+	assert.Equal(t, EvaluatorTypeExtism, EvaluatorType(3))
 }
 
 func TestEvaluatorType_String(t *testing.T) {

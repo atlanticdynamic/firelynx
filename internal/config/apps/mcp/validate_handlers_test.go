@@ -15,9 +15,9 @@ import (
 func TestExtractArguments(t *testing.T) {
 	t.Run("nil arguments", func(t *testing.T) {
 		result, err := extractArguments(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Len(t, result, 0)
+		assert.Empty(t, result)
 	})
 
 	t.Run("map[string]any arguments", func(t *testing.T) {
@@ -28,7 +28,7 @@ func TestExtractArguments(t *testing.T) {
 		}
 
 		result, err := extractArguments(input)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, input, result)
 	})
 
@@ -36,7 +36,7 @@ func TestExtractArguments(t *testing.T) {
 		input := json.RawMessage(`{"name":"John","age":30,"active":true}`)
 
 		result, err := extractArguments(input)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		expected := map[string]any{
 			"name":   "John",
@@ -50,7 +50,7 @@ func TestExtractArguments(t *testing.T) {
 		input := []byte(`{"expression":"2+2","type":"math"}`)
 
 		result, err := extractArguments(input)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		expected := map[string]any{
 			"expression": "2+2",
@@ -67,7 +67,7 @@ func TestExtractArguments(t *testing.T) {
 		input := testStruct{Name: "test", Count: 42}
 
 		result, err := extractArguments(input)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		expected := map[string]any{
 			"name":  "test",
@@ -80,7 +80,7 @@ func TestExtractArguments(t *testing.T) {
 		input := json.RawMessage(`{"invalid":}`)
 
 		result, err := extractArguments(input)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to unmarshal arguments from JSON")
 	})
@@ -89,7 +89,7 @@ func TestExtractArguments(t *testing.T) {
 		input := []byte(`{"broken": json}`)
 
 		result, err := extractArguments(input)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to unmarshal arguments from JSON")
 	})
@@ -99,7 +99,7 @@ func TestExtractArguments(t *testing.T) {
 		input := make(chan int)
 
 		result, err := extractArguments(input)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to marshal arguments to JSON")
 	})
@@ -108,7 +108,7 @@ func TestExtractArguments(t *testing.T) {
 		input := `{"message":"hello","count":5}`
 
 		result, err := extractArguments(input)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		expected := map[string]any{
 			"message": "hello",
@@ -142,7 +142,7 @@ func TestBuiltinToolHandlerExecution(t *testing.T) {
 		}
 
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Len(t, result.Content, 1)
 
@@ -172,7 +172,7 @@ func TestBuiltinToolHandlerExecution(t *testing.T) {
 		}
 
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Len(t, result.Content, 1)
 		assert.False(t, result.IsError)
@@ -200,7 +200,7 @@ func TestBuiltinToolHandlerExecution(t *testing.T) {
 		}
 
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.True(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -227,7 +227,7 @@ func TestBuiltinToolHandlerExecution(t *testing.T) {
 		}
 
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.True(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -260,7 +260,7 @@ func TestBuiltinToolHandlerExecution(t *testing.T) {
 		}
 
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.Len(t, result.Content, 1)
 		assert.False(t, result.IsError)
@@ -290,7 +290,7 @@ func TestBuiltinToolHandlerExecution(t *testing.T) {
 		}
 
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.True(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -319,7 +319,7 @@ func TestBuiltinToolHandlerExecution(t *testing.T) {
 		}
 
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.True(t, result.IsError)
 		assert.Len(t, result.Content, 1)
@@ -349,13 +349,13 @@ func TestScriptToolHandlerCreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		require.NotNil(t, tool)
 		require.NotNil(t, mcpHandler)
 
 		// Verify the tool was created correctly
-		assert.Equal(t, "", tool.Name)        // Will be set by caller
-		assert.Equal(t, "", tool.Description) // Will be set by caller
+		assert.Empty(t, tool.Name)        // Will be set by caller
+		assert.Empty(t, tool.Description) // Will be set by caller
 
 		mockEval.AssertExpectations(t)
 	})
@@ -372,7 +372,7 @@ func TestScriptToolHandlerCreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, tool)
 		assert.Nil(t, mcpHandler)
 		assert.Contains(t, err.Error(), "failed to get compiled evaluator")
@@ -392,7 +392,7 @@ func TestScriptToolHandlerCreateMCPTool(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, tool)
 		assert.Nil(t, mcpHandler)
 		assert.Contains(t, err.Error(), "compiled evaluator is nil")

@@ -7,6 +7,7 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWithLogHandler(t *testing.T) {
@@ -189,13 +190,13 @@ func TestNew(t *testing.T) {
 			runner, err := NewRunner(tc.listenAddr, txSiphon, tc.options...)
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Nil(t, runner)
 				if tc.errorMsg != "" {
 					assert.Contains(t, err.Error(), tc.errorMsg)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.NotNil(t, runner)
 
 				// Verify listenAddr is set

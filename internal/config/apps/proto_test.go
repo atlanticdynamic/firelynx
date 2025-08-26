@@ -221,14 +221,14 @@ func TestFromProtoConversions(t *testing.T) {
 
 		// Conversion should fail due to type mismatch
 		_, err := fromProto(pbApp)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrTypeMismatch)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrTypeMismatch)
 	})
 
 	t.Run("NilApp", func(t *testing.T) {
 		_, err := fromProto(nil)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrAppDefinitionNil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrAppDefinitionNil)
 	})
 
 	t.Run("EmptyAppConfig", func(t *testing.T) {
@@ -238,8 +238,8 @@ func TestFromProtoConversions(t *testing.T) {
 		}
 
 		_, err := fromProto(pbApp)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrNoConfigSpecified)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrNoConfigSpecified)
 	})
 
 	t.Run("MultipleApps", func(t *testing.T) {
@@ -306,13 +306,13 @@ func TestFromProtoConversions(t *testing.T) {
 	t.Run("FromProtoEmptyList", func(t *testing.T) {
 		// Test with empty list
 		apps, err := FromProto([]*pb.AppDefinition{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, apps, "Should return empty AppCollection, not nil")
 		assert.Equal(t, 0, apps.Len(), "Should have no apps")
 
 		// Test with nil list
 		apps, err = FromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, apps, "Should return empty AppCollection, not nil")
 		assert.Equal(t, 0, apps.Len(), "Should have no apps")
 	})
@@ -367,7 +367,7 @@ func TestFromProtoConversions(t *testing.T) {
 
 		// Should fail on the second app and return an error
 		_, err := FromProto(pbApps)
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("UnknownConfigTypeError", func(t *testing.T) {
@@ -382,8 +382,8 @@ func TestFromProtoConversions(t *testing.T) {
 
 		// Conversion should fail
 		_, err := fromProto(pbApp)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrNoConfigSpecified)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrNoConfigSpecified)
 	})
 }
 
@@ -694,7 +694,7 @@ func TestStaticDataConversions(t *testing.T) {
 	t.Run("StaticDataFromProtoNil", func(t *testing.T) {
 		// Test with nil input
 		staticData, err := convertStaticDataFromProto(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, staticData)
 	})
 }
@@ -720,8 +720,8 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		}
 
 		_, err := fromProto(pbApp)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrTypeMismatch)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrTypeMismatch)
 	})
 
 	t.Run("CompositeTypeMismatch", func(t *testing.T) {
@@ -738,8 +738,8 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		}
 
 		_, err := fromProto(pbApp)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrTypeMismatch)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrTypeMismatch)
 	})
 
 	t.Run("EchoTypeMismatch", func(t *testing.T) {
@@ -756,8 +756,8 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		}
 
 		_, err := fromProto(pbApp)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrTypeMismatch)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrTypeMismatch)
 	})
 
 	t.Run("MCPTypeMismatch", func(t *testing.T) {
@@ -774,8 +774,8 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		}
 
 		_, err := fromProto(pbApp)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrTypeMismatch)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrTypeMismatch)
 	})
 
 	t.Run("UnknownConfigTypeDefault", func(t *testing.T) {
@@ -792,8 +792,8 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		// the existing test for this coverage
 
 		_, err := fromProto(pbApp)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrNoConfigSpecified)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrNoConfigSpecified)
 	})
 }
 

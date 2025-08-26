@@ -85,7 +85,7 @@ func TestTruncateString(t *testing.T) {
 		maxLength := 15
 		result := fancy.TruncateString(longString, maxLength)
 		assert.Equal(t, "This is a ve...", result, "Long strings should be truncated with ellipsis")
-		assert.Equal(t, maxLength, len(result), "Truncated string length should match maxLength")
+		assert.Len(t, result, maxLength, "Truncated string length should match maxLength")
 	})
 
 	t.Run("Empty string", func(t *testing.T) {

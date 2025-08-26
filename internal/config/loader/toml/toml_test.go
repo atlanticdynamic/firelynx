@@ -37,7 +37,7 @@ version = "v1"
 
 		_, err := loader.LoadProto()
 		require.Error(t, err, "Expected error for invalid TOML")
-		assert.ErrorIs(t, err, ErrParseToml, "Error should be ErrParseToml")
+		require.ErrorIs(t, err, ErrParseToml, "Error should be ErrParseToml")
 	})
 
 	// Test empty source
@@ -45,7 +45,7 @@ version = "v1"
 		loader := NewTomlLoader(nil)
 		_, err := loader.LoadProto()
 		require.Error(t, err, "Expected error for empty source")
-		assert.ErrorIs(t, err, ErrNoSourceData, "Error should be ErrNoSourceData")
+		require.ErrorIs(t, err, ErrNoSourceData, "Error should be ErrNoSourceData")
 	})
 
 	// Test unsupported version
@@ -56,7 +56,7 @@ version = "v2"
 
 		_, err := loader.LoadProto()
 		require.Error(t, err, "Expected error for unsupported version")
-		assert.ErrorIs(t, err, ErrUnsupportedConfigVer, "Error should be ErrUnsupportedConfigVer")
+		require.ErrorIs(t, err, ErrUnsupportedConfigVer, "Error should be ErrUnsupportedConfigVer")
 		assert.Contains(t, err.Error(), "v2", "Error should contain the version number")
 	})
 
@@ -326,12 +326,12 @@ type = "http"
 	endpoint := config.Endpoints[0]
 
 	// Check routes
-	assert.Len(t, endpoint.Routes, 0, "Should have 0 routes")
+	assert.Empty(t, endpoint.Routes, "Should have 0 routes")
 
 	// Since we modified the validation to allow empty routes for test endpoints,
 	// we don't expect an error here anymore (our test endpoint has 'empty' in its name)
 	err = ValidateConfig(config)
-	assert.NoError(t, err, "Validation should pass for empty_endpoint with no routes")
+	require.NoError(t, err, "Validation should pass for empty_endpoint with no routes")
 }
 
 // TestRouteDuplication tests the fix for route duplication issue
@@ -367,11 +367,11 @@ func TestRouteDuplication(t *testing.T) {
 
 	// Load the config
 	config, err := loader.LoadProto()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, config)
 
 	// Check that we only have one route
-	assert.Equal(t, 1, len(config.Endpoints[0].Routes))
+	assert.Len(t, config.Endpoints[0].Routes, 1)
 	route := config.Endpoints[0].Routes[0]
 
 	// Check that the route has the correct app ID
@@ -384,8 +384,8 @@ func TestRouteDuplication(t *testing.T) {
 
 	// Now test the fix - let's make sure there's no duplication
 	// by examining the first route of the first endpoint
-	assert.Equal(t, 1, len(config.Endpoints))
-	assert.Equal(t, 1, len(config.Endpoints[0].Routes), "Should have exactly one route")
+	assert.Len(t, config.Endpoints, 1)
+	assert.Len(t, config.Endpoints[0].Routes, 1, "Should have exactly one route")
 
 	// Check that the route has the correct values
 	checkRoute := config.Endpoints[0].Routes[0]
@@ -583,7 +583,7 @@ response = "Hello with defaults"
 
 	// Validate should pass (domain layer will apply defaults)
 	err = ValidateConfig(config)
-	assert.NoError(t, err, "Validation should pass with default HTTP timeouts")
+	require.NoError(t, err, "Validation should pass with default HTTP timeouts")
 }
 
 // TestTomlLoader_LoadProtoErrors tests error scenarios in the LoadProto method

@@ -341,7 +341,7 @@ func TestFromProto(t *testing.T) {
 				assert.Nil(t, actual.StaticData)
 			} else {
 				assert.NotNil(t, actual.StaticData)
-				assert.Equal(t, len(tc.expected.StaticData), len(actual.StaticData))
+				assert.Len(t, actual.StaticData, len(tc.expected.StaticData))
 				for k, v := range tc.expected.StaticData {
 					assert.Equal(t, v, actual.StaticData[k])
 				}

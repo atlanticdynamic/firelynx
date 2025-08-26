@@ -7,6 +7,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMockRegistry_GetApp(t *testing.T) {
@@ -42,14 +43,14 @@ func TestMockRegistry_RegisterApp(t *testing.T) {
 	mockRegistry.On("RegisterApp", mockApp).Return(nil).Once()
 
 	err := mockRegistry.RegisterApp(mockApp)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	mockRegistry.AssertExpectations(t)
 
 	// Set expectation: RegisterApp returns an error
 	expectedErr := assert.AnError
 	mockRegistry.On("RegisterApp", mock.Anything).Return(expectedErr).Once()
 	err = mockRegistry.RegisterApp(mocks.NewMockApp("fail-app"))
-	assert.ErrorIs(t, err, expectedErr)
+	require.ErrorIs(t, err, expectedErr)
 	mockRegistry.AssertExpectations(t)
 }
 
@@ -59,13 +60,13 @@ func TestMockRegistry_UnregisterApp(t *testing.T) {
 	// Set expectation: UnregisterApp should be called and return nil error
 	mockRegistry.On("UnregisterApp", "test-app").Return(nil).Once()
 	err := mockRegistry.UnregisterApp("test-app")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	mockRegistry.AssertExpectations(t)
 
 	// Set expectation: UnregisterApp returns an error
 	expectedErr := assert.AnError
 	mockRegistry.On("UnregisterApp", "fail-app").Return(expectedErr).Once()
 	err = mockRegistry.UnregisterApp("fail-app")
-	assert.ErrorIs(t, err, expectedErr)
+	require.ErrorIs(t, err, expectedErr)
 	mockRegistry.AssertExpectations(t)
 }

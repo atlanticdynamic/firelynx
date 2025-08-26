@@ -9,7 +9,7 @@ import (
 
 func TestGetRandomPort(t *testing.T) {
 	port := GetRandomPort(t)
-	assert.Greater(t, port, 0)
+	assert.Positive(t, port)
 	assert.Less(t, port, 65536)
 }
 

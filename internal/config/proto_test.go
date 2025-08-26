@@ -1,7 +1,6 @@
 package config
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -62,14 +61,14 @@ func TestEndpointWithMissingListenerID(t *testing.T) {
 	config, err := NewFromProto(pbConfig)
 
 	// Verify that it fails with the expected error
-	assert.Error(
+	require.Error(
 		t,
 		err,
 		"NewFromProto should return an error for endpoint with missing listener ID",
 	)
 	assert.Nil(t, config, "Config should be nil when NewFromProto returns an error")
 	t.Logf("Actual error: %v", err)
-	assert.True(t, strings.Contains(err.Error(), "empty listener ID"),
+	assert.Contains(t, err.Error(), "empty listener ID",
 		"Error should mention empty listener ID")
 }
 
@@ -248,9 +247,9 @@ func TestNilProtoConversion(t *testing.T) {
 
 	// Test with nil proto
 	config, err := fromProto(nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, config)
-	assert.True(t, strings.Contains(err.Error(), "nil protobuf config"))
+	assert.Contains(t, err.Error(), "nil protobuf config")
 }
 
 func TestMissingVersionInProto(t *testing.T) {
@@ -263,9 +262,9 @@ func TestMissingVersionInProto(t *testing.T) {
 
 	// Try to convert it
 	config, err := fromProto(pbConfig)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, config)
-	assert.True(t, strings.Contains(err.Error(), "nil version"))
+	assert.Contains(t, err.Error(), "nil version")
 }
 
 func TestConfigWithInvalidComponents(t *testing.T) {
@@ -306,9 +305,9 @@ func TestConfigWithInvalidComponents(t *testing.T) {
 
 			// Try to convert it
 			config, err := fromProto(pbConfig)
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Nil(t, config)
-			assert.True(t, strings.Contains(err.Error(), tc.errSubstr),
+			assert.Contains(t, err.Error(), tc.errSubstr,
 				"Error should mention '%s', got: %s", tc.errSubstr, err.Error())
 		})
 	}

@@ -43,8 +43,8 @@ version = "v1"
 		l, err := NewLoaderFromFilePath(nonExistentPath)
 		assert.Nil(t, l, "Loader should be nil for non-existent file")
 		require.Error(t, err, "Expected error for non-existent file")
-		assert.ErrorIs(t, err, os.ErrNotExist, "Error should be os.ErrNotExist")
-		assert.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
+		require.ErrorIs(t, err, os.ErrNotExist, "Error should be os.ErrNotExist")
+		require.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
 	})
 
 	// Test unsupported file extension
@@ -56,7 +56,7 @@ version = "v1"
 
 		_, err = NewLoaderFromFilePath(wrongExtPath)
 		require.Error(t, err, "Expected error for unsupported file extension")
-		assert.ErrorIs(t, err, ErrUnsupportedExtension, "Error should be ErrUnsupportedExtension")
+		require.ErrorIs(t, err, ErrUnsupportedExtension, "Error should be ErrUnsupportedExtension")
 	})
 }
 
@@ -110,8 +110,8 @@ address = ":9090"
 			return toml.NewTomlLoader(data)
 		})
 		require.Error(t, err, "Expected error from reader")
-		assert.ErrorIs(t, err, ErrFailedToLoadConfig)
-		assert.ErrorIs(t, err, assert.AnError, "Error should match the mock reader error")
+		require.ErrorIs(t, err, ErrFailedToLoadConfig)
+		require.ErrorIs(t, err, assert.AnError, "Error should match the mock reader error")
 	})
 }
 

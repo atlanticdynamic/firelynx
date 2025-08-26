@@ -125,7 +125,7 @@ func (s *StaticDataIntegrationSuite) SetupSuite() {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { s.NoError(resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 5*time.Second, 100*time.Millisecond, "HTTP listener should be ready")
 }
@@ -140,8 +140,8 @@ func (s *StaticDataIntegrationSuite) TearDownSuite() {
 		defer cancel()
 		select {
 		case err := <-s.runnerErrCh:
-			if err != nil && err != context.Canceled {
-				s.T().Logf("HTTP runner error: %v", err)
+			if err != nil {
+				s.Require().ErrorIs(err, context.Canceled, "HTTP runner should only exit due to context cancellation")
 			}
 		case <-ctx.Done():
 			s.T().Log("HTTP runner shutdown timeout")
@@ -155,8 +155,7 @@ func (s *StaticDataIntegrationSuite) TestRisorStaticDataMerging() {
 
 	// Test Route 1: Should get route-level override
 	s.Run("Route1_OverrideRouteValue", func() {
-		resp := s.makeGetRequest(fmt.Sprintf("http://127.0.0.1:%d/api/route1", s.port))
-		result := s.parseResponse(resp)
+		result := s.makeGetRequestAndParse(fmt.Sprintf("http://127.0.0.1:%d/api/route1", s.port))
 
 		s.Equal("from_app", result.AppValue, "App-level static data should be preserved")
 		s.Equal(
@@ -168,8 +167,7 @@ func (s *StaticDataIntegrationSuite) TestRisorStaticDataMerging() {
 
 	// Test Route 2: Should get different route-level override
 	s.Run("Route2_DifferentRouteValue", func() {
-		resp := s.makeGetRequest(fmt.Sprintf("http://127.0.0.1:%d/api/route2", s.port))
-		result := s.parseResponse(resp)
+		result := s.makeGetRequestAndParse(fmt.Sprintf("http://127.0.0.1:%d/api/route2", s.port))
 
 		s.Equal("from_app", result.AppValue, "App-level static data should be preserved")
 		s.Equal(
@@ -181,8 +179,7 @@ func (s *StaticDataIntegrationSuite) TestRisorStaticDataMerging() {
 
 	// Test Route 3: Should get app-level default (no route override)
 	s.Run("Route3_AppDefault", func() {
-		resp := s.makeGetRequest(fmt.Sprintf("http://127.0.0.1:%d/api/route3", s.port))
-		result := s.parseResponse(resp)
+		result := s.makeGetRequestAndParse(fmt.Sprintf("http://127.0.0.1:%d/api/route3", s.port))
 
 		s.Equal("from_app", result.AppValue, "App-level static data should be preserved")
 		s.Equal(
@@ -195,21 +192,16 @@ func (s *StaticDataIntegrationSuite) TestRisorStaticDataMerging() {
 
 // StaticDataResponse represents the JSON response from the Risor script
 type StaticDataResponse struct {
-	AppValue   string `json:"app_value"`
-	RouteValue string `json:"route_value"`
+	AppValue   string `json:"appValue"`
+	RouteValue string `json:"routeValue"`
 	Timestamp  string `json:"timestamp"`
 }
 
-// makeGetRequest makes a GET request and returns the response
-func (s *StaticDataIntegrationSuite) makeGetRequest(url string) *http.Response {
+// makeGetRequestAndParse makes a GET request and parses the JSON response
+func (s *StaticDataIntegrationSuite) makeGetRequestAndParse(url string) StaticDataResponse {
 	resp, err := http.Get(url)
 	s.Require().NoError(err, "HTTP request should succeed")
-	return resp
-}
-
-// parseResponse parses the JSON response from the server
-func (s *StaticDataIntegrationSuite) parseResponse(resp *http.Response) StaticDataResponse {
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Equal(http.StatusOK, resp.StatusCode, "Should get 200 OK response")
 

@@ -2,7 +2,6 @@
 package evaluators
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -66,7 +65,7 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
+		require.ErrorIs(t, err, ErrMissingCodeAndURI)
 	})
 
 	t.Run("negative timeout", func(t *testing.T) {
@@ -76,7 +75,7 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrNegativeTimeout))
+		require.ErrorIs(t, err, ErrNegativeTimeout)
 	})
 
 	t.Run("multiple errors", func(t *testing.T) {
@@ -86,8 +85,8 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrMissingCodeAndURI)
-		assert.True(t, errors.Is(err, ErrNegativeTimeout))
+		require.ErrorIs(t, err, ErrMissingCodeAndURI)
+		require.ErrorIs(t, err, ErrNegativeTimeout)
 	})
 
 	t.Run("both code and uri", func(t *testing.T) {
@@ -98,7 +97,7 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrBothCodeAndURI)
+		require.ErrorIs(t, err, ErrBothCodeAndURI)
 	})
 
 	t.Run("uri only valid", func(t *testing.T) {
@@ -110,7 +109,7 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		err := evaluator.Validate()
 		// build() will be called and will fail because the file doesn't exist
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrCompilationFailed)
+		require.ErrorIs(t, err, ErrCompilationFailed)
 	})
 
 	t.Run("compilation failure with invalid code", func(t *testing.T) {
@@ -120,7 +119,7 @@ func TestStarlarkEvaluator_Validate(t *testing.T) {
 		}
 		err := evaluator.Validate()
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrCompilationFailed)
+		require.ErrorIs(t, err, ErrCompilationFailed)
 	})
 }
 
@@ -131,8 +130,8 @@ func TestStarlarkEvaluator_GetCompiledEvaluator(t *testing.T) {
 			Timeout: 5 * time.Second,
 		}
 		result, err := evaluator.GetCompiledEvaluator()
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, ErrCompilationFailed)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrCompilationFailed)
 		assert.Nil(t, result)
 	})
 
@@ -142,7 +141,7 @@ func TestStarlarkEvaluator_GetCompiledEvaluator(t *testing.T) {
 			Timeout: 5 * time.Second,
 		}
 		result, err := evaluator.GetCompiledEvaluator()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, result)
 	})
 }

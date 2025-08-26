@@ -106,7 +106,7 @@ func (s *HeadersIntegrationTestSuite) SetupSuite() {
 		if err != nil {
 			return false
 		}
-		resp.Body.Close()
+		s.NoError(resp.Body.Close())
 		return resp.StatusCode == http.StatusOK
 	}, 10*time.Second, 100*time.Millisecond, "Server should be ready to accept requests")
 }
@@ -125,8 +125,8 @@ func (s *HeadersIntegrationTestSuite) TearDownSuite() {
 
 		select {
 		case err := <-s.runnerErrCh:
-			if err != nil && err != context.Canceled {
-				s.T().Logf("HTTP runner exited with error: %v", err)
+			if err != nil {
+				s.Require().ErrorIs(err, context.Canceled, "HTTP runner should only exit due to context cancellation")
 			}
 		case <-time.After(2 * time.Second):
 			s.T().Log("Timeout waiting for HTTP runner goroutine to complete")
@@ -137,7 +137,7 @@ func (s *HeadersIntegrationTestSuite) TearDownSuite() {
 func (s *HeadersIntegrationTestSuite) TestSetHeaders() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/set-headers", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -160,7 +160,7 @@ func (s *HeadersIntegrationTestSuite) TestSetHeaders() {
 func (s *HeadersIntegrationTestSuite) TestAddHeaders() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/add-headers", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -173,7 +173,7 @@ func (s *HeadersIntegrationTestSuite) TestAddHeaders() {
 func (s *HeadersIntegrationTestSuite) TestRemoveHeaders() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/remove-headers", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -187,7 +187,7 @@ func (s *HeadersIntegrationTestSuite) TestRemoveHeaders() {
 func (s *HeadersIntegrationTestSuite) TestCombinedOperations() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/combined-headers", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -209,7 +209,7 @@ func (s *HeadersIntegrationTestSuite) TestCombinedOperations() {
 func (s *HeadersIntegrationTestSuite) TestSecurityHeaders() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/security", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -240,7 +240,7 @@ func (s *HeadersIntegrationTestSuite) TestSecurityHeaders() {
 func (s *HeadersIntegrationTestSuite) TestCORSHeaders() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/cors", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -262,7 +262,7 @@ func (s *HeadersIntegrationTestSuite) TestCORSHeaders() {
 func (s *HeadersIntegrationTestSuite) TestMultipleCookies() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/multiple-cookies", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -274,7 +274,7 @@ func (s *HeadersIntegrationTestSuite) TestMultipleCookies() {
 func (s *HeadersIntegrationTestSuite) TestHeaderOverwrite() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/overwrite", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -295,7 +295,7 @@ func (s *HeadersIntegrationTestSuite) TestHeaderOverwrite() {
 func (s *HeadersIntegrationTestSuite) TestNoHeadersControlGroup() {
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/no-headers", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Expected 200 OK")
 
@@ -312,7 +312,7 @@ func (s *HeadersIntegrationTestSuite) TestRequestHeaders() {
 
 	resp, err := s.client.Do(req)
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	s.Require().Equal(http.StatusOK, resp.StatusCode, "Request should succeed with custom headers")
 
@@ -332,7 +332,7 @@ func (s *HeadersIntegrationTestSuite) TestMiddlewareVsAppHeaderPrecedence() {
 	// Test endpoint that sets Content-Type via middleware
 	resp, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/set-headers", s.port))
 	s.Require().NoError(err, "Failed to make request")
-	defer resp.Body.Close()
+	defer func() { s.NoError(resp.Body.Close()) }()
 
 	// Headers that don't conflict with app-set headers work fine
 	s.Equal("v2.1", resp.Header.Get("X-API-Version"), "Middleware-only headers work correctly")
@@ -345,7 +345,7 @@ func (s *HeadersIntegrationTestSuite) TestMiddlewareVsAppHeaderPrecedence() {
 	// Verify that the echo app indeed sets this header by checking the no-headers endpoint
 	respNoHeaders, err := s.client.Get(fmt.Sprintf("http://127.0.0.1:%d/no-headers", s.port))
 	s.Require().NoError(err, "Failed to make request to no-headers endpoint")
-	defer respNoHeaders.Body.Close()
+	defer func() { s.NoError(respNoHeaders.Body.Close()) }()
 
 	// Even with no middleware, echo app sets Content-Type
 	s.Equal("text/plain; charset=utf-8", respNoHeaders.Header.Get("Content-Type"),

@@ -306,14 +306,14 @@ func TestUpdateConfig(t *testing.T) {
 		assert.True(t, *validResp.Success, "Success should be true for valid config")
 		// Check basic fields to avoid proto internals comparison issues
 		assert.Equal(t, *validConfig.Version, *validResp.Config.Version)
-		assert.Equal(t, len(validConfig.Listeners), len(validResp.Config.Listeners))
+		assert.Len(t, validResp.Config.Listeners, len(validConfig.Listeners))
 
 		// Verify transaction was broadcast via the siphon
 		tx := h.receiveTransaction()
 		require.NotNil(t, tx, "Should have received transaction via siphon")
 		require.NotNil(t, tx.GetConfig())
 		assert.Equal(t, version, tx.GetConfig().Version)
-		assert.Equal(t, 1, len(tx.GetConfig().Listeners))
+		assert.Len(t, tx.GetConfig().Listeners, 1)
 
 		// Note: The config is NOT stored in txStorage by the runner itself.
 		// That's the job of the transaction manager after processing the transaction.
@@ -407,7 +407,7 @@ func TestUpdateConfig(t *testing.T) {
 		}
 
 		// Verify we received all transactions
-		assert.Equal(t, len(configs), len(receivedTxs), "Should have received all transactions")
+		assert.Len(t, receivedTxs, len(configs), "Should have received all transactions")
 	})
 
 	t.Run("validation_failure", func(t *testing.T) {
@@ -895,7 +895,7 @@ func TestValidateConfigDoesNotModifyState(t *testing.T) {
 
 	afterState := r.GetDomainConfig()
 	assert.Equal(t, initialState.Version, afterState.Version)
-	assert.Equal(t, len(initialState.Listeners), len(afterState.Listeners))
+	assert.Len(t, afterState.Listeners, len(initialState.Listeners))
 	if len(initialState.Listeners) > 0 && len(afterState.Listeners) > 0 {
 		assert.Equal(t, initialState.Listeners[0].ID, afterState.Listeners[0].ID)
 	}
@@ -1016,9 +1016,9 @@ func TestPageTokenDecoding(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			decoded, err := decodePageToken(tt.token)
 			if tt.expectErr {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				if tt.token == "" {
 					// Empty token should return zero values
 					assert.Equal(t, pageToken{}, decoded)

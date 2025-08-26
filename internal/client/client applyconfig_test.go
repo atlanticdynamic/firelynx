@@ -36,10 +36,10 @@ func TestApplyConfigFromPath(t *testing.T) {
 
 	// Test should fail at connection time, not at config loading
 	err = client.ApplyConfigFromPath(ctx, configPath)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// The error should be a connection failure
-	assert.ErrorIs(t, err, ErrConnectionFailed)
+	require.ErrorIs(t, err, ErrConnectionFailed)
 }
 
 func TestApplyConfigFromPath_BadFile(t *testing.T) {
@@ -53,7 +53,7 @@ func TestApplyConfigFromPath_BadFile(t *testing.T) {
 
 	// Test with non-existent file
 	err := client.ApplyConfigFromPath(ctx, "/non/existent/file.toml")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no such file")
 }
 
@@ -75,7 +75,7 @@ func TestApplyConfigFromPath_InvalidConfig(t *testing.T) {
 
 	// Test should fail at config parsing
 	err = client.ApplyConfigFromPath(ctx, configPath)
-	assert.Error(t, err)
+	require.Error(t, err)
 	// Should be parsing error, not connection error
 	assert.NotContains(t, err.Error(), "dial")
 }

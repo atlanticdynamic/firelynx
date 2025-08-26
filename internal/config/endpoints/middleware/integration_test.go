@@ -97,7 +97,7 @@ func TestMiddleware_ValidationIntegration(t *testing.T) {
 	}
 
 	err := collection.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid format")
 }
 
@@ -113,11 +113,11 @@ func TestFromProto_EmptySlice(t *testing.T) {
 	t.Parallel()
 
 	result, err := FromProto(nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, result)
 
 	result, err = FromProto([]*pb.Middleware{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, result)
 }
 
@@ -131,7 +131,7 @@ func TestMiddlewareFromProto_ErrorCases(t *testing.T) {
 		}
 
 		_, err := middlewareFromProto(pbMiddleware)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "middleware has empty ID")
 	})
 
@@ -142,7 +142,7 @@ func TestMiddlewareFromProto_ErrorCases(t *testing.T) {
 		}
 
 		_, err := middlewareFromProto(pbMiddleware)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "console logger middleware missing config")
 	})
 
@@ -153,7 +153,7 @@ func TestMiddlewareFromProto_ErrorCases(t *testing.T) {
 		}
 
 		_, err := middlewareFromProto(pbMiddleware)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "middleware type unspecified")
 	})
 
@@ -164,7 +164,7 @@ func TestMiddlewareFromProto_ErrorCases(t *testing.T) {
 		}
 
 		_, err := middlewareFromProto(pbMiddleware)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown middleware type")
 	})
 }
@@ -187,7 +187,7 @@ func TestFromProto_ErrorPropagation(t *testing.T) {
 	}
 
 	_, err := FromProto(pbMiddlewares)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "middleware at index 1")
 	assert.Contains(t, err.Error(), "middleware has empty ID")
 }

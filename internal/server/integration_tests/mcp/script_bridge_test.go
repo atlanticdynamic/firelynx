@@ -79,7 +79,7 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		require.NotNil(t, result)
 
 		// Check that we got content back
-		assert.Greater(t, len(result.Content), 0)
+		assert.NotEmpty(t, result.Content)
 
 		// Check content contains the echoed expression (simplified test)
 		textContent, ok := result.Content[0].(*mcpsdk.TextContent)
@@ -114,12 +114,12 @@ func TestScriptBridgeDirectly(t *testing.T) {
 			Params: params,
 		}
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err, "Handler should not return Go error for script runtime errors")
+		require.NoError(t, err, "Handler should not return Go error for script runtime errors")
 		assert.NotNil(t, result, "Result should be returned")
 		assert.True(t, result.IsError, "Result should indicate error")
 
 		// Verify error message is in content
-		assert.Greater(t, len(result.Content), 0, "Error result should have content")
+		assert.NotEmpty(t, result.Content, "Error result should have content")
 		textContent, ok := result.Content[0].(*mcpsdk.TextContent)
 		assert.True(t, ok, "Error content should be text")
 		assert.Contains(t, textContent.Text, "Division by zero", "Error message should be in content")
@@ -174,7 +174,7 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
-		assert.Greater(t, len(result.Content), 0)
+		assert.NotEmpty(t, result.Content)
 		textContent, ok := result.Content[0].(*mcpsdk.TextContent)
 		require.True(t, ok)
 		assert.Contains(t, textContent.Text, "Object with")
@@ -301,12 +301,12 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 			Params: params,
 		}
 		result, err := mcpHandler(ctx, req)
-		assert.NoError(t, err, "Handler should not return Go error for script runtime errors")
+		require.NoError(t, err, "Handler should not return Go error for script runtime errors")
 		assert.NotNil(t, result, "Result should be returned")
 		assert.True(t, result.IsError, "Result should indicate error")
 
 		// Verify error message is in content
-		assert.Greater(t, len(result.Content), 0, "Error result should have content")
+		assert.NotEmpty(t, result.Content, "Error result should have content")
 		textContent, ok := result.Content[0].(*mcpsdk.TextContent)
 		assert.True(t, ok, "Error content should be text")
 		assert.Contains(t, textContent.Text, "Something went wrong", "Error message should be in content")
@@ -356,7 +356,7 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 			Params: params,
 		}
 		result, err := mcpHandler(ctx, req)
-		assert.Error(t, err, "Script execution should timeout with very short timeout")
+		require.Error(t, err, "Script execution should timeout with very short timeout")
 		assert.Nil(t, result, "Result should be nil when script execution times out")
 		assert.Contains(t, err.Error(), "timeout", "Error message should indicate timeout occurred")
 	})
@@ -367,7 +367,7 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		}
 
 		tool, mcpHandler, err := handler.CreateMCPTool()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, tool)
 		assert.Nil(t, mcpHandler)
 		assert.Contains(t, err.Error(), "requires an evaluator")

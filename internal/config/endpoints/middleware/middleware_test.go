@@ -57,9 +57,9 @@ func TestMiddleware_Validate(t *testing.T) {
 
 			err := tt.middleware.Validate()
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -115,9 +115,9 @@ func TestMiddlewareCollection_Validate(t *testing.T) {
 
 			err := tt.collection.Validate()
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

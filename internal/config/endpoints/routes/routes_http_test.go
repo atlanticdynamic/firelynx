@@ -47,7 +47,7 @@ func TestGetStructuredHTTPRoutes_Specific(t *testing.T) {
 		// Verify second HTTP route
 		assert.Equal(t, "app2", httpRoutes[1].AppID, "AppID should match")
 		assert.Equal(t, "/path2", httpRoutes[1].PathPrefix, "PathPrefix should match")
-		assert.Equal(t, "", httpRoutes[1].Method, "Method should be empty")
+		assert.Empty(t, httpRoutes[1].Method, "Method should be empty")
 		assert.Equal(
 			t,
 			map[string]any{"key2": "value2"},
@@ -64,7 +64,7 @@ func TestGetStructuredHTTPRoutes_Specific(t *testing.T) {
 		httpRoutes := routes.GetStructuredHTTPRoutes()
 
 		// Verify HTTP routes
-		assert.Len(t, httpRoutes, 0, "Should have 0 HTTP routes")
+		assert.Empty(t, httpRoutes, "Should have 0 HTTP routes")
 	})
 
 	t.Run("Empty Routes", func(t *testing.T) {
@@ -75,6 +75,6 @@ func TestGetStructuredHTTPRoutes_Specific(t *testing.T) {
 		httpRoutes := routes.GetStructuredHTTPRoutes()
 
 		// Verify HTTP routes
-		assert.Len(t, httpRoutes, 0, "Should have 0 HTTP routes")
+		assert.Empty(t, httpRoutes, "Should have 0 HTTP routes")
 	})
 }

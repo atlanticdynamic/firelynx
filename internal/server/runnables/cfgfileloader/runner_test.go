@@ -94,7 +94,7 @@ func TestNewRunner(t *testing.T) {
 
 	t.Run("errors on nil siphon", func(t *testing.T) {
 		_, err := NewRunner("/test/path", nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "transaction siphon cannot be nil")
 	})
 }
@@ -123,7 +123,7 @@ func TestRunner_Run(t *testing.T) {
 
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(time.Second):
 			t.Fatal("Runner did not complete within timeout")
 		}
@@ -159,7 +159,7 @@ func TestRunner_Run(t *testing.T) {
 
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(time.Second):
 			t.Fatal("Runner did not complete within timeout")
 		}
@@ -178,7 +178,7 @@ func TestRunner_Run(t *testing.T) {
 		defer h.cancel()
 
 		err = h.runner.Run(h.ctx)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to initialize configuration")
 		assert.Equal(t, finitestate.StatusError, h.runner.GetState())
 	})
@@ -188,7 +188,7 @@ func TestRunner_Run(t *testing.T) {
 		defer h.cancel()
 
 		err := h.runner.Run(h.ctx)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to initialize configuration")
 	})
 }
@@ -212,7 +212,7 @@ func TestRunner_Stop(t *testing.T) {
 
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(time.Second):
 			t.Fatal("Runner did not complete within timeout")
 		}
@@ -307,7 +307,7 @@ func TestRunner_Reload(t *testing.T) {
 		h.cancel()
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(time.Second):
 			t.Fatal("Runner did not complete within timeout")
 		}
@@ -418,7 +418,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		// Wait for Run() to complete
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		case <-time.After(time.Second):
 			t.Fatal("Runner did not complete within timeout")
 		}
@@ -452,7 +452,7 @@ func TestRunner_Shutdown(t *testing.T) {
 
 		// Call shutdown directly
 		err = h.runner.shutdown()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Verify state transitions and cleanup
 		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
@@ -478,7 +478,7 @@ func TestRunner_Shutdown(t *testing.T) {
 
 		// Call shutdown - should work fine even without config
 		err = h.runner.shutdown()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Verify state transitions
 		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
@@ -502,7 +502,7 @@ func TestRunner_Shutdown(t *testing.T) {
 
 		// Call shutdown from New state - this will fail FSM transitions but should still clear config
 		err = h.runner.shutdown()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to transition to stopped state")
 
 		// Config should still be cleared even though FSM transition failed
@@ -565,7 +565,7 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 	h.cancel()
 	select {
 	case err := <-errCh:
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	case <-time.After(time.Second):
 		t.Fatal("Runner did not complete within timeout")
 	}

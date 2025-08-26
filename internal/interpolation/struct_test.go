@@ -79,13 +79,13 @@ func TestExpandEnvVarsWithDefaultsFunction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ExpandEnvVars(tt.value)
 			if tt.expectError {
-				assert.Error(
+				require.Error(
 					t,
 					err,
 					"should return error when env var is missing and no default provided",
 				)
 			} else {
-				assert.NoError(t, err, "should successfully expand environment variables")
+				require.NoError(t, err, "should successfully expand environment variables")
 			}
 
 			assert.Equal(t, tt.expected, result, "interpolated value should match expected result")
@@ -186,7 +186,7 @@ func TestInterpolateStruct(t *testing.T) {
 		}
 
 		err := InterpolateStruct(config)
-		assert.Error(t, err, "should return error when multiple env vars are missing")
+		require.Error(t, err, "should return error when multiple env vars are missing")
 		assert.Contains(
 			t,
 			err.Error(),
@@ -204,16 +204,16 @@ func TestInterpolateStruct(t *testing.T) {
 	t.Run("nil pointer handling", func(t *testing.T) {
 		var config *TestConfig
 		err := InterpolateStruct(config)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		err = InterpolateStruct(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("non-struct error", func(t *testing.T) {
 		value := "not a struct"
 		err := InterpolateStruct(value)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "expected struct")
 	})
 }

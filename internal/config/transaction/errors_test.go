@@ -18,7 +18,7 @@ func TestValidationError(t *testing.T) {
 
 		assert.Equal(t, "testField", ve.Field)
 		assert.Equal(t, "invalid value", ve.Message)
-		assert.ErrorIs(t, ve.Err, underlyingErr)
+		require.ErrorIs(t, ve.Err, underlyingErr)
 	})
 
 	t.Run("Error() formats message with underlying error", func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestValidationError(t *testing.T) {
 	t.Run("Unwrap() returns nil when no underlying error", func(t *testing.T) {
 		ve := NewValidationError("testField", "invalid value", nil)
 
-		assert.Nil(t, ve.Unwrap())
+		require.NoError(t, ve.Unwrap())
 	})
 }
 
@@ -63,7 +63,7 @@ func TestTransactionError(t *testing.T) {
 		assert.Equal(t, testID, te.ID)
 		assert.Equal(t, "validation", te.Phase)
 		assert.Equal(t, "validation failed", te.Message)
-		assert.ErrorIs(t, te.Original, underlyingErr)
+		require.ErrorIs(t, te.Original, underlyingErr)
 	})
 
 	t.Run("Error() formats message with underlying error", func(t *testing.T) {
@@ -91,7 +91,7 @@ func TestTransactionError(t *testing.T) {
 	t.Run("Unwrap() returns nil when no underlying error", func(t *testing.T) {
 		te := NewTransactionError(testID, "validation", "validation failed", nil)
 
-		assert.Nil(t, te.Unwrap())
+		require.NoError(t, te.Unwrap())
 	})
 }
 
@@ -128,7 +128,7 @@ func TestErrorWrapping(t *testing.T) {
 		baseErr := errors.New("base error")
 		ve := NewValidationError("field", "message", baseErr)
 
-		assert.True(t, errors.Is(ve, baseErr))
+		require.ErrorIs(t, ve, baseErr)
 	})
 
 	t.Run("errors.Is works with TransactionError", func(t *testing.T) {
@@ -137,14 +137,14 @@ func TestErrorWrapping(t *testing.T) {
 		require.NoError(t, err)
 		te := NewTransactionError(id, "phase", "message", baseErr)
 
-		assert.True(t, errors.Is(te, baseErr))
+		require.ErrorIs(t, te, baseErr)
 	})
 
 	t.Run("errors.As works with ValidationError", func(t *testing.T) {
 		ve := NewValidationError("field", "message", nil)
 
 		var extractedVE *ValidationError
-		assert.True(t, errors.As(ve, &extractedVE))
+		require.ErrorAs(t, ve, &extractedVE)
 		assert.Equal(t, ve, extractedVE)
 	})
 
@@ -154,7 +154,7 @@ func TestErrorWrapping(t *testing.T) {
 		te := NewTransactionError(id, "phase", "message", nil)
 
 		var extractedTE *TransactionError
-		assert.True(t, errors.As(te, &extractedTE))
+		require.ErrorAs(t, te, &extractedTE)
 		assert.Equal(t, te, extractedTE)
 	})
 }

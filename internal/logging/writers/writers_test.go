@@ -54,8 +54,8 @@ func TestCreateWriter(t *testing.T) {
 			writer, err := CreateWriter(tt.output)
 
 			if tt.shouldFail {
-				assert.Error(t, err)
-				assert.Nil(t, writer)
+				require.Error(t, err)
+				require.Nil(t, writer)
 				return
 			}
 

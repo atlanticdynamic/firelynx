@@ -1,18 +1,18 @@
 package scripts
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestErrors(t *testing.T) {
 	// Test error wrapping relationships
-	assert.True(t, errors.Is(ErrMissingEvaluator, ErrAppScript))
-	assert.True(t, errors.Is(ErrInvalidEvaluator, ErrAppScript))
-	assert.True(t, errors.Is(ErrInvalidStaticData, ErrAppScript))
-	assert.True(t, errors.Is(ErrProtoConversion, ErrAppScript))
+	require.ErrorIs(t, ErrMissingEvaluator, ErrAppScript)
+	require.ErrorIs(t, ErrInvalidEvaluator, ErrAppScript)
+	require.ErrorIs(t, ErrInvalidStaticData, ErrAppScript)
+	require.ErrorIs(t, ErrProtoConversion, ErrAppScript)
 }
 
 func TestErrorMessages(t *testing.T) {

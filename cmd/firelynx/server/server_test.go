@@ -6,6 +6,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -82,18 +83,18 @@ func TestServerWithConfigFile(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 5*time.Second, 100*time.Millisecond, "Echo endpoint should become available")
 
 	// Make a successful request and verify response
 	resp, err := httpClient.Get(url)
 	require.NoError(t, err, "Should get response from echo endpoint")
-	defer resp.Body.Close()
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
 
-	body := make([]byte, 1024)
-	n, _ := resp.Body.Read(body)
-	responseText := string(body[:n])
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Should be able to read response body")
+	responseText := string(body)
 	assert.Contains(
 		t,
 		responseText,
@@ -108,7 +109,7 @@ func TestServerWithConfigFile(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err, "Server should shut down cleanly")
+			require.NoError(t, err, "Server should shut down cleanly")
 			return true
 		default:
 			return false
@@ -153,7 +154,7 @@ func TestServerWithGRPCConfig(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		conn.Close()
+		assert.NoError(t, conn.Close())
 		return true
 	}, 5*time.Second, 100*time.Millisecond, "gRPC server should be listening")
 
@@ -177,15 +178,15 @@ func TestServerWithGRPCConfig(t *testing.T) {
 	// Create a temporary file to send the config
 	tempFile, err := os.CreateTemp("", "grpc_config_*.toml")
 	require.NoError(t, err, "Failed to create temp file")
-	defer os.Remove(tempFile.Name())
+	defer func() { assert.NoError(t, os.Remove(tempFile.Name())) }()
 
 	_, err = tempFile.Write([]byte(configContent))
 	require.NoError(t, err, "Failed to write temp file")
-	tempFile.Close()
+	assert.NoError(t, tempFile.Close())
 
 	// Apply the config
 	err = c.ApplyConfigFromPath(ctx, tempFile.Name())
-	assert.NoError(t, err, "Should send config successfully")
+	require.NoError(t, err, "Should send config successfully")
 
 	// Test that the echo endpoint responds
 	httpClient := &http.Client{Timeout: 2 * time.Second}
@@ -197,18 +198,18 @@ func TestServerWithGRPCConfig(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 8*time.Second, 200*time.Millisecond, "Echo endpoint should become available")
 
 	// Verify response content
 	resp, err := httpClient.Get(url)
 	require.NoError(t, err, "Should get response from echo endpoint")
-	defer resp.Body.Close()
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
 
-	body := make([]byte, 1024)
-	n, _ := resp.Body.Read(body)
-	responseText := string(body[:n])
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Should be able to read response body")
+	responseText := string(body)
 	assert.Contains(
 		t,
 		responseText,
@@ -223,7 +224,7 @@ func TestServerWithGRPCConfig(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err, "Server should shut down cleanly")
+			require.NoError(t, err, "Server should shut down cleanly")
 			return true
 		default:
 			return false
@@ -278,7 +279,7 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		conn.Close()
+		assert.NoError(t, conn.Close())
 		return true
 	}, 5*time.Second, 100*time.Millisecond, "gRPC server should be listening")
 
@@ -302,7 +303,7 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 	}, 5*time.Second, 200*time.Millisecond, "Should get initial config with endpoints")
 
 	require.NotNil(t, currentCfg, "Config should not be nil")
-	require.Greater(t, len(currentCfg.Endpoints), 0, "Should have at least one endpoint")
+	require.NotEmpty(t, currentCfg.Endpoints, "Should have at least one endpoint")
 
 	// Test initial endpoint
 	httpClient := &http.Client{Timeout: 2 * time.Second}
@@ -313,7 +314,7 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 5*time.Second, 200*time.Millisecond, "Initial endpoint should be available")
 
@@ -331,10 +332,9 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 		retrievedCfg.Apps.Len(),
 		"Retrieved config should have same number of apps",
 	)
-	assert.Equal(
+	assert.Len(
 		t,
-		len(currentCfg.Endpoints),
-		len(retrievedCfg.Endpoints),
+		retrievedCfg.Endpoints, len(currentCfg.Endpoints),
 		"Retrieved config should have same number of endpoints",
 	)
 
@@ -345,7 +345,7 @@ func TestServerWithFileAndGRPC(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err, "Server should shut down cleanly")
+			require.NoError(t, err, "Server should shut down cleanly")
 			return true
 		default:
 			return false
@@ -400,7 +400,7 @@ func TestConfigFileReload(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 5*time.Second, 200*time.Millisecond, "Initial endpoint should be available")
 
@@ -436,18 +436,18 @@ response = "New path response"`
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 		return resp.StatusCode == http.StatusOK
 	}, 8*time.Second, 200*time.Millisecond, "New endpoint should become available after reload")
 
 	// Verify new endpoint response
 	resp, err := httpClient.Get(newURL)
 	require.NoError(t, err, "Should get response from new endpoint")
-	defer resp.Body.Close()
+	defer func() { assert.NoError(t, resp.Body.Close()) }()
 
-	body := make([]byte, 1024)
-	n, _ := resp.Body.Read(body)
-	responseText := string(body[:n])
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "Should be able to read response body")
+	responseText := string(body)
 	assert.Contains(
 		t,
 		responseText,
@@ -462,7 +462,7 @@ response = "New path response"`
 	assert.Eventually(t, func() bool {
 		select {
 		case err := <-errCh:
-			assert.NoError(t, err, "Server should shut down cleanly")
+			require.NoError(t, err, "Server should shut down cleanly")
 			return true
 		default:
 			return false
@@ -479,8 +479,8 @@ func TestServerRequiresConfigSource(t *testing.T) {
 	}))
 
 	err := Run(ctx, logger, "", "")
-	assert.Error(t, err, "Server should require at least one config source")
-	assert.Contains(t, err.Error(), "no configuration source specified")
+	require.Error(t, err, "Server should require at least one config source")
+	assert.ErrorContains(t, err, "no configuration source specified")
 }
 
 // TestNewConfigFromBytes validates that we can create configs from embedded bytes

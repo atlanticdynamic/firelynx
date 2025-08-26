@@ -60,10 +60,10 @@ func TestValidateVersion(t *testing.T) {
 
 			err := config.validateVersion()
 			if tc.expectError {
-				assert.Error(t, err)
-				assert.ErrorIs(t, err, ErrUnsupportedConfigVer)
+				require.Error(t, err)
+				require.ErrorIs(t, err, ErrUnsupportedConfigVer)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -132,7 +132,7 @@ func TestValidateListeners(t *testing.T) {
 		}
 
 		// Check that listener IDs were collected correctly
-		assert.Equal(t, 2, len(listenerIDs))
+		assert.Len(t, listenerIDs, 2)
 		assert.True(t, listenerIDs["http1"])
 		assert.True(t, listenerIDs["http2"])
 	})
@@ -420,9 +420,9 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 			err := config.validateAppsAndRoutes()
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -607,11 +607,11 @@ func TestValidateRouteConflicts(t *testing.T) {
 			err := config.validateRouteConflicts()
 
 			if tc.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				// The error contains condition conflict details
 				assert.Contains(t, err.Error(), "condition")
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -825,12 +825,10 @@ func TestConfig_Validate(t *testing.T) {
 			err := tc.config.Validate()
 
 			if tc.expectError {
-				assert.Error(t, err)
-				if tc.errorType != nil {
-					assert.Contains(t, err.Error(), tc.errorType.Error())
-				}
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tc.errorType.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

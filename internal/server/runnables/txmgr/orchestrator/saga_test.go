@@ -109,7 +109,7 @@ func TestRegisterParticipant(t *testing.T) {
 	participant := NewMockParticipant("test-participant")
 	// Handle error return now
 	err := orchestrator.RegisterParticipant(participant)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Len(t, orchestrator.runnables, 1)
 	assert.Contains(t, orchestrator.runnables, "test-participant")
@@ -128,7 +128,7 @@ func TestRegisterParticipant_ReloadableConflict(t *testing.T) {
 
 	// Registration should return an error
 	err := orchestrator.RegisterParticipant(conflictParticipant)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(
 		t,
 		err.Error(),
@@ -359,7 +359,7 @@ func TestGetTransactionStatus_NotFound(t *testing.T) {
 
 	// Get status for non-existent transaction
 	status, err := orchestrator.GetTransactionStatus("non-existent-id")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, status)
 	assert.Contains(t, err.Error(), "transaction not found")
 }

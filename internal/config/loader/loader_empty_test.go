@@ -16,8 +16,8 @@ func TestNewLoaderFromBytesEmpty(t *testing.T) {
 			return &testLoader{}
 		})
 		require.Error(t, err, "Expected error for nil data")
-		assert.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
-		assert.ErrorIs(t, err, ErrNoSourceProvided, "Error should be ErrNoSourceProvided")
+		require.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
+		require.ErrorIs(t, err, ErrNoSourceProvided, "Error should be ErrNoSourceProvided")
 		assert.Contains(t, err.Error(), "no source provided to loader")
 	})
 
@@ -27,8 +27,8 @@ func TestNewLoaderFromBytesEmpty(t *testing.T) {
 			return &testLoader{}
 		})
 		require.Error(t, err, "Expected error for empty slice")
-		assert.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
-		assert.ErrorIs(t, err, ErrNoSourceProvided, "Error should be ErrNoSourceProvided")
+		require.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
+		require.ErrorIs(t, err, ErrNoSourceProvided, "Error should be ErrNoSourceProvided")
 	})
 }
 
@@ -42,8 +42,8 @@ func TestNewLoaderFromReaderEmpty(t *testing.T) {
 			return &testLoader{}
 		})
 		require.Error(t, err, "Expected error from reader")
-		assert.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
-		assert.ErrorIs(t, err, assert.AnError, "Error should match the mock reader error")
+		require.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
+		require.ErrorIs(t, err, assert.AnError, "Error should match the mock reader error")
 	})
 }
 
@@ -54,7 +54,7 @@ func TestNewLoaderFromFilePathErrors(t *testing.T) {
 		tempDir := t.TempDir()
 		_, err := NewLoaderFromFilePath(tempDir)
 		require.Error(t, err, "Expected error when trying to load a directory")
-		assert.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
+		require.ErrorIs(t, err, ErrFailedToLoadConfig, "Error should be ErrFailedToLoadConfig")
 	})
 
 	// Test with extension that doesn't match supported loaders
@@ -68,7 +68,7 @@ func TestNewLoaderFromFilePathErrors(t *testing.T) {
 
 		_, err = NewLoaderFromFilePath(configPath)
 		require.Error(t, err, "Expected error for unsupported extension")
-		assert.ErrorIs(t, err, ErrUnsupportedExtension, "Error should be ErrUnsupportedExtension")
+		require.ErrorIs(t, err, ErrUnsupportedExtension, "Error should be ErrUnsupportedExtension")
 		assert.Contains(t, err.Error(), ".unsupported", "Error should contain the extension")
 	})
 }

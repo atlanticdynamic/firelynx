@@ -9,6 +9,7 @@ import (
 	httpMiddleware "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/middleware"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // MockMiddleware implements httpMiddleware.Instance for testing
@@ -85,7 +86,7 @@ func TestMiddlewareFactory(t *testing.T) {
 		factory := NewMiddlewareFactory()
 		collection, err := factory.CreateFromDefinitions(nil)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, collection)
 		assert.NotNil(t, collection.registry)
 		assert.Empty(t, collection.registry)
@@ -104,7 +105,7 @@ func TestMiddlewareFactory(t *testing.T) {
 
 		collection, err := factory.CreateFromDefinitions(middlewares)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, collection)
 
 		instance, exists := collection.GetMiddleware("console_logger", "logger1")
@@ -131,7 +132,7 @@ func TestMiddlewareFactory(t *testing.T) {
 
 		collection, err := factory.CreateFromDefinitions(middlewares)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, collection)
 
 		// Should only have one instance with ID "logger1"
@@ -154,7 +155,7 @@ func TestMiddlewareFactory(t *testing.T) {
 
 		collection, err := factory.CreateFromDefinitions(middlewares)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, collection)
 		assert.Contains(t, err.Error(), "unsupported middleware type: unsupported_type")
 	})
@@ -215,7 +216,7 @@ func TestCreateConsoleLogger(t *testing.T) {
 
 		instance, err := createConsoleLogger("test_logger", config)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, instance)
 	})
 
@@ -224,7 +225,7 @@ func TestCreateConsoleLogger(t *testing.T) {
 
 		instance, err := createConsoleLogger("test_logger", invalidConfig)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, instance)
 		assert.Contains(t, err.Error(), "expected *configLogger.ConsoleLogger")
 	})
@@ -250,7 +251,7 @@ func TestBuildMiddlewareSlice(t *testing.T) {
 	t.Run("returns empty slice for no middleware", func(t *testing.T) {
 		registry := make(MiddlewareRegistry)
 		handlers, err := buildMiddlewareSlice(nil, registry)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, handlers)
 	})
 
@@ -259,7 +260,7 @@ func TestBuildMiddlewareSlice(t *testing.T) {
 		middlewares := getMockMiddlewareCollection()
 
 		handlers, err := buildMiddlewareSlice(middlewares, registry)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "middleware type 'console_logger' not found in registry")
 		assert.Nil(t, handlers)
 	})
@@ -270,7 +271,7 @@ func TestBuildMiddlewareSlice(t *testing.T) {
 		middlewares := getMockMiddlewareCollection()
 
 		handlers, err := buildMiddlewareSlice(middlewares, registry)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(
 			t,
 			err.Error(),
@@ -288,7 +289,7 @@ func TestBuildMiddlewareSlice(t *testing.T) {
 		middlewares := getMockMiddlewareCollection()
 
 		handlers, err := buildMiddlewareSlice(middlewares, registry)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, handlers, 1)
 		assert.NotNil(t, handlers[0])
 	})

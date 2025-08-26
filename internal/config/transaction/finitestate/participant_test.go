@@ -275,7 +275,7 @@ func TestParticipantFSM_ErrorHandling(t *testing.T) {
 
 		// Cannot transition from error state
 		err = machine.Transition(ParticipantExecuting)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, ParticipantError, machine.GetState())
 	})
 
@@ -359,7 +359,7 @@ func TestParticipantFSM_ConcurrentAccess(t *testing.T) {
 		err2 := <-errors
 
 		// Exactly one should have succeeded
-		assert.True(t, (err1 == nil) != (err2 == nil), "exactly one transition should succeed")
+		assert.NotEqual(t, (err1 == nil), (err2 == nil), "exactly one transition should succeed")
 
 		// Final state should be either succeeded or failed
 		finalState := machine.GetState()

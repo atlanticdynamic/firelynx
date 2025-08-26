@@ -31,9 +31,6 @@ var (
 	//go:embed testdata/empty_config.toml
 	emptyConfigTOML string
 
-	//go:embed testdata/two_listeners.toml.tmpl
-	twoListenersTOML string
-
 	//go:embed testdata/one_listener.toml.tmpl
 	oneListenerTOML string
 
@@ -140,25 +137,16 @@ func renderDuplicatePortsTOML(t *testing.T, port string) string {
 	return buf.String()
 }
 
-// waitForHTTPServer waits for an HTTP server to be accessible
-func waitForHTTPServer(t *testing.T, url string, expectedStatus int) {
-	t.Helper()
-	assert.Eventually(t, func() bool {
-		resp, err := http.Get(url)
-		if err != nil {
-			return false
-		}
-		defer resp.Body.Close()
-		return resp.StatusCode == expectedStatus
-	}, 2*time.Second, 50*time.Millisecond, "HTTP server should be accessible at %s", url)
-}
-
 // waitForHTTPServerDown waits for an HTTP server to be inaccessible
 func waitForHTTPServerDown(t *testing.T, url string) {
 	t.Helper()
 	assert.Eventually(t, func() bool {
-		_, err := http.Get(url)
-		return err != nil
+		resp, err := http.Get(url)
+		if err != nil {
+			return true
+		}
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
+		return false
 	}, 2*time.Second, 50*time.Millisecond, "HTTP server should be down at %s", url)
 }
 
@@ -228,7 +216,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 			t.Logf("Request error: %v", err)
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
@@ -318,7 +306,7 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 
 		if resp.StatusCode != http.StatusOK {
 			return false
@@ -335,7 +323,7 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 	// Test non-existent path
 	resp2, err := http.Get(fmt.Sprintf("http://127.0.0.1:%s/notfound", port))
 	require.NoError(t, err)
-	defer resp2.Body.Close()
+	defer func() { assert.NoError(t, resp2.Body.Close()) }()
 	assert.Equal(t, http.StatusNotFound, resp2.StatusCode)
 
 	// Stop the HTTP runner
@@ -397,7 +385,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		defer resp.Body.Close()
+		defer func() { assert.NoError(t, resp.Body.Close()) }()
 
 		if resp.StatusCode != http.StatusOK {
 			return false
@@ -433,7 +421,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 			t.Logf("V1 request error: %v", err)
 			return false
 		}
-		defer resp1.Body.Close()
+		defer func() { assert.NoError(t, resp1.Body.Close()) }()
 
 		if resp1.StatusCode != http.StatusOK {
 			t.Logf("V1 response status: %d", resp1.StatusCode)
@@ -457,7 +445,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 			t.Logf("V2 request error: %v", err)
 			return false
 		}
-		defer resp2.Body.Close()
+		defer func() { assert.NoError(t, resp2.Body.Close()) }()
 
 		if resp2.StatusCode != http.StatusOK {
 			t.Logf("V2 response status: %d", resp2.StatusCode)
@@ -558,7 +546,7 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 
 		// Validation should fail due to duplicate listener addresses
 		err = config3.Validate()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "duplicate ID: listener address")
 	})
 
@@ -620,7 +608,7 @@ func TestHTTPClusterSagaCompensation(t *testing.T) {
 
 	// Process transaction - should fail due to failing participant
 	err = saga.ProcessTransaction(ctx, tx)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "intentional failure")
 
 	// Verify transaction is in compensated state (since compensation was successful)

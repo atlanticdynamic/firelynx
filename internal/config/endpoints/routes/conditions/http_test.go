@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHTTPCondition(t *testing.T) {
@@ -19,22 +20,22 @@ func TestHTTPCondition(t *testing.T) {
 		t.Run("Valid", func(t *testing.T) {
 			cond := NewHTTP("/api", "")
 			err := cond.Validate()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
 
 		t.Run("EmptyPath", func(t *testing.T) {
 			cond := NewHTTP("", "")
 			err := cond.Validate()
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, ErrInvalidHTTPCondition)
-			assert.ErrorIs(t, err, ErrEmptyValue)
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrInvalidHTTPCondition)
+			require.ErrorIs(t, err, ErrEmptyValue)
 		})
 
 		t.Run("InvalidPath", func(t *testing.T) {
 			cond := NewHTTP("api", "") // Missing leading slash
 			err := cond.Validate()
-			assert.Error(t, err)
-			assert.ErrorIs(t, err, ErrInvalidHTTPCondition)
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrInvalidHTTPCondition)
 		})
 	})
 

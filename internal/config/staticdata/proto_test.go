@@ -51,8 +51,8 @@ func TestStaticDataToProto(t *testing.T) {
 
 		// Verify the converted values
 		assert.Equal(t, "value", pb.Data["string"].GetStringValue())
-		assert.Equal(t, 42.0, pb.Data["number"].GetNumberValue())
-		assert.Equal(t, true, pb.Data["bool"].GetBoolValue())
+		assert.InDelta(t, 42.0, pb.Data["number"].GetNumberValue(), 0.001)
+		assert.True(t, pb.Data["bool"].GetBoolValue())
 	})
 }
 
@@ -94,7 +94,7 @@ func TestFromProto(t *testing.T) {
 
 		// Verify the converted values
 		assert.Equal(t, "value", sd.Data["string"])
-		assert.Equal(t, 42.0, sd.Data["number"])
+		assert.InDelta(t, 42.0, sd.Data["number"], 0.001)
 		assert.Equal(t, true, sd.Data["bool"])
 	})
 }

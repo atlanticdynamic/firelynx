@@ -54,7 +54,7 @@ func TestNewRunner(t *testing.T) {
 	t.Run("with custom logger", func(t *testing.T) {
 		customLogger := slog.Default().With("test", "custom")
 		runner, err := NewRunner(WithLogger(customLogger))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, runner)
 		// The logger should be set (can't easily verify internals but we know it's set)
 	})
@@ -62,13 +62,13 @@ func TestNewRunner(t *testing.T) {
 	t.Run("with custom handler", func(t *testing.T) {
 		handler := slog.Default().Handler()
 		runner, err := NewRunner(WithLogHandler(handler))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, runner)
 	})
 
 	t.Run("with siphon timeout", func(t *testing.T) {
 		runner, err := NewRunner(WithSiphonTimeout(5 * time.Second))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, runner)
 	})
 
@@ -77,7 +77,7 @@ func TestNewRunner(t *testing.T) {
 		runner, err := NewRunner(
 			WithLogger(logger),
 		)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, runner)
 	})
 }
@@ -106,7 +106,7 @@ func TestRunner_RunAndStop(t *testing.T) {
 	// Wait for Run to return
 	select {
 	case err := <-errChan:
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	case <-time.After(1 * time.Second):
 		t.Fatal("timeout waiting for Run to return")
 	}

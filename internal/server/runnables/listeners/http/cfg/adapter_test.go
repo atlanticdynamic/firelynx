@@ -61,12 +61,12 @@ func TestNewAdapter(t *testing.T) {
 
 	// Test with nil provider
 	adapter, err := NewAdapter(nil, nil)
-	assert.Error(t, err, "Should error with nil provider")
+	require.Error(t, err, "Should error with nil provider")
 	assert.Nil(t, adapter, "Adapter should be nil with error")
 
 	// Test with nil config
 	adapter, err = NewAdapter(nilProvider, nil)
-	assert.Error(t, err, "Should error with nil config")
+	require.Error(t, err, "Should error with nil config")
 	assert.Nil(t, adapter, "Adapter should be nil with error")
 
 	// Create a minimal valid config
@@ -83,7 +83,7 @@ func TestNewAdapter(t *testing.T) {
 
 	// Test with valid but empty config
 	adapter, err = NewAdapter(validProvider, nil)
-	assert.NoError(t, err, "Should not error with valid empty config")
+	require.NoError(t, err, "Should not error with valid empty config")
 	assert.NotNil(t, adapter, "Adapter should not be nil with valid config")
 	assert.Equal(t, "test-tx-id", adapter.TxID, "Adapter should have correct transaction ID")
 	assert.Empty(t, adapter.Listeners, "Adapter should have no listeners with empty config")
@@ -118,7 +118,7 @@ func TestExtractListeners(t *testing.T) {
 
 	// Extract listeners
 	listenerMap, err := extractListeners(collection)
-	assert.NoError(t, err, "Should not error with valid listeners")
+	require.NoError(t, err, "Should not error with valid listeners")
 	assert.Len(t, listenerMap, 2, "Should extract 2 listeners")
 
 	// Check first listener
@@ -341,9 +341,9 @@ func TestExtractEndpointRoutes(t *testing.T) {
 
 			// Check error expectation
 			if tt.expectError {
-				assert.Error(t, err, "Expected an error but got none")
+				require.Error(t, err, "Expected an error but got none")
 			} else {
-				assert.NoError(t, err, "Expected no error but got: %v", err)
+				require.NoError(t, err, "Expected no error but got: %v", err)
 			}
 
 			// Check number of routes
@@ -426,9 +426,9 @@ func TestExtractRoutes(t *testing.T) {
 			make(MiddlewareRegistry),
 			logger,
 		)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "missing expanded app instance")
-		assert.Len(t, routeMap["http-1"], 0)
+		assert.Empty(t, routeMap["http-1"])
 	})
 
 	t.Run("empty listeners map", func(t *testing.T) {
@@ -444,7 +444,7 @@ func TestExtractRoutes(t *testing.T) {
 			make(MiddlewareRegistry),
 			logger,
 		)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Empty(t, routeMap)
 	})
 
@@ -488,9 +488,9 @@ func TestExtractRoutes(t *testing.T) {
 			make(MiddlewareRegistry),
 			logger,
 		)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to process routes for endpoint endpoint-1")
-		assert.Len(t, routeMap["http-1"], 0)
+		assert.Empty(t, routeMap["http-1"])
 	})
 }
 
@@ -547,7 +547,7 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 		}
 
 		adapter, err := NewAdapter(provider, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, adapter)
 		assert.Equal(t, "test-tx-id", adapter.TxID)
 		assert.Len(t, adapter.Listeners, 1)
@@ -573,10 +573,10 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 		}
 
 		adapter, err := NewAdapter(provider, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, adapter)
 		assert.Len(t, adapter.Listeners, 1)
-		assert.Len(t, adapter.Routes["http-1"], 0)
+		assert.Empty(t, adapter.Routes["http-1"])
 	})
 
 	t.Run("error extracting routes", func(t *testing.T) {
@@ -615,7 +615,7 @@ func TestNewAdapterWithRoutes(t *testing.T) {
 		}
 
 		adapter, err := NewAdapter(provider, nil)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, adapter)
 		assert.Contains(t, err.Error(), "failed to extract HTTP routes")
 	})
@@ -659,7 +659,7 @@ func TestExtractEndpointRoutesErrorHandling(t *testing.T) {
 		make(MiddlewareRegistry),
 		logger,
 	)
-	assert.NoError(t, err) // Route creation succeeds
+	require.NoError(t, err) // Route creation succeeds
 	assert.Len(t, routes, 1)
 
 	// Test the handler with an app that returns an error
@@ -724,7 +724,7 @@ func TestExtractEndpointRoutesWithStaticData(t *testing.T) {
 		make(MiddlewareRegistry),
 		logger,
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, routes, 1)
 
 	// Test that app is called without static data parameter

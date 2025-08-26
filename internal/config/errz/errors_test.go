@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTopLevelErrors(t *testing.T) {
@@ -197,12 +198,12 @@ func TestErrorWrapping(t *testing.T) {
 	baseErr := errors.New("base error")
 	wrappedErr := errors.Join(ErrFailedToLoadConfig, baseErr)
 
-	assert.True(t, errors.Is(wrappedErr, ErrFailedToLoadConfig))
-	assert.True(t, errors.Is(wrappedErr, baseErr))
+	require.ErrorIs(t, wrappedErr, ErrFailedToLoadConfig)
+	require.ErrorIs(t, wrappedErr, baseErr)
 
 	// Test with multiple errors
 	multiErr := errors.Join(ErrDuplicateID, ErrEmptyID, baseErr)
-	assert.True(t, errors.Is(multiErr, ErrDuplicateID))
-	assert.True(t, errors.Is(multiErr, ErrEmptyID))
-	assert.True(t, errors.Is(multiErr, baseErr))
+	require.ErrorIs(t, multiErr, ErrDuplicateID)
+	require.ErrorIs(t, multiErr, ErrEmptyID)
+	require.ErrorIs(t, multiErr, baseErr)
 }
