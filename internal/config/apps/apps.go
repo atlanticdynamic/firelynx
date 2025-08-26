@@ -59,7 +59,7 @@ func (a App) Validate() error {
 	return errors.Join(errs...)
 }
 
-// AppCollection is a collection of App definitions with centralized management
+// AppCollection is a collection of App definitions
 type AppCollection struct {
 	apps []App
 }
