@@ -18,11 +18,11 @@ type EchoApp struct {
 	Response string `env_interpolation:"yes"`
 }
 
-// New creates a new EchoApp configuration with the specified ID and response
-func New(id, response string) *EchoApp {
+// New creates a new EchoApp configuration with the specified ID
+func New(id string) *EchoApp {
 	return &EchoApp{
 		ID:       id,
-		Response: response,
+		Response: "", // Caller can set this as needed
 	}
 }
 

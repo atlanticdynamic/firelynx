@@ -73,10 +73,8 @@ func TestEndToEndInterpolation(t *testing.T) {
 	})
 
 	t.Run("echo app response interpolation", func(t *testing.T) {
-		app := &echo.EchoApp{
-			ID:       "test-echo",
-			Response: "Hello from ${TEST_HOST} running version ${APP_VERSION}",
-		}
+		app := echo.New("test-echo")
+		app.Response = "Hello from ${TEST_HOST} running version ${APP_VERSION}"
 
 		err := app.Validate()
 		require.NoError(t, err)
@@ -142,10 +140,8 @@ func TestEndToEndInterpolation(t *testing.T) {
 	})
 
 	t.Run("interpolation error handling", func(t *testing.T) {
-		app := &echo.EchoApp{
-			ID:       "test-echo",
-			Response: "Error test: ${MISSING_VAR}",
-		}
+		app := echo.New("test-echo")
+		app.Response = "Error test: ${MISSING_VAR}"
 
 		err := app.Validate()
 		require.Error(
@@ -195,10 +191,8 @@ func TestEndToEndInterpolation(t *testing.T) {
 	})
 
 	t.Run("idempotent validation", func(t *testing.T) {
-		app := &echo.EchoApp{
-			ID:       "test-echo",
-			Response: "Host: ${TEST_HOST}",
-		}
+		app := echo.New("test-echo")
+		app.Response = "Host: ${TEST_HOST}"
 
 		// First validation should interpolate
 		err := app.Validate()

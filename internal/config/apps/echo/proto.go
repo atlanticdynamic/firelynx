@@ -12,8 +12,9 @@ func EchoFromProto(id string, proto *pbApps.EchoApp) *EchoApp {
 	if proto == nil {
 		return nil
 	}
-	// Note: ID will be set by the calling code from AppDefinition
-	return New(id, proto.GetResponse())
+	app := New(id)
+	app.Response = proto.GetResponse()
+	return app
 }
 
 // ToProto converts the EchoApp configuration to its protocol buffer representation

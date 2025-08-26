@@ -9,7 +9,7 @@ import (
 )
 
 func TestEchoApp_Type(t *testing.T) {
-	echo := New("test-echo", "test response")
+	echo := &EchoApp{ID: "test-echo", Response: "test response"}
 	assert.Equal(t, "echo", echo.Type())
 }
 
@@ -22,7 +22,7 @@ func TestEchoApp_Validate(t *testing.T) {
 	}{
 		{
 			name:    "valid echo app",
-			echo:    New("test-echo", "test response"),
+			echo:    &EchoApp{ID: "test-echo", Response: "test response"},
 			wantErr: false,
 		},
 		{
@@ -53,12 +53,12 @@ func TestEchoApp_Validate(t *testing.T) {
 }
 
 func TestEchoApp_String(t *testing.T) {
-	echo := New("test-echo", "test response")
+	echo := &EchoApp{ID: "test-echo", Response: "test response"}
 	assert.Contains(t, echo.String(), "Echo App (response:")
 }
 
 func TestEchoApp_ToTree(t *testing.T) {
-	echo := New("test-echo", "test response")
+	echo := &EchoApp{ID: "test-echo", Response: "test response"}
 	tree := echo.ToTree()
 
 	// Get the underlying tree for inspection

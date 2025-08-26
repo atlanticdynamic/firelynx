@@ -15,17 +15,15 @@ func FromProto(id string, proto *pbApps.McpApp) (*App, error) {
 		return nil, nil
 	}
 
-	serverName := ""
+	app := NewApp(id)
+
 	if proto.ServerName != nil {
-		serverName = *proto.ServerName
+		app.ServerName = *proto.ServerName
 	}
 
-	serverVersion := ""
 	if proto.ServerVersion != nil {
-		serverVersion = *proto.ServerVersion
+		app.ServerVersion = *proto.ServerVersion
 	}
-
-	app := NewApp(id, serverName, serverVersion)
 
 	if proto.Transport != nil {
 		transport, err := transportFromProto(proto.Transport)

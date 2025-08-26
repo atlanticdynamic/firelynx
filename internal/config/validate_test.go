@@ -302,8 +302,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					Version: VersionLatest,
 					Apps: apps.NewAppCollection(
 						apps.App{
-							ID:     "echo-app",
-							Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
+							ID: "echo-app",
+							Config: func() *echo.EchoApp {
+								app := echo.New("echo-app")
+								app.Response = "Hello"
+								return app
+							}(),
 						},
 					),
 					Endpoints: endpoints.EndpointCollection{
@@ -329,8 +333,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					Version: VersionLatest,
 					Apps: apps.NewAppCollection(
 						apps.App{
-							ID:     "echo-app",
-							Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
+							ID: "echo-app",
+							Config: func() *echo.EchoApp {
+								app := echo.New("echo-app")
+								app.Response = "Hello"
+								return app
+							}(),
 						},
 					),
 					Endpoints: endpoints.EndpointCollection{
@@ -356,8 +364,12 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 					Version: VersionLatest,
 					Apps: apps.NewAppCollection(
 						apps.App{
-							ID:     "echo-app",
-							Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
+							ID: "echo-app",
+							Config: func() *echo.EchoApp {
+								app := echo.New("echo-app")
+								app.Response = "Hello"
+								return app
+							}(),
 						},
 					),
 					Endpoints: endpoints.EndpointCollection{
@@ -380,11 +392,11 @@ func TestValidateAppsAndRoutes(t *testing.T) {
 			name: "Invalid app config",
 			setupConfig: func() *Config {
 				// Create an invalid script with empty code and negative timeout, which will fail validation
-				invalidScript := scripts.NewAppScript(
-					"invalid-script",
-					nil,
-					&evaluators.RisorEvaluator{Code: "", Timeout: -1 * time.Second},
-				)
+				invalidScript := func() *scripts.AppScript {
+					app := scripts.NewAppScript("invalid-script")
+					app.Evaluator = &evaluators.RisorEvaluator{Code: "", Timeout: -1 * time.Second}
+					return app
+				}()
 				return &Config{
 					Version: VersionLatest,
 					Apps: apps.NewAppCollection(
@@ -657,8 +669,12 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Apps: apps.NewAppCollection(
 					apps.App{
-						ID:     "echo-app",
-						Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
+						ID: "echo-app",
+						Config: func() *echo.EchoApp {
+							app := echo.New("echo-app")
+							app.Response = "Hello"
+							return app
+						}(),
 					},
 				),
 			},
@@ -764,12 +780,20 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Apps: apps.NewAppCollection(
 					apps.App{
-						ID:     "app1",
-						Config: &echo.EchoApp{ID: "app1", Response: "Hello from app1"},
+						ID: "app1",
+						Config: func() *echo.EchoApp {
+							app := echo.New("app1")
+							app.Response = "Hello from app1"
+							return app
+						}(),
 					},
 					apps.App{
-						ID:     "app2",
-						Config: &echo.EchoApp{ID: "app2", Response: "Hello from app2"},
+						ID: "app2",
+						Config: func() *echo.EchoApp {
+							app := echo.New("app2")
+							app.Response = "Hello from app2"
+							return app
+						}(),
 					},
 				),
 			},
@@ -807,8 +831,12 @@ func TestConfig_Validate(t *testing.T) {
 				},
 				Apps: apps.NewAppCollection(
 					apps.App{
-						ID:     "app1",
-						Config: &echo.EchoApp{ID: "echo-app", Response: "Hello"},
+						ID: "app1",
+						Config: func() *echo.EchoApp {
+							app := echo.New("echo-app")
+							app.Response = "Hello"
+							return app
+						}(),
 					},
 				),
 			},

@@ -27,11 +27,12 @@ func TestAppString(t *testing.T) {
 			name: "Script app with Risor evaluator",
 			app: App{
 				ID: "script-app",
-				Config: scripts.NewAppScript(
-					"script-app",
-					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					&evaluators.RisorEvaluator{Code: "return 42"},
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("script-app")
+					app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+					app.Evaluator = &evaluators.RisorEvaluator{Code: "return 42"}
+					return app
+				}(),
 			},
 			expectedString: "App script-app [Script using Risor]",
 		},
@@ -39,11 +40,12 @@ func TestAppString(t *testing.T) {
 			name: "Script app with Starlark evaluator",
 			app: App{
 				ID: "starlark-app",
-				Config: scripts.NewAppScript(
-					"starlark-app",
-					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					&evaluators.StarlarkEvaluator{Code: "def main(): return 42"},
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("starlark-app")
+					app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+					app.Evaluator = &evaluators.StarlarkEvaluator{Code: "def main(): return 42"}
+					return app
+				}(),
 			},
 			expectedString: "App starlark-app [Script using Starlark]",
 		},
@@ -51,11 +53,12 @@ func TestAppString(t *testing.T) {
 			name: "Script app with Extism evaluator",
 			app: App{
 				ID: "extism-app",
-				Config: scripts.NewAppScript(
-					"test-app",
-					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					&evaluators.ExtismEvaluator{Code: "module code...", Entrypoint: "main"},
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("test-app")
+					app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+					app.Evaluator = &evaluators.ExtismEvaluator{Code: "module code...", Entrypoint: "main"}
+					return app
+				}(),
 			},
 			expectedString: "App extism-app [Script using Extism]",
 		},
@@ -63,11 +66,12 @@ func TestAppString(t *testing.T) {
 			name: "Script app without evaluator",
 			app: App{
 				ID: "no-eval-app",
-				Config: scripts.NewAppScript(
-					"test-app",
-					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					nil,
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("test-app")
+					app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+					app.Evaluator = nil
+					return app
+				}(),
 			},
 			expectedString: "App no-eval-app [Script]",
 		},
@@ -119,47 +123,51 @@ func TestAppToTree(t *testing.T) {
 			name: "Script app with Risor evaluator",
 			app: App{
 				ID: "script-app",
-				Config: scripts.NewAppScript(
-					"test-app",
-					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					&evaluators.RisorEvaluator{Code: "return 42", Timeout: 5 * time.Second},
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("test-app")
+					app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+					app.Evaluator = &evaluators.RisorEvaluator{Code: "return 42", Timeout: 5 * time.Second}
+					return app
+				}(),
 			},
 		},
 		{
 			name: "Script app with Starlark evaluator",
 			app: App{
 				ID: "starlark-app",
-				Config: scripts.NewAppScript(
-					"test-app",
-					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					&evaluators.StarlarkEvaluator{
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("test-app")
+					app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+					app.Evaluator = &evaluators.StarlarkEvaluator{
 						Code:    "def main(): return 42",
 						Timeout: 5 * time.Second,
-					},
-				),
+					}
+					return app
+				}(),
 			},
 		},
 		{
 			name: "Script app with Extism evaluator",
 			app: App{
 				ID: "extism-app",
-				Config: scripts.NewAppScript(
-					"test-app",
-					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					&evaluators.ExtismEvaluator{Code: "module code...", Entrypoint: "main"},
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("test-app")
+					app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+					app.Evaluator = &evaluators.ExtismEvaluator{Code: "module code...", Entrypoint: "main"}
+					return app
+				}(),
 			},
 		},
 		{
 			name: "Script app without evaluator",
 			app: App{
 				ID: "no-eval-app",
-				Config: scripts.NewAppScript(
-					"test-app",
-					&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-					nil,
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("test-app")
+					app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+					app.Evaluator = nil
+					return app
+				}(),
 			},
 		},
 		{
@@ -175,8 +183,12 @@ func TestAppToTree(t *testing.T) {
 		{
 			name: "Echo app",
 			app: App{
-				ID:     "echo-app",
-				Config: &echo.EchoApp{Response: "Hello!"},
+				ID: "echo-app",
+				Config: func() *echo.EchoApp {
+					app := echo.New("echo-app")
+					app.Response = "Hello!"
+					return app
+				}(),
 			},
 		},
 	}
@@ -200,11 +212,12 @@ func TestAppCollectionToTree(t *testing.T) {
 	apps := NewAppCollection(
 		App{
 			ID: "script-app",
-			Config: scripts.NewAppScript(
-				"test-app",
-				&staticdata.StaticData{Data: map[string]any{"key": "value"}},
-				&evaluators.RisorEvaluator{Code: "return 42"},
-			),
+			Config: func() *scripts.AppScript {
+				app := scripts.NewAppScript("test-app")
+				app.StaticData = &staticdata.StaticData{Data: map[string]any{"key": "value"}}
+				app.Evaluator = &evaluators.RisorEvaluator{Code: "return 42"}
+				return app
+			}(),
 		},
 		App{
 			ID: "composite-app",
@@ -214,8 +227,12 @@ func TestAppCollectionToTree(t *testing.T) {
 			},
 		},
 		App{
-			ID:     "echo-app",
-			Config: &echo.EchoApp{Response: "Hello!"},
+			ID: "echo-app",
+			Config: func() *echo.EchoApp {
+				app := echo.New("echo-app")
+				app.Response = "Hello!"
+				return app
+			}(),
 		},
 	)
 

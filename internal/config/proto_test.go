@@ -108,9 +108,11 @@ func TestFullConfigToProto(t *testing.T) {
 		Apps: apps.NewAppCollection(
 			apps.App{
 				ID: "echo-app",
-				Config: &echo.EchoApp{
-					Response: "Hello, World!",
-				},
+				Config: func() *echo.EchoApp {
+					app := echo.New("echo-app")
+					app.Response = "Hello, World!"
+					return app
+				}(),
 			},
 		),
 	}
@@ -184,8 +186,12 @@ func TestFullConfigRoundTrip(t *testing.T) {
 		},
 		Apps: apps.NewAppCollection(
 			apps.App{
-				ID:     "echo-app",
-				Config: &echo.EchoApp{Response: "Hello, World!"},
+				ID: "echo-app",
+				Config: func() *echo.EchoApp {
+					app := echo.New("echo-app")
+					app.Response = "Hello, World!"
+					return app
+				}(),
 			},
 		),
 	}
@@ -321,24 +327,28 @@ func TestConfigWithMultipleAppsTypes(t *testing.T) {
 		Version: "v1alpha1",
 		Apps: apps.NewAppCollection(
 			apps.App{
-				ID:     "echo-app",
-				Config: &echo.EchoApp{Response: "Echo Response"},
+				ID: "echo-app",
+				Config: func() *echo.EchoApp {
+					app := echo.New("echo-app")
+					app.Response = "Echo Response"
+					return app
+				}(),
 			},
 			apps.App{
 				ID: "risor-app",
-				Config: scripts.NewAppScript(
-					"risor-app",
-					nil,
-					&evaluators.RisorEvaluator{Code: "risor code"},
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("risor-app")
+					app.Evaluator = &evaluators.RisorEvaluator{Code: "risor code"}
+					return app
+				}(),
 			},
 			apps.App{
 				ID: "starlark-app",
-				Config: scripts.NewAppScript(
-					"starlark-app",
-					nil,
-					&evaluators.StarlarkEvaluator{Code: "starlark code"},
-				),
+				Config: func() *scripts.AppScript {
+					app := scripts.NewAppScript("starlark-app")
+					app.Evaluator = &evaluators.StarlarkEvaluator{Code: "starlark code"}
+					return app
+				}(),
 			},
 		),
 	}

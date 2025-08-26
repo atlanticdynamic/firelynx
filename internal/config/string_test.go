@@ -95,18 +95,22 @@ func TestConfigString(t *testing.T) {
 					Version: version.Version,
 					Apps: apps.NewAppCollection(
 						apps.App{
-							ID:     "echo-app",
-							Config: &echo.EchoApp{Response: "Hello World"},
+							ID: "echo-app",
+							Config: func() *echo.EchoApp {
+								app := echo.New("echo-app")
+								app.Response = "Hello World"
+								return app
+							}(),
 						},
 						apps.App{
 							ID: "script-app",
-							Config: scripts.NewAppScript(
-								"script-app",
-								nil,
-								&evaluators.RisorEvaluator{
+							Config: func() *scripts.AppScript {
+								app := scripts.NewAppScript("script-app")
+								app.Evaluator = &evaluators.RisorEvaluator{
 									Code: "return { body: 'Hello' }",
-								},
-							),
+								}
+								return app
+							}(),
 						},
 					),
 				}
@@ -148,8 +152,12 @@ func TestConfigString(t *testing.T) {
 					},
 					Apps: apps.NewAppCollection(
 						apps.App{
-							ID:     "echo-app",
-							Config: &echo.EchoApp{Response: "Hello World"},
+							ID: "echo-app",
+							Config: func() *echo.EchoApp {
+								app := echo.New("echo-app")
+								app.Response = "Hello World"
+								return app
+							}(),
 						},
 					),
 				}
@@ -218,8 +226,12 @@ func TestConfigTree(t *testing.T) {
 		},
 		Apps: apps.NewAppCollection(
 			apps.App{
-				ID:     "echo-app",
-				Config: &echo.EchoApp{Response: "Hello World"},
+				ID: "echo-app",
+				Config: func() *echo.EchoApp {
+					app := echo.New("echo-app")
+					app.Response = "Hello World"
+					return app
+				}(),
 			},
 		),
 	}

@@ -22,9 +22,8 @@ func TestScriptApp_String_ReturnsAppID(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
+	config := scripts.NewAppScript("test-app")
+	config.Evaluator = risorEval
 
 	app, err := New("test-app", config, slog.Default())
 	require.NoError(t, err)
@@ -48,9 +47,11 @@ func TestScriptApp_New_ValidationErrors(t *testing.T) {
 		{
 			name: "nil evaluator",
 			id:   "test",
-			config: &scripts.AppScript{
-				Evaluator: nil,
-			},
+			config: func() *scripts.AppScript {
+				app := scripts.NewAppScript("test")
+				app.Evaluator = nil
+				return app
+			}(),
 			wantError: "script app must have an evaluator",
 		},
 	}
@@ -74,9 +75,8 @@ func TestScriptApp_New_RisorEvaluator(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
+	config := scripts.NewAppScript("risor-test")
+	config.Evaluator = risorEval
 
 	app, err := New("risor-test", config, slog.Default())
 	require.NoError(t, err)
@@ -92,9 +92,8 @@ func TestScriptApp_New_StarlarkEvaluator(t *testing.T) {
 	err := starlarkEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: starlarkEval,
-	}
+	config := scripts.NewAppScript("starlark-test")
+	config.Evaluator = starlarkEval
 
 	app, err := New("starlark-test", config, slog.Default())
 	require.NoError(t, err)
@@ -114,9 +113,8 @@ func TestScriptApp_HandleHTTP_RisorScript(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
+	config := scripts.NewAppScript("risor-app")
+	config.Evaluator = risorEval
 
 	app, err := New("risor-app", config, slog.Default())
 	require.NoError(t, err)
@@ -132,37 +130,72 @@ func TestScriptApp_HandleHTTP_RisorScript(t *testing.T) {
 }
 
 func TestScriptApp_HandleHTTP_WithStaticData(t *testing.T) {
-	risorEval := &evaluators.RisorEvaluator{
-		Code: `{
-			"status": 200,
-			"headers": {"Content-Type": "application/json"}, 
-			"body": json.marshal({"message": "Hello", "static": ctx.get("test_key", "not_found")})
-		}`,
-		Timeout: 5 * time.Second,
+	tests := []struct {
+		name            string
+		evaluator       evaluators.Evaluator
+		staticData      map[string]any
+		method          string
+		expectedContent string
+	}{
+		{
+			name: "risor_with_static_data",
+			evaluator: &evaluators.RisorEvaluator{
+				Code: `{
+					"status": 200,
+					"headers": {"Content-Type": "application/json"}, 
+					"body": json.marshal({"message": "Hello", "static": ctx.get("test_key", "not_found")})
+				}`,
+				Timeout: 5 * time.Second,
+			},
+			staticData: map[string]any{
+				"test_key": "static_value",
+			},
+			method:          http.MethodGet,
+			expectedContent: "static_value",
+		},
+		{
+			name: "starlark_with_static_data",
+			evaluator: &evaluators.StarlarkEvaluator{
+				Code: `
+# Access static data in Starlark
+config_value = ctx.get("config_key", "default")
+result = {
+	"message": "Starlark with config",
+	"config": config_value
+}
+# The underscore variable is returned to Go
+_ = result`,
+				Timeout: 5 * time.Second,
+			},
+			staticData: map[string]any{
+				"config_key": "production",
+			},
+			method:          http.MethodPost,
+			expectedContent: "production",
+		},
 	}
 
-	err := risorEval.Validate()
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.evaluator.Validate()
+			require.NoError(t, err)
 
-	staticData := map[string]any{
-		"test_key": "static_value",
+			config := scripts.NewAppScript("test-app")
+			config.Evaluator = tt.evaluator
+			config.StaticData = &staticdata.StaticData{Data: tt.staticData}
+
+			app, err := New("test-app", config, slog.Default())
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(tt.method, "/test", nil)
+			w := httptest.NewRecorder()
+
+			err = app.HandleHTTP(t.Context(), w, req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Contains(t, w.Body.String(), tt.expectedContent)
+		})
 	}
-
-	config := &scripts.AppScript{
-		Evaluator:  risorEval,
-		StaticData: &staticdata.StaticData{Data: staticData},
-	}
-
-	app, err := New("risor-app", config, slog.Default())
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	w := httptest.NewRecorder()
-
-	err = app.HandleHTTP(t.Context(), w, req)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "static_value")
 }
 
 func TestScriptApp_HandleHTTP_ScriptError(t *testing.T) {
@@ -197,9 +230,8 @@ func TestScriptApp_HandleHTTP_Timeout(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
+	config := scripts.NewAppScript("risor-app")
+	config.Evaluator = risorEval
 
 	app, err := New("risor-app", config, slog.Default())
 	require.NoError(t, err)
@@ -228,9 +260,8 @@ _ = result`,
 	err := starlarkEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: starlarkEval,
-	}
+	config := scripts.NewAppScript("starlark-test")
+	config.Evaluator = starlarkEval
 
 	app, err := New("starlark-app", config, slog.Default())
 	require.NoError(t, err)
@@ -246,44 +277,6 @@ _ = result`,
 	assert.Contains(t, w.Body.String(), "python-like")
 }
 
-func TestScriptApp_HandleHTTP_StarlarkWithStaticData(t *testing.T) {
-	starlarkEval := &evaluators.StarlarkEvaluator{
-		Code: `
-# Access static data in Starlark
-config_value = ctx.get("config_key", "default")
-result = {
-	"message": "Starlark with config",
-	"config": config_value
-}
-# The underscore variable is returned to Go
-_ = result`,
-		Timeout: 5 * time.Second,
-	}
-
-	err := starlarkEval.Validate()
-	require.NoError(t, err)
-
-	staticData := map[string]any{
-		"config_key": "production",
-	}
-
-	config := &scripts.AppScript{
-		Evaluator:  starlarkEval,
-		StaticData: &staticdata.StaticData{Data: staticData},
-	}
-
-	app, err := New("starlark-app", config, slog.Default())
-	require.NoError(t, err)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/test", nil)
-	w := httptest.NewRecorder()
-
-	err = app.HandleHTTP(t.Context(), w, req)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, w.Body.String(), "production")
-}
-
 func TestScriptApp_HandleHTTP_PrepareScriptDataError(t *testing.T) {
 	// Mock evaluator that can validate but has nil compiledEvaluator
 	mockEval := &evaluators.RisorEvaluator{
@@ -295,9 +288,8 @@ func TestScriptApp_HandleHTTP_PrepareScriptDataError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a script app
-	config := &scripts.AppScript{
-		Evaluator: mockEval,
-	}
+	config := scripts.NewAppScript("test-app")
+	config.Evaluator = mockEval
 
 	app, err := New("test-app", config, slog.Default())
 	require.NoError(t, err)
@@ -330,10 +322,9 @@ func TestScriptApp_HandleHTTP_ExtismDataStructure(t *testing.T) {
 		},
 	}
 
-	config := &scripts.AppScript{
-		Evaluator:  risorEval,
-		StaticData: &staticdata.StaticData{Data: staticData},
-	}
+	config := scripts.NewAppScript("test-app")
+	config.Evaluator = risorEval
+	config.StaticData = &staticdata.StaticData{Data: staticData}
 
 	app, err := New("test-app", config, slog.Default())
 	require.NoError(t, err)
@@ -355,9 +346,8 @@ func TestScriptApp_HandleHTTP_StringResult(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
+	config := scripts.NewAppScript("test-app")
+	config.Evaluator = risorEval
 
 	app, err := New("test-app", config, slog.Default())
 	require.NoError(t, err)
@@ -381,9 +371,8 @@ func TestScriptApp_HandleHTTP_NumericResult(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
+	config := scripts.NewAppScript("test-app")
+	config.Evaluator = risorEval
 
 	app, err := New("test-app", config, slog.Default())
 	require.NoError(t, err)
@@ -410,9 +399,8 @@ func TestScriptApp_HandleHTTP_ExecutionError(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
+	config := scripts.NewAppScript("test-app")
+	config.Evaluator = risorEval
 
 	app, err := New("test-app", config, slog.Default())
 	require.NoError(t, err)
@@ -433,9 +421,8 @@ func TestScriptApp_New_EvaluatorCompilationError(t *testing.T) {
 	}
 
 	// Don't validate - this will cause getPolyscriptEvaluator to fail
-	config := &scripts.AppScript{
-		Evaluator: risorEval,
-	}
+	config := scripts.NewAppScript("test-app")
+	config.Evaluator = risorEval
 
 	app, err := New("test-app", config, slog.Default())
 	require.Error(t, err)

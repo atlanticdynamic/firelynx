@@ -76,7 +76,16 @@ func (m *mockToolHandler) Type() string {
 
 func TestApp_Validate(t *testing.T) {
 	t.Run("valid minimal app", func(t *testing.T) {
-		app := NewApp("test-id", "Test Server", "1.0.0")
+		app := &App{
+			ID:            "test-id",
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools:         make([]*Tool, 0),
+			Resources:     make([]*Resource, 0),
+			Prompts:       make([]*Prompt, 0),
+			Middlewares:   make([]*Middleware, 0),
+		}
 
 		err := app.Validate()
 		require.NoError(t, err)
@@ -165,7 +174,16 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("valid app with tools", func(t *testing.T) {
-		app := NewApp("test-id", "Test Server", "1.0.0")
+		app := &App{
+			ID:            "test-id",
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools:         make([]*Tool, 0),
+			Resources:     make([]*Resource, 0),
+			Prompts:       make([]*Prompt, 0),
+			Middlewares:   make([]*Middleware, 0),
+		}
 		app.Tools = []*Tool{
 			{
 				Name:        "echo",
@@ -235,7 +253,16 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("valid app with prompts", func(t *testing.T) {
-		app := NewApp("test-id", "Test Server", "1.0.0")
+		app := &App{
+			ID:            "test-id",
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools:         make([]*Tool, 0),
+			Resources:     make([]*Resource, 0),
+			Prompts:       make([]*Prompt, 0),
+			Middlewares:   make([]*Middleware, 0),
+		}
 		app.Prompts = []*Prompt{
 			{
 				Name:        "test_prompt",
@@ -1105,7 +1132,16 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 // Additional tests for compileMCPServer edge cases to improve coverage
 func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	t.Run("tool with Title field", func(t *testing.T) {
-		app := NewApp("test-id", "Test Server", "1.0.0")
+		app := &App{
+			ID:            "test-id",
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools:         make([]*Tool, 0),
+			Resources:     make([]*Resource, 0),
+			Prompts:       make([]*Prompt, 0),
+			Middlewares:   make([]*Middleware, 0),
+		}
 		app.Tools = []*Tool{
 			{
 				Name:        "test-tool",
@@ -1124,7 +1160,16 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with custom InputSchema", func(t *testing.T) {
-		app := NewApp("test-id", "Test Server", "1.0.0")
+		app := &App{
+			ID:            "test-id",
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools:         make([]*Tool, 0),
+			Resources:     make([]*Resource, 0),
+			Prompts:       make([]*Prompt, 0),
+			Middlewares:   make([]*Middleware, 0),
+		}
 		app.Tools = []*Tool{
 			{
 				Name:        "test-tool",
@@ -1143,7 +1188,16 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with custom OutputSchema", func(t *testing.T) {
-		app := NewApp("test-id", "Test Server", "1.0.0")
+		app := &App{
+			ID:            "test-id",
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools:         make([]*Tool, 0),
+			Resources:     make([]*Resource, 0),
+			Prompts:       make([]*Prompt, 0),
+			Middlewares:   make([]*Middleware, 0),
+		}
 		app.Tools = []*Tool{
 			{
 				Name:         "test-tool",
@@ -1162,7 +1216,16 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 	})
 
 	t.Run("tool with Annotations", func(t *testing.T) {
-		app := NewApp("test-id", "Test Server", "1.0.0")
+		app := &App{
+			ID:            "test-id",
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &Transport{},
+			Tools:         make([]*Tool, 0),
+			Resources:     make([]*Resource, 0),
+			Prompts:       make([]*Prompt, 0),
+			Middlewares:   make([]*Middleware, 0),
+		}
 		app.Tools = []*Tool{
 			{
 				Name:        "test-tool",

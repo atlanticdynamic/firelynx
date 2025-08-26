@@ -227,7 +227,7 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 		}
 
 		// Convert Script app config, and copy the ID from parent AppDefinition
-		scriptApp := scripts.NewAppScript(app.ID, staticData, evaluator)
+		scriptApp := &scripts.AppScript{ID: app.ID, StaticData: staticData, Evaluator: evaluator}
 		app.Config = scriptApp
 		return app, nil
 
