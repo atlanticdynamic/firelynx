@@ -7,6 +7,7 @@ import (
 	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
+	"github.com/robbyt/protobaggins"
 )
 
 // FromProto creates an MCP App from its protocol buffer representation.
@@ -17,13 +18,8 @@ func FromProto(id string, proto *pbApps.McpApp) (*App, error) {
 
 	app := NewApp(id)
 
-	if proto.ServerName != nil {
-		app.ServerName = *proto.ServerName
-	}
-
-	if proto.ServerVersion != nil {
-		app.ServerVersion = *proto.ServerVersion
-	}
+	app.ServerName = protobaggins.StringFromProto(proto.ServerName)
+	app.ServerVersion = protobaggins.StringFromProto(proto.ServerVersion)
 
 	if proto.Transport != nil {
 		transport, err := transportFromProto(proto.Transport)
@@ -140,9 +136,7 @@ func transportFromProto(proto *pbApps.McpTransport) (*Transport, error) {
 		transport.SSEEnabled = *proto.SseEnabled
 	}
 
-	if proto.SsePath != nil {
-		transport.SSEPath = *proto.SsePath
-	}
+	transport.SSEPath = protobaggins.StringFromProto(proto.SsePath)
 
 	return transport, nil
 }
@@ -172,21 +166,11 @@ func toolFromProto(proto *pbApps.McpTool) (*Tool, error) {
 
 	tool := &Tool{}
 
-	if proto.Name != nil {
-		tool.Name = *proto.Name
-	}
-	if proto.Description != nil {
-		tool.Description = *proto.Description
-	}
-	if proto.Title != nil {
-		tool.Title = *proto.Title
-	}
-	if proto.InputSchema != nil {
-		tool.InputSchema = *proto.InputSchema
-	}
-	if proto.OutputSchema != nil {
-		tool.OutputSchema = *proto.OutputSchema
-	}
+	tool.Name = protobaggins.StringFromProto(proto.Name)
+	tool.Description = protobaggins.StringFromProto(proto.Description)
+	tool.Title = protobaggins.StringFromProto(proto.Title)
+	tool.InputSchema = protobaggins.StringFromProto(proto.InputSchema)
+	tool.OutputSchema = protobaggins.StringFromProto(proto.OutputSchema)
 	if proto.Annotations != nil {
 		annotations, err := toolAnnotationsFromProto(proto.Annotations)
 		if err != nil {
@@ -372,18 +356,10 @@ func resourceFromProto(proto *pbApps.McpResource) (*Resource, error) {
 
 	resource := &Resource{}
 
-	if proto.Uri != nil {
-		resource.URI = *proto.Uri
-	}
-	if proto.Name != nil {
-		resource.Name = *proto.Name
-	}
-	if proto.Description != nil {
-		resource.Description = *proto.Description
-	}
-	if proto.MimeType != nil {
-		resource.MIMEType = *proto.MimeType
-	}
+	resource.URI = protobaggins.StringFromProto(proto.Uri)
+	resource.Name = protobaggins.StringFromProto(proto.Name)
+	resource.Description = protobaggins.StringFromProto(proto.Description)
+	resource.MIMEType = protobaggins.StringFromProto(proto.MimeType)
 
 	// TODO: Convert source when resource implementation is added
 
@@ -424,12 +400,8 @@ func promptFromProto(proto *pbApps.McpPrompt) (*Prompt, error) {
 
 	prompt := &Prompt{}
 
-	if proto.Name != nil {
-		prompt.Name = *proto.Name
-	}
-	if proto.Description != nil {
-		prompt.Description = *proto.Description
-	}
+	prompt.Name = protobaggins.StringFromProto(proto.Name)
+	prompt.Description = protobaggins.StringFromProto(proto.Description)
 
 	// TODO: Convert source when prompt implementation is added
 
@@ -520,9 +492,7 @@ func toolAnnotationsFromProto(proto *pbApps.McpToolAnnotations) (*ToolAnnotation
 
 	annotations := &ToolAnnotations{}
 
-	if proto.Title != nil {
-		annotations.Title = *proto.Title
-	}
+	annotations.Title = protobaggins.StringFromProto(proto.Title)
 	if proto.ReadOnlyHint != nil {
 		annotations.ReadOnlyHint = *proto.ReadOnlyHint
 	}
