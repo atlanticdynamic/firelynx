@@ -60,9 +60,9 @@ func (m *mockSagaParticipant) StageConfig(
 
 func (m *mockSagaParticipant) CompensateConfig(
 	ctx context.Context,
-	tx *transaction.ConfigTransaction,
+	failedTXID string,
 ) error {
-	args := m.Called(ctx, tx)
+	args := m.Called(ctx, failedTXID)
 	return args.Error(0)
 }
 
@@ -104,7 +104,7 @@ func (p *ConflictingParticipant) StageConfig(
 
 func (p *ConflictingParticipant) CompensateConfig(
 	ctx context.Context,
-	tx *transaction.ConfigTransaction,
+	failedTXID string,
 ) error {
 	return nil
 }
@@ -201,9 +201,9 @@ func (m *MockReloadParticipant) StageConfig(
 // CompensateConfig implements SagaParticipant
 func (m *MockReloadParticipant) CompensateConfig(
 	ctx context.Context,
-	tx *transaction.ConfigTransaction,
+	failedTXID string,
 ) error {
-	args := m.Called(ctx, tx)
+	args := m.Called(ctx, failedTXID)
 	return args.Error(0)
 }
 

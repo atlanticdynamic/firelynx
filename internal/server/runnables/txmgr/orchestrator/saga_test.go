@@ -36,9 +36,9 @@ func (m *MockParticipant) StageConfig(
 
 func (m *MockParticipant) CompensateConfig(
 	ctx context.Context,
-	tx *transaction.ConfigTransaction,
+	failedTXID string,
 ) error {
-	args := m.Called(ctx, tx)
+	args := m.Called(ctx, failedTXID)
 	return args.Error(0)
 }
 
@@ -164,7 +164,7 @@ func (p *conflictingParticipant) StageConfig(
 
 func (p *conflictingParticipant) CompensateConfig(
 	ctx context.Context,
-	tx *transaction.ConfigTransaction,
+	failedTXID string,
 ) error {
 	return nil
 }
@@ -294,8 +294,8 @@ func TestCompensateParticipants(t *testing.T) {
 	participant2 := NewMockParticipant("participant2")
 
 	// Set expectations
-	participant1.On("CompensateConfig", mock.Anything, tx).Return(nil).Maybe()
-	participant2.On("CompensateConfig", mock.Anything, tx).Return(nil).Maybe()
+	participant1.On("CompensateConfig", mock.Anything, tx.GetTransactionID()).Return(nil).Maybe()
+	participant2.On("CompensateConfig", mock.Anything, tx.GetTransactionID()).Return(nil).Maybe()
 
 	err = orchestrator.RegisterParticipant(participant1)
 	require.NoError(t, err)

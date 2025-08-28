@@ -34,12 +34,8 @@ func (r *Runner) StageConfig(ctx context.Context, tx *transaction.ConfigTransact
 }
 
 // CompensateConfig implements SagaParticipant.CompensateConfig
-func (r *Runner) CompensateConfig(ctx context.Context, tx *transaction.ConfigTransaction) error {
-	if tx == nil {
-		return fmt.Errorf("transaction is nil")
-	}
-
-	logger := r.logger.WithGroup("CompensateConfig").With("tx_id", tx.GetTransactionID())
+func (r *Runner) CompensateConfig(ctx context.Context, failedTXID string) error {
+	logger := r.logger.WithGroup("CompensateConfig").With("tx_id", failedTXID)
 	logger.Debug("Compensating HTTP configuration")
 
 	r.mutex.Lock()
