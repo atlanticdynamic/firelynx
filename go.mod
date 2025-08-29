@@ -16,7 +16,7 @@ require (
 	github.com/robbyt/go-polyscript v0.1.0
 	github.com/robbyt/go-supervisor v0.0.15
 	github.com/robbyt/protobaggins v0.1.0
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	golang.org/x/net v0.43.0
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.8
