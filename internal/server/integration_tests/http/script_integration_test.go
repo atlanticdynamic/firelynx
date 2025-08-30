@@ -1121,9 +1121,9 @@ func (s *RisorHTTPSIntegrationTestSuite) TearDownSuite() {
 func testHTTPSScriptExecution(suite interface {
 	T() *testing.T
 	Require() *require.Assertions
-	Equal(interface{}, interface{}, ...interface{}) bool
-	NotEmpty(interface{}, ...interface{}) bool
-	NoError(err error, msgAndArgs ...interface{}) bool
+	Equal(any, any, ...any) bool
+	NotEmpty(any, ...any) bool
+	NoError(err error, msgAndArgs ...any) bool
 }, port int, expectedMessage, expectedEvaluator string,
 ) {
 	// Make a POST request with JSON input to test HTTPS script loading
@@ -1236,7 +1236,7 @@ func (s *ExtismHTTPSIntegrationTestSuite) TestExtismHTTPSExecution() {
 	body, err := io.ReadAll(resp.Body)
 	s.Require().NoError(err, "Failed to read response body")
 
-	var scriptResp map[string]interface{}
+	var scriptResp map[string]any
 	err = json.Unmarshal(body, &scriptResp)
 	s.Require().NoError(err, "Failed to parse JSON response")
 

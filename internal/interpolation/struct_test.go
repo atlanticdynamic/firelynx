@@ -563,7 +563,7 @@ func TestInterpolateStructEdgeCases(t *testing.T) {
 			t,
 			"${TEST_VALUE}",
 			config.InterfaceMap["key"],
-			"interface{} map should not be interpolated",
+			"any map should not be interpolated",
 		)
 	})
 
