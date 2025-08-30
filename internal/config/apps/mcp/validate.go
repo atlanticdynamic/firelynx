@@ -625,7 +625,7 @@ func validateJSONSchema(schemaString string) error {
 
 // parseJSONSchema parses a JSON Schema string into the MCP SDK format.
 func parseJSONSchema(schemaString string) (*jsonschema.Schema, error) {
-	var schemaMap map[string]interface{}
+	var schemaMap map[string]any
 	if err := json.Unmarshal([]byte(schemaString), &schemaMap); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON schema: %w", err)
 	}
@@ -638,10 +638,10 @@ func parseJSONSchema(schemaString string) (*jsonschema.Schema, error) {
 	if description, ok := schemaMap["description"].(string); ok {
 		schema.Description = description
 	}
-	if properties, ok := schemaMap["properties"].(map[string]interface{}); ok {
+	if properties, ok := schemaMap["properties"].(map[string]any); ok {
 		schema.Properties = make(map[string]*jsonschema.Schema)
 		for key, prop := range properties {
-			if propMap, ok := prop.(map[string]interface{}); ok {
+			if propMap, ok := prop.(map[string]any); ok {
 				propSchema := &jsonschema.Schema{}
 				if propType, ok := propMap["type"].(string); ok {
 					propSchema.Type = propType
@@ -653,7 +653,7 @@ func parseJSONSchema(schemaString string) (*jsonschema.Schema, error) {
 			}
 		}
 	}
-	if required, ok := schemaMap["required"].([]interface{}); ok {
+	if required, ok := schemaMap["required"].([]any); ok {
 		schema.Required = make([]string, len(required))
 		for i, req := range required {
 			if reqStr, ok := req.(string); ok {

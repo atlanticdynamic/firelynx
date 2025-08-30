@@ -9,13 +9,13 @@ import (
 
 // EvaluatorSourceProcessor defines the interface for evaluator source processing functions
 type EvaluatorSourceProcessor interface {
-	ProcessSource(evaluator interface{}, config map[string]any)
-	CreateEvaluator() interface{}
-	GetSource(evaluator interface{}) interface{}
-	CreateCodeSource(code string) interface{}
-	CreateUriSource(uri string) interface{}
-	GetCodeFromSource(source interface{}) (string, bool)
-	GetUriFromSource(source interface{}) (string, bool)
+	ProcessSource(evaluator any, config map[string]any)
+	CreateEvaluator() any
+	GetSource(evaluator any) any
+	CreateCodeSource(code string) any
+	CreateUriSource(uri string) any
+	GetCodeFromSource(source any) (string, bool)
+	GetUriFromSource(source any) (string, bool)
 	GetExampleCode() string
 	GetExampleUri() string
 	GetIrrelevantConfigKey() string
@@ -24,7 +24,7 @@ type EvaluatorSourceProcessor interface {
 // StarlarkSourceProcessor implements EvaluatorSourceProcessor for Starlark
 type StarlarkSourceProcessor struct{}
 
-func (p *StarlarkSourceProcessor) ProcessSource(evaluator interface{}, config map[string]any) {
+func (p *StarlarkSourceProcessor) ProcessSource(evaluator any, config map[string]any) {
 	if evaluator == nil {
 		processStarlarkSource(nil, config)
 		return
@@ -32,30 +32,30 @@ func (p *StarlarkSourceProcessor) ProcessSource(evaluator interface{}, config ma
 	processStarlarkSource(evaluator.(*pbApps.StarlarkEvaluator), config)
 }
 
-func (p *StarlarkSourceProcessor) CreateEvaluator() interface{} {
+func (p *StarlarkSourceProcessor) CreateEvaluator() any {
 	return &pbApps.StarlarkEvaluator{}
 }
 
-func (p *StarlarkSourceProcessor) GetSource(evaluator interface{}) interface{} {
+func (p *StarlarkSourceProcessor) GetSource(evaluator any) any {
 	return evaluator.(*pbApps.StarlarkEvaluator).Source
 }
 
-func (p *StarlarkSourceProcessor) CreateCodeSource(code string) interface{} {
+func (p *StarlarkSourceProcessor) CreateCodeSource(code string) any {
 	return &pbApps.StarlarkEvaluator_Code{Code: code}
 }
 
-func (p *StarlarkSourceProcessor) CreateUriSource(uri string) interface{} {
+func (p *StarlarkSourceProcessor) CreateUriSource(uri string) any {
 	return &pbApps.StarlarkEvaluator_Uri{Uri: uri}
 }
 
-func (p *StarlarkSourceProcessor) GetCodeFromSource(source interface{}) (string, bool) {
+func (p *StarlarkSourceProcessor) GetCodeFromSource(source any) (string, bool) {
 	if codeSource, ok := source.(*pbApps.StarlarkEvaluator_Code); ok {
 		return codeSource.Code, true
 	}
 	return "", false
 }
 
-func (p *StarlarkSourceProcessor) GetUriFromSource(source interface{}) (string, bool) {
+func (p *StarlarkSourceProcessor) GetUriFromSource(source any) (string, bool) {
 	if uriSource, ok := source.(*pbApps.StarlarkEvaluator_Uri); ok {
 		return uriSource.Uri, true
 	}
@@ -77,7 +77,7 @@ func (p *StarlarkSourceProcessor) GetIrrelevantConfigKey() string {
 // ExtismSourceProcessor implements EvaluatorSourceProcessor for Extism
 type ExtismSourceProcessor struct{}
 
-func (p *ExtismSourceProcessor) ProcessSource(evaluator interface{}, config map[string]any) {
+func (p *ExtismSourceProcessor) ProcessSource(evaluator any, config map[string]any) {
 	if evaluator == nil {
 		processExtismSource(nil, config)
 		return
@@ -85,30 +85,30 @@ func (p *ExtismSourceProcessor) ProcessSource(evaluator interface{}, config map[
 	processExtismSource(evaluator.(*pbApps.ExtismEvaluator), config)
 }
 
-func (p *ExtismSourceProcessor) CreateEvaluator() interface{} {
+func (p *ExtismSourceProcessor) CreateEvaluator() any {
 	return &pbApps.ExtismEvaluator{}
 }
 
-func (p *ExtismSourceProcessor) GetSource(evaluator interface{}) interface{} {
+func (p *ExtismSourceProcessor) GetSource(evaluator any) any {
 	return evaluator.(*pbApps.ExtismEvaluator).Source
 }
 
-func (p *ExtismSourceProcessor) CreateCodeSource(code string) interface{} {
+func (p *ExtismSourceProcessor) CreateCodeSource(code string) any {
 	return &pbApps.ExtismEvaluator_Code{Code: code}
 }
 
-func (p *ExtismSourceProcessor) CreateUriSource(uri string) interface{} {
+func (p *ExtismSourceProcessor) CreateUriSource(uri string) any {
 	return &pbApps.ExtismEvaluator_Uri{Uri: uri}
 }
 
-func (p *ExtismSourceProcessor) GetCodeFromSource(source interface{}) (string, bool) {
+func (p *ExtismSourceProcessor) GetCodeFromSource(source any) (string, bool) {
 	if codeSource, ok := source.(*pbApps.ExtismEvaluator_Code); ok {
 		return codeSource.Code, true
 	}
 	return "", false
 }
 
-func (p *ExtismSourceProcessor) GetUriFromSource(source interface{}) (string, bool) {
+func (p *ExtismSourceProcessor) GetUriFromSource(source any) (string, bool) {
 	if uriSource, ok := source.(*pbApps.ExtismEvaluator_Uri); ok {
 		return uriSource.Uri, true
 	}
@@ -130,7 +130,7 @@ func (p *ExtismSourceProcessor) GetIrrelevantConfigKey() string {
 // RisorSourceProcessor implements EvaluatorSourceProcessor for Risor
 type RisorSourceProcessor struct{}
 
-func (p *RisorSourceProcessor) ProcessSource(evaluator interface{}, config map[string]any) {
+func (p *RisorSourceProcessor) ProcessSource(evaluator any, config map[string]any) {
 	if evaluator == nil {
 		processRisorSource(nil, config)
 		return
@@ -138,30 +138,30 @@ func (p *RisorSourceProcessor) ProcessSource(evaluator interface{}, config map[s
 	processRisorSource(evaluator.(*pbApps.RisorEvaluator), config)
 }
 
-func (p *RisorSourceProcessor) CreateEvaluator() interface{} {
+func (p *RisorSourceProcessor) CreateEvaluator() any {
 	return &pbApps.RisorEvaluator{}
 }
 
-func (p *RisorSourceProcessor) GetSource(evaluator interface{}) interface{} {
+func (p *RisorSourceProcessor) GetSource(evaluator any) any {
 	return evaluator.(*pbApps.RisorEvaluator).Source
 }
 
-func (p *RisorSourceProcessor) CreateCodeSource(code string) interface{} {
+func (p *RisorSourceProcessor) CreateCodeSource(code string) any {
 	return &pbApps.RisorEvaluator_Code{Code: code}
 }
 
-func (p *RisorSourceProcessor) CreateUriSource(uri string) interface{} {
+func (p *RisorSourceProcessor) CreateUriSource(uri string) any {
 	return &pbApps.RisorEvaluator_Uri{Uri: uri}
 }
 
-func (p *RisorSourceProcessor) GetCodeFromSource(source interface{}) (string, bool) {
+func (p *RisorSourceProcessor) GetCodeFromSource(source any) (string, bool) {
 	if codeSource, ok := source.(*pbApps.RisorEvaluator_Code); ok {
 		return codeSource.Code, true
 	}
 	return "", false
 }
 
-func (p *RisorSourceProcessor) GetUriFromSource(source interface{}) (string, bool) {
+func (p *RisorSourceProcessor) GetUriFromSource(source any) (string, bool) {
 	if uriSource, ok := source.(*pbApps.RisorEvaluator_Uri); ok {
 		return uriSource.Uri, true
 	}
