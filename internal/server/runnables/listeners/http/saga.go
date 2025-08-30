@@ -20,7 +20,7 @@ func (r *Runner) StageConfig(ctx context.Context, tx *transaction.ConfigTransact
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	// Create adapter from transaction (transaction implements ConfigProvider)
+	// Create adapter from transaction (which implements ConfigProvider interface)
 	adapter, err := cfg.NewAdapter(tx, r.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP adapter: %w", err)
