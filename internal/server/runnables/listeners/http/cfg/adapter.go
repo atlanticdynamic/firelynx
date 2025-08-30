@@ -18,6 +18,24 @@ import (
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 )
 
+// ConfigProvider defines the minimal interface required to extract configuration
+// from a transaction. This allows the HTTP adapter to depend on this interface rather
+// than the full transaction type.
+type ConfigProvider interface {
+	// GetTransactionID returns the unique identifier for this transaction
+	GetTransactionID() string
+
+	// GetConfig returns the configuration associated with this transaction
+	GetConfig() *config.Config
+
+	// GetAppCollection returns the app collection for linking routes to app instances.
+	// Returns nil if no app collection is available.
+	GetAppCollection() *apps.AppInstances
+
+	// GetMiddlewareRegistry returns the middleware registry for looking up middleware instances.
+	GetMiddlewareRegistry() MiddlewareRegistry
+}
+
 // ListenerConfig represents configuration for a single HTTP listener.
 type ListenerConfig struct {
 	// ID is the unique identifier for this listener

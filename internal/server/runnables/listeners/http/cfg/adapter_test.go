@@ -32,6 +32,9 @@ type MockConfigProvider struct {
 	middlewareRegistry MiddlewareRegistry
 }
 
+// Ensure MockConfigProvider implements ConfigProvider
+var _ ConfigProvider = (*MockConfigProvider)(nil)
+
 func (m *MockConfigProvider) GetConfig() *config.Config {
 	return m.config
 }
