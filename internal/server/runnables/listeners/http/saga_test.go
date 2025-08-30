@@ -66,17 +66,16 @@ func TestRunner_SagaOperations(t *testing.T) {
 		err = runner.StageConfig(t.Context(), tx)
 		require.NoError(t, err)
 
-		err = runner.CompensateConfig(t.Context(), tx)
+		err = runner.CompensateConfig(t.Context(), tx.GetTransactionID())
 		require.NoError(t, err)
 	})
 
-	t.Run("CompensateConfig with nil transaction", func(t *testing.T) {
+	t.Run("CompensateConfig with empty failedTXID", func(t *testing.T) {
 		runner, err := NewRunner()
 		require.NoError(t, err)
 
-		err = runner.CompensateConfig(t.Context(), nil)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "transaction is nil")
+		err = runner.CompensateConfig(t.Context(), "")
+		require.NoError(t, err) // Empty string is acceptable for failedTXID
 	})
 }
 

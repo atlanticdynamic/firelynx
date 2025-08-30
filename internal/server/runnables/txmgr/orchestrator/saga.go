@@ -40,7 +40,7 @@ type SagaParticipant interface {
 	// CompensateConfig reverts changes made during StageConfig
 	// when a transaction fails. This is called for successful
 	// participants when the saga needs to be rolled back.
-	CompensateConfig(ctx context.Context, tx *transaction.ConfigTransaction) error
+	CompensateConfig(ctx context.Context, failedTXID string) error
 
 	// CommitConfig applies the pending configuration prepared during StageConfig.
 	// This is called during the reload phase after all participants have successfully
@@ -102,12 +102,8 @@ func (o *SagaOrchestrator) RegisterParticipant(participant SagaParticipant) erro
 	return nil
 }
 
-// ProcessTransaction processes a validated transaction through the saga lifecycle
-// TODO: consider passing the transaction ID instead of the pointer to the transaction, then load it from storage
-func (o *SagaOrchestrator) ProcessTransaction(
-	ctx context.Context,
-	tx *transaction.ConfigTransaction,
-) error {
+// validateTransactionState ensures the transaction is non-nil and in the validated state
+func (o *SagaOrchestrator) validateTransactionState(tx *transaction.ConfigTransaction) error {
 	if tx == nil {
 		return fmt.Errorf("transaction is nil")
 	}
@@ -115,6 +111,20 @@ func (o *SagaOrchestrator) ProcessTransaction(
 	// Only process validated transactions
 	if tx.GetState() != finitestate.StateValidated {
 		return fmt.Errorf("transaction is not in validated state: %s", tx.GetState())
+	}
+
+	return nil
+}
+
+// ProcessTransaction processes a validated transaction through the saga lifecycle
+// TODO: consider passing the transaction ID instead of the pointer to the transaction, then load it from storage
+func (o *SagaOrchestrator) ProcessTransaction(
+	ctx context.Context,
+	tx *transaction.ConfigTransaction,
+) error {
+	// Validate transaction state
+	if err := o.validateTransactionState(tx); err != nil {
+		return err
 	}
 
 	// Begin execution phase
@@ -128,59 +138,65 @@ func (o *SagaOrchestrator) ProcessTransaction(
 	o.logger.Debug("Processing transaction without waiting for participant states",
 		"participantCount", len(o.runnables))
 
+	// Register and execute all participants
+	if err := o.registerAndExecuteParticipants(ctx, tx); err != nil {
+		return err
+	}
+
+	// Finalize successful transaction
+	return o.finalizeSuccessfulTransaction(ctx, tx)
+}
+
+// registerAndExecuteParticipants registers all participants with the transaction,
+// validates readiness, and executes StageConfig on ready participants
+func (o *SagaOrchestrator) registerAndExecuteParticipants(
+	ctx context.Context,
+	tx *transaction.ConfigTransaction,
+) error {
 	// Register all known participants with the transaction
 	o.mutex.RLock()
-	for name := range o.runnables {
-		if err := tx.RegisterParticipant(name); err != nil {
-			o.mutex.RUnlock()
-			return fmt.Errorf("failed to register participant %s with transaction: %w", name, err)
-		}
-	}
+	names := o.getSortedParticipantNames()
 	participants := o.runnables
 	o.mutex.RUnlock()
 
-	// Get sorted participant names for deterministic ordering
-	names := o.getSortedParticipantNames()
+	// Register participants with transaction
+	for _, name := range names {
+		if err := tx.RegisterParticipant(name); err != nil {
+			return fmt.Errorf("failed to register participant %s with transaction: %w", name, err)
+		}
+	}
 
-	// Process each participant
+	// Process each participant: validate readiness and execute if ready
+	var errz []error
 	for _, name := range names {
 		participant := participants[name]
 
-		// Wait for participant to be running before processing
-		if err := o.waitForRunning(ctx, participant, name); err != nil {
-			o.logger.Error("Participant not ready", "name", name, "error", err)
-			// Get participant state tracker to mark as failed
-			if participantState, err := tx.GetParticipants().GetOrCreate(name); err == nil {
-				if markErr := participantState.MarkFailed(fmt.Errorf("not ready: %w", err)); markErr != nil {
-					o.logger.Error(
-						"Failed to mark participant as failed",
-						"name",
-						name,
-						"error",
-						markErr,
-					)
-				}
-			}
-			continue
-		}
-
-		// Get participant state tracker from the transaction
+		// Get or create participant state
 		participantState, err := tx.GetParticipants().GetOrCreate(name)
 		if err != nil {
-			o.logger.Error("Failed to create participant state", "name", name, "error", err)
-			continue
+			errz = append(errz, fmt.Errorf("failed to get participant state for %s: %w", name, err))
+			continue // Can't process without state
 		}
 
-		// Start execution for this participant
+		// Check if participant is ready
+		if err := o.waitForRunning(ctx, participant, name); err != nil {
+			errz = append(errz, fmt.Errorf("participant %s not ready: %w", name, err))
+
+			// Mark participant as failed
+			if markErr := participantState.MarkFailed(fmt.Errorf("not ready: %w", err)); markErr != nil {
+				errz = append(errz, fmt.Errorf("failed to mark participant %s as failed: %w", name, markErr))
+			}
+			continue // Skip execution for non-ready participants
+		}
+
+		// Begin the transaction execution for this participant
 		if err := participantState.Execute(); err != nil {
-			o.logger.Error("Failed to start execution for participant",
-				"name", name, "error", err)
+			errz = append(errz, fmt.Errorf("failed to start execution for participant %s: %w", name, err))
 			continue
 		}
 
 		// Execute the configuration on this participant
-		err = participant.StageConfig(ctx, tx)
-		if err != nil {
+		if err := participant.StageConfig(ctx, tx); err != nil {
 			// Mark participant as failed
 			if markErr := participantState.MarkFailed(err); markErr != nil {
 				o.logger.Error("Failed to mark participant as failed",
@@ -202,30 +218,38 @@ func (o *SagaOrchestrator) ProcessTransaction(
 		}
 	}
 
+	return errors.Join(errz...)
+}
+
+// finalizeSuccessfulTransaction handles the completion of a successful transaction,
+// including marking success, storing as current, and triggering reload
+func (o *SagaOrchestrator) finalizeSuccessfulTransaction(
+	ctx context.Context,
+	tx *transaction.ConfigTransaction,
+) error {
 	// Check if all participants succeeded
-	if tx.GetParticipants().AllParticipantsSucceeded() {
-		// Mark transaction as succeeded
-		if err := tx.MarkSucceeded(); err != nil {
-			return fmt.Errorf("failed to mark transaction as succeeded: %w", err)
-		}
-
-		// Set as current in transaction storage
-		o.txStorage.SetCurrent(tx)
-
-		// Trigger reload of all participants
-		// If reload fails, the transaction will be marked as error by TriggerReload
-		if err := o.TriggerReload(ctx); err != nil {
-			o.logger.Error("Reload failed after transaction execution",
-				"id", tx.ID, "error", err)
-			return fmt.Errorf("transaction execution succeeded but reload failed: %w", err)
-		}
-
-		o.logger.Debug("Transaction and reload completed successfully", "id", tx.ID)
-		return nil
+	if !tx.GetParticipants().AllParticipantsSucceeded() {
+		return fmt.Errorf("not all participants succeeded, but no specific error was reported")
 	}
 
-	// If we got here but not all participants succeeded, something went wrong
-	return fmt.Errorf("not all participants succeeded, but no specific error was reported")
+	// Mark transaction as succeeded
+	if err := tx.MarkSucceeded(); err != nil {
+		return fmt.Errorf("failed to mark transaction as succeeded: %w", err)
+	}
+
+	// Set as current in transaction storage
+	o.txStorage.SetCurrent(tx)
+
+	// Trigger reload of all participants
+	// If reload fails, the transaction will be marked as error by TriggerReload
+	if err := o.TriggerReload(ctx); err != nil {
+		o.logger.Error("Reload failed after transaction execution",
+			"id", tx.ID, "error", err)
+		return fmt.Errorf("transaction execution succeeded but reload failed: %w", err)
+	}
+
+	o.logger.Debug("Transaction and reload completed successfully", "id", tx.ID)
+	return nil
 }
 
 // compensateParticipants triggers compensation for all successful participants
@@ -268,7 +292,7 @@ func (o *SagaOrchestrator) compensateParticipants(
 		}
 
 		// Execute compensation
-		if err := participant.CompensateConfig(ctx, tx); err != nil {
+		if err := participant.CompensateConfig(ctx, tx.GetTransactionID()); err != nil {
 			o.logger.Error("Failed to compensate participant", "name", name, "error", err)
 			continue
 		}

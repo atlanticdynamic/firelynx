@@ -666,7 +666,7 @@ func (m *MockFailingParticipant) StageConfig(
 
 func (m *MockFailingParticipant) CompensateConfig(
 	ctx context.Context,
-	tx *transaction.ConfigTransaction,
+	failedTXID string,
 ) error {
 	return nil
 }
