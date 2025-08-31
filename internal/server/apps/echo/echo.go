@@ -12,11 +12,11 @@ type App struct {
 	response string
 }
 
-// New creates a new EchoApp with a custom response
-func New(id string, response string) *App {
+// New creates a new EchoApp from a Config DTO
+func New(cfg *Config) *App {
 	return &App{
-		id:       id,
-		response: response,
+		id:       cfg.ID,
+		response: cfg.Response,
 	}
 }
 

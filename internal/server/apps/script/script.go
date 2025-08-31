@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/robbyt/go-polyscript/platform"
 	"github.com/robbyt/go-polyscript/platform/constants"
 	"github.com/robbyt/go-polyscript/platform/data"
@@ -18,49 +17,32 @@ import (
 // ScriptApp implements the server-side script application using go-polyscript
 type ScriptApp struct {
 	id                string
-	config            *scripts.AppScript
 	evaluator         platform.Evaluator
 	appStaticProvider data.Provider // Pre-created app-level static provider
 	logger            *slog.Logger
+	timeout           time.Duration
 }
 
-// New creates a new script app instance using go-polyscript
-func New(id string, config *scripts.AppScript, logger *slog.Logger) (*ScriptApp, error) {
-	if config == nil {
+// New creates a new script app instance from a Config DTO
+func New(cfg *Config) (*ScriptApp, error) {
+	if cfg == nil {
 		return nil, fmt.Errorf("script app config cannot be nil")
 	}
 
-	// Validate that evaluator exists
-	if config.Evaluator == nil {
-		return nil, fmt.Errorf("script app must have an evaluator")
-	}
-
-	// Create and compile the go-polyscript evaluator at instantiation time
-	evaluator, err := getPolyscriptEvaluator(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create and compile go-polyscript evaluator: %w", err)
+	// Validate that evaluator exists (should be pre-compiled from domain validation)
+	if cfg.CompiledEvaluator == nil {
+		return nil, fmt.Errorf("script app must have a compiled evaluator")
 	}
 
 	// Pre-create app-level static provider for performance
-	var appStaticData map[string]any
-	if config.StaticData != nil {
-		appStaticData = config.StaticData.Data
-	}
-	appStaticProvider := data.NewStaticProvider(appStaticData)
+	appStaticProvider := data.NewStaticProvider(cfg.StaticData)
 
 	return &ScriptApp{
-		id:                id,
-		config:            config,
-		evaluator:         evaluator,
+		id:                cfg.ID,
+		evaluator:         cfg.CompiledEvaluator,
 		appStaticProvider: appStaticProvider,
-		logger: logger.With(
-			"app_id",
-			id,
-			"app_type",
-			"script",
-			"evaluator_type",
-			config.Evaluator.Type(),
-		),
+		logger:            cfg.Logger,
+		timeout:           cfg.Timeout,
 	}, nil
 }
 
@@ -75,8 +57,7 @@ func (s *ScriptApp) HandleHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
 ) error {
-	timeout := s.config.Evaluator.GetTimeout()
-	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
 	// Prepare script data with proper structure for WASM modules
@@ -149,18 +130,8 @@ func (s *ScriptApp) prepareScriptData(
 	return scriptData, nil
 }
 
-// getPolyscriptEvaluator extracts the pre-compiled evaluator from domain validation
-// All evaluators must be compiled during the Validate() phase in the domain layer
-func getPolyscriptEvaluator(
-	config *scripts.AppScript,
-) (platform.Evaluator, error) {
-	compiledEvaluator, err := config.Evaluator.GetCompiledEvaluator()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get compiled evaluator: %w", err)
-	}
-
-	return compiledEvaluator, nil
-}
+// This function is no longer needed since evaluators are pre-compiled
+// and passed through the Config DTO
 
 // handleScriptResult processes the script execution result and writes the HTTP response
 func handleScriptResult(w http.ResponseWriter, result platform.EvaluatorResponse) error {

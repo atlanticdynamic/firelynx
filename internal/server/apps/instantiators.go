@@ -2,7 +2,6 @@ package apps
 
 import (
 	"fmt"
-	"log/slog"
 
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
@@ -16,35 +15,61 @@ import (
 type Instantiator func(id string, config any) (App, error)
 
 func createEchoApp(id string, config any) (App, error) {
-	// Default response is the app ID
-	response := id
-
-	// If config is provided and has a response field, use it
-	if echoConfig, ok := config.(*configEcho.EchoApp); ok {
-		if echoConfig.Response != "" {
-			response = echoConfig.Response
-		}
+	if config == nil {
+		return nil, ErrInvalidConfigType
 	}
 
-	return echo.New(id, response), nil
+	// Type assert to echo domain config
+	echoConfig, ok := config.(*configEcho.EchoApp)
+	if !ok {
+		return nil, ErrInvalidConfigType
+	}
+
+	// Convert domain config to DTO
+	dto, err := convertEchoConfig(id, echoConfig)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrConfigConversionFailed, err)
+	}
+
+	return echo.New(dto), nil
 }
 
 func createScriptApp(id string, config any) (App, error) {
-	scriptConfig, ok := config.(*configScripts.AppScript)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for script app: %T", config)
+	if config == nil {
+		return nil, ErrInvalidConfigType
 	}
 
-	logger := slog.Default().With("app_type", "script", "app_id", id)
+	// Type assert to script domain config
+	scriptConfig, ok := config.(*configScripts.AppScript)
+	if !ok {
+		return nil, ErrInvalidConfigType
+	}
 
-	return script.New(id, scriptConfig, logger)
+	// Convert domain config to DTO
+	dto, err := convertScriptConfig(id, scriptConfig)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrConfigConversionFailed, err)
+	}
+
+	return script.New(dto)
 }
 
 func createMCPApp(id string, config any) (App, error) {
-	mcpConfig, ok := config.(*configMCP.App)
-	if !ok {
-		return nil, fmt.Errorf("invalid config type for MCP app: %T", config)
+	if config == nil {
+		return nil, ErrInvalidConfigType
 	}
 
-	return mcp.New(id, mcpConfig)
+	// Type assert to MCP domain config
+	mcpConfig, ok := config.(*configMCP.App)
+	if !ok {
+		return nil, ErrInvalidConfigType
+	}
+
+	// Convert domain config to DTO
+	dto, err := convertMCPConfig(id, mcpConfig)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrConfigConversionFailed, err)
+	}
+
+	return mcp.New(dto)
 }

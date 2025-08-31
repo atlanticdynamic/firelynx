@@ -51,57 +51,67 @@ func TestCreateEchoApp(t *testing.T) {
 		id               string
 		config           any
 		expectedResponse string
+		expectedError    error
 	}{
 		{
-			name:             "creates echo app with valid ID and no config",
-			id:               "test-echo",
-			config:           nil,
-			expectedResponse: "test-echo", // defaults to ID when no config
+			name:          "fails with nil config",
+			id:            "test-echo",
+			config:        nil,
+			expectedError: ErrInvalidConfigType,
 		},
 		{
-			name:             "creates echo app ignoring non-echo config",
-			id:               "echo-with-config",
-			config:           struct{ foo string }{foo: "bar"}, // config is ignored
-			expectedResponse: "echo-with-config",               // defaults to ID
+			name:          "fails with non-echo config",
+			id:            "echo-with-config",
+			config:        struct{ foo string }{foo: "bar"},
+			expectedError: ErrInvalidConfigType,
 		},
 		{
 			name:             "creates echo app with custom response",
 			id:               "custom-echo",
 			config:           &configEcho.EchoApp{Response: "Custom Response"},
 			expectedResponse: "Custom Response",
+			expectedError:    nil,
 		},
 		{
 			name:             "creates echo app with empty response string",
 			id:               "empty-response-echo",
 			config:           &configEcho.EchoApp{Response: ""},
 			expectedResponse: "empty-response-echo", // defaults to ID when response is empty
+			expectedError:    nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app, err := createEchoApp(tt.id, tt.config)
-			require.NoError(t, err)
-			require.NotNil(t, app)
 
-			// Verify it returns the correct ID
-			assert.Equal(t, tt.id, app.String())
+			if tt.expectedError != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.expectedError)
+				assert.Nil(t, app)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, app)
 
-			// Verify it's actually an echo.App instance
-			echoApp, ok := app.(*echo.App)
-			assert.True(t, ok, "should return an echo.App instance")
-			assert.NotNil(t, echoApp)
+				// Verify it returns the correct ID
+				assert.Equal(t, tt.id, app.String())
 
-			// Test the actual response by calling HandleHTTP
-			w := httptest.NewRecorder()
-			r := httptest.NewRequest("GET", "/test", nil)
-			ctx := t.Context()
+				// Verify it's actually an echo.App instance
+				echoApp, ok := app.(*echo.App)
+				assert.True(t, ok, "should return an echo.App instance")
+				assert.NotNil(t, echoApp)
 
-			err = echoApp.HandleHTTP(ctx, w, r)
-			require.NoError(t, err)
+				// Test the actual response by calling HandleHTTP
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest("GET", "/test", nil)
+				ctx := t.Context()
 
-			// Verify the response matches expected
-			assert.Equal(t, tt.expectedResponse, w.Body.String())
+				err = echoApp.HandleHTTP(ctx, w, r)
+				require.NoError(t, err)
+
+				// Verify the response matches expected
+				assert.Equal(t, tt.expectedResponse, w.Body.String())
+			}
 		})
 	}
 }
@@ -110,11 +120,10 @@ func TestCreateScriptApp(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		id        string
-		config    any
-		wantError bool
-		errorMsg  string
+		name          string
+		id            string
+		config        any
+		expectedError error
 	}{
 		{
 			name: "creates script app with valid risor config",
@@ -128,7 +137,7 @@ func TestCreateScriptApp(t *testing.T) {
 					Timeout: 30 * time.Second,
 				},
 			},
-			wantError: false,
+			expectedError: nil,
 		},
 		{
 			name: "creates script app with valid starlark config",
@@ -143,7 +152,7 @@ _ = result`,
 					Timeout: 30 * time.Second,
 				},
 			},
-			wantError: false,
+			expectedError: nil,
 		},
 		{
 			name: "creates script app with valid extism config",
@@ -158,7 +167,7 @@ _ = result`,
 					Timeout:    30 * time.Second,
 				},
 			},
-			wantError: false,
+			expectedError: nil,
 		},
 		{
 			name: "creates script app with nil static data",
@@ -170,21 +179,19 @@ _ = result`,
 					Timeout: 30 * time.Second,
 				},
 			},
-			wantError: false,
+			expectedError: nil,
 		},
 		{
-			name:      "fails with wrong config type",
-			id:        "test-wrong-type",
-			config:    &configEcho.EchoApp{Response: "not a script config"},
-			wantError: true,
-			errorMsg:  "invalid config type for script app",
+			name:          "fails with wrong config type",
+			id:            "test-wrong-type",
+			config:        &configEcho.EchoApp{Response: "not a script config"},
+			expectedError: ErrInvalidConfigType,
 		},
 		{
-			name:      "fails with nil config",
-			id:        "test-nil-config",
-			config:    nil,
-			wantError: true,
-			errorMsg:  "invalid config type for script app",
+			name:          "fails with nil config",
+			id:            "test-nil-config",
+			config:        nil,
+			expectedError: ErrInvalidConfigType,
 		},
 		{
 			name: "fails with script app config that has nil evaluator",
@@ -195,8 +202,7 @@ _ = result`,
 				},
 				Evaluator: nil,
 			},
-			wantError: true,
-			errorMsg:  "script app must have an evaluator",
+			expectedError: ErrConfigConversionFailed,
 		},
 		{
 			name: "succeeds with evaluator that builds on demand",
@@ -210,19 +216,18 @@ _ = result`,
 					Timeout: 30 * time.Second,
 				},
 			},
-			wantError: false,
+			expectedError: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// For script configs, call Validate() to compile the evaluator
-			// Exception: skip validation for the "unvalidated" test case
-			if tt.config != nil && tt.name != "fails with evaluator that hasn't been validated" {
+			if tt.config != nil {
 				if scriptConfig, ok := tt.config.(*configScripts.AppScript); ok &&
 					scriptConfig.Evaluator != nil {
 					err := scriptConfig.Evaluator.Validate()
-					if !tt.wantError {
+					if tt.expectedError == nil {
 						require.NoError(
 							t,
 							err,
@@ -235,11 +240,9 @@ _ = result`,
 
 			app, err := createScriptApp(tt.id, tt.config)
 
-			if tt.wantError {
+			if tt.expectedError != nil {
 				require.Error(t, err)
-				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
-				}
+				require.ErrorIs(t, err, tt.expectedError)
 				assert.Nil(t, app)
 			} else {
 				require.NoError(t, err)
@@ -415,11 +418,10 @@ func TestCreateMCPApp(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name      string
-		id        string
-		config    any
-		wantError bool
-		errorMsg  string
+		name          string
+		id            string
+		config        any
+		expectedError error
 	}{
 		{
 			name: "creates MCP app with valid config",
@@ -434,7 +436,7 @@ func TestCreateMCPApp(t *testing.T) {
 				Prompts:       []*configMCP.Prompt{},
 				Middlewares:   []*configMCP.Middleware{},
 			},
-			wantError: false,
+			expectedError: nil,
 		},
 		{
 			name: "creates MCP app with tools",
@@ -458,21 +460,19 @@ func TestCreateMCPApp(t *testing.T) {
 				Prompts:     []*configMCP.Prompt{},
 				Middlewares: []*configMCP.Middleware{},
 			},
-			wantError: false,
+			expectedError: nil,
 		},
 		{
-			name:      "fails with wrong config type",
-			id:        "test-wrong-type",
-			config:    &configEcho.EchoApp{Response: "not an MCP config"},
-			wantError: true,
-			errorMsg:  "invalid config type for MCP app",
+			name:          "fails with wrong config type",
+			id:            "test-wrong-type",
+			config:        &configEcho.EchoApp{Response: "not an MCP config"},
+			expectedError: ErrInvalidConfigType,
 		},
 		{
-			name:      "fails with nil config",
-			id:        "test-nil-config",
-			config:    nil,
-			wantError: true,
-			errorMsg:  "invalid config type for MCP app",
+			name:          "fails with nil config",
+			id:            "test-nil-config",
+			config:        nil,
+			expectedError: ErrInvalidConfigType,
 		},
 		{
 			name: "fails with unvalidated config",
@@ -483,8 +483,7 @@ func TestCreateMCPApp(t *testing.T) {
 				ServerVersion: "1.0.0",
 				// Not calling Validate() - should fail with no compiled server
 			},
-			wantError: true,
-			errorMsg:  "", // Will use ErrorIs check instead
+			expectedError: ErrConfigConversionFailed,
 		},
 	}
 
@@ -492,10 +491,10 @@ func TestCreateMCPApp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// For MCP configs, call Validate() to compile the MCP server
 			// Exception: skip validation for the "unvalidated" test case
-			if tt.config != nil && !tt.wantError || (tt.wantError && tt.name != "fails with unvalidated config") {
+			if tt.config != nil && tt.name != "fails with unvalidated config" {
 				if mcpConfig, ok := tt.config.(*configMCP.App); ok {
 					err := mcpConfig.Validate()
-					if !tt.wantError {
+					if tt.expectedError == nil {
 						require.NoError(
 							t,
 							err,
@@ -507,13 +506,9 @@ func TestCreateMCPApp(t *testing.T) {
 
 			app, err := createMCPApp(tt.id, tt.config)
 
-			if tt.wantError {
+			if tt.expectedError != nil {
 				require.Error(t, err)
-				if tt.name == "fails with unvalidated config" {
-					require.ErrorIs(t, err, mcp.ErrServerNotCompiled)
-				} else if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
-				}
+				require.ErrorIs(t, err, tt.expectedError)
 				assert.Nil(t, app)
 			} else {
 				require.NoError(t, err)

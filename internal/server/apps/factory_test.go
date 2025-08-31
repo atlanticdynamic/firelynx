@@ -3,17 +3,23 @@ package apps
 import (
 	"testing"
 
+	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// MockAppConfig implements AppConfigData for testing
-type MockAppConfig struct {
-	appType string
+// UnknownAppConfig implements AppConfigData for testing unknown app types
+type UnknownAppConfig struct{}
+
+func (u *UnknownAppConfig) Type() string {
+	return "unknown"
 }
 
-func (m *MockAppConfig) Type() string {
-	return m.appType
+// CustomAppConfig implements AppConfigData for testing custom instantiators
+type CustomAppConfig struct{}
+
+func (c *CustomAppConfig) Type() string {
+	return "custom"
 }
 
 func TestNewAppFactory(t *testing.T) {
@@ -51,7 +57,7 @@ func TestAppFactory_CreateAppsFromDefinitions(t *testing.T) {
 			defs: []AppDefinition{
 				{
 					ID:     "test-echo",
-					Config: &MockAppConfig{appType: "echo"},
+					Config: &configEcho.EchoApp{Response: "test response"},
 				},
 			},
 			wantCount: 1,
@@ -62,11 +68,11 @@ func TestAppFactory_CreateAppsFromDefinitions(t *testing.T) {
 			defs: []AppDefinition{
 				{
 					ID:     "echo1",
-					Config: &MockAppConfig{appType: "echo"},
+					Config: &configEcho.EchoApp{Response: "response 1"},
 				},
 				{
 					ID:     "echo2",
-					Config: &MockAppConfig{appType: "echo"},
+					Config: &configEcho.EchoApp{Response: "response 2"},
 				},
 			},
 			wantCount: 2,
@@ -77,7 +83,7 @@ func TestAppFactory_CreateAppsFromDefinitions(t *testing.T) {
 			defs: []AppDefinition{
 				{
 					ID:     "",
-					Config: &MockAppConfig{appType: "echo"},
+					Config: &configEcho.EchoApp{Response: "test"},
 				},
 			},
 			wantErr: true,
@@ -99,7 +105,7 @@ func TestAppFactory_CreateAppsFromDefinitions(t *testing.T) {
 			defs: []AppDefinition{
 				{
 					ID:     "unknown",
-					Config: &MockAppConfig{appType: "unknown"},
+					Config: &UnknownAppConfig{},
 				},
 			},
 			wantErr: true,
@@ -110,11 +116,11 @@ func TestAppFactory_CreateAppsFromDefinitions(t *testing.T) {
 			defs: []AppDefinition{
 				{
 					ID:     "duplicate",
-					Config: &MockAppConfig{appType: "echo"},
+					Config: &configEcho.EchoApp{Response: "first"},
 				},
 				{
 					ID:     "duplicate",
-					Config: &MockAppConfig{appType: "echo"},
+					Config: &configEcho.EchoApp{Response: "second"},
 				},
 			},
 			wantErr: true,
@@ -156,7 +162,7 @@ func TestAppFactory_createApp(t *testing.T) {
 	t.Run("calls correct instantiator", func(t *testing.T) {
 		def := AppDefinition{
 			ID:     "test-echo",
-			Config: &MockAppConfig{appType: "echo"},
+			Config: &configEcho.EchoApp{Response: "test response"},
 		}
 
 		app, err := factory.createApp(def)
@@ -174,7 +180,7 @@ func TestAppFactory_CustomInstantiator(t *testing.T) {
 	defs := []AppDefinition{
 		{
 			ID:     "custom-app",
-			Config: &MockAppConfig{appType: "custom"},
+			Config: &CustomAppConfig{},
 		},
 	}
 

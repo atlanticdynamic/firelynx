@@ -17,6 +17,7 @@ This package handles:
 - **instances.go**: Registry for managing app instances by ID
 - **app.go**: Common App interface definition
 - **instantiators.go**: Type-specific app creation logic
+- **config.go**: Converts domain configs to app-specific DTO configs
 
 ## App Interface
 
@@ -42,6 +43,7 @@ The app registry routes HTTP requests to configured application instances based 
 
 ## Architecture
 
-- **Domain Integration**: Apps instantiated from domain `AppCollection` struct via factory pattern
+- **DTO Pattern**: Domain configs converted to standalone Config structs via `config.go`
+- **Factory Integration**: Instantiators convert domain configs to DTOs then create app instances
 - **Server Registry**: Simple map-based registry (`AppInstances`) for runtime lookup
 - **Iterator Support**: Both domain and server layers use Go 1.23 `All()` methods for clean iteration

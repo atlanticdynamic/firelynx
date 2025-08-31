@@ -5,33 +5,33 @@ import (
 	"fmt"
 	"net/http"
 
-	mcpconfig "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // App is an MCP (Model Context Protocol) application that serves MCP endpoints
 type App struct {
 	id      string
-	config  *mcpconfig.App
 	handler http.Handler
 }
 
-// New creates a new MCP App from the domain configuration.
-func New(id string, config *mcpconfig.App) (*App, error) {
-	// Get the pre-compiled MCP server from the domain config
-	server := config.GetCompiledServer()
-	if server == nil {
-		return nil, fmt.Errorf("%w for app %s", ErrServerNotCompiled, id)
+// New creates a new MCP App from a Config DTO.
+func New(cfg *Config) (*App, error) {
+	if cfg == nil {
+		return nil, fmt.Errorf("MCP config cannot be nil")
+	}
+
+	// Validate that server exists (should be pre-compiled from domain validation)
+	if cfg.CompiledServer == nil {
+		return nil, fmt.Errorf("%w for app %s", ErrServerNotCompiled, cfg.ID)
 	}
 
 	// Create HTTP handler using MCP SDK
 	handler := mcpsdk.NewStreamableHTTPHandler(func(*http.Request) *mcpsdk.Server {
-		return server
+		return cfg.CompiledServer
 	}, nil)
 
 	return &App{
-		id:      id,
-		config:  config,
+		id:      cfg.ID,
 		handler: handler,
 	}, nil
 }
