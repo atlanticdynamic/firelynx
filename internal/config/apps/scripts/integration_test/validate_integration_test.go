@@ -213,7 +213,7 @@ func (s *ScriptValidationIntegrationSuite) TestInlineCodeValidation() {
 			data: map[string]any{
 				"Port":       port,
 				"WASMBase64": s.getValidWASMBase64(),
-				"Entrypoint": wasmdata.EntrypointGreet,
+				"Entrypoint": wasmdata.EntrypointGreetNamespaced,
 			},
 			// TODO: Remove skip when go-polyscript bug is fixed
 			// Bug: go-polyscript v0.0.3 fails to load wasmdata.TestModule from base64
@@ -287,7 +287,7 @@ func (s *ScriptValidationIntegrationSuite) TestExternalFileValidation() {
 			name:       "ExtismFileValid",
 			template:   "extism_file_valid.toml.tmpl",
 			scriptFile: "valid.wasm",
-			extraData:  map[string]any{"Entrypoint": wasmdata.EntrypointGreet},
+			extraData:  map[string]any{"Entrypoint": wasmdata.EntrypointGreetNamespaced},
 		},
 		{
 			name:          "ExtismFileInvalid",
@@ -367,7 +367,7 @@ func (s *ScriptValidationIntegrationSuite) TestCrossEvaluatorScenarios() {
 			// Add WASM data for valid mixed evaluators
 			if tc.name == "AllValidEvaluators" {
 				data["WASMBase64"] = s.getValidWASMBase64()
-				data["Entrypoint"] = wasmdata.EntrypointGreet
+				data["Entrypoint"] = wasmdata.EntrypointGreetNamespaced
 			}
 
 			configBytes := s.renderTemplate(tc.template, data)

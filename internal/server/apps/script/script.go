@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/robbyt/go-polyscript/platform"
 	"github.com/robbyt/go-polyscript/platform/constants"
 	"github.com/robbyt/go-polyscript/platform/data"
@@ -142,29 +141,10 @@ func (s *ScriptApp) prepareScriptData(
 	// Use app static data which now includes merged route data from app creation time
 	mergedStaticData := maps.Clone(appStaticData)
 
-	// Structure data based on evaluator type
-	switch s.config.Evaluator.Type() {
-	case evaluators.EvaluatorTypeExtism:
-		// For WASM modules, handle static data appropriately
-		// If static data has a 'data' field, use that as the base
-		if dataField, ok := mergedStaticData["data"].(map[string]any); ok {
-			return maps.Clone(dataField), nil
-		}
-		// Otherwise use all static data
-		return maps.Clone(mergedStaticData), nil
-
-	case evaluators.EvaluatorTypeRisor, evaluators.EvaluatorTypeStarlark:
-		// Risor/Starlark scripts expect flattened data accessible via ctx.get()
-		scriptData := maps.Clone(mergedStaticData)
-		scriptData["request"] = r
-		return scriptData, nil
-
-	default:
-		// Default to Risor/Starlark behavior for unknown types
-		scriptData := maps.Clone(mergedStaticData)
-		scriptData["request"] = r
-		return scriptData, nil
-	}
+	// All evaluators now use consistent namespaced structure
+	scriptData := maps.Clone(mergedStaticData)
+	scriptData["request"] = r
+	return scriptData, nil
 }
 
 // getPolyscriptEvaluator extracts the pre-compiled evaluator from domain validation
