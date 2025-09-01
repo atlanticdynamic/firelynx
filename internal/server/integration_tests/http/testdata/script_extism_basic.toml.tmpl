@@ -33,7 +33,7 @@ type = "script"
 data = { input = "integration test" }
 [apps.script.extism]
 code = "{{.WasmBase64}}"
-entrypoint = "greet"
+entrypoint = "greet_namespaced"
 timeout = "10s"
 
 [[apps]]
@@ -44,7 +44,7 @@ type = "script"
 data = { input = "integration test" }
 [apps.script.extism]
 code = "{{.WasmBase64}}"
-entrypoint = "count_vowels"
+entrypoint = "count_vowels_namespaced"
 timeout = "10s"
 
 [[apps]]
@@ -55,5 +55,5 @@ type = "script"
 data = { input = "integration test" }
 [apps.script.extism]
 code = "{{.WasmBase64}}"
-entrypoint = "reverse_string"
+entrypoint = "reverse_string_namespaced"
 timeout = "10s"

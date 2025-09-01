@@ -55,7 +55,7 @@ func TestExtismEvaluator_Validate(t *testing.T) {
 		wasmBase64 := base64.StdEncoding.EncodeToString(wasmdata.TestModule)
 		evaluator := &ExtismEvaluator{
 			Code:       wasmBase64,
-			Entrypoint: wasmdata.EntrypointGreet,
+			Entrypoint: wasmdata.EntrypointGreetNamespaced,
 		}
 		err := evaluator.Validate()
 		require.NoError(t, err)
@@ -170,7 +170,7 @@ func TestExtismEvaluator_GetCompiledEvaluator(t *testing.T) {
 		wasmBase64 := base64.StdEncoding.EncodeToString(wasmdata.TestModule)
 		evaluator := &ExtismEvaluator{
 			Code:       wasmBase64,
-			Entrypoint: wasmdata.EntrypointGreet,
+			Entrypoint: wasmdata.EntrypointGreetNamespaced,
 		}
 		result, err := evaluator.GetCompiledEvaluator()
 		require.NoError(t, err)
