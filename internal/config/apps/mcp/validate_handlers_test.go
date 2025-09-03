@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -119,7 +118,7 @@ func TestExtractArguments(t *testing.T) {
 }
 
 func TestBuiltinToolHandlerExecution(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("echo handler execution", func(t *testing.T) {
 		handler := &BuiltinToolHandler{
