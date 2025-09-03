@@ -57,10 +57,10 @@ timeout = "15s"
 code = '''
 // Advanced data processing script using Risor
 func process() {
-    // Access static data from config
-    service_name := ctx.get("service_name", "data-processor")
-    max_items := ctx.get("max_items", 100)
-    processing_rules := ctx.get("processing_rules", {})
+    // Access static data from config (using data namespace)
+    service_name := ctx.get("data", {}).get("service_name", "data-processor")
+    max_items := ctx.get("data", {}).get("max_items", 100)
+    processing_rules := ctx.get("data", {}).get("processing_rules", {})
     
     // Get JSON body data (extracted by firelynx)
     items := ctx.get("items", [])

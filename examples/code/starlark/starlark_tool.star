@@ -1,9 +1,10 @@
 # Example MCP tool implemented in Starlark
 
-# Access parameters and static config through ctx
-operation = ctx.get("operation", "")
-input_text = ctx.get("input", "")
-config = ctx.get("config", {})
+# Access runtime args and static config through ctx
+args = ctx.get("args", {})
+operation = args.get("operation", "")
+input_text = args.get("input", "")
+config = ctx.get("data", {}).get("config", {})
 
 if operation == "":
     result = {

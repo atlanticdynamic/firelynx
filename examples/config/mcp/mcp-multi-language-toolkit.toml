@@ -161,10 +161,10 @@ func convertUnits() {
     
     switch category {
     case "length":
-        conversions = ctx.get("length_conversions", {})
+        conversions = ctx.get("data", {}).get("length_conversions", {})
         unit = "meters"
     case "weight":
-        conversions = ctx.get("weight_conversions", {})
+        conversions = ctx.get("data", {}).get("weight_conversions", {})
         unit = "kilograms"
     default:
         return {"error": "Unknown category: " + category + ". Supported: length, weight"}
@@ -266,7 +266,7 @@ def validate_schema():
     # Get schema definition
     schema = None
     if schema_name:
-        common_schemas = ctx.get("common_schemas", {})
+        common_schemas = ctx.get("data", {}).get("common_schemas", {})
         if schema_name in common_schemas:
             schema = common_schemas[schema_name]
         else:

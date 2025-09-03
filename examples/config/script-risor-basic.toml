@@ -47,10 +47,10 @@ timeout = "10s"
 code = '''
 // Risor script with proper data access patterns
 func process() {
-    // Access static data from config with fallbacks
-    service_name := ctx.get("service_name", "unknown")
-    version := ctx.get("version", "1.0.0")
-    environment := ctx.get("environment", "example")
+    // Access static data from config with fallbacks (using data namespace)
+    service_name := ctx.get("data", {}).get("service_name", "unknown")
+    version := ctx.get("data", {}).get("version", "1.0.0")
+    environment := ctx.get("data", {}).get("environment", "example")
     
     // Access request data if available
     request := ctx.get("request", {})

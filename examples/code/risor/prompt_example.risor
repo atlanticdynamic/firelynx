@@ -1,9 +1,10 @@
 // Example MCP prompt implementation in Risor
 
 // Access arguments from ctx
-language := ctx.get("language", "go")
-level := ctx.get("level", "beginner")
-topic := ctx.get("topic", "basics")
+args := ctx.get("args", {})
+language := args.get("language", "go")
+level := args.get("level", "beginner")
+topic := args.get("topic", "basics")
 
 // Build the prompt based on the arguments
 prompt := "# Programming Tutorial Generator\n\n"

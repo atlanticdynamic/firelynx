@@ -1,9 +1,10 @@
 // Example MCP tool implemented in Risor
 
-// Access parameters and static config through ctx
-operation := ctx.get("operation", "")
-input := ctx.get("input", "")
-config := ctx.get("config", {})
+// Access runtime args and static config through ctx
+args := ctx.get("args", {})
+operation := args.get("operation", "")
+input := args.get("input", "")
+config := ctx.get("data", {}).get("config", {})
 
 if operation == "" {
   return {

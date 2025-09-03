@@ -928,7 +928,13 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 
 		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
 		require.NoError(t, err)
-		assert.Equal(t, "test", result["config"])
+
+		// Static data should be under "data" namespace
+		dataSection, ok := result["data"].(map[string]any)
+		require.True(t, ok, "result should have 'data' section")
+		assert.Equal(t, "test", dataSection["config"])
+
+		// Arguments should be under "args"
 		assert.Equal(t, arguments, result["args"])
 
 		mockEval.AssertExpectations(t)
@@ -953,6 +959,13 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 
 		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
 		require.NoError(t, err)
+
+		// Static data should be under "data" namespace and be empty
+		dataSection, ok := result["data"].(map[string]any)
+		require.True(t, ok, "result should have 'data' section")
+		assert.Empty(t, dataSection, "data section should be empty")
+
+		// Arguments should be under "args"
 		assert.Equal(t, arguments, result["args"])
 
 		mockEval.AssertExpectations(t)

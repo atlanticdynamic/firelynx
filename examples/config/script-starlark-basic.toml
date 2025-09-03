@@ -47,10 +47,10 @@ timeout = "10s"
 code = '''
 # Starlark script with proper data access patterns
 def process_data():
-    # Access static data from config with fallbacks
-    service_name = ctx.get("service_name", "unknown")
-    version = ctx.get("version", "1.0.0")
-    features = ctx.get("features", [])
+    # Access static data from config with fallbacks (using data namespace)
+    service_name = ctx.get("data", {}).get("service_name", "unknown")
+    version = ctx.get("data", {}).get("version", "1.0.0")
+    features = ctx.get("data", {}).get("features", [])
     
     # Access request data if available
     request = ctx.get("request", {})

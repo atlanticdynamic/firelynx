@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/interpolation"
@@ -389,10 +388,13 @@ func (s *ScriptToolHandler) prepareScriptContext(
 		return nil, fmt.Errorf("failed to get tool static data: %w", err)
 	}
 
-	// Clone static data and add tool arguments
-	// Both Extism and Risor/Starlark can handle this flat structure
-	scriptData := maps.Clone(toolStaticData)
-	scriptData["args"] = arguments
+	// Create namespaced data structure consistent with HTTP scripts
+	// MCP tools: {"data": {static_config}, "args": {tool_arguments}}
+	// HTTP scripts: {"data": {static_config}, "request": {http_request}}
+	scriptData := map[string]any{
+		"data": toolStaticData,
+		"args": arguments,
+	}
 	return scriptData, nil
 }
 
