@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: ["main"]
 
-concurrency:
-  group: go-workflow
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -24,28 +20,10 @@ jobs:
 
       - name: Set up Go
         id: setup-go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: false
-
-      - name: Set Go cache date
-        shell: bash
-        run: echo "GO_CACHE_MONTH=$(date +%Y-%m)" >> $GITHUB_ENV
-
-      - name: Restore Go cache
-        id: cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          # Cache is built by cache-dependencies.yml workflow on main branch
-          # and shared with all PRs per GitHub Actions cache access rules
-          key: go-cache-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}-${{ env.GO_CACHE_MONTH }}
-          restore-keys: |
-            go-cache-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}-
-            go-cache-${{ runner.os }}-
+          cache: true
 
       - name: Display Go version
         run: go version
