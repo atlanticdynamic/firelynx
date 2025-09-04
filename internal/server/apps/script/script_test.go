@@ -1,7 +1,6 @@
 package script
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -523,21 +522,8 @@ _ = result`,
 			require.NoError(t, err)
 			assert.Equal(t, http.StatusOK, w.Code)
 
-			// Parse and compare JSON responses to verify all data types are accessible
-			var actualJSON map[string]any
-			err = json.Unmarshal(w.Body.Bytes(), &actualJSON)
-			require.NoError(t, err, "Response should be valid JSON: %s", w.Body.String())
-
-			var expectedJSON map[string]any
-			err = json.Unmarshal([]byte(tt.expectedJSON), &expectedJSON)
-			require.NoError(t, err)
-
-			// Compare each field to ensure proper namespace access
-			for key, expectedVal := range expectedJSON {
-				actualVal, exists := actualJSON[key]
-				require.True(t, exists, "Expected key %s to exist in response", key)
-				assert.Equal(t, expectedVal, actualVal, "Value for key %s should match expected", key)
-			}
+			// Compare JSON responses to verify all data types are accessible
+			assert.JSONEq(t, tt.expectedJSON, w.Body.String(), "Script response should match expected JSON")
 		})
 	}
 }

@@ -175,15 +175,7 @@ func TestStarlarkToolExample(t *testing.T) {
 			require.NoError(t, err, "Result should be JSON serializable")
 
 			// Compare JSON responses
-			var actualMap map[string]any
-			err = json.Unmarshal(actualJSON, &actualMap)
-			require.NoError(t, err)
-
-			var expectedMap map[string]any
-			err = json.Unmarshal([]byte(tt.expectedJSON), &expectedMap)
-			require.NoError(t, err)
-
-			assert.Equal(t, expectedMap, actualMap, "Script response should match expected JSON")
+			assert.JSONEq(t, tt.expectedJSON, string(actualJSON), "Script response should match expected JSON")
 
 			t.Logf("Script response: %s", string(actualJSON))
 		})
@@ -239,12 +231,6 @@ func TestStarlarkToolDataAccess(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedJSON := `{"content":"test data access","isError":false}`
-	var actualMap, expectedMap map[string]any
-	err = json.Unmarshal(actualJSON, &actualMap)
-	require.NoError(t, err)
-	err = json.Unmarshal([]byte(expectedJSON), &expectedMap)
-	require.NoError(t, err)
-
-	assert.Equal(t, expectedMap, actualMap, "Should access nested data correctly")
+	assert.JSONEq(t, expectedJSON, string(actualJSON), "Should access nested data correctly")
 	t.Logf("Data access test result: %s", string(actualJSON))
 }
