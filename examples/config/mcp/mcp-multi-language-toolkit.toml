@@ -254,7 +254,7 @@ def validate_schema():
             schema = common_schemas[schema_name]
         else:
             return {"error": "Unknown schema: {}. Available: {}".format(
-                schema_name, ", ".join(common_schemas.keys()))}
+                schema_name, ", ".join(sorted(common_schemas.keys())))}
     elif custom_schema:
         schema = custom_schema
     else:

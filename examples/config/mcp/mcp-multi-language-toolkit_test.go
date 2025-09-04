@@ -437,7 +437,7 @@ func TestSchemaValidator(t *testing.T) {
 					"id": "123",
 				},
 			},
-			expectedJSON: `{"error":"Unknown schema: nonexistent. Available: user, product"}`,
+			expectedJSON: `{"error":"Unknown schema: nonexistent. Available: product, user"}`,
 			checkError:   true,
 		},
 		{
