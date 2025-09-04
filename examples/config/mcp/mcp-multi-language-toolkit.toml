@@ -13,8 +13,7 @@
 #
 # TOOLS PROVIDED:
 # - unit_converter (Risor): Convert between units (length, weight) with built-in conversion tables
-# - validate_schema (Starlark): Validate JSON data against predefined or custom schemas  
-# - data_pipeline (Starlark): Multi-stage data processing pipeline coordination
+# - validate_schema (Starlark): Validate JSON data against predefined or custom schemas
 #
 # EXAMPLE USAGE:
 # Tool: unit_converter
@@ -25,9 +24,6 @@
 # Input: {"data": {"id": "123", "name": "John", "email": "john@example.com"}, "schema": "user"}
 # Output: {"valid": true, "text": "Schema validation passed successfully"}
 #
-# Tool: data_pipeline  
-# Input: {"data": {"name": "test"}, "stages": ["validate", "transform"], "config": {}}
-# Output: {"success": true, "stages_completed": ["validate", "transform"], "final_data": {...}}
 #
 # UNIT_CONVERTER FEATURES (Risor):
 # - Length conversions: mm, cm, m, km, in, ft, yd, mi
@@ -43,17 +39,10 @@
 # - Detailed error reporting: Missing fields, type mismatches, extra fields
 # - Summary statistics: Field counts, validation results
 #
-# DATA_PIPELINE FEATURES (Starlark):
-# - Multi-stage processing: validate, transform, analyze, export
-# - Pipeline coordination: Track execution, stage results, errors
-# - Data transformation: Add metadata, ensure required fields
-# - Analysis stage: Calculate complexity, structure depth, memory estimation
-# - Export preparation: Support for different output formats
 #
 # STATIC DATA CONFIGURATION:
 # - Unit conversion tables with precise factors
 # - Schema definitions with required/optional fields and types
-# - Pipeline configuration with stage definitions and limits
 #
 # PREDEFINED SCHEMAS:
 # - user: Required (id, name, email), Optional (age, address, phone)
@@ -63,18 +52,12 @@
 # - length: mm, cm, m, km, in, ft, yd, mi
 # - weight: g, kg, lb, oz, ton
 #
-# PIPELINE STAGES:
-# - validate: Check data structure and required fields
-# - transform: Add metadata and ensure required fields
-# - analyze: Calculate data complexity and structure metrics
-# - export: Prepare data for output in specified format
 #
 # TO TEST:
 # 1. Start server: ./bin/firelynx server -c examples/config/mcp/mcp-multi-language-toolkit.toml
 # 2. Test unit_converter with various unit conversions
 # 3. Test validate_schema with user/product data and custom schemas
-# 4. Test data_pipeline with different stage combinations
-# 5. Compare performance characteristics of each language for different tasks
+# 4. Compare performance characteristics of each language for different tasks
 
 [[listeners]]
 id = "toolkit-listener"

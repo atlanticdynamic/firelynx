@@ -230,3 +230,18 @@ func (s *MCPIntegrationTestSuite) GetContext() context.Context {
 func (s *MCPIntegrationTestSuite) GetPort() int {
 	return s.port
 }
+
+// ValidateEmbeddedConfig validates that the embedded config can be loaded and passes validation
+func (s *MCPIntegrationTestSuite) ValidateEmbeddedConfig(configBytes []byte) *config.Config {
+	// Load configuration from embedded bytes
+	cfg, err := config.NewConfigFromBytes(configBytes)
+	s.Require().NoError(err, "Should load config from embedded bytes")
+	s.Require().NotNil(cfg, "Config should not be nil")
+
+	// Validate configuration
+	err = cfg.Validate()
+	s.Require().NoError(err, "Config should validate successfully")
+
+	s.T().Logf("Embedded config loaded and validated successfully")
+	return cfg
+}

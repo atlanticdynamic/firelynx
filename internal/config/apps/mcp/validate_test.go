@@ -844,7 +844,7 @@ func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.True(t, result.IsError)
 		assert.Len(t, result.Content, 1)
-		assert.Equal(t, "test error message", result.Content[0].(*mcpsdk.TextContent).Text)
+		assert.JSONEq(t, `{"error":"test error message"}`, result.Content[0].(*mcpsdk.TextContent).Text)
 		mockResult.AssertExpectations(t)
 	})
 
