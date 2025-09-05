@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/atlanticdynamic/firelynx/internal/interpolation"
@@ -389,10 +388,13 @@ func (s *ScriptToolHandler) prepareScriptContext(
 		return nil, fmt.Errorf("failed to get tool static data: %w", err)
 	}
 
-	// Clone static data and add tool arguments
-	// Both Extism and Risor/Starlark can handle this flat structure
-	scriptData := maps.Clone(toolStaticData)
-	scriptData["args"] = arguments
+	// Create namespaced data structure consistent with HTTP scripts
+	// MCP tools: {"data": {static_config}, "args": {tool_arguments}}
+	// HTTP scripts: {"data": {static_config}, "request": {http_request}}
+	scriptData := map[string]any{
+		"data": toolStaticData,
+		"args": arguments,
+	}
 	return scriptData, nil
 }
 
@@ -403,11 +405,16 @@ func (s *ScriptToolHandler) convertToMCPContent(result platform.EvaluatorRespons
 	switch v := value.(type) {
 	case map[string]any:
 		// Check if it's an error response
-		if errMsg, hasError := v["error"].(string); hasError {
+		if _, hasError := v["error"].(string); hasError {
 			// Per MCP spec: tool errors should be returned as results with IsError=true
 			// so the LLM can see the error and potentially self-correct
+			// Always return the full JSON object, not just the error message
+			jsonBytes, err := json.Marshal(v)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal error response to JSON: %w", err)
+			}
 			return &mcpsdk.CallToolResult{
-				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: errMsg}},
+				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: string(jsonBytes)}},
 				IsError: true,
 			}, nil
 		}

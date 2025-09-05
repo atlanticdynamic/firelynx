@@ -142,8 +142,10 @@ func (s *ScriptApp) prepareScriptData(
 	mergedStaticData := maps.Clone(appStaticData)
 
 	// All evaluators now use consistent namespaced structure
-	scriptData := maps.Clone(mergedStaticData)
-	scriptData["request"] = r
+	scriptData := map[string]any{
+		"data":    maps.Clone(mergedStaticData),
+		"request": r,
+	}
 	return scriptData, nil
 }
 

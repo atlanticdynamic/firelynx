@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
 	"github.com/atlanticdynamic/firelynx/internal/logging"
@@ -26,6 +28,7 @@ type MCPIntegrationTestSuite struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
 	port        int
+	cfg         *config.Config
 	httpRunner  *httplistener.Runner
 	saga        *orchestrator.SagaOrchestrator
 	runnerErrCh chan error
@@ -35,6 +38,7 @@ type MCPIntegrationTestSuite struct {
 
 // SetupSuiteWithConfig sets up the test suite with a given configuration
 func (s *MCPIntegrationTestSuite) SetupSuiteWithConfig(cfg *config.Config) {
+	s.cfg = cfg
 	s.initializeTestEnvironment()
 	s.startServerWithConfig(cfg)
 	s.establishMCPConnection()
@@ -162,6 +166,7 @@ func (s *MCPIntegrationTestSuite) SetupSuiteWithTemplate(templateContent string)
 	cfg, err := config.NewConfigFromBytes([]byte(configData))
 	s.Require().NoError(err, "Failed to load config")
 
+	s.cfg = cfg
 	s.startServerWithConfig(cfg)
 	s.establishMCPConnection()
 }
@@ -174,6 +179,7 @@ func (s *MCPIntegrationTestSuite) SetupSuiteWithFile(configFile string) {
 	cfg, err := config.NewConfig(configFile)
 	s.Require().NoError(err, "Failed to load config file: %s", configFile)
 
+	s.cfg = cfg
 	s.startServerWithConfig(cfg)
 	s.establishMCPConnection()
 }
@@ -229,4 +235,61 @@ func (s *MCPIntegrationTestSuite) GetContext() context.Context {
 // GetPort returns the test port
 func (s *MCPIntegrationTestSuite) GetPort() int {
 	return s.port
+}
+
+// ValidateEmbeddedConfig validates that the embedded config can be loaded and passes validation
+func (s *MCPIntegrationTestSuite) ValidateEmbeddedConfig(configBytes []byte) *config.Config {
+	// Load configuration from embedded bytes
+	cfg, err := config.NewConfigFromBytes(configBytes)
+	s.Require().NoError(err, "Should load config from embedded bytes")
+	s.Require().NotNil(cfg, "Config should not be nil")
+
+	// Validate configuration
+	err = cfg.Validate()
+	s.Require().NoError(err, "Config should validate successfully")
+
+	s.T().Logf("Embedded config loaded and validated successfully")
+	return cfg
+}
+
+// ValidateAppExists validates that an app exists with the specified type
+func (s *MCPIntegrationTestSuite) ValidateAppExists(appID string, expectedType string) {
+	app, found := s.GetAppByID(appID)
+	s.Require().True(found, "Should find app with ID: %s", appID)
+	s.Equal(expectedType, app.Config.Type(), "App %s should have type %s", appID, expectedType)
+}
+
+// ValidateListenerConfig validates listener configuration
+func (s *MCPIntegrationTestSuite) ValidateListenerConfig(listenerType listeners.Type, expectedCount int) {
+	actualCount := 0
+	for _, listener := range s.GetConfig().Listeners {
+		if listener.Type == listenerType {
+			actualCount++
+		}
+	}
+	s.Equal(expectedCount, actualCount, "Should have %d listener(s) of type %v", expectedCount, listenerType)
+}
+
+// ValidateEndpointRoutes validates that an endpoint has the expected number of routes
+func (s *MCPIntegrationTestSuite) ValidateEndpointRoutes(endpointID string, expectedRouteCount int) {
+	cfg := s.GetConfig()
+	var endpoint *endpoints.Endpoint
+	for i := range cfg.Endpoints {
+		if cfg.Endpoints[i].ID == endpointID {
+			endpoint = &cfg.Endpoints[i]
+			break
+		}
+	}
+	s.Require().NotNil(endpoint, "Should find endpoint with ID: %s", endpointID)
+	s.Len(endpoint.Routes, expectedRouteCount, "Endpoint %s should have %d route(s)", endpointID, expectedRouteCount)
+}
+
+// GetAppByID returns an app by ID with existence check
+func (s *MCPIntegrationTestSuite) GetAppByID(appID string) (apps.App, bool) {
+	return s.GetConfig().Apps.FindByID(appID)
+}
+
+// GetConfig returns the current configuration
+func (s *MCPIntegrationTestSuite) GetConfig() *config.Config {
+	return s.cfg
 }

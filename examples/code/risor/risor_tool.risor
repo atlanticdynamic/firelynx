@@ -1,48 +1,76 @@
 // Example MCP tool implemented in Risor
 
-// Access parameters and static config through ctx
-operation := ctx.get("operation", "")
-input := ctx.get("input", "")
-config := ctx.get("config", {})
+func process() {
+  // Get defaults from static config, then allow runtime args to override
+  defaultOperation := ctx.get("data", {}).get("default_operation", "echo")
+  maxInputLength := ctx.get("data", {}).get("max_input_length", 1000)
+  allowUppercase := ctx.get("data", {}).get("allow_uppercase", true)
 
-if operation == "" {
-  return {
-    "isError": true,
-    "content": "Operation is required"
+  // Runtime args override static defaults
+  args := ctx.get("args", {})
+  operation := args.get("operation", defaultOperation)  // Falls back to static default
+  input := args.get("input", "")
+
+  // Validate input length using config
+  if len(input) > maxInputLength {
+    return {
+      "isError": true,
+      "content": "Input exceeds maximum length of " + string(maxInputLength)
+    }
+  }
+
+  if operation == "" {
+    return {
+      "isError": true,
+      "content": "Operation is required"
+    }
+  }
+
+  if operation == "echo" {
+    return {
+      "isError": false,
+      "content": input
+    }
+  } else if operation == "reverse" {
+    // Reverse a string
+    chars := strings.split(input, "")
+    reversed := ""
+    
+    for i := len(chars) - 1; i >= 0; i-- {
+      reversed += chars[i]
+    }
+    
+    return {
+      "isError": false,
+      "content": reversed
+    }
+  } else if operation == "uppercase" {
+    if !allowUppercase {
+      return {
+        "isError": true,
+        "content": "Uppercase operation disabled by configuration"
+      }
+    }
+    return {
+      "isError": false,
+      "content": strings.to_upper(input)
+    }
+  } else if operation == "lowercase" {
+    return {
+      "isError": false,
+      "content": strings.to_lower(input)
+    }
+  } else {
+    return {
+      "isError": true,
+      "content": "Unsupported operation: " + operation
+    }
   }
 }
 
-if operation == "echo" {
-  return {
-    "isError": false,
-    "content": input
-  }
-} else if operation == "reverse" {
-  // Reverse a string
-  chars := strings.split(input, "")
-  reversed := ""
-  
-  for i := len(chars) - 1; i >= 0; i-- {
-    reversed += chars[i]
-  }
-  
-  return {
-    "isError": false,
-    "content": reversed
-  }
-} else if operation == "uppercase" {
-  return {
-    "isError": false,
-    "content": strings.upper(input)
-  }
-} else if operation == "lowercase" {
-  return {
-    "isError": false,
-    "content": strings.lower(input)
-  }
-} else {
-  return {
-    "isError": true,
-    "content": "Unsupported operation: " + operation
-  }
-}
+process()
+
+// This example demonstrates:
+// 1. Static config provides defaults and constraints (default_operation, max_input_length, allow_uppercase)
+// 2. Runtime args override defaults when provided (operation can override default_operation)
+// 3. Static config controls behavior and validation (input length limits, feature toggles)

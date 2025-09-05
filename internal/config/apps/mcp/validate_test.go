@@ -844,7 +844,7 @@ func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
 		assert.NotNil(t, result)
 		assert.True(t, result.IsError)
 		assert.Len(t, result.Content, 1)
-		assert.Equal(t, "test error message", result.Content[0].(*mcpsdk.TextContent).Text)
+		assert.JSONEq(t, `{"error":"test error message"}`, result.Content[0].(*mcpsdk.TextContent).Text)
 		mockResult.AssertExpectations(t)
 	})
 
@@ -926,10 +926,16 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 			"input": "value",
 		}
 
-		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
+		scriptContext, err := handler.prepareScriptContext(t.Context(), provider, arguments)
 		require.NoError(t, err)
-		assert.Equal(t, "test", result["config"])
-		assert.Equal(t, arguments, result["args"])
+
+		// Script execution context should have static data under "data" namespace
+		dataSection, ok := scriptContext["data"].(map[string]any)
+		require.True(t, ok, "script context should have 'data' section for static data access")
+		assert.Equal(t, "test", dataSection["config"], "static data should be accessible in script context")
+
+		// Script execution context should have tool arguments under "args" namespace
+		assert.Equal(t, arguments, scriptContext["args"], "tool arguments should be accessible in script context")
 
 		mockEval.AssertExpectations(t)
 		provider.AssertExpectations(t)
@@ -951,9 +957,16 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 			"input": "value",
 		}
 
-		result, err := handler.prepareScriptContext(t.Context(), provider, arguments)
+		scriptContext, err := handler.prepareScriptContext(t.Context(), provider, arguments)
 		require.NoError(t, err)
-		assert.Equal(t, arguments, result["args"])
+
+		// Script execution context should have empty static data under "data" namespace
+		dataSection, ok := scriptContext["data"].(map[string]any)
+		require.True(t, ok, "script context should have 'data' section for static data access")
+		assert.Empty(t, dataSection, "data section should be empty when no static data provided")
+
+		// Script execution context should have tool arguments under "args" namespace
+		assert.Equal(t, arguments, scriptContext["args"], "tool arguments should be accessible in script context")
 
 		mockEval.AssertExpectations(t)
 		provider.AssertExpectations(t)
@@ -971,9 +984,9 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 		provider := &mockDataProvider{}
 		provider.On("GetData", mock.Anything).Return(map[string]any(nil), assert.AnError)
 
-		result, err := handler.prepareScriptContext(t.Context(), provider, nil)
+		scriptContext, err := handler.prepareScriptContext(t.Context(), provider, nil)
 		require.Error(t, err)
-		assert.Nil(t, result)
+		assert.Nil(t, scriptContext)
 		assert.Contains(t, err.Error(), "failed to get tool static data")
 
 		mockEval.AssertExpectations(t)

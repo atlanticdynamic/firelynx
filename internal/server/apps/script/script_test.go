@@ -143,7 +143,7 @@ func TestScriptApp_HandleHTTP_WithStaticData(t *testing.T) {
 				Code: `{
 					"status": 200,
 					"headers": {"Content-Type": "application/json"}, 
-					"body": json.marshal({"message": "Hello", "static": ctx.get("test_key", "not_found")})
+					"body": json.marshal({"message": "Hello", "static": ctx.get("data", {}).get("test_key", "not_found")})
 				}`,
 				Timeout: 5 * time.Second,
 			},
@@ -158,7 +158,7 @@ func TestScriptApp_HandleHTTP_WithStaticData(t *testing.T) {
 			evaluator: &evaluators.StarlarkEvaluator{
 				Code: `
 # Access static data in Starlark
-config_value = ctx.get("config_key", "default")
+config_value = ctx.get("data", {}).get("config_key", "default")
 result = {
 	"message": "Starlark with config",
 	"config": config_value
@@ -308,7 +308,7 @@ func TestScriptApp_HandleHTTP_ExtismDataStructure(t *testing.T) {
 	// we'll test with a Risor script but verify the data structuring logic
 	risorEval := &evaluators.RisorEvaluator{
 		Code: `{
-			"message": ctx.get("test_key", "not_found")
+			"message": ctx.get("data", {}).get("test_key", "not_found")
 		}`,
 		Timeout: 5 * time.Second,
 	}
@@ -428,4 +428,102 @@ func TestScriptApp_New_EvaluatorCompilationError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create and compile go-polyscript evaluator")
 	assert.Nil(t, app)
+}
+
+// TestScriptApp_ComprehensiveStaticDataTypes tests that all valid static data types
+// are correctly accessible through the data namespace across different evaluators
+func TestScriptApp_ComprehensiveStaticDataTypes(t *testing.T) {
+	tests := []struct {
+		name         string
+		evaluator    evaluators.Evaluator
+		staticData   map[string]any
+		expectedJSON string
+	}{
+		{
+			name: "risor_all_data_types",
+			evaluator: &evaluators.RisorEvaluator{
+				Code: `{
+					"string_val": ctx.get("data", {}).get("string_field", "missing"),
+					"int_val": ctx.get("data", {}).get("int_field", 0),
+					"bool_val": ctx.get("data", {}).get("bool_field", false),
+					"float_val": ctx.get("data", {}).get("float_field", 0.0),
+					"array_val": ctx.get("data", {}).get("array_field", []),
+					"nested_val": ctx.get("data", {}).get("nested_object", {}).get("key1", "missing"),
+					"deep_nested_val": ctx.get("data", {}).get("nested_object", {}).get("deep", {}).get("value", "missing")
+				}`,
+				Timeout: 5 * time.Second,
+			},
+			staticData: map[string]any{
+				"string_field": "test_string",
+				"int_field":    42,
+				"bool_field":   true,
+				"float_field":  3.14,
+				"array_field":  []any{"item1", "item2", "item3"},
+				"nested_object": map[string]any{
+					"key1": "value1",
+					"deep": map[string]any{
+						"value": "deep_value",
+					},
+				},
+			},
+			expectedJSON: `{"string_val":"test_string","int_val":42,"bool_val":true,"float_val":3.14,"array_val":["item1","item2","item3"],"nested_val":"value1","deep_nested_val":"deep_value"}`,
+		},
+		{
+			name: "starlark_all_data_types",
+			evaluator: &evaluators.StarlarkEvaluator{
+				Code: `
+# Access all types of static data through the data namespace
+data_ns = ctx.get("data", {})
+result = {
+    "string_val": data_ns.get("string_field", "missing"),
+    "int_val": data_ns.get("int_field", 0),
+    "bool_val": data_ns.get("bool_field", False),
+    "float_val": data_ns.get("float_field", 0.0),
+    "array_val": data_ns.get("array_field", []),
+    "nested_val": data_ns.get("nested_object", {}).get("key1", "missing"),
+    "deep_nested_val": data_ns.get("nested_object", {}).get("deep", {}).get("value", "missing")
+}
+_ = result`,
+				Timeout: 5 * time.Second,
+			},
+			staticData: map[string]any{
+				"string_field": "test_string_starlark",
+				"int_field":    24,
+				"bool_field":   false,
+				"float_field":  2.71,
+				"array_field":  []any{"star1", "star2"},
+				"nested_object": map[string]any{
+					"key1": "starlark_value1",
+					"deep": map[string]any{
+						"value": "starlark_deep_value",
+					},
+				},
+			},
+			expectedJSON: `{"string_val":"test_string_starlark","int_val":24,"bool_val":false,"float_val":2.71,"array_val":["star1","star2"],"nested_val":"starlark_value1","deep_nested_val":"starlark_deep_value"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.evaluator.Validate()
+			require.NoError(t, err)
+
+			config := scripts.NewAppScript("comprehensive-test")
+			config.Evaluator = tt.evaluator
+			config.StaticData = &staticdata.StaticData{Data: tt.staticData}
+
+			app, err := New("comprehensive-test", config, slog.Default())
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			w := httptest.NewRecorder()
+
+			err = app.HandleHTTP(t.Context(), w, req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, w.Code)
+
+			// Compare JSON responses to verify all data types are accessible
+			assert.JSONEq(t, tt.expectedJSON, w.Body.String(), "Script response should match expected JSON")
+		})
+	}
 }

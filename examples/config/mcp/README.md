@@ -47,11 +47,15 @@ code = '''/* script implementation */'''
 
 ### Script Interface
 - **Input**: `args.get("param_name", default)`
-- **Config**: `ctx.get("config_key", default)`  
+- **Static Data**: `ctx.get("data", {}).get("config_key", default)`
 - **Output**: `{"text": "result"}` or `{"error": "message"}`
 
 ### Error Handling
-Return `{"error": "message"}` for errors, `{"text": "result"}` for success.
+Scripts can return various types:
+- **Map with error**: `{"error": "message"}` - Treated as tool error
+- **Map with success**: `{"text": "result", "value": 42}` - Structured success response
+- **String/bytes**: Returned as plain text content
+- **Other types**: Converted to text representation
 
 ## Development Tips
 
