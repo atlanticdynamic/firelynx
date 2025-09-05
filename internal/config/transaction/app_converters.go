@@ -1,12 +1,15 @@
-package apps
+package transaction
 
 import (
 	"fmt"
 	"log/slog"
 
+	"github.com/atlanticdynamic/firelynx/internal/config"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
+	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcp"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/script"
@@ -87,4 +90,70 @@ func convertMCPConfig(id string, domainConfig *configMCP.App) (*mcp.Config, erro
 		ID:             id,
 		CompiledServer: compiledServer,
 	}, nil
+}
+
+// convertAndCreateApps collects apps from domain config, converts them to DTOs, and creates instances
+func convertAndCreateApps(cfg *config.Config) (*serverApps.AppInstances, error) {
+	// First collect unique apps from routes (these have merged static data)
+	uniqueApps := make(map[string]apps.App)
+
+	// Collect expanded apps from routes
+	for _, endpoint := range cfg.Endpoints {
+		for _, route := range endpoint.Routes {
+			if route.App != nil {
+				// Use the expanded app instance which has merged static data
+				uniqueApps[route.App.ID] = *route.App
+			}
+		}
+	}
+
+	// Add any apps that don't have routes (not expanded)
+	if cfg.Apps != nil {
+		for app := range cfg.Apps.All() {
+			if _, exists := uniqueApps[app.ID]; !exists {
+				uniqueApps[app.ID] = app
+			}
+		}
+	}
+
+	// Convert domain apps to server apps using DTO pattern
+	var appInstances []serverApps.App
+	for _, domainApp := range uniqueApps {
+		serverApp, err := convertDomainToServerApp(domainApp.ID, domainApp.Config)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert app %s: %w", domainApp.ID, err)
+		}
+		appInstances = append(appInstances, serverApp)
+	}
+
+	return serverApps.NewAppInstances(appInstances)
+}
+
+// convertDomainToServerApp converts a domain app config to a server app instance
+func convertDomainToServerApp(id string, domainConfig apps.AppConfig) (serverApps.App, error) {
+	switch appConfig := domainConfig.(type) {
+	case *configEcho.EchoApp:
+		dto, err := convertEchoConfig(id, appConfig)
+		if err != nil {
+			return nil, err
+		}
+		return echo.New(dto), nil
+
+	case *configScripts.AppScript:
+		dto, err := convertScriptConfig(id, appConfig)
+		if err != nil {
+			return nil, err
+		}
+		return script.New(dto)
+
+	case *configMCP.App:
+		dto, err := convertMCPConfig(id, appConfig)
+		if err != nil {
+			return nil, err
+		}
+		return mcp.New(dto)
+
+	default:
+		return nil, fmt.Errorf("unknown app type: %T", domainConfig)
+	}
 }

@@ -76,7 +76,6 @@ type ConfigTransaction struct {
 
 	// App-related resources
 	app struct {
-		factory    appFactory
 		collection *serverApps.AppInstances
 	}
 
@@ -148,7 +147,6 @@ func New(
 	}
 
 	// Initialize factories and collections
-	tx.app.factory = serverApps.NewAppFactory()
 	tx.middleware.factory = httpCfg.NewMiddlewareFactory()
 
 	// Log the transaction creation

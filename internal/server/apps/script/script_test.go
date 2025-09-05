@@ -543,11 +543,33 @@ _ = result`,
 			err := tt.evaluator.Validate()
 			require.NoError(t, err)
 
-			config := scripts.NewAppScript("comprehensive-test")
-			config.Evaluator = tt.evaluator
-			config.StaticData = &staticdata.StaticData{Data: tt.staticData}
+			s := scripts.NewAppScript("comprehensive-test")
+			s.Evaluator = tt.evaluator
+			s.StaticData = &staticdata.StaticData{Data: tt.staticData}
 
-			app, err := New("comprehensive-test", config, slog.Default())
+			// Must call Validate() to compile evaluator before creating server app
+			err = s.Validate()
+			require.NoError(t, err)
+
+			// Create DTO config using the same pattern as the converter
+			compiledEvaluator, err := s.Evaluator.GetCompiledEvaluator()
+			require.NoError(t, err)
+			require.NotNil(t, compiledEvaluator)
+
+			var staticData map[string]any
+			if s.StaticData != nil {
+				staticData = s.StaticData.Data
+			}
+
+			cfg := &Config{
+				ID:                "comprehensive-test",
+				CompiledEvaluator: compiledEvaluator,
+				StaticData:        staticData,
+				Logger:            slog.Default().With("app_type", "script", "app_id", "comprehensive-test"),
+				Timeout:           s.Evaluator.GetTimeout(),
+			}
+
+			app, err := New(cfg)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)
