@@ -15,7 +15,6 @@ This package handles:
 
 - **instances.go**: Registry for managing app instances by ID
 - **app.go**: Common App interface definition
-- **instantiators.go**: Type-specific app creation logic
 
 ## App Interface
 
