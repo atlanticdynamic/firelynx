@@ -34,7 +34,7 @@ func createScriptConfig(t *testing.T, id string, domainConfig *scripts.AppScript
 		CompiledEvaluator: compiledEvaluator,
 		StaticData:        staticData,
 		Logger:            slog.Default().With("app_type", "script", "app_id", id),
-		Timeout:           domainConfig.Evaluator.GetTimeout(),
+		ExecTimeout:       domainConfig.Evaluator.GetTimeout(),
 	}
 }
 
@@ -74,7 +74,7 @@ func TestScriptApp_New_ValidationErrors(t *testing.T) {
 				CompiledEvaluator: nil,
 				StaticData:        nil,
 				Logger:            slog.Default(),
-				Timeout:           5 * time.Second,
+				ExecTimeout:       5 * time.Second,
 			},
 			wantError: "script app must have a compiled evaluator",
 		},
@@ -566,7 +566,7 @@ _ = result`,
 				CompiledEvaluator: compiledEvaluator,
 				StaticData:        staticData,
 				Logger:            slog.Default().With("app_type", "script", "app_id", "comprehensive-test"),
-				Timeout:           s.Evaluator.GetTimeout(),
+				ExecTimeout:       s.Evaluator.GetTimeout(),
 			}
 
 			app, err := New(cfg)

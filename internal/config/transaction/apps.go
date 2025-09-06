@@ -73,7 +73,7 @@ func convertScriptConfig(id string, domainConfig *configScripts.AppScript) (*scr
 	// Create logger for this app instance
 	logger := slog.Default().With("app_type", "script", "app_id", id)
 
-	// Get timeout from domain config
+	// Get the exec timeout deadline
 	timeout := domainConfig.Evaluator.GetTimeout()
 
 	return &script.Config{
@@ -81,7 +81,7 @@ func convertScriptConfig(id string, domainConfig *configScripts.AppScript) (*scr
 		CompiledEvaluator: compiledEvaluator,
 		StaticData:        staticData,
 		Logger:            logger,
-		Timeout:           timeout,
+		ExecTimeout:       timeout,
 	}, nil
 }
 

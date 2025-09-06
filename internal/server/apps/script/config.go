@@ -25,6 +25,6 @@ type Config struct {
 	// Logger is the structured logger configured for this app instance
 	Logger *slog.Logger
 
-	// Timeout is the maximum execution time for script evaluation
-	Timeout time.Duration
+	// ExecTimeout is the maximum execution time for script evaluation
+	ExecTimeout time.Duration
 }

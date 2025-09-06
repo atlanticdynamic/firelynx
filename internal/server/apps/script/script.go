@@ -42,7 +42,7 @@ func New(cfg *Config) (*ScriptApp, error) {
 		evaluator:         cfg.CompiledEvaluator,
 		appStaticProvider: appStaticProvider,
 		logger:            cfg.Logger,
-		timeout:           cfg.Timeout,
+		timeout:           cfg.ExecTimeout,
 	}, nil
 }
 

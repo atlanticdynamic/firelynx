@@ -218,7 +218,7 @@ func TestConvertScriptConfig(t *testing.T) {
 				assert.Equal(t, tt.id, result.ID)
 				assert.NotNil(t, result.CompiledEvaluator)
 				assert.NotNil(t, result.Logger)
-				assert.Equal(t, testTimeout, result.Timeout)
+				assert.Equal(t, testTimeout, result.ExecTimeout)
 
 				// Check static data
 				if tt.config.StaticData != nil {
