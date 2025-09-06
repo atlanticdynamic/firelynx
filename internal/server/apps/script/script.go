@@ -20,7 +20,7 @@ type ScriptApp struct {
 	evaluator         platform.Evaluator
 	appStaticProvider data.Provider // Pre-created app-level static provider
 	logger            *slog.Logger
-	timeout           time.Duration
+	execTimeout       time.Duration
 }
 
 // New creates a new script app instance from a Config DTO
@@ -42,7 +42,7 @@ func New(cfg *Config) (*ScriptApp, error) {
 		evaluator:         cfg.CompiledEvaluator,
 		appStaticProvider: appStaticProvider,
 		logger:            cfg.Logger,
-		timeout:           cfg.ExecTimeout,
+		execTimeout:       cfg.ExecTimeout,
 	}, nil
 }
 
@@ -57,7 +57,7 @@ func (s *ScriptApp) HandleHTTP(
 	w http.ResponseWriter,
 	r *http.Request,
 ) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, s.timeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, s.execTimeout)
 	defer cancel()
 
 	// Prepare script data with proper structure for WASM modules
