@@ -1,11 +1,13 @@
 package transaction
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	configComposite "github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
@@ -15,10 +17,19 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/script"
 )
 
+var (
+	ErrConfigNil             = errors.New("config cannot be nil")
+	ErrEvaluatorNil          = errors.New("script app must have an evaluator")
+	ErrCompiledEvaluatorNil  = errors.New("compiled evaluator is nil - domain validation may not have been run")
+	ErrCompositeNotSupported = errors.New("composite apps are not yet supported in server layer")
+	ErrDuplicateAppID        = errors.New("duplicate app ID")
+	ErrUnknownAppType        = errors.New("unknown app type")
+)
+
 // convertEchoConfig converts domain echo config to echo DTO
 func convertEchoConfig(id string, domainConfig *configEcho.EchoApp) (*echo.Config, error) {
 	if domainConfig == nil {
-		return nil, fmt.Errorf("echo config cannot be nil")
+		return nil, fmt.Errorf("failed to convert echo config: %w", ErrConfigNil)
 	}
 
 	// Extract response, default to app ID if empty
@@ -36,12 +47,12 @@ func convertEchoConfig(id string, domainConfig *configEcho.EchoApp) (*echo.Confi
 // convertScriptConfig converts domain script config to script DTO
 func convertScriptConfig(id string, domainConfig *configScripts.AppScript) (*script.Config, error) {
 	if domainConfig == nil {
-		return nil, fmt.Errorf("script config cannot be nil")
+		return nil, fmt.Errorf("failed to convert script config: %w", ErrConfigNil)
 	}
 
 	// Check if evaluator exists
 	if domainConfig.Evaluator == nil {
-		return nil, fmt.Errorf("script app must have an evaluator")
+		return nil, fmt.Errorf("failed to convert script config: %w", ErrEvaluatorNil)
 	}
 
 	// Get compiled evaluator from domain config
@@ -50,7 +61,7 @@ func convertScriptConfig(id string, domainConfig *configScripts.AppScript) (*scr
 		return nil, fmt.Errorf("failed to get compiled evaluator for app %s: %w", id, err)
 	}
 	if compiledEvaluator == nil {
-		return nil, fmt.Errorf("compiled evaluator is nil for app %s - domain validation may not have been run", id)
+		return nil, fmt.Errorf("failed to convert script app %s: %w", id, ErrCompiledEvaluatorNil)
 	}
 
 	// Extract static data
@@ -77,7 +88,7 @@ func convertScriptConfig(id string, domainConfig *configScripts.AppScript) (*scr
 // convertMCPConfig converts domain MCP config to MCP DTO
 func convertMCPConfig(id string, domainConfig *configMCP.App) (*mcp.Config, error) {
 	if domainConfig == nil {
-		return nil, fmt.Errorf("MCP config cannot be nil")
+		return nil, fmt.Errorf("failed to convert MCP config: %w", ErrConfigNil)
 	}
 
 	// Get compiled server from domain config
@@ -103,7 +114,7 @@ func convertAndCreateApps(cfg *config.Config) (*serverApps.AppInstances, error) 
 			if route.App != nil {
 				// Use the expanded app instance which has merged static data
 				if _, exists := uniqueApps[route.App.ID]; exists {
-					return nil, fmt.Errorf("duplicate app ID in routes: %s", route.App.ID)
+					return nil, fmt.Errorf("%w in routes: %s", ErrDuplicateAppID, route.App.ID)
 				}
 				uniqueApps[route.App.ID] = *route.App
 			}
@@ -114,7 +125,7 @@ func convertAndCreateApps(cfg *config.Config) (*serverApps.AppInstances, error) 
 	if cfg.Apps != nil {
 		for app := range cfg.Apps.All() {
 			if _, exists := uniqueApps[app.ID]; exists {
-				return nil, fmt.Errorf("duplicate app ID: %s", app.ID)
+				return nil, fmt.Errorf("%w: %s", ErrDuplicateAppID, app.ID)
 			}
 			uniqueApps[app.ID] = app
 		}
@@ -157,7 +168,10 @@ func convertDomainToServerApp(id string, domainConfig apps.AppConfig) (serverApp
 		}
 		return mcp.New(dto)
 
+	case *configComposite.CompositeScript:
+		return nil, fmt.Errorf("failed to convert composite app %s: %w", id, ErrCompositeNotSupported)
+
 	default:
-		return nil, fmt.Errorf("unknown app type: %T", domainConfig)
+		return nil, fmt.Errorf("%w: %T", ErrUnknownAppType, domainConfig)
 	}
 }

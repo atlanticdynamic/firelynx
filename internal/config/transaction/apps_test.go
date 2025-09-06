@@ -7,6 +7,7 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	configComposite "github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
 	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
@@ -118,26 +119,26 @@ func TestConvertEchoConfig(t *testing.T) {
 
 func TestConvertScriptConfig(t *testing.T) {
 	tests := []struct {
-		name      string
-		id        string
-		config    *configScripts.AppScript
-		setupMock func(*configScripts.AppScript)
-		wantErr   bool
-		errMsg    string
+		name        string
+		id          string
+		config      *configScripts.AppScript
+		setupMock   func(*configScripts.AppScript)
+		wantErr     bool
+		expectedErr error
 	}{
 		{
-			name:    "nil config",
-			id:      "test-id",
-			config:  nil,
-			wantErr: true,
-			errMsg:  "script config cannot be nil",
+			name:        "nil config",
+			id:          "test-id",
+			config:      nil,
+			wantErr:     true,
+			expectedErr: ErrConfigNil,
 		},
 		{
-			name:    "nil evaluator",
-			id:      "test-id",
-			config:  &configScripts.AppScript{},
-			wantErr: true,
-			errMsg:  "script app must have an evaluator",
+			name:        "nil evaluator",
+			id:          "test-id",
+			config:      &configScripts.AppScript{},
+			wantErr:     true,
+			expectedErr: ErrEvaluatorNil,
 		},
 		{
 			name:   "evaluator GetCompiledEvaluator error",
@@ -149,7 +150,7 @@ func TestConvertScriptConfig(t *testing.T) {
 				cfg.Evaluator = mockEvaluator
 			},
 			wantErr: true,
-			errMsg:  "failed to get compiled evaluator for app test-id",
+			// We expect the wrapped error from GetCompiledEvaluator, not a specific sentinel
 		},
 		{
 			name:   "nil compiled evaluator",
@@ -160,8 +161,8 @@ func TestConvertScriptConfig(t *testing.T) {
 				mockEvaluator.On("GetCompiledEvaluator").Return(nil, nil)
 				cfg.Evaluator = mockEvaluator
 			},
-			wantErr: true,
-			errMsg:  "compiled evaluator is nil for app test-id - domain validation may not have been run",
+			wantErr:     true,
+			expectedErr: ErrCompiledEvaluatorNil,
 		},
 		{
 			name:   "successful conversion with minimal config",
@@ -171,7 +172,7 @@ func TestConvertScriptConfig(t *testing.T) {
 				mockPlatformEvaluator := &mockPlatformEvaluator{}
 				mockEvaluator := &mockEvaluatorAdapter{}
 				mockEvaluator.On("GetCompiledEvaluator").Return(mockPlatformEvaluator, nil)
-				mockEvaluator.On("GetTimeout").Return(30 * time.Second)
+				mockEvaluator.On("GetTimeout").Return(testTimeout)
 				cfg.Evaluator = mockEvaluator
 			},
 			wantErr: false,
@@ -184,7 +185,7 @@ func TestConvertScriptConfig(t *testing.T) {
 				mockPlatformEvaluator := &mockPlatformEvaluator{}
 				mockEvaluator := &mockEvaluatorAdapter{}
 				mockEvaluator.On("GetCompiledEvaluator").Return(mockPlatformEvaluator, nil)
-				mockEvaluator.On("GetTimeout").Return(30 * time.Second)
+				mockEvaluator.On("GetTimeout").Return(testTimeout)
 				cfg.Evaluator = mockEvaluator
 				cfg.StaticData = &staticdata.StaticData{
 					Data: map[string]any{
@@ -207,8 +208,8 @@ func TestConvertScriptConfig(t *testing.T) {
 
 			if tt.wantErr {
 				require.Error(t, err)
-				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg)
+				if tt.expectedErr != nil {
+					require.ErrorIs(t, err, tt.expectedErr)
 				}
 				assert.Nil(t, result)
 			} else {
@@ -217,7 +218,7 @@ func TestConvertScriptConfig(t *testing.T) {
 				assert.Equal(t, tt.id, result.ID)
 				assert.NotNil(t, result.CompiledEvaluator)
 				assert.NotNil(t, result.Logger)
-				assert.Equal(t, 30*time.Second, result.Timeout)
+				assert.Equal(t, testTimeout, result.Timeout)
 
 				// Check static data
 				if tt.config.StaticData != nil {
@@ -232,19 +233,19 @@ func TestConvertScriptConfig(t *testing.T) {
 
 func TestConvertMCPConfig(t *testing.T) {
 	tests := []struct {
-		name      string
-		id        string
-		config    *configMCP.App
-		setupMock func(*configMCP.App)
-		wantErr   bool
-		errMsg    string
+		name        string
+		id          string
+		config      *configMCP.App
+		setupMock   func(*configMCP.App)
+		wantErr     bool
+		expectedErr error
 	}{
 		{
-			name:    "nil config",
-			id:      "test-id",
-			config:  nil,
-			wantErr: true,
-			errMsg:  "MCP config cannot be nil",
+			name:        "nil config",
+			id:          "test-id",
+			config:      nil,
+			wantErr:     true,
+			expectedErr: ErrConfigNil,
 		},
 		{
 			name:   "nil compiled server",
@@ -253,8 +254,8 @@ func TestConvertMCPConfig(t *testing.T) {
 			setupMock: func(cfg *configMCP.App) {
 				// Default behavior returns nil compiled server
 			},
-			wantErr: true,
-			errMsg:  "MCP server is nil",
+			wantErr:     true,
+			expectedErr: mcp.ErrServerNotCompiled,
 		},
 		{
 			name:   "successful conversion",
@@ -289,14 +290,10 @@ func TestConvertMCPConfig(t *testing.T) {
 
 			if tt.wantErr {
 				require.Error(t, err)
-				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg)
+				if tt.expectedErr != nil {
+					require.ErrorIs(t, err, tt.expectedErr)
 				}
 				assert.Nil(t, result)
-				// Check for specific sentinel error
-				if tt.errMsg == "MCP server is nil" {
-					require.ErrorIs(t, err, mcp.ErrServerNotCompiled)
-				}
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, result)
@@ -309,13 +306,13 @@ func TestConvertMCPConfig(t *testing.T) {
 
 func TestConvertDomainToServerApp(t *testing.T) {
 	tests := []struct {
-		name       string
-		id         string
-		config     apps.AppConfig
-		setupMock  func() apps.AppConfig
-		wantErr    bool
-		errMsg     string
-		wantAppStr string
+		name        string
+		id          string
+		config      apps.AppConfig
+		setupMock   func() apps.AppConfig
+		wantErr     bool
+		expectedErr error
+		wantAppStr  string
 	}{
 		{
 			name:       "echo app",
@@ -325,11 +322,11 @@ func TestConvertDomainToServerApp(t *testing.T) {
 			wantAppStr: "echo-test",
 		},
 		{
-			name:    "script app with nil evaluator",
-			id:      "script-test",
-			config:  &configScripts.AppScript{},
-			wantErr: true,
-			errMsg:  "script app must have an evaluator",
+			name:        "script app with nil evaluator",
+			id:          "script-test",
+			config:      &configScripts.AppScript{},
+			wantErr:     true,
+			expectedErr: ErrEvaluatorNil,
 		},
 		{
 			name: "script app with valid evaluator",
@@ -339,7 +336,7 @@ func TestConvertDomainToServerApp(t *testing.T) {
 				mockPlatformEvaluator := &mockPlatformEvaluator{}
 				mockEvaluator := &mockEvaluatorAdapter{}
 				mockEvaluator.On("GetCompiledEvaluator").Return(mockPlatformEvaluator, nil)
-				mockEvaluator.On("GetTimeout").Return(30 * time.Second)
+				mockEvaluator.On("GetTimeout").Return(testTimeout)
 				scriptConfig.Evaluator = mockEvaluator
 				return scriptConfig
 			},
@@ -347,11 +344,11 @@ func TestConvertDomainToServerApp(t *testing.T) {
 			wantAppStr: "script-test",
 		},
 		{
-			name:    "mcp app with nil server",
-			id:      "mcp-test",
-			config:  &configMCP.App{},
-			wantErr: true,
-			errMsg:  "MCP server is nil",
+			name:        "mcp app with nil server",
+			id:          "mcp-test",
+			config:      &configMCP.App{},
+			wantErr:     true,
+			expectedErr: mcp.ErrServerNotCompiled,
 		},
 		{
 			name: "mcp app with valid server",
@@ -375,11 +372,18 @@ func TestConvertDomainToServerApp(t *testing.T) {
 			wantAppStr: "mcp-test",
 		},
 		{
-			name:    "unknown app type",
-			id:      "unknown",
-			config:  &unknownAppConfig{},
-			wantErr: true,
-			errMsg:  "unknown app type",
+			name:        "composite app not supported",
+			id:          "composite-test",
+			config:      &configComposite.CompositeScript{},
+			wantErr:     true,
+			expectedErr: ErrCompositeNotSupported,
+		},
+		{
+			name:        "unknown app type",
+			id:          "unknown",
+			config:      &unknownAppConfig{},
+			wantErr:     true,
+			expectedErr: ErrUnknownAppType,
 		},
 	}
 
@@ -394,8 +398,8 @@ func TestConvertDomainToServerApp(t *testing.T) {
 
 			if tt.wantErr {
 				require.Error(t, err)
-				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg)
+				if tt.expectedErr != nil {
+					require.ErrorIs(t, err, tt.expectedErr)
 				}
 				assert.Nil(t, result)
 			} else {
@@ -409,10 +413,10 @@ func TestConvertDomainToServerApp(t *testing.T) {
 
 func TestConvertAndCreateApps_DuplicateIDs(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  *config.Config
-		wantErr bool
-		errMsg  string
+		name        string
+		config      *config.Config
+		wantErr     bool
+		expectedErr error
 	}{
 		{
 			name: "duplicate app ID in routes",
@@ -440,8 +444,8 @@ func TestConvertAndCreateApps_DuplicateIDs(t *testing.T) {
 					},
 				}),
 			},
-			wantErr: true,
-			errMsg:  "duplicate app ID in routes: duplicate-id",
+			wantErr:     true,
+			expectedErr: ErrDuplicateAppID,
 		},
 		{
 			name: "duplicate app ID in apps collection",
@@ -457,8 +461,8 @@ func TestConvertAndCreateApps_DuplicateIDs(t *testing.T) {
 					},
 				}),
 			},
-			wantErr: true,
-			errMsg:  "duplicate app ID: duplicate-in-apps",
+			wantErr:     true,
+			expectedErr: ErrDuplicateAppID,
 		},
 	}
 
@@ -468,8 +472,8 @@ func TestConvertAndCreateApps_DuplicateIDs(t *testing.T) {
 
 			if tt.wantErr {
 				require.Error(t, err)
-				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg)
+				if tt.expectedErr != nil {
+					require.ErrorIs(t, err, tt.expectedErr)
 				}
 				assert.Nil(t, result)
 			} else {
@@ -494,3 +498,5 @@ func createAppCollection(t *testing.T, appsList []apps.App) *apps.AppCollection 
 	t.Helper()
 	return apps.NewAppCollection(appsList...)
 }
+
+const testTimeout = 30 * time.Second
