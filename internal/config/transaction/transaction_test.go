@@ -551,15 +551,15 @@ func TestNew_ErrorConditions(t *testing.T) {
 		assert.NotNil(t, tx.logger)
 	})
 
-	t.Run("handles app factory creation failure", func(t *testing.T) {
-		// Create a config that will cause app factory to fail
+	t.Run("handles nil app config", func(t *testing.T) {
+		// Create an app with nil config that will fail conversion
 		cfg, err := config.NewFromProto(&pb.ServerConfig{})
 		require.NoError(t, err)
 		cfg.Version = config.VersionLatest
 		cfg.Apps = apps.NewAppCollection(
 			apps.App{
 				ID:     "invalid-app",
-				Config: nil, // This should cause the factory to fail
+				Config: nil, // This will cause conversion to fail
 			},
 		)
 
@@ -567,11 +567,12 @@ func TestNew_ErrorConditions(t *testing.T) {
 		tx, err := New(SourceTest, "test", "", cfg, handler)
 		require.NoError(t, err)
 
-		// Validation should fail due to invalid app config
+		// Validation should fail due to nil app config
 		err = tx.RunValidation()
 		require.Error(t, err)
-		// The error will be wrapped in ErrValidationFailed, but should contain app creation error
+		// The error should be wrapped in ErrValidationFailed and contain ErrUnknownAppType
 		require.ErrorIs(t, err, ErrValidationFailed)
+		require.ErrorIs(t, err, ErrUnknownAppType)
 		assert.Contains(t, err.Error(), "app instantiation validation failed")
 	})
 }
