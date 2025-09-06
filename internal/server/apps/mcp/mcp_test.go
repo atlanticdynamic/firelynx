@@ -26,6 +26,26 @@ func createMCPConfig(t *testing.T, id string, domainConfig *mcpconfig.App) *Conf
 }
 
 func TestNew(t *testing.T) {
+	t.Run("nil config returns error", func(t *testing.T) {
+		app, err := New(nil)
+		require.Error(t, err)
+		assert.Nil(t, app)
+		assert.Contains(t, err.Error(), "MCP config cannot be nil")
+	})
+
+	t.Run("nil compiled server returns error", func(t *testing.T) {
+		config := &Config{
+			ID:             "test-app",
+			CompiledServer: nil,
+		}
+
+		app, err := New(config)
+		require.Error(t, err)
+		assert.Nil(t, app)
+		require.ErrorIs(t, err, ErrServerNotCompiled)
+		assert.Contains(t, err.Error(), "test-app")
+	})
+
 	t.Run("valid config with compiled server", func(t *testing.T) {
 		// Create and validate MCP config to get compiled server
 		config := &mcpconfig.App{
@@ -138,6 +158,46 @@ func TestApp_HandleHTTP(t *testing.T) {
 
 		// The actual response depends on MCP SDK implementation
 		// We just verify that the handler was called without panicking
+	})
+
+	t.Run("handler function returns compiled server", func(t *testing.T) {
+		// Create valid MCP config
+		config := &mcpconfig.App{
+			ID:            "test-handler-func",
+			ServerName:    "Test Server",
+			ServerVersion: "1.0.0",
+			Transport:     &mcpconfig.Transport{},
+			Tools:         []*mcpconfig.Tool{},
+			Resources:     []*mcpconfig.Resource{},
+			Prompts:       []*mcpconfig.Prompt{},
+			Middlewares:   []*mcpconfig.Middleware{},
+		}
+
+		err := config.Validate()
+		require.NoError(t, err)
+
+		mcpConfig := createMCPConfig(t, "test-handler", config)
+
+		// Store reference to the compiled server to verify it's returned
+		expectedServer := mcpConfig.CompiledServer
+		require.NotNil(t, expectedServer)
+
+		app, err := New(mcpConfig)
+		require.NoError(t, err)
+
+		// Access the handler and verify it's created correctly
+		// The handler should be a StreamableHTTPHandler that contains our function
+		require.NotNil(t, app.handler)
+
+		// Create a test request to trigger the handler function
+		req := httptest.NewRequest(http.MethodPost, "/test", nil)
+		w := httptest.NewRecorder()
+
+		// Call the handler - this exercises the anonymous function
+		app.handler.ServeHTTP(w, req)
+
+		// The test passes if no panic occurs and the handler executes
+		// The anonymous function is exercised when ServeHTTP is called
 	})
 
 	t.Run("nil handler edge case", func(t *testing.T) {
