@@ -110,18 +110,17 @@ func New(
 		return nil, ErrNilConfig
 	}
 
-	if handler == nil {
-		handler = slog.New(slog.NewTextHandler(os.Stdout, nil)).Handler()
-	}
-
+	// setup the Saga FSM to track transaction state
 	sm, err := finitestate.NewSagaFSM(handler)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create state machine: %w", err)
 	}
-
 	txID := uuid.Must(uuid.NewV6())
 
 	// Set up logger with the loglater history collector
+	if handler == nil {
+		handler = slog.NewTextHandler(os.Stdout, nil)
+	}
 	logCollector := loglater.NewLogCollector(handler)
 	logger := slog.New(logCollector).With(
 		"id", txID,
@@ -129,7 +128,7 @@ func New(
 		"sourceDetail", sourceDetail,
 		"requestID", requestID)
 
-	// Create participant collection
+	// gather the participants for this transaction
 	participants := NewParticipantCollection(handler)
 
 	tx := &ConfigTransaction{
