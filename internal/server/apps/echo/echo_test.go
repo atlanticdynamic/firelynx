@@ -12,7 +12,11 @@ import (
 )
 
 func TestNewEchoApp(t *testing.T) {
-	app := New("test-echo-app", "Hello from test")
+	cfg := &Config{
+		ID:       "test-echo-app",
+		Response: "Hello from test",
+	}
+	app := New(cfg)
 	require.NotNil(t, app, "EchoApp should not be nil") // Use require for essential checks
 	assert.Equal(t, "test-echo-app", app.String(), "App ID should match")
 	assert.Equal(t, "Hello from test", app.response, "Response should match")
@@ -73,7 +77,11 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			app := New(tt.appID, tt.response)
+			cfg := &Config{
+				ID:       tt.appID,
+				Response: tt.response,
+			}
+			app := New(cfg)
 			targetURL := tt.path
 			if len(tt.query) > 0 {
 				targetURL += "?" + tt.query.Encode()
@@ -118,7 +126,11 @@ func TestEchoApp_HandleHTTP(t *testing.T) {
 }
 
 func TestEchoApp_HandleHTTP_WriteError(t *testing.T) {
-	app := New("error-test-app", "error response")
+	cfg := &Config{
+		ID:       "error-test-app",
+		Response: "error response",
+	}
+	app := New(cfg)
 	r := httptest.NewRequest(http.MethodGet, "/test", nil)
 
 	failWriter := &failingResponseWriter{

@@ -1,11 +1,29 @@
 package apps
 
 import (
+	"context"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// MockApp for testing
+type MockApp struct {
+	id string
+}
+
+func (m *MockApp) String() string {
+	return m.id
+}
+
+func (m *MockApp) HandleHTTP(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	if _, err := w.Write([]byte("mock response")); err != nil {
+		return err
+	}
+	return nil
+}
 
 func TestNewAppInstances(t *testing.T) {
 	tests := []struct {
