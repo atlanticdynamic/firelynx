@@ -102,6 +102,9 @@ func convertAndCreateApps(cfg *config.Config) (*serverApps.AppInstances, error) 
 		for _, route := range endpoint.Routes {
 			if route.App != nil {
 				// Use the expanded app instance which has merged static data
+				if _, exists := uniqueApps[route.App.ID]; exists {
+					return nil, fmt.Errorf("duplicate app ID in routes: %s", route.App.ID)
+				}
 				uniqueApps[route.App.ID] = *route.App
 			}
 		}
@@ -110,9 +113,10 @@ func convertAndCreateApps(cfg *config.Config) (*serverApps.AppInstances, error) 
 	// Add any apps that don't have routes (not expanded)
 	if cfg.Apps != nil {
 		for app := range cfg.Apps.All() {
-			if _, exists := uniqueApps[app.ID]; !exists {
-				uniqueApps[app.ID] = app
+			if _, exists := uniqueApps[app.ID]; exists {
+				return nil, fmt.Errorf("duplicate app ID: %s", app.ID)
 			}
+			uniqueApps[app.ID] = app
 		}
 	}
 
