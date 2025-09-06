@@ -14,6 +14,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Helper function to create script config DTO from domain config
+func createScriptConfig(t *testing.T, id string, domainConfig *scripts.AppScript) *Config {
+	t.Helper()
+
+	// Get compiled evaluator from domain config
+	compiledEvaluator, err := domainConfig.Evaluator.GetCompiledEvaluator()
+	require.NoError(t, err)
+
+	// Extract static data
+	var staticData map[string]any
+	if domainConfig.StaticData != nil {
+		staticData = domainConfig.StaticData.Data
+	}
+
+	// Create DTO directly in tests to avoid import cycle
+	return &Config{
+		ID:                id,
+		CompiledEvaluator: compiledEvaluator,
+		StaticData:        staticData,
+		Logger:            slog.Default().With("app_type", "script", "app_id", id),
+		ExecTimeout:       domainConfig.Evaluator.GetTimeout(),
+	}
+}
+
 func TestScriptApp_String_ReturnsAppID(t *testing.T) {
 	risorEval := &evaluators.RisorEvaluator{
 		Code: `{"message": "hello"}`,
@@ -22,10 +46,11 @@ func TestScriptApp_String_ReturnsAppID(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("test-app")
-	config.Evaluator = risorEval
+	domainConfig := scripts.NewAppScript("test-app")
+	domainConfig.Evaluator = risorEval
 
-	app, err := New("test-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "test-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test-app", app.String())
@@ -34,31 +59,30 @@ func TestScriptApp_String_ReturnsAppID(t *testing.T) {
 func TestScriptApp_New_ValidationErrors(t *testing.T) {
 	tests := []struct {
 		name      string
-		id        string
-		config    *scripts.AppScript
+		config    *Config
 		wantError string
 	}{
 		{
 			name:      "nil config",
-			id:        "test",
 			config:    nil,
 			wantError: "script app config cannot be nil",
 		},
 		{
-			name: "nil evaluator",
-			id:   "test",
-			config: func() *scripts.AppScript {
-				app := scripts.NewAppScript("test")
-				app.Evaluator = nil
-				return app
-			}(),
-			wantError: "script app must have an evaluator",
+			name: "nil compiled evaluator",
+			config: &Config{
+				ID:                "test",
+				CompiledEvaluator: nil,
+				StaticData:        nil,
+				Logger:            slog.Default(),
+				ExecTimeout:       5 * time.Second,
+			},
+			wantError: "script app must have a compiled evaluator",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			app, err := New(tt.id, tt.config, slog.Default())
+			app, err := New(tt.config)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantError)
 			assert.Nil(t, app)
@@ -75,10 +99,11 @@ func TestScriptApp_New_RisorEvaluator(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("risor-test")
-	config.Evaluator = risorEval
+	domainConfig := scripts.NewAppScript("risor-test")
+	domainConfig.Evaluator = risorEval
 
-	app, err := New("risor-test", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "risor-test", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 	assert.Equal(t, "risor-test", app.String())
 }
@@ -92,10 +117,11 @@ func TestScriptApp_New_StarlarkEvaluator(t *testing.T) {
 	err := starlarkEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("starlark-test")
-	config.Evaluator = starlarkEval
+	domainConfig := scripts.NewAppScript("starlark-test")
+	domainConfig.Evaluator = starlarkEval
 
-	app, err := New("starlark-test", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "starlark-test", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 	assert.Equal(t, "starlark-test", app.String())
 }
@@ -113,10 +139,11 @@ func TestScriptApp_HandleHTTP_RisorScript(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("risor-app")
-	config.Evaluator = risorEval
+	domainConfig := scripts.NewAppScript("risor-app")
+	domainConfig.Evaluator = risorEval
 
-	app, err := New("risor-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "risor-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -180,11 +207,12 @@ _ = result`,
 			err := tt.evaluator.Validate()
 			require.NoError(t, err)
 
-			config := scripts.NewAppScript("test-app")
-			config.Evaluator = tt.evaluator
-			config.StaticData = &staticdata.StaticData{Data: tt.staticData}
+			domainConfig := scripts.NewAppScript("test-app")
+			domainConfig.Evaluator = tt.evaluator
+			domainConfig.StaticData = &staticdata.StaticData{Data: tt.staticData}
 
-			app, err := New("test-app", config, slog.Default())
+			scriptConfig := createScriptConfig(t, "test-app", domainConfig)
+			app, err := New(scriptConfig)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(tt.method, "/test", nil)
@@ -230,10 +258,11 @@ func TestScriptApp_HandleHTTP_Timeout(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("risor-app")
-	config.Evaluator = risorEval
+	domainConfig := scripts.NewAppScript("risor-app")
+	domainConfig.Evaluator = risorEval
 
-	app, err := New("risor-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "risor-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -260,10 +289,11 @@ _ = result`,
 	err := starlarkEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("starlark-test")
-	config.Evaluator = starlarkEval
+	domainConfig := scripts.NewAppScript("starlark-test")
+	domainConfig.Evaluator = starlarkEval
 
-	app, err := New("starlark-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "starlark-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -288,10 +318,11 @@ func TestScriptApp_HandleHTTP_PrepareScriptDataError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a script app
-	config := scripts.NewAppScript("test-app")
-	config.Evaluator = mockEval
+	domainConfig := scripts.NewAppScript("test-app")
+	domainConfig.Evaluator = mockEval
 
-	app, err := New("test-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "test-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -322,11 +353,12 @@ func TestScriptApp_HandleHTTP_ExtismDataStructure(t *testing.T) {
 		},
 	}
 
-	config := scripts.NewAppScript("test-app")
-	config.Evaluator = risorEval
-	config.StaticData = &staticdata.StaticData{Data: staticData}
+	domainConfig := scripts.NewAppScript("test-app")
+	domainConfig.Evaluator = risorEval
+	domainConfig.StaticData = &staticdata.StaticData{Data: staticData}
 
-	app, err := New("test-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "test-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -346,10 +378,11 @@ func TestScriptApp_HandleHTTP_StringResult(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("test-app")
-	config.Evaluator = risorEval
+	domainConfig := scripts.NewAppScript("test-app")
+	domainConfig.Evaluator = risorEval
 
-	app, err := New("test-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "test-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -371,10 +404,11 @@ func TestScriptApp_HandleHTTP_NumericResult(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("test-app")
-	config.Evaluator = risorEval
+	domainConfig := scripts.NewAppScript("test-app")
+	domainConfig.Evaluator = risorEval
 
-	app, err := New("test-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "test-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -399,10 +433,11 @@ func TestScriptApp_HandleHTTP_ExecutionError(t *testing.T) {
 	err := risorEval.Validate()
 	require.NoError(t, err)
 
-	config := scripts.NewAppScript("test-app")
-	config.Evaluator = risorEval
+	domainConfig := scripts.NewAppScript("test-app")
+	domainConfig.Evaluator = risorEval
 
-	app, err := New("test-app", config, slog.Default())
+	scriptConfig := createScriptConfig(t, "test-app", domainConfig)
+	app, err := New(scriptConfig)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -421,13 +456,13 @@ func TestScriptApp_New_EvaluatorCompilationError(t *testing.T) {
 	}
 
 	// Don't validate - this will cause getPolyscriptEvaluator to fail
-	config := scripts.NewAppScript("test-app")
-	config.Evaluator = risorEval
+	domainConfig := scripts.NewAppScript("test-app")
+	domainConfig.Evaluator = risorEval
 
-	app, err := New("test-app", config, slog.Default())
+	// The error now happens during createScriptConfig when getting compiled evaluator
+	_, err := domainConfig.Evaluator.GetCompiledEvaluator()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to create and compile go-polyscript evaluator")
-	assert.Nil(t, app)
+	assert.Contains(t, err.Error(), "compilation failed")
 }
 
 // TestScriptApp_ComprehensiveStaticDataTypes tests that all valid static data types
@@ -508,11 +543,33 @@ _ = result`,
 			err := tt.evaluator.Validate()
 			require.NoError(t, err)
 
-			config := scripts.NewAppScript("comprehensive-test")
-			config.Evaluator = tt.evaluator
-			config.StaticData = &staticdata.StaticData{Data: tt.staticData}
+			s := scripts.NewAppScript("comprehensive-test")
+			s.Evaluator = tt.evaluator
+			s.StaticData = &staticdata.StaticData{Data: tt.staticData}
 
-			app, err := New("comprehensive-test", config, slog.Default())
+			// Must call Validate() to compile evaluator before creating server app
+			err = s.Validate()
+			require.NoError(t, err)
+
+			// Create DTO config using the same pattern as the converter
+			compiledEvaluator, err := s.Evaluator.GetCompiledEvaluator()
+			require.NoError(t, err)
+			require.NotNil(t, compiledEvaluator)
+
+			var staticData map[string]any
+			if s.StaticData != nil {
+				staticData = s.StaticData.Data
+			}
+
+			cfg := &Config{
+				ID:                "comprehensive-test",
+				CompiledEvaluator: compiledEvaluator,
+				StaticData:        staticData,
+				Logger:            slog.Default().With("app_type", "script", "app_id", "comprehensive-test"),
+				ExecTimeout:       s.Evaluator.GetTimeout(),
+			}
+
+			app, err := New(cfg)
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)

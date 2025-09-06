@@ -5,16 +5,10 @@ import (
 	"fmt"
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
-	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	httpCfg "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
 )
-
-type appFactory interface {
-	CreateAppsFromDefinitions(defs []serverApps.AppDefinition) (*serverApps.AppInstances, error)
-}
 
 type middlewareFactory interface {
 	CreateFromDefinitions(middleware.MiddlewareCollection) (*httpCfg.MiddlewareCollection, error)
@@ -133,42 +127,6 @@ func (tx *ConfigTransaction) setStateInvalid(errs []error) {
 		"state", finitestate.StateInvalid)
 }
 
-// collectApps extracts app definitions from domain config, including expanded apps from routes
-func collectApps(cfg *config.Config) []serverApps.AppDefinition {
-	// First collect unique apps from routes (these have merged static data)
-	uniqueApps := make(map[string]apps.App)
-
-	// Collect expanded apps from routes
-	for _, endpoint := range cfg.Endpoints {
-		for _, route := range endpoint.Routes {
-			if route.App != nil {
-				// Use the expanded app instance which has merged static data
-				uniqueApps[route.App.ID] = *route.App
-			}
-		}
-	}
-
-	// Add any apps that don't have routes (not expanded)
-	if cfg.Apps != nil {
-		for app := range cfg.Apps.All() {
-			if _, exists := uniqueApps[app.ID]; !exists {
-				uniqueApps[app.ID] = app
-			}
-		}
-	}
-
-	// Convert to app definitions
-	definitions := make([]serverApps.AppDefinition, 0, len(uniqueApps))
-	for _, app := range uniqueApps {
-		definitions = append(definitions, serverApps.AppDefinition{
-			ID:     app.ID,
-			Config: app.Config,
-		})
-	}
-
-	return definitions
-}
-
 // collectMiddlewares extracts middleware collection from domain config
 func collectMiddlewares(cfg *config.Config) middleware.MiddlewareCollection {
 	var allMiddlewares middleware.MiddlewareCollection
@@ -181,14 +139,14 @@ func collectMiddlewares(cfg *config.Config) middleware.MiddlewareCollection {
 	return allMiddlewares
 }
 
-// validateAndCreateApps validates and creates app instances
+// validateAndCreateApps validates and creates app instances using DTO pattern
 func validateAndCreateApps(tx *ConfigTransaction) error {
-	definitions := collectApps(tx.domainConfig)
-	appCollection, err := tx.app.factory.CreateAppsFromDefinitions(definitions)
+	// Convert domain apps to DTOs and create instances directly
+	appInstances, err := convertAndCreateApps(tx.domainConfig)
 	if err != nil {
 		return fmt.Errorf("%w: %w", ErrAppCreationFailed, err)
 	}
-	tx.app.collection = appCollection
+	tx.app.collection = appInstances
 	return nil
 }
 

@@ -1,47 +1,40 @@
 # Server Applications
 
-The `apps` package manages application instances and provides the runtime interface between HTTP requests and configured applications.
+The `apps` package contains app implementations that process HTTP requests.
 
 ## Purpose
 
-This package handles:
+This package provides:
 
-1. Application instantiation from domain configurations
-2. Runtime app registry for request routing
-3. App lifecycle management
-4. Request processing interface
+1. App implementations (Echo, Script, MCP)
+2. App interface definition
+3. Map-based app storage by ID
 
-## Components
+## Key Files
 
-- **factory.go**: Creates app instances from domain configurations
-- **instances.go**: Registry for managing app instances by ID
-- **app.go**: Common App interface definition
-- **instantiators.go**: Type-specific app creation logic
+- **app.go**: App interface definition
+- **instances.go**: Map wrapper for storing app instances by ID
+- **{type}/config.go**: Configuration structs for each app type
+- **{type}/{type}.go**: App implementation
 
 ## App Interface
 
-Apps implement a simple interface:
-- `String()` - Returns the app ID for registry lookup
-- `HandleHTTP(ctx, ResponseWriter, *Request)` - Processes HTTP requests
+All apps implement two methods:
+- `String()` - Returns app ID
+- `HandleHTTP()` - Processes HTTP requests
 
-Static data is embedded during app creation, not passed at runtime.
+**Data Flow**: Static data is embedded during app creation, not passed at runtime.
 
 ## App Types
 
-Currently implemented:
-- **EchoApp**: Returns request information for testing
-- **ScriptApp**: Executes scripts (Risor, Starlark, WebAssembly)
-- **MCPApp**: Executes Model Context Protocol tools
+**Currently implemented:**
+- **Echo**: Returns request information for testing and debugging
+- **Script**: Executes scripts using Risor, Starlark, or WebAssembly engines
+- **MCP**: Executes Model Context Protocol tools and functions
 
-Future implementations:
-- **CompositeApp**: Chains multiple script apps
+**Planned:**
+- **Composite**: Chains multiple script apps in sequence
 
-## Integration
+## Usage
 
-The app registry routes HTTP requests to configured application instances based on path mappings.
-
-## Architecture
-
-- **Domain Integration**: Apps instantiated from domain `AppCollection` struct via factory pattern
-- **Server Registry**: Simple map-based registry (`AppInstances`) for runtime lookup
-- **Iterator Support**: Both domain and server layers use Go 1.23 `All()` methods for clean iteration
+Apps are created during configuration validation and stored in an `AppInstances` map. The HTTP layer looks up apps by ID and calls their `HandleHTTP()` method to process requests.

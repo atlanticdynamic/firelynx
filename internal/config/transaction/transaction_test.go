@@ -23,7 +23,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction/finitestate"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
-	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	httpCfg "github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -495,110 +494,6 @@ func TestGetDuration(t *testing.T) {
 	})
 }
 
-func TestConvertToAppDefinitions(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    *apps.AppCollection
-		expected []serverApps.AppDefinition
-	}{
-		{
-			name:     "empty collection",
-			input:    apps.NewAppCollection(),
-			expected: []serverApps.AppDefinition{},
-		},
-		{
-			name: "single echo app",
-			input: apps.NewAppCollection(
-				apps.App{
-					ID: "test-echo",
-					Config: func() *echo.EchoApp {
-						app := echo.New("test-echo")
-						app.Response = "test"
-						return app
-					}(),
-				},
-			),
-			expected: []serverApps.AppDefinition{
-				{
-					ID: "test-echo",
-					Config: func() *echo.EchoApp {
-						app := echo.New("test-echo")
-						app.Response = "test"
-						return app
-					}(),
-				},
-			},
-		},
-		{
-			name: "multiple apps",
-			input: apps.NewAppCollection(
-				apps.App{
-					ID: "echo1",
-					Config: func() *echo.EchoApp {
-						app := echo.New("echo1")
-						app.Response = "test1"
-						return app
-					}(),
-				},
-				apps.App{
-					ID: "echo2",
-					Config: func() *echo.EchoApp {
-						app := echo.New("echo2")
-						app.Response = "test2"
-						return app
-					}(),
-				},
-			),
-			expected: []serverApps.AppDefinition{
-				{
-					ID: "echo1",
-					Config: func() *echo.EchoApp {
-						app := echo.New("echo1")
-						app.Response = "test1"
-						return app
-					}(),
-				},
-				{
-					ID: "echo2",
-					Config: func() *echo.EchoApp {
-						app := echo.New("echo2")
-						app.Response = "test2"
-						return app
-					}(),
-				},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := config.NewFromProto(&pb.ServerConfig{})
-			require.NoError(t, err)
-			cfg.Apps = tt.input
-			result := collectApps(cfg)
-
-			require.Len(t, result, len(tt.expected))
-
-			// Create a map of expected apps for order-independent comparison
-			expectedMap := make(map[string]serverApps.AppDefinition)
-			for _, exp := range tt.expected {
-				expectedMap[exp.ID] = exp
-			}
-
-			// Check that all results are in the expected set
-			for _, def := range result {
-				expected, ok := expectedMap[def.ID]
-				require.True(t, ok, "unexpected app ID: %s", def.ID)
-				assert.Equal(t, expected.Config, def.Config)
-				delete(expectedMap, def.ID)
-			}
-
-			// Ensure all expected apps were found
-			assert.Empty(t, expectedMap, "missing expected apps: %v", expectedMap)
-		})
-	}
-}
-
 // Mock FSM for testing error conditions
 type MockFSM struct {
 	mock.Mock
@@ -656,15 +551,15 @@ func TestNew_ErrorConditions(t *testing.T) {
 		assert.NotNil(t, tx.logger)
 	})
 
-	t.Run("handles app factory creation failure", func(t *testing.T) {
-		// Create a config that will cause app factory to fail
+	t.Run("handles nil app config", func(t *testing.T) {
+		// Create an app with nil config that will fail conversion
 		cfg, err := config.NewFromProto(&pb.ServerConfig{})
 		require.NoError(t, err)
 		cfg.Version = config.VersionLatest
 		cfg.Apps = apps.NewAppCollection(
 			apps.App{
 				ID:     "invalid-app",
-				Config: nil, // This should cause the factory to fail
+				Config: nil, // This will cause conversion to fail
 			},
 		)
 
@@ -672,11 +567,12 @@ func TestNew_ErrorConditions(t *testing.T) {
 		tx, err := New(SourceTest, "test", "", cfg, handler)
 		require.NoError(t, err)
 
-		// Validation should fail due to invalid app config
+		// Validation should fail due to nil app config
 		err = tx.RunValidation()
 		require.Error(t, err)
-		// The error will be wrapped in ErrValidationFailed, but should contain app creation error
+		// The error should be wrapped in ErrValidationFailed and contain ErrUnknownAppType
 		require.ErrorIs(t, err, ErrValidationFailed)
+		require.ErrorIs(t, err, ErrUnknownAppType)
 		assert.Contains(t, err.Error(), "app instantiation validation failed")
 	})
 }
@@ -816,34 +712,56 @@ func TestConcurrentAccess(t *testing.T) {
 
 		var wg sync.WaitGroup
 		numGoroutines := 10
+		numOperations := 100
+
+		// Channel to collect all read values - should be deterministic
+		readValues := make(chan bool, numGoroutines*numOperations)
+		writeValues := make(chan bool, numGoroutines*numOperations)
 
 		// Start readers
 		wg.Add(numGoroutines)
 		for range numGoroutines {
 			go func() {
 				defer wg.Done()
-				for range 100 {
-					_ = tx.IsValid.Load()
+				for range numOperations {
+					value := tx.IsValid.Load()
+					readValues <- value
 				}
 			}()
 		}
 
-		// Start writers
+		// Start writers - write alternating true/false in a predictable pattern
 		wg.Add(numGoroutines)
 		for i := range numGoroutines {
 			go func(id int) {
 				defer wg.Done()
-				for range 100 {
-					tx.IsValid.Store(id%2 == 0)
+				for j := range numOperations {
+					value := (id+j)%2 == 0
+					tx.IsValid.Store(value)
+					writeValues <- value
 				}
 			}(i)
 		}
 
 		wg.Wait()
+		close(readValues)
+		close(writeValues)
 
-		// Should not panic or deadlock
+		// Verify we got the expected number of operations
+		var readCount, writeCount int
+		for range readValues {
+			readCount++
+		}
+		for range writeValues {
+			writeCount++
+		}
+
+		assert.Equal(t, numGoroutines*numOperations, readCount)
+		assert.Equal(t, numGoroutines*numOperations, writeCount)
+
+		// Final value should be valid boolean
 		finalValue := tx.IsValid.Load()
-		assert.IsType(t, true, finalValue) // Just checking type safety
+		assert.IsType(t, true, finalValue)
 	})
 
 	t.Run("concurrent state transitions fail gracefully", func(t *testing.T) {
@@ -1046,69 +964,6 @@ func TestGetTotalDuration(t *testing.T) {
 
 		duration := tx.GetTotalDuration()
 		assert.Greater(t, duration, time.Duration(0))
-	})
-}
-
-func TestAppFactoryIntegration(t *testing.T) {
-	t.Run("creates app collection from config", func(t *testing.T) {
-		// Create a config with echo apps
-		cfg, err := config.NewFromProto(&pb.ServerConfig{})
-		require.NoError(t, err)
-		cfg.Apps = apps.NewAppCollection(
-			apps.App{
-				ID: "echo1",
-				Config: func() *echo.EchoApp {
-					app := echo.New("app1")
-					app.Response = "Hello 1"
-					return app
-				}(),
-			},
-			apps.App{
-				ID: "echo2",
-				Config: func() *echo.EchoApp {
-					app := echo.New("app2")
-					app.Response = "Hello 2"
-					return app
-				}(),
-			},
-		)
-
-		// Create app factory and convert definitions
-		factory := serverApps.NewAppFactory()
-		definitions := collectApps(cfg)
-
-		// Create app collection
-		collection, err := factory.CreateAppsFromDefinitions(definitions)
-		require.NoError(t, err)
-		require.NotNil(t, collection)
-
-		// Verify apps exist
-		app1, exists1 := collection.GetApp("echo1")
-		assert.True(t, exists1)
-		assert.Equal(t, "echo1", app1.String())
-
-		app2, exists2 := collection.GetApp("echo2")
-		assert.True(t, exists2)
-		assert.Equal(t, "echo2", app2.String())
-	})
-
-	t.Run("handles empty config", func(t *testing.T) {
-		cfg, err := config.NewFromProto(&pb.ServerConfig{})
-		require.NoError(t, err)
-		cfg.Apps = apps.NewAppCollection()
-
-		// Create app factory and convert definitions
-		factory := serverApps.NewAppFactory()
-		definitions := collectApps(cfg)
-
-		// Create app collection
-		collection, err := factory.CreateAppsFromDefinitions(definitions)
-		require.NoError(t, err)
-		require.NotNil(t, collection)
-
-		// Verify no apps exist
-		_, exists := collection.GetApp("nonexistent")
-		assert.False(t, exists)
 	})
 }
 
