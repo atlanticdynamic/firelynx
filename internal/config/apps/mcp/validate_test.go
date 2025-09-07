@@ -74,11 +74,38 @@ func (m *mockToolHandler) Type() string {
 	return "mock"
 }
 
+// Test helper functions to reduce duplication
+
+// newValidApp creates a valid app with minimal required fields for testing
+func newValidApp(t *testing.T, id string) *App {
+	t.Helper()
+	app := NewApp(id)
+	app.ServerName = "Test Server"
+	app.ServerVersion = "1.0.0"
+	return app
+}
+
+// newValidTool creates a valid tool with the specified name and handler
+func newValidTool(name string, handler ToolHandler) *Tool {
+	return &Tool{
+		Name:        name,
+		Description: "Test tool",
+		Handler:     handler,
+	}
+}
+
+// newEchoHandler creates a valid echo builtin handler for testing
+func newEchoHandler() *BuiltinToolHandler {
+	return &BuiltinToolHandler{
+		BuiltinType: BuiltinEcho,
+		Config:      map[string]string{},
+	}
+}
+
 func TestApp_Validate(t *testing.T) {
+	t.Parallel()
 	t.Run("valid minimal app", func(t *testing.T) {
-		app := NewApp("test-id")
-		app.ServerName = "Test Server"
-		app.ServerVersion = "1.0.0"
+		app := newValidApp(t, "test-id")
 
 		err := app.Validate()
 		require.NoError(t, err)
@@ -148,18 +175,9 @@ func TestApp_Validate(t *testing.T) {
 	})
 
 	t.Run("valid app with tools", func(t *testing.T) {
-		app := NewApp("test-id")
-		app.ServerName = "Test Server"
-		app.ServerVersion = "1.0.0"
+		app := newValidApp(t, "test-id")
 		app.Tools = []*Tool{
-			{
-				Name:        "echo",
-				Description: "Echo tool",
-				Handler: &BuiltinToolHandler{
-					BuiltinType: BuiltinEcho,
-					Config:      map[string]string{},
-				},
-			},
+			newValidTool("echo", newEchoHandler()),
 		}
 
 		err := app.Validate()
@@ -215,6 +233,19 @@ func TestApp_Validate(t *testing.T) {
 		require.ErrorIs(t, err, ErrDuplicatePromptName)
 	})
 
+	t.Run("tool handler CreateMCPTool error", func(t *testing.T) {
+		app := newValidApp(t, "test-app")
+		tool := newValidTool("failing-tool", &BuiltinToolHandler{
+			BuiltinType: 999, // Invalid builtin type to trigger CreateMCPTool error
+			Config:      map[string]string{},
+		})
+		app.Tools = []*Tool{tool}
+
+		err := app.Validate()
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrUnknownBuiltinType)
+	})
+
 	t.Run("valid app with prompts", func(t *testing.T) {
 		app := NewApp("test-id")
 		app.ServerName = "Test Server"
@@ -240,6 +271,7 @@ func TestApp_Validate(t *testing.T) {
 }
 
 func TestTransport_Validate(t *testing.T) {
+	t.Parallel()
 	t.Run("valid transport with SSE disabled", func(t *testing.T) {
 		transport := &Transport{
 			SSEEnabled: false,
@@ -274,6 +306,7 @@ func TestTransport_Validate(t *testing.T) {
 }
 
 func TestTool_Validate(t *testing.T) {
+	t.Parallel()
 	t.Run("valid tool with builtin handler", func(t *testing.T) {
 		tool := &Tool{
 			Name:        "echo",
@@ -400,6 +433,7 @@ func TestTool_Validate(t *testing.T) {
 }
 
 func TestScriptToolHandler_Validate(t *testing.T) {
+	t.Parallel()
 	t.Run("missing evaluator", func(t *testing.T) {
 		handler := &ScriptToolHandler{
 			StaticData: nil,
@@ -435,160 +469,189 @@ func TestScriptToolHandler_Validate(t *testing.T) {
 }
 
 func TestBuiltinToolHandler_Validate(t *testing.T) {
-	t.Run("valid echo handler", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinEcho,
-			Config:      map[string]string{},
-		}
+	t.Parallel()
 
-		err := handler.Validate()
-		require.NoError(t, err)
-	})
+	emptyConfig := map[string]string{}
 
-	t.Run("valid calculation handler", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinCalculation,
-			Config:      map[string]string{},
-		}
-
-		err := handler.Validate()
-		require.NoError(t, err)
-	})
-
-	t.Run("valid file read handler", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinFileRead,
-			Config: map[string]string{
-				"base_directory": "/workspace",
+	tests := []struct {
+		name        string
+		builtinType BuiltinType
+		config      map[string]string
+		wantErr     error
+	}{
+		{
+			name:        "valid echo handler",
+			builtinType: BuiltinEcho,
+			config:      emptyConfig,
+			wantErr:     nil,
+		},
+		{
+			name:        "valid calculation handler",
+			builtinType: BuiltinCalculation,
+			config:      emptyConfig,
+			wantErr:     nil,
+		},
+		{
+			name:        "valid file read handler",
+			builtinType: BuiltinFileRead,
+			config: map[string]string{
+				"base_directory": t.TempDir(),
 			},
-		}
+			wantErr: nil,
+		},
+		{
+			name:        "file read handler missing base directory",
+			builtinType: BuiltinFileRead,
+			config:      emptyConfig,
+			wantErr:     ErrMissingBaseDirectory,
+		},
+		{
+			name:        "unknown builtin type",
+			builtinType: BuiltinType(999),
+			config:      emptyConfig,
+			wantErr:     ErrUnknownBuiltinType,
+		},
+	}
 
-		err := handler.Validate()
-		require.NoError(t, err)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := &BuiltinToolHandler{
+				BuiltinType: tt.builtinType,
+				Config:      tt.config,
+			}
 
-	t.Run("file read handler missing base directory", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinFileRead,
-			Config:      map[string]string{},
-		}
-
-		err := handler.Validate()
-		require.Error(t, err)
-		require.ErrorIs(t, err, ErrMissingBaseDirectory)
-	})
-
-	t.Run("unknown builtin type", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinType(999),
-			Config:      map[string]string{},
-		}
-
-		err := handler.Validate()
-		require.Error(t, err)
-		require.ErrorIs(t, err, ErrUnknownBuiltinType)
-	})
+			err := handler.Validate()
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestMiddleware_Validate(t *testing.T) {
-	t.Run("valid rate limiting middleware", func(t *testing.T) {
-		middleware := &Middleware{
-			Type:   MiddlewareRateLimiting,
-			Config: map[string]string{},
-		}
+	t.Parallel()
 
-		err := middleware.Validate()
-		require.NoError(t, err)
-	})
+	tests := []struct {
+		name           string
+		middlewareType MiddlewareType
+		config         map[string]string
+		wantErr        error
+	}{
+		{
+			name:           "valid rate limiting middleware",
+			middlewareType: MiddlewareRateLimiting,
+			config:         map[string]string{},
+			wantErr:        nil,
+		},
+		{
+			name:           "valid logging middleware",
+			middlewareType: MiddlewareLogging,
+			config:         map[string]string{},
+			wantErr:        nil,
+		},
+		{
+			name:           "valid authentication middleware",
+			middlewareType: MiddlewareAuthentication,
+			config:         map[string]string{},
+			wantErr:        nil,
+		},
+		{
+			name:           "unknown middleware type",
+			middlewareType: MiddlewareType(999),
+			config:         map[string]string{},
+			wantErr:        ErrUnknownMiddlewareType,
+		},
+	}
 
-	t.Run("valid logging middleware", func(t *testing.T) {
-		middleware := &Middleware{
-			Type:   MiddlewareLogging,
-			Config: map[string]string{},
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			middleware := &Middleware{
+				Type:   tt.middlewareType,
+				Config: tt.config,
+			}
 
-		err := middleware.Validate()
-		require.NoError(t, err)
-	})
-
-	t.Run("valid authentication middleware", func(t *testing.T) {
-		middleware := &Middleware{
-			Type:   MiddlewareAuthentication,
-			Config: map[string]string{},
-		}
-
-		err := middleware.Validate()
-		require.NoError(t, err)
-	})
-
-	t.Run("unknown middleware type", func(t *testing.T) {
-		middleware := &Middleware{
-			Type:   MiddlewareType(999),
-			Config: map[string]string{},
-		}
-
-		err := middleware.Validate()
-		require.Error(t, err)
-		require.ErrorIs(t, err, ErrUnknownMiddlewareType)
-	})
+			err := middleware.Validate()
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestBuiltinToolHandler_CreateMCPTool(t *testing.T) {
-	t.Run("create echo tool", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinEcho,
-			Config:      map[string]string{},
-		}
+	t.Parallel()
 
-		tool, mcpHandler, err := handler.CreateMCPTool()
-		require.NoError(t, err)
-		assert.NotNil(t, tool)
-		assert.NotNil(t, mcpHandler)
-		assert.Empty(t, tool.Name)        // Will be set by caller
-		assert.Empty(t, tool.Description) // Will be set by caller
-	})
+	emptyConfig := map[string]string{}
+	tempDirConfig := map[string]string{
+		"base_directory": t.TempDir(),
+	}
 
-	t.Run("create calculation tool", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinCalculation,
-			Config:      map[string]string{},
-		}
+	tests := []struct {
+		name        string
+		builtinType BuiltinType
+		config      map[string]string
+		wantErr     error
+	}{
+		{
+			name:        "create echo tool",
+			builtinType: BuiltinEcho,
+			config:      emptyConfig,
+			wantErr:     nil,
+		},
+		{
+			name:        "create calculation tool",
+			builtinType: BuiltinCalculation,
+			config:      emptyConfig,
+			wantErr:     nil,
+		},
+		{
+			name:        "create file read tool",
+			builtinType: BuiltinFileRead,
+			config:      tempDirConfig,
+			wantErr:     nil,
+		},
+		{
+			name:        "unknown builtin type",
+			builtinType: BuiltinType(999),
+			config:      emptyConfig,
+			wantErr:     ErrUnknownBuiltinType,
+		},
+	}
 
-		tool, mcpHandler, err := handler.CreateMCPTool()
-		require.NoError(t, err)
-		assert.NotNil(t, tool)
-		assert.NotNil(t, mcpHandler)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler := &BuiltinToolHandler{
+				BuiltinType: tt.builtinType,
+				Config:      tt.config,
+			}
 
-	t.Run("create file read tool", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinFileRead,
-			Config: map[string]string{
-				"base_directory": "/workspace",
-			},
-		}
-
-		tool, mcpHandler, err := handler.CreateMCPTool()
-		require.NoError(t, err)
-		assert.NotNil(t, tool)
-		assert.NotNil(t, mcpHandler)
-	})
-
-	t.Run("unknown builtin type", func(t *testing.T) {
-		handler := &BuiltinToolHandler{
-			BuiltinType: BuiltinType(999),
-			Config:      map[string]string{},
-		}
-
-		tool, mcpHandler, err := handler.CreateMCPTool()
-		require.Error(t, err)
-		assert.Nil(t, tool)
-		assert.Nil(t, mcpHandler)
-		require.ErrorIs(t, err, ErrUnknownBuiltinType)
-	})
+			tool, mcpHandler, err := handler.CreateMCPTool()
+			if tt.wantErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.wantErr)
+				assert.Nil(t, tool)
+				assert.Nil(t, mcpHandler)
+			} else {
+				require.NoError(t, err)
+				assert.NotNil(t, tool)
+				assert.NotNil(t, mcpHandler)
+				if tt.builtinType == BuiltinEcho {
+					assert.Empty(t, tool.Name)        // Will be set by caller
+					assert.Empty(t, tool.Description) // Will be set by caller
+				}
+			}
+		})
+	}
 }
 
 func TestScriptToolHandler_CreateMCPTool(t *testing.T) {
+	t.Parallel()
 	t.Run("script tool with mock evaluator error", func(t *testing.T) {
 		mockEval := &mockEvaluatorAdapter{
 			PlatformEvaluator: &evalMocks.Evaluator{},
@@ -620,6 +683,7 @@ func TestScriptToolHandler_CreateMCPTool(t *testing.T) {
 }
 
 func TestPrompt_Validate(t *testing.T) {
+	t.Parallel()
 	t.Run("valid prompt", func(t *testing.T) {
 		prompt := &Prompt{
 			Name:        "test_prompt",
@@ -683,11 +747,12 @@ func TestPrompt_Validate(t *testing.T) {
 		err := prompt.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "argument 0")
-		assert.Contains(t, err.Error(), "prompt argument name is required")
+		require.ErrorIs(t, err, ErrMissingPromptArgumentName)
 	})
 }
 
 func TestPromptArgument_Validate(t *testing.T) {
+	t.Parallel()
 	t.Run("valid argument", func(t *testing.T) {
 		arg := &PromptArgument{
 			Name:        "input",
@@ -831,6 +896,7 @@ func TestConvertAnnotationsToMCPSDK(t *testing.T) {
 }
 
 func TestScriptToolHandler_convertToMCPContent(t *testing.T) {
+	t.Parallel()
 	handler := &ScriptToolHandler{}
 
 	t.Run("map with error field", func(t *testing.T) {
@@ -995,6 +1061,7 @@ func TestScriptToolHandler_prepareScriptContext(t *testing.T) {
 }
 
 func TestScriptToolHandler_executeScriptTool(t *testing.T) {
+	t.Parallel()
 	t.Run("successful execution with risor", func(t *testing.T) {
 		handler := &ScriptToolHandler{
 			Evaluator: &evaluators.RisorEvaluator{
@@ -1100,6 +1167,7 @@ func TestScriptToolHandler_executeScriptTool(t *testing.T) {
 
 // Additional tests for compileMCPServer edge cases to improve coverage
 func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("tool with Title field", func(t *testing.T) {
 		app := NewApp("test-id")
 		app.ServerName = "Test Server"
@@ -1277,6 +1345,7 @@ func TestApp_ValidateCompileMCPServerEdgeCases(t *testing.T) {
 
 // Test validateJSONSchema edge cases
 func TestValidateJSONSchemaEdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("invalid JSON Schema type", func(t *testing.T) {
 		schema := `{"type":"invalid-type"}`
 		err := validateJSONSchema(schema)
@@ -1315,6 +1384,7 @@ func TestValidateJSONSchemaEdgeCases(t *testing.T) {
 
 // Test getDefaultInputSchema edge cases
 func TestGetDefaultInputSchemaEdgeCases(t *testing.T) {
+	t.Parallel()
 	t.Run("builtin calculation handler", func(t *testing.T) {
 		handler := &BuiltinToolHandler{
 			BuiltinType: BuiltinCalculation,
@@ -1362,6 +1432,7 @@ func TestGetDefaultInputSchemaEdgeCases(t *testing.T) {
 }
 
 func TestTransportValidateInterpolationError(t *testing.T) {
+	t.Parallel()
 	t.Run("interpolation error case", func(t *testing.T) {
 		// Create a transport with a missing environment variable
 		// This will cause interpolation.InterpolateStruct to fail
@@ -1376,6 +1447,7 @@ func TestTransportValidateInterpolationError(t *testing.T) {
 }
 
 func TestScriptToolHandlerCreateMCPToolErrors(t *testing.T) {
+	t.Parallel()
 	t.Run("GetCompiledEvaluator returns error", func(t *testing.T) {
 		mockEval := &mockEvaluatorAdapter{}
 		mockEval.On("GetCompiledEvaluator").Return(nil, assert.AnError)
@@ -1410,6 +1482,7 @@ func TestScriptToolHandlerCreateMCPToolErrors(t *testing.T) {
 }
 
 func TestPromptValidateErrors(t *testing.T) {
+	t.Parallel()
 	t.Run("interpolation error", func(t *testing.T) {
 		prompt := &Prompt{
 			Name:        "test",
