@@ -1315,6 +1315,32 @@ func TestValidateJSONSchemaEdgeCases(t *testing.T) {
 
 // Test getDefaultInputSchema edge cases
 func TestGetDefaultInputSchemaEdgeCases(t *testing.T) {
+	t.Run("builtin calculation handler", func(t *testing.T) {
+		handler := &BuiltinToolHandler{
+			BuiltinType: BuiltinCalculation,
+		}
+		schema, err := getDefaultInputSchema(handler)
+		require.NoError(t, err)
+		assert.NotNil(t, schema)
+		assert.Equal(t, "object", schema.Type)
+		assert.Equal(t, "string", schema.Properties["expression"].Type)
+		assert.Equal(t, "Mathematical expression to evaluate", schema.Properties["expression"].Description)
+		assert.Contains(t, schema.Required, "expression")
+	})
+
+	t.Run("builtin file read handler", func(t *testing.T) {
+		handler := &BuiltinToolHandler{
+			BuiltinType: BuiltinFileRead,
+		}
+		schema, err := getDefaultInputSchema(handler)
+		require.NoError(t, err)
+		assert.NotNil(t, schema)
+		assert.Equal(t, "object", schema.Type)
+		assert.Equal(t, "string", schema.Properties["path"].Type)
+		assert.Equal(t, "Path to the file to read", schema.Properties["path"].Description)
+		assert.Contains(t, schema.Required, "path")
+	})
+
 	t.Run("script tool handler", func(t *testing.T) {
 		handler := &ScriptToolHandler{}
 		schema, err := getDefaultInputSchema(handler)
@@ -1332,5 +1358,67 @@ func TestGetDefaultInputSchemaEdgeCases(t *testing.T) {
 		assert.NotNil(t, schema)
 		assert.Equal(t, "object", schema.Type)
 		assert.Equal(t, "Tool input parameters", schema.Description)
+	})
+}
+
+func TestTransportValidateInterpolationError(t *testing.T) {
+	t.Run("interpolation error case", func(t *testing.T) {
+		// Create a transport with a missing environment variable
+		// This will cause interpolation.InterpolateStruct to fail
+		transport := &Transport{
+			SSEPath: "${NONEXISTENT_MCP_VAR}", // Non-existent env var
+		}
+
+		err := transport.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "transport interpolation failed")
+	})
+}
+
+func TestScriptToolHandlerCreateMCPToolErrors(t *testing.T) {
+	t.Run("GetCompiledEvaluator returns error", func(t *testing.T) {
+		mockEval := &mockEvaluatorAdapter{}
+		mockEval.On("GetCompiledEvaluator").Return(nil, assert.AnError)
+
+		handler := &ScriptToolHandler{
+			Evaluator: mockEval,
+		}
+
+		tool, mcpHandler, err := handler.CreateMCPTool()
+		require.Error(t, err)
+		assert.Nil(t, tool)
+		assert.Nil(t, mcpHandler)
+		assert.Contains(t, err.Error(), "failed to get compiled evaluator")
+		mockEval.AssertExpectations(t)
+	})
+
+	t.Run("GetCompiledEvaluator returns nil", func(t *testing.T) {
+		mockEval := &mockEvaluatorAdapter{}
+		mockEval.On("GetCompiledEvaluator").Return(nil, nil)
+
+		handler := &ScriptToolHandler{
+			Evaluator: mockEval,
+		}
+
+		tool, mcpHandler, err := handler.CreateMCPTool()
+		require.Error(t, err)
+		assert.Nil(t, tool)
+		assert.Nil(t, mcpHandler)
+		assert.Contains(t, err.Error(), "compiled evaluator is nil")
+		mockEval.AssertExpectations(t)
+	})
+}
+
+func TestPromptValidateErrors(t *testing.T) {
+	t.Run("interpolation error", func(t *testing.T) {
+		prompt := &Prompt{
+			Name:        "test",
+			Description: "${NONEXISTENT_PROMPT_VAR}", // Non-existent env var
+			Arguments:   []*PromptArgument{{Name: "test", Description: "Test arg"}},
+		}
+
+		err := prompt.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "interpolation failed")
 	})
 }
