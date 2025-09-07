@@ -5,6 +5,7 @@ package mcp
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -301,10 +302,12 @@ func TestEnhancedCalculatorOperations(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			params := &mcpsdk.CallToolParams{
-				Arguments: map[string]any{
-					"expression": tc.expression,
-				},
+			args, err := json.Marshal(map[string]any{
+				"expression": tc.expression,
+			})
+			require.NoError(t, err)
+			params := &mcpsdk.CallToolParamsRaw{
+				Arguments: json.RawMessage(args),
 			}
 
 			req := &mcpsdk.CallToolRequest{

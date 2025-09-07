@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -481,8 +482,15 @@ func (b *BuiltinToolHandler) createEchoTool() (*mcpsdk.Tool, mcpsdk.ToolHandler,
 
 	handler := func(ctx context.Context, req *mcpsdk.CallToolRequest) (*mcpsdk.CallToolResult, error) {
 		// Echo back the input arguments
+		args, err := extractArguments(req.Params.Arguments)
+		if err != nil {
+			return &mcpsdk.CallToolResult{
+				IsError: true,
+				Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("Error extracting arguments: %v", err)}},
+			}, nil
+		}
 		return &mcpsdk.CallToolResult{
-			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("Echo: %v", req.Params.Arguments)}},
+			Content: []mcpsdk.Content{&mcpsdk.TextContent{Text: fmt.Sprintf("Echo: %v", args)}},
 		}, nil
 	}
 
@@ -827,10 +835,86 @@ func extractArguments(arguments any) (map[string]any, error) {
 		}
 	}
 
+	// Handle empty or whitespace-only JSON
+	trimmed := bytes.TrimSpace(jsonData)
+	if len(trimmed) == 0 {
+		return make(map[string]any), nil
+	}
+
+	// Handle special case of empty JSON object or null
+	if string(trimmed) == "{}" || string(trimmed) == "null" {
+		return make(map[string]any), nil
+	}
+
+	// Check if it's a JSON array or primitive (not an object)
+	if len(trimmed) > 0 && trimmed[0] != '{' {
+		// For non-object JSON, return descriptive error
+		preview := string(trimmed)
+		if len(preview) > 50 {
+			preview = preview[:50] + "..."
+		}
+		return nil, fmt.Errorf("arguments must be a JSON object, got: %s", preview)
+	}
+
+	// Use json.Decoder for better number handling
+	decoder := json.NewDecoder(bytes.NewReader(trimmed))
+	decoder.UseNumber() // Preserve number precision
+
 	var result map[string]any
-	if err := json.Unmarshal(jsonData, &result); err != nil {
+	if err := decoder.Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal arguments from JSON: %w", err)
 	}
 
+	// Convert json.Number to appropriate Go types recursively
+	convertJSONNumbers(result)
+
 	return result, nil
+}
+
+// convertJSONNumbers recursively converts json.Number values to appropriate Go types
+// in nested data structures. This is a standalone function for easier unit testing.
+func convertJSONNumbers(obj any) {
+	switch v := obj.(type) {
+	case map[string]any:
+		for k, val := range v {
+			if num, ok := val.(json.Number); ok {
+				v[k] = convertJSONNumber(num)
+			} else {
+				convertJSONNumbers(val)
+			}
+		}
+	case []any:
+		for i, val := range v {
+			if num, ok := val.(json.Number); ok {
+				v[i] = convertJSONNumber(num)
+			} else {
+				convertJSONNumbers(val)
+			}
+		}
+	}
+}
+
+// convertJSONNumber converts a single json.Number to the most appropriate Go type:
+// int64 for integers, float64 for decimal numbers, or string for very large numbers.
+// This function is standalone for easier unit testing.
+func convertJSONNumber(num json.Number) any {
+	numStr := num.String()
+
+	// Try int64 first - if it succeeds, use the integer value
+	if intVal, err := num.Int64(); err == nil {
+		return intVal
+	}
+
+	// If int64 failed, try float64
+	if floatVal, err := num.Float64(); err == nil {
+		// For very large numbers or numbers with many digits,
+		// keep as string to preserve precision
+		if len(numStr) > 15 {
+			return numStr
+		}
+		return floatVal
+	}
+
+	// Keep as string if both int64 and float64 fail
+	return numStr
 }
