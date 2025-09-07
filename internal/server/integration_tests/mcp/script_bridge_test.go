@@ -4,6 +4,7 @@ package mcp
 
 import (
 	_ "embed"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -65,10 +66,12 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		require.NotNil(t, mcpHandler)
 
 		// Test tool execution
-		params := &mcpsdk.CallToolParams{
-			Arguments: map[string]any{
-				"expression": "10 + 5",
-			},
+		args, err := json.Marshal(map[string]any{
+			"expression": "10 + 5",
+		})
+		require.NoError(t, err)
+		params := &mcpsdk.CallToolParamsRaw{
+			Arguments: json.RawMessage(args),
 		}
 
 		req := &mcpsdk.CallToolRequest{
@@ -104,10 +107,12 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		require.NoError(t, err)
 
 		// Test with division by zero
-		params := &mcpsdk.CallToolParams{
-			Arguments: map[string]any{
-				"expression": "10 / 0",
-			},
+		args, err := json.Marshal(map[string]any{
+			"expression": "10 / 0",
+		})
+		require.NoError(t, err)
+		params := &mcpsdk.CallToolParamsRaw{
+			Arguments: json.RawMessage(args),
 		}
 
 		req := &mcpsdk.CallToolRequest{
@@ -156,15 +161,17 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
 		// Test with JSON data
-		params := &mcpsdk.CallToolParams{
-			Arguments: map[string]any{
-				"data": map[string]any{
-					"name":  "John",
-					"age":   30,
-					"items": []any{"a", "b", "c"},
-				},
-				"type": "structure",
+		args, err := json.Marshal(map[string]any{
+			"data": map[string]any{
+				"name":  "John",
+				"age":   30,
+				"items": []any{"a", "b", "c"},
 			},
+			"type": "structure",
+		})
+		require.NoError(t, err)
+		params := &mcpsdk.CallToolParamsRaw{
+			Arguments: json.RawMessage(args),
 		}
 
 		req := &mcpsdk.CallToolRequest{
@@ -209,8 +216,10 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		assert.Empty(t, tool.Name, "Tool name should be empty as it's set by the caller during tool registration")
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
-		params := &mcpsdk.CallToolParams{
-			Arguments: map[string]any{},
+		args, marshalErr := json.Marshal(map[string]any{})
+		require.NoError(t, marshalErr)
+		params := &mcpsdk.CallToolParamsRaw{
+			Arguments: json.RawMessage(args),
 		}
 
 		req := &mcpsdk.CallToolRequest{
@@ -246,11 +255,13 @@ func TestScriptBridgeDirectly(t *testing.T) {
 		assert.Empty(t, tool.Name, "Tool name should be empty as it's set by the caller during tool registration")
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
-		params := &mcpsdk.CallToolParams{
-			Arguments: map[string]any{
-				"name":  "Alice",
-				"count": 42,
-			},
+		args, err := json.Marshal(map[string]any{
+			"name":  "Alice",
+			"count": 42,
+		})
+		require.NoError(t, err)
+		params := &mcpsdk.CallToolParamsRaw{
+			Arguments: json.RawMessage(args),
 		}
 
 		req := &mcpsdk.CallToolRequest{
@@ -291,10 +302,12 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
 		// Test error case
-		params := &mcpsdk.CallToolParams{
-			Arguments: map[string]any{
-				"error": true,
-			},
+		args, err := json.Marshal(map[string]any{
+			"error": true,
+		})
+		require.NoError(t, err)
+		params := &mcpsdk.CallToolParamsRaw{
+			Arguments: json.RawMessage(args),
 		}
 
 		req := &mcpsdk.CallToolRequest{
@@ -312,9 +325,15 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		assert.Contains(t, textContent.Text, "Something went wrong", "Error message should be in content")
 
 		// Test success case
-		params.Arguments.(map[string]any)["error"] = false
+		successArgs, err := json.Marshal(map[string]any{
+			"error": false,
+		})
+		require.NoError(t, err)
+		successParams := &mcpsdk.CallToolParamsRaw{
+			Arguments: json.RawMessage(successArgs),
+		}
 		req = &mcpsdk.CallToolRequest{
-			Params: params,
+			Params: successParams,
 		}
 		result, err = mcpHandler(ctx, req)
 		require.NoError(t, err)
@@ -348,8 +367,10 @@ func TestScriptBridgeErrorHandling(t *testing.T) {
 		assert.Empty(t, tool.Name, "Tool name should be empty as it's set by the caller during tool registration")
 		assert.Empty(t, tool.Description, "Tool description should be empty as it's set by the caller during tool registration")
 
-		params := &mcpsdk.CallToolParams{
-			Arguments: map[string]any{},
+		args, marshalErr := json.Marshal(map[string]any{})
+		require.NoError(t, marshalErr)
+		params := &mcpsdk.CallToolParamsRaw{
+			Arguments: json.RawMessage(args),
 		}
 
 		req := &mcpsdk.CallToolRequest{

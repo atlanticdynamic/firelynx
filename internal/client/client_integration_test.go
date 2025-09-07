@@ -412,10 +412,14 @@ func TestApplyConfigFromTransaction_Integration(t *testing.T) {
 		}, 10*time.Second, 200*time.Millisecond, "/updated endpoint should be removed after rollback")
 
 		// Verify /test endpoint is still available
-		resp, err = http.Get(fmt.Sprintf("http://localhost:%d/test", httpPort))
-		require.NoError(t, err)
-		require.Equal(t, http.StatusOK, resp.StatusCode, "/test endpoint should still be available")
-		require.NoError(t, resp.Body.Close())
+		require.Eventually(t, func() bool {
+			resp, err := http.Get(fmt.Sprintf("http://localhost:%d/test", httpPort))
+			if err != nil {
+				return false // Connection error means server is still reloading
+			}
+			defer func() { require.NoError(t, resp.Body.Close()) }()
+			return resp.StatusCode == http.StatusOK
+		}, 10*time.Second, 200*time.Millisecond, "/test endpoint should be available after rollback")
 
 		// Verify we now have 3 transactions (initial, update, rollback)
 		transactions, _, err := client.ListConfigTransactions(ctx, "", 10, "", "")
