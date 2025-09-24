@@ -11,7 +11,7 @@ require (
 	github.com/google/jsonschema-go v0.3.0
 	github.com/modelcontextprotocol/go-sdk v0.6.0
 	github.com/pelletier/go-toml/v2 v2.2.4
-	github.com/robbyt/go-fsm v1.4.1
+	github.com/robbyt/go-fsm v1.5.0
 	github.com/robbyt/go-loglater v0.2.0
 	github.com/robbyt/go-polyscript v0.3.0
 	github.com/robbyt/go-supervisor v0.0.15
