@@ -73,8 +73,8 @@ github.com/robbyt/go-polyscript v0.3.0 h1:LBZVsvk7wskz2Huh6biATDY1MvWbgjkdeq/PMP
 github.com/robbyt/go-polyscript v0.3.0/go.mod h1:rzShtRfo0CIRCHYPO5OudYZ0mnUWBT8CwuxcaWRpUvY=
 github.com/robbyt/go-supervisor v0.0.15 h1:zHBf0pqabVIDtUI1pMSYtgzHuaJGwAYSR46DkH/86Kk=
 github.com/robbyt/go-supervisor v0.0.15/go.mod h1:gksdlK+dAMKEh0GxegpZhriUUOTUGEoV91kfoNwAyD4=
-github.com/robbyt/protobaggins v0.1.0 h1:D/TSqYf0F0YNrJ+PcEkuqVKY75zBdusDLYd8JatoJvU=
-github.com/robbyt/protobaggins v0.1.0/go.mod h1:JXiILHkkXLSo63KkpexD7I9tD7eG+PCepfnEFK9zBhw=
+github.com/robbyt/protobaggins v0.2.0 h1:M5XaeEAXTrp9Jke6jpmy4HJAw3lhtVNflDKdWErkXUM=
+github.com/robbyt/protobaggins v0.2.0/go.mod h1:Ws5kc3B6pQQV29lfHJFJZmhkMSiGhQp+YICFqefj3lA=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
 github.com/stretchr/objx v0.5.2 h1:xuMeJ0Sdp5ZMRXx/aWO6RZxdr3beISkG5/G/aIRr3pY=
