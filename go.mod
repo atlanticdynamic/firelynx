@@ -13,7 +13,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.5.0
 	github.com/robbyt/go-loglater v0.2.0
-	github.com/robbyt/go-polyscript v0.4.0
+	github.com/robbyt/go-polyscript v0.5.0
 	github.com/robbyt/go-supervisor v0.0.17
 	github.com/robbyt/protobaggins v0.2.0
 	github.com/stretchr/testify v1.11.1
