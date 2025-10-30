@@ -7,7 +7,7 @@ require github.com/urfave/cli/v3 v3.4.1
 require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/log v0.4.2
-	github.com/gofrs/uuid/v5 v5.3.2
+	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/google/jsonschema-go v0.3.0
 	github.com/modelcontextprotocol/go-sdk v0.7.0
 	github.com/pelletier/go-toml/v2 v2.2.4
