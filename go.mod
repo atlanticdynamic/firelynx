@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/log v0.4.2
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/google/jsonschema-go v0.3.0
-	github.com/modelcontextprotocol/go-sdk v0.7.0
+	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.5.0
 	github.com/robbyt/go-loglater v0.2.0
@@ -49,6 +49,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.8.0 // indirect
 	go.starlark.net v0.0.0-20250906160240-bf296ed553ea // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
+	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect
