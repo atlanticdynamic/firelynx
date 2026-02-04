@@ -1,6 +1,6 @@
 module github.com/atlanticdynamic/firelynx
 
-go 1.25.1
+go 1.25.3
 
 require github.com/urfave/cli/v3 v3.6.2
 
@@ -13,7 +13,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.5.0
 	github.com/robbyt/go-loglater v0.2.0
-	github.com/robbyt/go-polyscript v0.4.0
+	github.com/robbyt/go-polyscript v0.5.0
 	github.com/robbyt/go-supervisor v0.0.17
 	github.com/robbyt/protobaggins v0.2.0
 	github.com/stretchr/testify v1.11.1
@@ -41,7 +41,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/risor-io/risor v1.8.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
