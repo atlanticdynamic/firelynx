@@ -71,8 +71,8 @@ github.com/robbyt/go-fsm/v2 v2.3.0 h1:XfgDozIDydgfsPulqwixrSpwhlnTxGAmNgyr+s2vQn
 github.com/robbyt/go-fsm/v2 v2.3.0/go.mod h1:rnc9GEyIJm7OjLQampMh47gXXhLuc2+hKjgwVqP2fx4=
 github.com/robbyt/go-loglater v0.2.0 h1:9ci8njlgoiqqx+zfpr3F8uOBeORLSDDY+u+L0frCrWo=
 github.com/robbyt/go-loglater v0.2.0/go.mod h1:JTuKjCRdC6dsOs3k70zgJVkZVk+OT4cCsgUfw15B6dk=
-github.com/robbyt/go-polyscript v0.5.0 h1:K516W10GZ2q3kNn+8kw4zCtpdNNyXJg4iizkPTKEXN8=
-github.com/robbyt/go-polyscript v0.5.0/go.mod h1:CSdBEdghHXxeSupzTbBAdZ4yrjKS0FiLrAhJVIoW3mM=
+github.com/robbyt/go-polyscript v0.6.0 h1:bZCUiR3gxzOgLG3WuP48iLuoddl4bMp8JgFYpjs8AfE=
+github.com/robbyt/go-polyscript v0.6.0/go.mod h1:TCTYLks48MdjeMloQtQL2t2odH9IkjDLWQXUfhNN80I=
 github.com/robbyt/go-supervisor v0.0.19 h1:INFW1zJlHdIO57jVewo5IRJJfmJ1Tcqy92Mbhz6fcR8=
 github.com/robbyt/go-supervisor v0.0.19/go.mod h1:vTPXrw5qmDubSPsvyZMi2i7GJG80lkMPW4cWkmuqm4Y=
 github.com/robbyt/protobaggins v0.2.0 h1:M5XaeEAXTrp9Jke6jpmy4HJAw3lhtVNflDKdWErkXUM=
@@ -85,8 +85,8 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 h1:ZF+QBjOI+tILZjBaFj3HgFonKXUcwgJ4djLb6i42S3Q=
 github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834/go.mod h1:m9ymHTgNSEjuxvw8E7WWe4Pl4hZQHXONY8wE6dMLaRk=
-github.com/tetratelabs/wazero v1.9.0 h1:IcZ56OuxrtaEz8UYNRHBrUa9bYeX9oVY93KspZZBf/I=
-github.com/tetratelabs/wazero v1.9.0/go.mod h1:TSbcXCfFP0L2FGkRPxHphadXPjo1T6W+CseNNY7EkjM=
+github.com/tetratelabs/wazero v1.11.0 h1:+gKemEuKCTevU4d7ZTzlsvgd1uaToIDtlQlmNbwqYhA=
+github.com/tetratelabs/wazero v1.11.0/go.mod h1:eV28rsN8Q+xwjogd7f4/Pp4xFxO7uOGbLcD/LzB1wiU=
 github.com/urfave/cli/v3 v3.6.2 h1:lQuqiPrZ1cIz8hz+HcrG0TNZFxU70dPZ3Yl+pSrH9A8=
 github.com/urfave/cli/v3 v3.6.2/go.mod h1:ysVLtOEmg2tOy6PknnYVhDoouyC/6N42TMeoMzskhso=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=
@@ -107,8 +107,8 @@ go.opentelemetry.io/otel/trace v1.38.0 h1:Fxk5bKrDZJUH+AMyyIXGcFAPah0oRcT+LuNtJr
 go.opentelemetry.io/otel/trace v1.38.0/go.mod h1:j1P9ivuFsTceSWe1oY+EeW3sc+Pp42sO++GHkg4wwhs=
 go.opentelemetry.io/proto/otlp v1.8.0 h1:fRAZQDcAFHySxpJ1TwlA1cJ4tvcrw7nXl9xWWC8N5CE=
 go.opentelemetry.io/proto/otlp v1.8.0/go.mod h1:tIeYOeNBU4cvmPqpaji1P+KbB4Oloai8wN4rWzRrFF0=
-go.starlark.net v0.0.0-20250906160240-bf296ed553ea h1:Rq4H4YdaOlmkqVGG+COlYFyrG/FwfB8tQa5i6mtcSe4=
-go.starlark.net v0.0.0-20250906160240-bf296ed553ea/go.mod h1:YKMCv9b1WrfWmeqdV5MAuEHWsu5iC+fe6kYl2sQjdI8=
+go.starlark.net v0.0.0-20260102030733-3fee463870c9 h1:nV1OyvU+0CYrp5eKfQ3rD03TpFYYhH08z31NK1HmtTk=
+go.starlark.net v0.0.0-20260102030733-3fee463870c9/go.mod h1:YKMCv9b1WrfWmeqdV5MAuEHWsu5iC+fe6kYl2sQjdI8=
 golang.org/x/exp v0.0.0-20250911091902-df9299821621 h1:2id6c1/gto0kaHYyrixvknJ8tUK/Qs5IsmBtrc+FtgU=
 golang.org/x/exp v0.0.0-20250911091902-df9299821621/go.mod h1:TwQYMMnGpvZyc+JpB/UAuTNIsVJifOlSkrZkhcvpVUk=
 golang.org/x/net v0.49.0 h1:eeHFmOGUTtaaPSGNmjBKpbng9MulQsJURQUAfUwY++o=
