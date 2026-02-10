@@ -1,6 +1,6 @@
 module github.com/atlanticdynamic/firelynx
 
-go 1.25.4
+go 1.25.7
 
 require github.com/urfave/cli/v3 v3.6.2
 
@@ -13,7 +13,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.5.0
 	github.com/robbyt/go-loglater v0.2.0
-	github.com/robbyt/go-polyscript v0.5.0
+	github.com/robbyt/go-polyscript v0.6.0
 	github.com/robbyt/go-supervisor v0.0.19
 	github.com/robbyt/protobaggins v0.2.0
 	github.com/stretchr/testify v1.11.1
@@ -44,11 +44,11 @@ require (
 	github.com/robbyt/go-fsm/v2 v2.3.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
-	github.com/tetratelabs/wazero v1.9.0 // indirect
+	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/proto/otlp v1.8.0 // indirect
-	go.starlark.net v0.0.0-20250906160240-bf296ed553ea // indirect
+	go.starlark.net v0.0.0-20260102030733-3fee463870c9 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
