@@ -17,7 +17,7 @@ require (
 	github.com/robbyt/go-supervisor v0.0.19
 	github.com/robbyt/protobaggins v0.2.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/net v0.50.0
+	golang.org/x/net v0.51.0
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
 )
