@@ -5,7 +5,7 @@ go 1.25.7
 require github.com/urfave/cli/v3 v3.6.2
 
 require (
-	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/charmbracelet/lipgloss/v2 v2.0.0
 	github.com/charmbracelet/log v0.4.2
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/google/jsonschema-go v0.4.2
