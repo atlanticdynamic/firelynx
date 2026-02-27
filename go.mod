@@ -12,6 +12,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v0.8.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.5.0
+	github.com/robbyt/go-fsm/v2 v2.3.0
 	github.com/robbyt/go-loglater v0.2.0
 	github.com/robbyt/go-polyscript v0.6.0
 	github.com/robbyt/go-supervisor v0.0.19
@@ -41,7 +42,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/risor-io/risor v1.8.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/robbyt/go-fsm/v2 v2.3.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
