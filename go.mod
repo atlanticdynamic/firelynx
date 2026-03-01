@@ -9,7 +9,7 @@ require (
 	github.com/charmbracelet/log v0.4.2
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/google/jsonschema-go v0.4.2
-	github.com/modelcontextprotocol/go-sdk v0.8.0
+	github.com/modelcontextprotocol/go-sdk v1.3.1
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/robbyt/go-fsm v1.5.0
 	github.com/robbyt/go-loglater v0.2.0
@@ -42,6 +42,8 @@ require (
 	github.com/risor-io/risor v1.8.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/robbyt/go-fsm/v2 v2.3.0 // indirect
+	github.com/segmentio/asm v1.1.3 // indirect
+	github.com/segmentio/encoding v0.5.3 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
 	github.com/tetratelabs/wazero v1.11.0 // indirect
@@ -50,6 +52,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.8.0 // indirect
 	go.starlark.net v0.0.0-20260102030733-3fee463870c9 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
