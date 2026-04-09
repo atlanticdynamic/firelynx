@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/httputil"
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -42,6 +43,14 @@ func (a *App) String() string {
 }
 
 // HandleHTTP processes HTTP requests by delegating to the MCP SDK's HTTP handler.
+//
+// The MCP protocol uses Server-Sent Events (SSE) for streaming, which requires
+// the response writer to implement http.Flusher so that SSE headers and events
+// are delivered to the client promptly. Intermediate wrapper types, such as
+// go-supervisor's responseWriter, may embed http.ResponseWriter without
+// forwarding the Flush method. ensureFlushable provides a thin wrapper that
+// locates the real http.Flusher through the wrapper chain before the handler
+// receives the writer.
 func (a *App) HandleHTTP(
 	ctx context.Context,
 	w http.ResponseWriter,
@@ -49,6 +58,33 @@ func (a *App) HandleHTTP(
 ) error {
 	// The MCP SDK handler manages all MCP protocol concerns
 	// We simply delegate the request to it
-	a.handler.ServeHTTP(w, r)
+	a.handler.ServeHTTP(ensureFlushable(w), r)
 	return nil
+}
+
+// ensureFlushable returns a wrapper that implements http.Flusher if the
+// provided writer does not already do so. This is required because some
+// middleware wrappers (e.g., go-supervisor's responseWriter) embed
+// http.ResponseWriter as an interface field but do not implement http.Flusher
+// themselves, which prevents SSE streams from working.
+func ensureFlushable(w http.ResponseWriter) http.ResponseWriter {
+	if _, ok := w.(http.Flusher); ok {
+		return w
+	}
+	if f := httputil.FindFlusher(w); f != nil {
+		return &flushForwardingWriter{ResponseWriter: w, flusher: f}
+	}
+	return w
+}
+
+// flushForwardingWriter wraps an http.ResponseWriter to add Flush support by
+// delegating to a pre-located http.Flusher found via httputil.FindFlusher.
+type flushForwardingWriter struct {
+	http.ResponseWriter
+	flusher http.Flusher
+}
+
+// Flush implements http.Flusher by delegating to the pre-located flusher.
+func (f *flushForwardingWriter) Flush() {
+	f.flusher.Flush()
 }

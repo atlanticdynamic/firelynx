@@ -924,7 +924,7 @@ func (m *mockRequestProcessor) SetWriter(w httpserver.ResponseWriter) {
 	m.writer = w
 }
 
-func TestConsoleLogger_setupResponseBuffering(t *testing.T) {
+func TestConsoleLogger_setupResponseCapture(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Returns nil when response body logging disabled", func(t *testing.T) {
@@ -936,17 +936,16 @@ func TestConsoleLogger_setupResponseBuffering(t *testing.T) {
 			filter: newLogFilter(cfg),
 		}
 
-		originalWriter := NewResponseBuffer() // Use ResponseBuffer instead of httptest.ResponseRecorder
+		originalWriter := NewResponseBuffer()
 		rp := &mockRequestProcessor{writer: originalWriter}
 
-		buffer, writer := cl.setupResponseBuffering(rp)
+		tee := cl.setupResponseCapture(rp)
 
-		assert.Nil(t, buffer)
-		assert.Nil(t, writer)
+		assert.Nil(t, tee)
 		assert.Equal(t, originalWriter, rp.writer) // Writer unchanged
 	})
 
-	t.Run("Sets up response buffering when enabled", func(t *testing.T) {
+	t.Run("Sets up tee writer when enabled", func(t *testing.T) {
 		cfg := logger.NewConsoleLogger()
 		cfg.Fields.Response.Body = true
 
@@ -958,53 +957,82 @@ func TestConsoleLogger_setupResponseBuffering(t *testing.T) {
 		originalWriter := NewResponseBuffer()
 		rp := &mockRequestProcessor{writer: originalWriter}
 
-		buffer, writer := cl.setupResponseBuffering(rp)
+		tee := cl.setupResponseCapture(rp)
 
-		assert.NotNil(t, buffer)
-		assert.Equal(t, originalWriter, writer)
-		assert.Equal(t, buffer, rp.writer) // Writer changed to buffer
+		assert.NotNil(t, tee)
+		// Writer should be replaced with the tee writer
+		assert.Equal(t, tee, rp.writer)
+		// The tee writer delegates to the original writer
+		assert.Equal(t, originalWriter, tee.underlying)
+	})
+
+	t.Run("Tee writer forwards writes to underlying writer", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Fields.Response.Body = true
+
+		cl := &ConsoleLogger{
+			id:     "test-logger",
+			filter: newLogFilter(cfg),
+		}
+
+		originalWriter := NewResponseBuffer()
+		rp := &mockRequestProcessor{writer: originalWriter}
+
+		tee := cl.setupResponseCapture(rp)
+		require.NotNil(t, tee)
+
+		// Write through the tee writer
+		responseData := []byte(`{"message": "created"}`)
+		tee.Header().Set("Content-Type", "application/json")
+		tee.WriteHeader(201)
+		_, err := tee.Write(responseData)
+		require.NoError(t, err)
+
+		// Underlying writer should have received the writes
+		assert.Equal(t, "application/json", originalWriter.Header().Get("Content-Type"))
+		assert.Equal(t, 201, originalWriter.Status())
+		assert.Equal(t, responseData, originalWriter.buffer.Bytes())
+
+		// Tee writer should also have captured the body
+		assert.Equal(t, responseData, tee.captured.Bytes())
+	})
+
+	t.Run("Tee writer implements http.Flusher", func(t *testing.T) {
+		cfg := logger.NewConsoleLogger()
+		cfg.Fields.Response.Body = true
+
+		cl := &ConsoleLogger{
+			id:     "test-logger",
+			filter: newLogFilter(cfg),
+		}
+
+		originalWriter := NewResponseBuffer()
+		rp := &mockRequestProcessor{writer: originalWriter}
+
+		tee := cl.setupResponseCapture(rp)
+		require.NotNil(t, tee)
+
+		// The tee writer must implement http.Flusher so that SSE streams work
+		_, ok := httpserver.ResponseWriter(tee).(http.Flusher)
+		assert.True(t, ok, "tee writer must implement http.Flusher for SSE streaming support")
 	})
 }
 
-func TestConsoleLogger_captureAndRestoreResponse(t *testing.T) {
+func TestConsoleLogger_captureResponseBody(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Returns nil when no buffering", func(t *testing.T) {
+	t.Run("Returns nil when tee is nil", func(t *testing.T) {
 		cfg := logger.NewConsoleLogger()
 		cl := &ConsoleLogger{
 			id:     "test-logger",
 			filter: newLogFilter(cfg),
 		}
 
-		body := cl.captureAndRestoreResponse(nil, nil)
+		body := cl.captureResponseBody(nil)
 		assert.Nil(t, body)
 	})
 
-	t.Run("Returns nil when buffer is nil", func(t *testing.T) {
-		cfg := logger.NewConsoleLogger()
-		cl := &ConsoleLogger{
-			id:     "test-logger",
-			filter: newLogFilter(cfg),
-		}
-
-		writer := NewResponseBuffer()
-		body := cl.captureAndRestoreResponse(nil, writer)
-		assert.Nil(t, body)
-	})
-
-	t.Run("Returns nil when writer is nil", func(t *testing.T) {
-		cfg := logger.NewConsoleLogger()
-		cl := &ConsoleLogger{
-			id:     "test-logger",
-			filter: newLogFilter(cfg),
-		}
-
-		buffer := NewResponseBuffer()
-		body := cl.captureAndRestoreResponse(buffer, nil)
-		assert.Nil(t, body)
-	})
-
-	t.Run("Captures and restores response", func(t *testing.T) {
+	t.Run("Returns captured body", func(t *testing.T) {
 		cfg := logger.NewConsoleLogger()
 		cfg.Fields.Response.MaxBodySize = 1024
 
@@ -1013,30 +1041,18 @@ func TestConsoleLogger_captureAndRestoreResponse(t *testing.T) {
 			filter: newLogFilter(cfg),
 		}
 
-		// Set up buffer with response data
-		buffer := NewResponseBuffer()
-		buffer.Header().Set("Content-Type", "application/json")
-		buffer.WriteHeader(201)
+		originalWriter := NewResponseBuffer()
+		tee := newResponseTeeWriter(originalWriter)
+
 		responseData := []byte(`{"message": "created"}`)
-		_, err := buffer.Write(responseData)
+		_, err := tee.Write(responseData)
 		require.NoError(t, err)
 
-		// Original writer to restore to
-		originalWriter := NewResponseBuffer()
-
-		// Capture and restore
-		body := cl.captureAndRestoreResponse(buffer, originalWriter)
-
-		// Check captured body
+		body := cl.captureResponseBody(tee)
 		assert.Equal(t, responseData, body)
-
-		// Check restored writer has correct headers and data
-		assert.Equal(t, "application/json", originalWriter.Header().Get("Content-Type"))
-		assert.Equal(t, 201, originalWriter.Status())
-		assert.Equal(t, responseData, originalWriter.buffer.Bytes())
 	})
 
-	t.Run("Truncates logged body but sends full response to client", func(t *testing.T) {
+	t.Run("Truncates body to MaxResponseBodyLogSize", func(t *testing.T) {
 		cfg := logger.NewConsoleLogger()
 		cfg.Fields.Response.MaxBodySize = 10
 
@@ -1045,69 +1061,21 @@ func TestConsoleLogger_captureAndRestoreResponse(t *testing.T) {
 			filter: newLogFilter(cfg),
 		}
 
-		buffer := NewResponseBuffer()
+		originalWriter := NewResponseBuffer()
+		tee := newResponseTeeWriter(originalWriter)
+
 		longResponse := []byte("this is a very long response body that exceeds the max log size")
-		_, err := buffer.Write(longResponse)
+		_, err := tee.Write(longResponse)
 		require.NoError(t, err)
 
-		originalWriter := NewResponseBuffer()
-		loggedBody := cl.captureAndRestoreResponse(buffer, originalWriter)
+		loggedBody := cl.captureResponseBody(tee)
 
 		// Check that the returned body for logging is truncated
 		assert.Equal(t, "this is a ", string(loggedBody))
 		assert.Len(t, loggedBody, 10)
 
-		// But the full response is written to the original writer
+		// But the full response was written through to the underlying writer
 		assert.Equal(t, longResponse, originalWriter.buffer.Bytes())
 		assert.Len(t, originalWriter.buffer.Bytes(), len(longResponse))
-	})
-
-	t.Run("Uses default status code when not set", func(t *testing.T) {
-		cfg := logger.NewConsoleLogger()
-		cl := &ConsoleLogger{
-			id:     "test-logger",
-			filter: newLogFilter(cfg),
-		}
-
-		buffer := NewResponseBuffer()
-		// Don't call WriteHeader, leave status as 0
-		_, err := buffer.Write([]byte("response"))
-		require.NoError(t, err)
-
-		originalWriter := NewResponseBuffer()
-		body := cl.captureAndRestoreResponse(buffer, originalWriter)
-
-		assert.NotNil(t, body)
-		assert.Equal(t, http.StatusOK, originalWriter.Status())
-	})
-
-	t.Run("Handles headers with multiple values", func(t *testing.T) {
-		cfg := logger.NewConsoleLogger()
-		cl := &ConsoleLogger{
-			id:     "test-logger",
-			filter: newLogFilter(cfg),
-		}
-
-		buffer := NewResponseBuffer()
-		// Add header with multiple values
-		buffer.Header().Add("Set-Cookie", "sessionid=abc123")
-		buffer.Header().Add("Set-Cookie", "userid=xyz789")
-		buffer.Header().Set("Content-Type", "application/json")
-		buffer.WriteHeader(200)
-		_, err := buffer.Write([]byte("response"))
-		require.NoError(t, err)
-
-		originalWriter := NewResponseBuffer()
-		body := cl.captureAndRestoreResponse(buffer, originalWriter)
-
-		assert.NotNil(t, body)
-		assert.Equal(t, 200, originalWriter.Status())
-
-		// Check that multiple Set-Cookie headers are preserved
-		cookies := originalWriter.Header()["Set-Cookie"]
-		assert.Len(t, cookies, 2)
-		assert.Contains(t, cookies, "sessionid=abc123")
-		assert.Contains(t, cookies, "userid=xyz789")
-		assert.Equal(t, "application/json", originalWriter.Header().Get("Content-Type"))
 	})
 }
