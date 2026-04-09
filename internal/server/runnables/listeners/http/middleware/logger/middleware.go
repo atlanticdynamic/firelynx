@@ -105,14 +105,14 @@ func (cl *ConsoleLogger) Middleware() httpserver.HandlerFunc {
 		// Capture request body if needed
 		requestBody := cl.captureRequestBody(r)
 
-		// Setup response buffering if needed
-		responseBuffer, originalWriter := cl.setupResponseBuffering(rp)
+		// Setup response capture if enabled
+		teeWriter := cl.setupResponseCapture(rp)
 
 		// Process the other middleware and the endpoint handler
 		rp.Next()
 
-		// Capture and restore response if buffering was enabled
-		responseBody := cl.captureAndRestoreResponse(responseBuffer, originalWriter)
+		// Collect captured response body for logging
+		responseBody := cl.captureResponseBody(teeWriter)
 
 		// Build log attributes and write log entry
 		duration := time.Since(start)
@@ -134,53 +134,34 @@ func (cl *ConsoleLogger) captureRequestBody(r *http.Request) []byte {
 	return body
 }
 
-// setupResponseBuffering sets up response buffering if enabled
-func (cl *ConsoleLogger) setupResponseBuffering(
+// setupResponseCapture sets up response capture using a tee writer that writes
+// through to the underlying writer immediately while also capturing the response
+// body for logging. Returns nil if response body logging is disabled.
+//
+// Unlike the previous buffering approach, the tee writer does not intercept
+// response writes – it forwards them to the real writer right away. This means
+// streaming responses (e.g., Server-Sent Events) work correctly because flushes
+// are forwarded through the http.Flusher interface.
+func (cl *ConsoleLogger) setupResponseCapture(
 	rp requestProcessor,
-) (*ResponseBuffer, httpserver.ResponseWriter) {
+) *responseTeeWriter {
 	if !cl.filter.ResponseBodyLogEnabled() {
-		return nil, nil
-	}
-
-	originalWriter := rp.Writer()
-	responseBuffer := NewResponseBuffer()
-	rp.SetWriter(responseBuffer)
-	return responseBuffer, originalWriter
-}
-
-// captureAndRestoreResponse captures the response body and restores the original writer
-func (cl *ConsoleLogger) captureAndRestoreResponse(
-	responseBuffer *ResponseBuffer,
-	originalWriter httpserver.ResponseWriter,
-) []byte {
-	if responseBuffer == nil || originalWriter == nil {
 		return nil
 	}
 
-	// Get the full response body from the buffer
-	fullResponseBody := responseBuffer.buffer.Bytes()
+	tee := newResponseTeeWriter(rp.Writer())
+	rp.SetWriter(tee)
+	return tee
+}
 
-	// Copy headers from buffer to original writer
-	for key, values := range responseBuffer.Header() {
-		for _, value := range values {
-			originalWriter.Header().Add(key, value)
-		}
+// captureResponseBody returns a truncated copy of the captured response body
+// for logging purposes.
+func (cl *ConsoleLogger) captureResponseBody(tee *responseTeeWriter) []byte {
+	if tee == nil {
+		return nil
 	}
 
-	// Write status code
-	statusCode := responseBuffer.Status()
-	if statusCode == 0 {
-		statusCode = http.StatusOK
-	}
-	originalWriter.WriteHeader(statusCode)
-
-	// Write the FULL response body to the client
-	// We ignore the error here because the response is already committed
-	// and there's no way to recover from a write error at this stage
-	_, _ = originalWriter.Write(fullResponseBody) //nolint:errcheck
-
-	// Return truncated body for logging purposes only
-	logBody := fullResponseBody
+	logBody := tee.captured.Bytes()
 	if len(logBody) > cl.filter.MaxResponseBodyLogSize() {
 		logBody = logBody[:cl.filter.MaxResponseBodyLogSize()]
 	}
