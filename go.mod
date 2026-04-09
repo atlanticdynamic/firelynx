@@ -10,7 +10,7 @@ require (
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/google/jsonschema-go v0.4.2
 	github.com/modelcontextprotocol/go-sdk v0.8.0
-	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/pelletier/go-toml/v2 v2.3.0
 	github.com/robbyt/go-fsm v1.5.0
 	github.com/robbyt/go-fsm/v2 v2.3.0
 	github.com/robbyt/go-loglater v0.2.0
