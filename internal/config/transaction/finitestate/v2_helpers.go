@@ -48,8 +48,8 @@ func getStateChan(ctx context.Context, machine *fsm.Machine) <-chan string {
 		return ch
 	}
 
-	machineStateChan := make(chan string, 1)
-	err := machine.GetStateChan(ctx, machineStateChan)
+	stateChan := make(chan string, 1)
+	err := machine.GetStateChan(ctx, stateChan)
 	if err != nil {
 		slog.Error("failed to subscribe to transaction state changes", "error", err)
 		ch := make(chan string)
@@ -65,7 +65,7 @@ func getStateChan(ctx context.Context, machine *fsm.Machine) <-chan string {
 			select {
 			case <-ctx.Done():
 				return
-			case state, ok := <-machineStateChan:
+			case state, ok := <-stateChan:
 				if !ok {
 					return
 				}
