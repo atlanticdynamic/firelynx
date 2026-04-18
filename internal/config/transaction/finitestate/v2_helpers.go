@@ -51,7 +51,7 @@ func getStateChan(ctx context.Context, machine *fsm.Machine) <-chan string {
 	in := make(chan string, 1)
 	err := machine.GetStateChan(ctx, in)
 	if err != nil {
-		slog.Error("failed to register transaction finitestate state channel", "error", err)
+		slog.Error("failed to register transaction finite state channel", "error", err)
 		ch := make(chan string)
 		close(ch)
 		return ch
@@ -70,6 +70,7 @@ func getStateChan(ctx context.Context, machine *fsm.Machine) <-chan string {
 					return
 				}
 
+				// Forward the initial state emitted by go-fsm v2 and all later transitions.
 				select {
 				case out <- state:
 				case <-ctx.Done():
