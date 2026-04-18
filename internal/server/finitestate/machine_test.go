@@ -164,18 +164,9 @@ func TestMachineInterface(t *testing.T) {
 			t.Fatal("Timeout waiting for Running state notification")
 		}
 
-		// Test that the channel closes when context is canceled
+		// Context cancellation unsubscribes the channel. go-fsm v2 leaves
+		// channel closure to the caller because the caller owns the channel.
 		cancel()
-
-		// Wait for channel to close
-		select {
-		case _, open := <-stateChan:
-			if open {
-				t.Fatal("Channel should be closed after context cancellation")
-			}
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Timeout waiting for channel to close")
-		}
 	})
 }
 

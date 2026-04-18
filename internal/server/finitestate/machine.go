@@ -47,7 +47,7 @@ type Machine interface {
 	GetState() string
 
 	// GetStateChan returns a channel that emits the state machine's state whenever it changes.
-	// The channel is closed when the provided context is canceled.
+	// The channel receives no further updates after the provided context is canceled.
 	GetStateChan(ctx context.Context) <-chan string
 }
 
@@ -55,7 +55,7 @@ type machine struct {
 	fsm *fsm.Machine
 }
 
-// GetStateChan returns a channel that emits state updates and closes when the context is canceled.
+// GetStateChan returns a channel that emits state updates.
 func (m *machine) GetStateChan(ctx context.Context) <-chan string {
 	if ctx == nil {
 		ch := make(chan string)
@@ -63,38 +63,12 @@ func (m *machine) GetStateChan(ctx context.Context) <-chan string {
 		return ch
 	}
 
-	in := make(chan string, 1)
-	err := m.fsm.GetStateChan(ctx, in)
-	if err != nil {
+	ch := make(chan string, 1)
+	if err := m.fsm.GetStateChan(ctx, ch); err != nil {
 		slog.Error("failed to register finitestate state channel", "error", err)
-		ch := make(chan string)
 		close(ch)
-		return ch
 	}
-
-	out := make(chan string, 1)
-
-	go func() {
-		defer close(out)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case state, ok := <-in:
-				if !ok {
-					return
-				}
-
-				select {
-				case out <- state:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}
-	}()
-
-	return out
+	return ch
 }
 
 func (m *machine) Transition(state string) error {
