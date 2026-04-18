@@ -70,7 +70,6 @@ func (m *ServerFSM) GetStateChan(ctx context.Context) <-chan string {
 	}
 
 	out := make(chan string, 1)
-	out <- <-in
 
 	go func() {
 		defer close(out)
