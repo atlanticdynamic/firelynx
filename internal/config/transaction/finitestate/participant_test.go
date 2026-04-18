@@ -169,7 +169,7 @@ func TestParticipantFSM_GetStateChan(t *testing.T) {
 		}
 	})
 
-	t.Run("closes channel on context cancellation", func(t *testing.T) {
+	t.Run("context cancellation leaves caller-owned channel open", func(t *testing.T) {
 		handler := slog.NewTextHandler(os.Stdout, nil)
 		machine, err := NewParticipantFSM(handler)
 		require.NoError(t, err)
@@ -185,18 +185,13 @@ func TestParticipantFSM_GetStateChan(t *testing.T) {
 			t.Fatal("timeout waiting for initial state")
 		}
 
-		// Cancel context
 		cancel()
 
-		// Channel should be closed
-		assert.Eventually(t, func() bool {
-			select {
-			case _, ok := <-stateChan:
-				return !ok
-			default:
-				return false
-			}
-		}, 200*time.Millisecond, 10*time.Millisecond, "channel should be closed after context cancellation")
+		select {
+		case _, ok := <-stateChan:
+			require.True(t, ok, "go-fsm v2 leaves channel closure to the caller")
+		default:
+		}
 	})
 
 	t.Run("multiple listeners receive state changes", func(t *testing.T) {

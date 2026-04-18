@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/robbyt/go-fsm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,12 +142,12 @@ func TestMachineInterface(t *testing.T) {
 		stateChan := machine.GetStateChan(ctx)
 		require.NotNil(t, stateChan)
 
-		// Drain any initial state notification that may be present
+		// The current state should be delivered immediately on subscription
 		select {
-		case <-stateChan:
-			// Ignore initial state
+		case initialState := <-stateChan:
+			assert.Equal(t, StatusBooting, initialState)
 		case <-time.After(100 * time.Millisecond):
-			// No initial state was sent, that's fine
+			t.Fatal("Timeout waiting for initial state notification")
 		}
 
 		// Transition to Running
@@ -165,36 +164,22 @@ func TestMachineInterface(t *testing.T) {
 			t.Fatal("Timeout waiting for Running state notification")
 		}
 
-		// Test that the channel closes when context is canceled
+		// Context cancellation unsubscribes the channel. go-fsm v2 leaves
+		// channel closure to the caller because the caller owns the channel.
 		cancel()
-
-		// Wait for channel to close
-		select {
-		case _, open := <-stateChan:
-			if open {
-				t.Fatal("Channel should be closed after context cancellation")
-			}
-		case <-time.After(100 * time.Millisecond):
-			t.Fatal("Timeout waiting for channel to close")
-		}
 	})
 }
 
 func TestTypicalTransitions(t *testing.T) {
 	t.Parallel()
 
-	t.Run("verify TypicalTransitions matches fsm package", func(t *testing.T) {
-		assert.Equal(t, fsm.TypicalTransitions, TypicalTransitions)
-	})
+	t.Run("supports the standard lifecycle flow", func(t *testing.T) {
+		machine, err := New(slog.NewTextHandler(os.Stdout, nil))
+		require.NoError(t, err)
 
-	t.Run("verify status constants match fsm package", func(t *testing.T) {
-		assert.Equal(t, fsm.StatusNew, StatusNew)
-		assert.Equal(t, fsm.StatusBooting, StatusBooting)
-		assert.Equal(t, fsm.StatusRunning, StatusRunning)
-		assert.Equal(t, fsm.StatusReloading, StatusReloading)
-		assert.Equal(t, fsm.StatusStopping, StatusStopping)
-		assert.Equal(t, fsm.StatusStopped, StatusStopped)
-		assert.Equal(t, fsm.StatusError, StatusError)
-		assert.Equal(t, fsm.StatusUnknown, StatusUnknown)
+		require.NoError(t, machine.Transition(StatusBooting))
+		require.NoError(t, machine.Transition(StatusRunning))
+		require.NoError(t, machine.Transition(StatusStopping))
+		require.NoError(t, machine.Transition(StatusStopped))
 	})
 }

@@ -5,9 +5,8 @@ package finitestate
 import (
 	"context"
 	"log/slog"
-	"time"
 
-	"github.com/robbyt/go-fsm"
+	serverfinitestate "github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 )
 
 // Participant state constants
@@ -33,15 +32,19 @@ var ParticipantTransitions = map[string][]string{
 }
 
 type ParticipantFSM struct {
-	*fsm.Machine
+	serverfinitestate.Machine
 }
 
 func (p *ParticipantFSM) GetStateChan(ctx context.Context) <-chan string {
-	return p.GetStateChanWithOptions(ctx, fsm.WithSyncTimeout(5*time.Second))
+	return p.Machine.GetStateChan(ctx)
 }
 
 func NewParticipantFSM(handler slog.Handler) (*ParticipantFSM, error) {
-	machine, err := fsm.New(handler, ParticipantNotStarted, ParticipantTransitions)
+	machine, err := serverfinitestate.NewWithTransitions(
+		handler,
+		ParticipantNotStarted,
+		ParticipantTransitions,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -25,7 +25,7 @@ type Machine interface {
 	GetState() string
 
 	// GetStateChan returns a channel that emits the state machine's state whenever it changes.
-	// The channel is closed when the provided context is canceled.
+	// The channel receives no further updates after the provided context is canceled.
 	GetStateChan(ctx context.Context) <-chan string
 }
 

@@ -199,7 +199,7 @@ func TestRunner_GetStateChan(t *testing.T) {
 		}
 	})
 
-	t.Run("channel closed when context cancelled", func(t *testing.T) {
+	t.Run("context cancellation leaves caller-owned channel open", func(t *testing.T) {
 		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
 		r := h.runner
 
@@ -214,18 +214,13 @@ func TestRunner_GetStateChan(t *testing.T) {
 			t.Fatal("Should receive initial state")
 		}
 
-		// Cancel context
 		cancel()
 
-		// Channel should be closed
-		require.Eventually(t, func() bool {
-			select {
-			case _, ok := <-stateChan:
-				return !ok // Channel should be closed
-			case <-time.After(10 * time.Millisecond):
-				return false
-			}
-		}, 100*time.Millisecond, 10*time.Millisecond, "Channel should be closed")
+		select {
+		case _, ok := <-stateChan:
+			require.True(t, ok, "go-fsm v2 leaves channel closure to the caller")
+		default:
+		}
 	})
 
 	t.Run("multiple channels receive same state changes", func(t *testing.T) {

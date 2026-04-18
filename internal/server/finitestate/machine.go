@@ -5,28 +5,27 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/robbyt/go-fsm"
+	"github.com/robbyt/go-fsm/v2"
+	"github.com/robbyt/go-fsm/v2/hooks"
+	"github.com/robbyt/go-fsm/v2/transitions"
 )
 
 const (
-	StatusNew       = fsm.StatusNew
-	StatusBooting   = fsm.StatusBooting
-	StatusRunning   = fsm.StatusRunning
-	StatusReloading = fsm.StatusReloading
-	StatusStopping  = fsm.StatusStopping
-	StatusStopped   = fsm.StatusStopped
-	StatusError     = fsm.StatusError
-	StatusUnknown   = fsm.StatusUnknown
+	StatusNew       = transitions.StatusNew
+	StatusBooting   = transitions.StatusBooting
+	StatusRunning   = transitions.StatusRunning
+	StatusReloading = transitions.StatusReloading
+	StatusStopping  = transitions.StatusStopping
+	StatusStopped   = transitions.StatusStopped
+	StatusError     = transitions.StatusError
+	StatusUnknown   = transitions.StatusUnknown
 )
 
-// TypicalTransitions is a set of standard transitions for a finite state machine.
-var TypicalTransitions = fsm.TypicalTransitions
+var typicalTransitions = transitions.Typical
 
-// SubscriberOption is a functional option for configuring state channel behavior
-type SubscriberOption = fsm.SubscriberOption
+const defaultBroadcastTimeout = 5 * time.Second
 
-// WithSyncTimeout sets a timeout for synchronous broadcast operations
-var WithSyncTimeout = fsm.WithSyncTimeout
+var ErrInvalidStateTransition = fsm.ErrInvalidStateTransition
 
 // Machine defines the interface for the finite state machine that tracks
 // the HTTP server's lifecycle states. This abstraction allows for different
@@ -48,29 +47,96 @@ type Machine interface {
 	GetState() string
 
 	// GetStateChan returns a channel that emits the state machine's state whenever it changes.
-	// The channel is closed when the provided context is canceled.
+	// The channel receives no further updates after the provided context is canceled.
 	GetStateChan(ctx context.Context) <-chan string
-
-	// GetStateChanWithOptions returns a channel with custom configuration options.
-	// The channel is closed when the provided context is canceled.
-	GetStateChanWithOptions(ctx context.Context, opts ...SubscriberOption) <-chan string
 }
 
-// ServerFSM embeds fsm.Machine and overrides GetStateChan for sync broadcast
-type ServerFSM struct {
-	*fsm.Machine
+type machine struct {
+	fsm *fsm.Machine
 }
 
-// GetStateChan returns a sync broadcast channel with 5-second timeout to ensure state updates are delivered during shutdown
-func (m *ServerFSM) GetStateChan(ctx context.Context) <-chan string {
-	return m.GetStateChanWithOptions(ctx, WithSyncTimeout(5*time.Second))
+// GetStateChan returns a channel that emits state updates.
+func (m *machine) GetStateChan(ctx context.Context) <-chan string {
+	if ctx == nil {
+		ch := make(chan string)
+		close(ch)
+		return ch
+	}
+
+	ch := make(chan string, 1)
+	if err := m.fsm.GetStateChan(ctx, ch); err != nil {
+		slog.Error("failed to register finitestate state channel", "error", err)
+		close(ch)
+	}
+	return ch
+}
+
+func (m *machine) Transition(state string) error {
+	return m.fsm.Transition(state)
+}
+
+func (m *machine) TransitionBool(state string) bool {
+	return m.fsm.TransitionBool(state)
+}
+
+func (m *machine) TransitionIfCurrentState(currentState, newState string) error {
+	return m.fsm.TransitionIfCurrentState(currentState, newState)
+}
+
+func (m *machine) SetState(state string) error {
+	return m.fsm.SetState(state)
+}
+
+func (m *machine) GetState() string {
+	return m.fsm.GetState()
 }
 
 // New creates a new finite state machine with the specified logger using "standard" state transitions.
 func New(handler slog.Handler) (Machine, error) {
-	machine, err := fsm.New(handler, StatusNew, TypicalTransitions)
+	return newWithConfig(handler, StatusNew, typicalTransitions)
+}
+
+// NewWithTransitions creates a new finite state machine with a custom transition table.
+func NewWithTransitions(
+	handler slog.Handler,
+	initialState string,
+	allowedTransitions map[string][]string,
+) (Machine, error) {
+	trans, err := transitions.New(allowedTransitions)
 	if err != nil {
 		return nil, err
 	}
-	return &ServerFSM{Machine: machine}, nil
+
+	return newWithConfig(handler, initialState, trans)
+}
+
+func newWithConfig(
+	handler slog.Handler,
+	initialState string,
+	trans *transitions.Config,
+) (Machine, error) {
+	if handler == nil {
+		handler = slog.Default().Handler()
+	}
+
+	registry, err := hooks.NewRegistry(
+		hooks.WithLogHandler(handler),
+		hooks.WithTransitions(trans),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := fsm.New(
+		initialState,
+		trans,
+		fsm.WithLogHandler(handler),
+		fsm.WithCallbackRegistry(registry),
+		fsm.WithBroadcastTimeout(defaultBroadcastTimeout),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &machine{fsm: f}, nil
 }
