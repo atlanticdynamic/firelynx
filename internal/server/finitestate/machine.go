@@ -21,8 +21,11 @@ const (
 	StatusUnknown   = transitions.StatusUnknown
 )
 
-// TypicalTransitions is a set of standard transitions for a finite state machine.
-var TypicalTransitions = transitions.Typical
+var typicalTransitions = transitions.Typical
+
+const defaultBroadcastTimeout = 5 * time.Second
+
+var ErrInvalidStateTransition = fsm.ErrInvalidStateTransition
 
 // Machine defines the interface for the finite state machine that tracks
 // the HTTP server's lifecycle states. This abstraction allows for different
@@ -48,13 +51,12 @@ type Machine interface {
 	GetStateChan(ctx context.Context) <-chan string
 }
 
-// ServerFSM embeds fsm.Machine and adapts its state channel API.
-type ServerFSM struct {
-	*fsm.Machine
+type machine struct {
+	fsm *fsm.Machine
 }
 
 // GetStateChan returns a channel that emits state updates and closes when the context is canceled.
-func (m *ServerFSM) GetStateChan(ctx context.Context) <-chan string {
+func (m *machine) GetStateChan(ctx context.Context) <-chan string {
 	if ctx == nil {
 		ch := make(chan string)
 		close(ch)
@@ -62,7 +64,7 @@ func (m *ServerFSM) GetStateChan(ctx context.Context) <-chan string {
 	}
 
 	in := make(chan string, 1)
-	err := m.Machine.GetStateChan(ctx, in)
+	err := m.fsm.GetStateChan(ctx, in)
 	if err != nil {
 		slog.Error("failed to register finitestate state channel", "error", err)
 		ch := make(chan string)
@@ -95,30 +97,72 @@ func (m *ServerFSM) GetStateChan(ctx context.Context) <-chan string {
 	return out
 }
 
+func (m *machine) Transition(state string) error {
+	return m.fsm.Transition(state)
+}
+
+func (m *machine) TransitionBool(state string) bool {
+	return m.fsm.TransitionBool(state)
+}
+
+func (m *machine) TransitionIfCurrentState(currentState, newState string) error {
+	return m.fsm.TransitionIfCurrentState(currentState, newState)
+}
+
+func (m *machine) SetState(state string) error {
+	return m.fsm.SetState(state)
+}
+
+func (m *machine) GetState() string {
+	return m.fsm.GetState()
+}
+
 // New creates a new finite state machine with the specified logger using "standard" state transitions.
 func New(handler slog.Handler) (Machine, error) {
+	return newWithConfig(handler, StatusNew, typicalTransitions)
+}
+
+// NewWithTransitions creates a new finite state machine with a custom transition table.
+func NewWithTransitions(
+	handler slog.Handler,
+	initialState string,
+	allowedTransitions map[string][]string,
+) (Machine, error) {
+	trans, err := transitions.New(allowedTransitions)
+	if err != nil {
+		return nil, err
+	}
+
+	return newWithConfig(handler, initialState, trans)
+}
+
+func newWithConfig(
+	handler slog.Handler,
+	initialState string,
+	trans *transitions.Config,
+) (Machine, error) {
 	if handler == nil {
 		handler = slog.Default().Handler()
 	}
 
 	registry, err := hooks.NewRegistry(
 		hooks.WithLogHandler(handler),
-		hooks.WithTransitions(TypicalTransitions),
+		hooks.WithTransitions(trans),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	machine, err := fsm.New(
-		StatusNew,
-		TypicalTransitions,
+	f, err := fsm.New(
+		initialState,
+		trans,
 		fsm.WithLogHandler(handler),
 		fsm.WithCallbackRegistry(registry),
-		fsm.WithBroadcastTimeout(5*time.Second),
+		fsm.WithBroadcastTimeout(defaultBroadcastTimeout),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ServerFSM{Machine: machine}, nil
+	return &machine{fsm: f}, nil
 }

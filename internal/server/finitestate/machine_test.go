@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/robbyt/go-fsm/v2/transitions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -183,7 +182,13 @@ func TestMachineInterface(t *testing.T) {
 func TestTypicalTransitions(t *testing.T) {
 	t.Parallel()
 
-	t.Run("verify TypicalTransitions matches fsm package", func(t *testing.T) {
-		assert.Equal(t, transitions.Typical, TypicalTransitions)
+	t.Run("supports the standard lifecycle flow", func(t *testing.T) {
+		machine, err := New(slog.NewTextHandler(os.Stdout, nil))
+		require.NoError(t, err)
+
+		require.NoError(t, machine.Transition(StatusBooting))
+		require.NoError(t, machine.Transition(StatusRunning))
+		require.NoError(t, machine.Transition(StatusStopping))
+		require.NoError(t, machine.Transition(StatusStopped))
 	})
 }
