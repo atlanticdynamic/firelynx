@@ -143,12 +143,12 @@ func TestMachineInterface(t *testing.T) {
 		stateChan := machine.GetStateChan(ctx)
 		require.NotNil(t, stateChan)
 
-		// Drain any initial state notification that may be present
+		// The current state should be delivered immediately on subscription
 		select {
-		case <-stateChan:
-			// Ignore initial state
+		case initialState := <-stateChan:
+			assert.Equal(t, StatusBooting, initialState)
 		case <-time.After(100 * time.Millisecond):
-			// No initial state was sent, that's fine
+			t.Fatal("Timeout waiting for initial state notification")
 		}
 
 		// Transition to Running
