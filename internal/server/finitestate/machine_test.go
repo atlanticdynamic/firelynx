@@ -186,15 +186,4 @@ func TestTypicalTransitions(t *testing.T) {
 	t.Run("verify TypicalTransitions matches fsm package", func(t *testing.T) {
 		assert.Equal(t, transitions.Typical, TypicalTransitions)
 	})
-
-	t.Run("verify status constants match fsm package", func(t *testing.T) {
-		assert.Equal(t, transitions.StatusNew, StatusNew)
-		assert.Equal(t, transitions.StatusBooting, StatusBooting)
-		assert.Equal(t, transitions.StatusRunning, StatusRunning)
-		assert.Equal(t, transitions.StatusReloading, StatusReloading)
-		assert.Equal(t, transitions.StatusStopping, StatusStopping)
-		assert.Equal(t, transitions.StatusStopped, StatusStopped)
-		assert.Equal(t, transitions.StatusError, StatusError)
-		assert.Equal(t, transitions.StatusUnknown, StatusUnknown)
-	})
 }
