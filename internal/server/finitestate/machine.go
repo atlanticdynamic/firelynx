@@ -64,6 +64,7 @@ func (m *ServerFSM) GetStateChan(ctx context.Context) <-chan string {
 	in := make(chan string, 1)
 	err := m.Machine.GetStateChan(ctx, in)
 	if err != nil {
+		slog.Error("failed to register finitestate state channel", "error", err)
 		ch := make(chan string)
 		close(ch)
 		return ch
