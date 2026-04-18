@@ -5,10 +5,8 @@ package finitestate
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/robbyt/go-fsm/v2"
-	"github.com/robbyt/go-fsm/v2/hooks/broadcast"
 )
 
 // Participant state constants
@@ -35,17 +33,16 @@ var ParticipantTransitions = map[string][]string{
 
 type ParticipantFSM struct {
 	*fsm.Machine
-	stateManager *broadcast.Manager
 }
 
 func (p *ParticipantFSM) GetStateChan(ctx context.Context) <-chan string {
-	return getStateChan(ctx, p.stateManager, p.GetState(), broadcast.WithTimeout(5*time.Second))
+	return getStateChan(ctx, p.Machine)
 }
 
 func NewParticipantFSM(handler slog.Handler) (*ParticipantFSM, error) {
-	machine, stateManager, err := newMachine(handler, ParticipantNotStarted, ParticipantTransitions)
+	machine, err := newMachine(handler, ParticipantNotStarted, ParticipantTransitions)
 	if err != nil {
 		return nil, err
 	}
-	return &ParticipantFSM{Machine: machine, stateManager: stateManager}, nil
+	return &ParticipantFSM{Machine: machine}, nil
 }

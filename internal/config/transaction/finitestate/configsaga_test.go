@@ -153,22 +153,23 @@ func TestSagaMachine(t *testing.T) {
 		stateChan := machine.GetStateChan(ctx)
 		assert.NotNil(t, stateChan)
 
+		select {
+		case state := <-stateChan:
+			assert.Equal(t, StateCreated, state)
+		case <-time.After(1 * time.Second):
+			t.Fatal("Timed out waiting for initial state notification")
+		}
+
 		// Make a state transition and check the channel
 		err := machine.Transition(StateValidating)
 		require.NoError(t, err)
 
-		// Should receive the state change - including the initial state
-		var receivedStates []string
 		select {
 		case state := <-stateChan:
-			receivedStates = append(receivedStates, state)
+			assert.Equal(t, StateValidating, state)
 		case <-time.After(1 * time.Second):
 			t.Fatal("Timed out waiting for state change notification")
 		}
-
-		// The behavior of the channel varies - it could send initial state or just the new state
-		// Just check that we received at least one state update
-		assert.NotEmpty(t, receivedStates)
 	})
 }
 

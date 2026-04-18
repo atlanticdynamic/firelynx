@@ -5,10 +5,8 @@ package finitestate
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/robbyt/go-fsm/v2"
-	"github.com/robbyt/go-fsm/v2/hooks/broadcast"
 )
 
 // Error aliases from go-fsm for use in transaction handling
@@ -74,17 +72,16 @@ var SagaTransitions = map[string][]string{
 
 type SagaFSM struct {
 	*fsm.Machine
-	stateManager *broadcast.Manager
 }
 
 func (s *SagaFSM) GetStateChan(ctx context.Context) <-chan string {
-	return getStateChan(ctx, s.stateManager, s.GetState(), broadcast.WithTimeout(5*time.Second))
+	return getStateChan(ctx, s.Machine)
 }
 
 func NewSagaFSM(handler slog.Handler) (*SagaFSM, error) {
-	machine, stateManager, err := newMachine(handler, StateCreated, SagaTransitions)
+	machine, err := newMachine(handler, StateCreated, SagaTransitions)
 	if err != nil {
 		return nil, err
 	}
-	return &SagaFSM{Machine: machine, stateManager: stateManager}, nil
+	return &SagaFSM{Machine: machine}, nil
 }
