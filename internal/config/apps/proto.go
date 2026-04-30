@@ -8,8 +8,10 @@ import (
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/calculation"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/fileread"
 	mcpserver "github.com/atlanticdynamic/firelynx/internal/config/apps/mcpserver"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
@@ -22,11 +24,13 @@ type AppType string
 
 // Constants for AppType
 const (
-	AppTypeUnknown   AppType = ""
-	AppTypeEcho      AppType = "echo"
-	AppTypeScript    AppType = "script"
-	AppTypeComposite AppType = "composite_script"
-	AppTypeMCP       AppType = "mcp"
+	AppTypeUnknown     AppType = ""
+	AppTypeEcho        AppType = "echo"
+	AppTypeScript      AppType = "script"
+	AppTypeComposite   AppType = "composite_script"
+	AppTypeMCP         AppType = "mcp"
+	AppTypeCalculation AppType = "calculation"
+	AppTypeFileRead    AppType = "fileread"
 )
 
 // appTypeToProto converts from domain AppType to protobuf AppType enum
@@ -40,6 +44,10 @@ func appTypeToProto(appType AppType) pb.AppDefinition_Type {
 		return pb.AppDefinition_TYPE_ECHO
 	case AppTypeMCP:
 		return pb.AppDefinition_TYPE_MCP
+	case AppTypeCalculation:
+		return pb.AppDefinition_TYPE_CALCULATION
+	case AppTypeFileRead:
+		return pb.AppDefinition_TYPE_FILEREAD
 	default:
 		return pb.AppDefinition_TYPE_UNSPECIFIED
 	}
@@ -56,6 +64,10 @@ func appTypeFromProto(pbAppType pb.AppDefinition_Type) AppType {
 		return AppTypeEcho
 	case pb.AppDefinition_TYPE_MCP:
 		return AppTypeMCP
+	case pb.AppDefinition_TYPE_CALCULATION:
+		return AppTypeCalculation
+	case pb.AppDefinition_TYPE_FILEREAD:
+		return AppTypeFileRead
 	default:
 		return AppTypeUnknown
 	}
@@ -80,6 +92,10 @@ func (ac *AppCollection) ToProto() []*pb.AppDefinition {
 			appType = AppTypeEcho
 		case *mcpserver.App:
 			appType = AppTypeMCP
+		case *calculation.App:
+			appType = AppTypeCalculation
+		case *fileread.App:
+			appType = AppTypeFileRead
 		default:
 			appType = AppTypeUnknown
 		}
@@ -145,6 +161,16 @@ func (ac *AppCollection) ToProto() []*pb.AppDefinition {
 			pbMcp := cfg.ToProto().(*pbApps.McpApp)
 			app.Config = &pb.AppDefinition_Mcp{
 				Mcp: pbMcp,
+			}
+		case *calculation.App:
+			pbCalculation := cfg.ToProto().(*pbApps.CalculationApp)
+			app.Config = &pb.AppDefinition_Calculation{
+				Calculation: pbCalculation,
+			}
+		case *fileread.App:
+			pbFileRead := cfg.ToProto().(*pbApps.FileReadApp)
+			app.Config = &pb.AppDefinition_Fileread{
+				Fileread: pbFileRead,
 			}
 		}
 
@@ -276,6 +302,30 @@ func fromProto(pbApp *pb.AppDefinition) (App, error) {
 			return App{}, fmt.Errorf("error converting MCP app: %w", err)
 		}
 		app.Config = mcpApp
+		return app, nil
+
+	case *pb.AppDefinition_Calculation:
+		if appType != AppTypeCalculation {
+			return App{}, fmt.Errorf("%w: app '%s' has type %s but calculation config", ErrTypeMismatch, app.ID, appType)
+		}
+
+		calculationApp := calculation.FromProto(app.ID, config.Calculation)
+		if calculationApp == nil {
+			return App{}, fmt.Errorf("calculation app '%s' config is nil", app.ID)
+		}
+		app.Config = calculationApp
+		return app, nil
+
+	case *pb.AppDefinition_Fileread:
+		if appType != AppTypeFileRead {
+			return App{}, fmt.Errorf("%w: app '%s' has type %s but fileread config", ErrTypeMismatch, app.ID, appType)
+		}
+
+		fileReadApp := fileread.FromProto(app.ID, config.Fileread)
+		if fileReadApp == nil {
+			return App{}, fmt.Errorf("fileread app '%s' config is nil", app.ID)
+		}
+		app.Config = fileReadApp
 		return app, nil
 
 	case nil:

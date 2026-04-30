@@ -7,12 +7,16 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	configCalculation "github.com/atlanticdynamic/firelynx/internal/config/apps/calculation"
 	configComposite "github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	configFileRead "github.com/atlanticdynamic/firelynx/internal/config/apps/fileread"
 	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcpserver"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/calculation"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/fileread"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcpserver"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/script"
 )
@@ -124,6 +128,33 @@ func convertMCPConfig(id string, domainConfig *configMCP.App) (*mcpserver.Config
 	return cfg, nil
 }
 
+// convertCalculationConfig converts domain calculation config to calculation DTO.
+func convertCalculationConfig(
+	id string,
+	domainConfig *configCalculation.App,
+) (*calculation.Config, error) {
+	if domainConfig == nil {
+		return nil, fmt.Errorf("failed to convert calculation config: %w", ErrConfigNil)
+	}
+
+	return &calculation.Config{ID: id}, nil
+}
+
+// convertFileReadConfig converts domain fileread config to fileread DTO.
+func convertFileReadConfig(
+	id string,
+	domainConfig *configFileRead.App,
+) (*fileread.Config, error) {
+	if domainConfig == nil {
+		return nil, fmt.Errorf("failed to convert fileread config: %w", ErrConfigNil)
+	}
+
+	return &fileread.Config{
+		ID:            id,
+		BaseDirectory: domainConfig.BaseDirectory,
+	}, nil
+}
+
 // convertAndCreateApps collects apps from domain config, converts them to DTOs, and creates instances
 func convertAndCreateApps(cfg *config.Config) (*serverApps.AppInstances, error) {
 	// First collect unique apps from routes (these have merged static data)
@@ -224,6 +255,20 @@ func convertDomainToServerApp(id string, domainConfig apps.AppConfig) (serverApp
 			return nil, err
 		}
 		return mcpserver.New(dto), nil
+
+	case *configCalculation.App:
+		dto, err := convertCalculationConfig(id, appConfig)
+		if err != nil {
+			return nil, err
+		}
+		return calculation.New(dto), nil
+
+	case *configFileRead.App:
+		dto, err := convertFileReadConfig(id, appConfig)
+		if err != nil {
+			return nil, err
+		}
+		return fileread.New(dto), nil
 
 	case *configComposite.CompositeScript:
 		return nil, fmt.Errorf("failed to convert composite app %s: %w", id, ErrCompositeNotSupported)

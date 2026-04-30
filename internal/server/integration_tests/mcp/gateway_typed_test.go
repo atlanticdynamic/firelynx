@@ -14,7 +14,7 @@ import (
 var gatewayTypedTemplate string
 
 // GatewayTypedSuite exercises the gateway path where an MCP server exposes
-// a built-in firelynx app (echo) as a typed MCP tool.
+// built-in firelynx apps as typed MCP tools.
 type GatewayTypedSuite struct {
 	MCPIntegrationTestSuite
 }
@@ -33,6 +33,7 @@ func (s *GatewayTypedSuite) TestListToolsExposesEchoApp() {
 		names = append(names, tool.Name)
 	}
 	s.Contains(names, "echo", "expected echo tool to be registered via app's MCPToolName")
+	s.Contains(names, "calculate", "expected calculation tool to be registered via app's MCPToolName")
 }
 
 func (s *GatewayTypedSuite) TestCallEchoToolReturnsConfiguredResponse() {
@@ -50,6 +51,25 @@ func (s *GatewayTypedSuite) TestCallEchoToolReturnsConfiguredResponse() {
 	text, ok := result.Content[0].(*mcpsdk.TextContent)
 	s.Require().True(ok, "first content should be text")
 	s.Contains(text.Text, "ack: hello")
+}
+
+func (s *GatewayTypedSuite) TestCallCalculationToolReturnsResult() {
+	result, err := s.GetMCPSession().CallTool(s.GetContext(), &mcpsdk.CallToolParams{
+		Name: "calculate",
+		Arguments: map[string]any{
+			"left":     6,
+			"right":    2,
+			"operator": "/",
+		},
+	})
+	s.Require().NoError(err)
+	s.Require().NotNil(result)
+	s.False(result.IsError, "tool call should not error")
+
+	s.Require().NotEmpty(result.Content)
+	text, ok := result.Content[0].(*mcpsdk.TextContent)
+	s.Require().True(ok, "first content should be text")
+	s.Contains(text.Text, `"result":3`)
 }
 
 func TestGatewayTypedSuite(t *testing.T) {

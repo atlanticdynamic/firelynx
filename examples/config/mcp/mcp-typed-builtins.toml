@@ -1,0 +1,60 @@
+# =============================================================================
+# Typed Built-In MCP Tools
+# =============================================================================
+#
+# PURPOSE: Expose firelynx's typed built-in apps (calculation, fileread) as MCP
+#          tools without writing any script code.
+# PORT: 8084
+# ENDPOINT: http://localhost:8084/mcp
+#
+# TOOLS PROVIDED:
+# - calculate: Apply +, -, *, / to two numeric operands.
+# - fileread:  Read a file from a configured base directory (sandboxed).
+#
+# Typed apps implement MCPTypedToolProvider, so input/output schemas are
+# derived from their Go types — `input_schema` / `output_schema` are not needed
+# in the [[apps.mcp.tools]] entries.
+#
+# TO TEST:
+# 1. ./bin/firelynx server -c examples/config/mcp/mcp-typed-builtins.toml
+# 2. Connect any MCP client to http://localhost:8084/mcp.
+
+version = "v1"
+
+[[listeners]]
+id = "mcp-listener"
+address = ":8084"
+type = "http"
+
+[[endpoints]]
+id = "mcp-endpoint"
+listener_id = "mcp-listener"
+
+[[endpoints.routes]]
+app_id = "typed-tools"
+[endpoints.routes.http]
+path_prefix = "/mcp"
+method = "*"
+
+[[apps]]
+id = "calculator"
+type = "calculation"
+[apps.calculation]
+
+# base_directory resolves relative to the server's working directory at runtime.
+# Point this at a real directory you want exposed to MCP clients.
+[[apps]]
+id = "workspace-reader"
+type = "fileread"
+[apps.fileread]
+base_directory = "."
+
+[[apps]]
+id = "typed-tools"
+type = "mcp"
+
+[[apps.mcp.tools]]
+app_id = "calculator"
+
+[[apps.mcp.tools]]
+app_id = "workspace-reader"

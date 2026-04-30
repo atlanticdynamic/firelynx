@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/calculation"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/fileread"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/styles"
@@ -30,6 +32,10 @@ func (a *App) String() string {
 
 	case *composite.CompositeScript:
 		fmt.Fprintf(&b, " [CompositeScript with %d scripts]", len(cfg.ScriptAppIDs))
+	case *calculation.App:
+		fmt.Fprintf(&b, " [Calculation]")
+	case *fileread.App:
+		fmt.Fprintf(&b, " [FileRead]")
 	default:
 		fmt.Fprintf(&b, " [Unknown type]")
 	}
@@ -123,6 +129,12 @@ func (a *App) ToTree() *fancy.ComponentTree {
 
 			tree.AddChild(dataNode.Tree())
 		}
+	case *calculation.App:
+		tree.AddChild("Type: Calculation")
+
+	case *fileread.App:
+		tree.AddChild("Type: FileRead")
+		tree.AddChild(fmt.Sprintf("BaseDirectory: %s", appConfig.BaseDirectory))
 	}
 
 	return tree

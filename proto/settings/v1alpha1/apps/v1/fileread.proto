@@ -1,0 +1,10 @@
+edition = "2023";
+package settings.v1alpha1.apps.v1;
+
+option go_package = "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1";
+
+message FileReadApp {
+  // Base directory for relative file reads
+  // env_interpolation: yes
+  string base_directory = 1;
+}

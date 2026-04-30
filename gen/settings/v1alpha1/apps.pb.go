@@ -30,6 +30,8 @@ const (
 	AppDefinition_TYPE_COMPOSITE_SCRIPT AppDefinition_Type = 2
 	AppDefinition_TYPE_ECHO             AppDefinition_Type = 3
 	AppDefinition_TYPE_MCP              AppDefinition_Type = 4
+	AppDefinition_TYPE_CALCULATION      AppDefinition_Type = 5
+	AppDefinition_TYPE_FILEREAD         AppDefinition_Type = 6
 )
 
 // Enum value maps for AppDefinition_Type.
@@ -40,6 +42,8 @@ var (
 		2: "TYPE_COMPOSITE_SCRIPT",
 		3: "TYPE_ECHO",
 		4: "TYPE_MCP",
+		5: "TYPE_CALCULATION",
+		6: "TYPE_FILEREAD",
 	}
 	AppDefinition_Type_value = map[string]int32{
 		"TYPE_UNSPECIFIED":      0,
@@ -47,6 +51,8 @@ var (
 		"TYPE_COMPOSITE_SCRIPT": 2,
 		"TYPE_ECHO":             3,
 		"TYPE_MCP":              4,
+		"TYPE_CALCULATION":      5,
+		"TYPE_FILEREAD":         6,
 	}
 )
 
@@ -94,6 +100,8 @@ type AppDefinition struct {
 	//	*AppDefinition_CompositeScript
 	//	*AppDefinition_Echo
 	//	*AppDefinition_Mcp
+	//	*AppDefinition_Calculation
+	//	*AppDefinition_Fileread
 	Config        isAppDefinition_Config `protobuf_oneof:"config"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -191,6 +199,24 @@ func (x *AppDefinition) GetMcp() *v1.McpApp {
 	return nil
 }
 
+func (x *AppDefinition) GetCalculation() *v1.CalculationApp {
+	if x != nil {
+		if x, ok := x.Config.(*AppDefinition_Calculation); ok {
+			return x.Calculation
+		}
+	}
+	return nil
+}
+
+func (x *AppDefinition) GetFileread() *v1.FileReadApp {
+	if x != nil {
+		if x, ok := x.Config.(*AppDefinition_Fileread); ok {
+			return x.Fileread
+		}
+	}
+	return nil
+}
+
 type isAppDefinition_Config interface {
 	isAppDefinition_Config()
 }
@@ -219,6 +245,18 @@ type AppDefinition_Mcp struct {
 	Mcp *v1.McpApp `protobuf:"bytes,103,opt,name=mcp,oneof"`
 }
 
+type AppDefinition_Calculation struct {
+	// Calculation application configuration
+	// env_interpolation: n/a (non-string)
+	Calculation *v1.CalculationApp `protobuf:"bytes,104,opt,name=calculation,oneof"`
+}
+
+type AppDefinition_Fileread struct {
+	// FileRead application configuration
+	// env_interpolation: n/a (non-string)
+	Fileread *v1.FileReadApp `protobuf:"bytes,105,opt,name=fileread,oneof"`
+}
+
 func (*AppDefinition_Script) isAppDefinition_Config() {}
 
 func (*AppDefinition_CompositeScript) isAppDefinition_Config() {}
@@ -227,24 +265,32 @@ func (*AppDefinition_Echo) isAppDefinition_Config() {}
 
 func (*AppDefinition_Mcp) isAppDefinition_Config() {}
 
+func (*AppDefinition_Calculation) isAppDefinition_Config() {}
+
+func (*AppDefinition_Fileread) isAppDefinition_Config() {}
+
 var File_settings_v1alpha1_apps_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_apps_proto_rawDesc = "" +
 	"\n" +
-	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a)settings/v1alpha1/apps/v1/composite.proto\x1a$settings/v1alpha1/apps/v1/echo.proto\x1a#settings/v1alpha1/apps/v1/mcp.proto\x1a&settings/v1alpha1/apps/v1/script.proto\"\xea\x03\n" +
+	"\x1csettings/v1alpha1/apps.proto\x12\x11settings.v1alpha1\x1a)settings/v1alpha1/apps/v1/composite.proto\x1a$settings/v1alpha1/apps/v1/echo.proto\x1a+settings/v1alpha1/apps/v1/calculation.proto\x1a(settings/v1alpha1/apps/v1/fileread.proto\x1a#settings/v1alpha1/apps/v1/mcp.proto\x1a&settings/v1alpha1/apps/v1/script.proto\"\xa9\x05\n" +
 	"\rAppDefinition\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12K\n" +
 	"\x04type\x18\x02 \x01(\x0e2%.settings.v1alpha1.AppDefinition.Type:\x10TYPE_UNSPECIFIEDR\x04type\x12>\n" +
 	"\x06script\x18d \x01(\v2$.settings.v1alpha1.apps.v1.ScriptAppH\x00R\x06script\x12Z\n" +
 	"\x10composite_script\x18e \x01(\v2-.settings.v1alpha1.apps.v1.CompositeScriptAppH\x00R\x0fcompositeScript\x128\n" +
 	"\x04echo\x18f \x01(\v2\".settings.v1alpha1.apps.v1.EchoAppH\x00R\x04echo\x125\n" +
-	"\x03mcp\x18g \x01(\v2!.settings.v1alpha1.apps.v1.McpAppH\x00R\x03mcp\"e\n" +
+	"\x03mcp\x18g \x01(\v2!.settings.v1alpha1.apps.v1.McpAppH\x00R\x03mcp\x12M\n" +
+	"\vcalculation\x18h \x01(\v2).settings.v1alpha1.apps.v1.CalculationAppH\x00R\vcalculation\x12D\n" +
+	"\bfileread\x18i \x01(\v2&.settings.v1alpha1.apps.v1.FileReadAppH\x00R\bfileread\"\x8e\x01\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTYPE_SCRIPT\x10\x01\x12\x19\n" +
 	"\x15TYPE_COMPOSITE_SCRIPT\x10\x02\x12\r\n" +
 	"\tTYPE_ECHO\x10\x03\x12\f\n" +
-	"\bTYPE_MCP\x10\x04B\b\n" +
+	"\bTYPE_MCP\x10\x04\x12\x14\n" +
+	"\x10TYPE_CALCULATION\x10\x05\x12\x11\n" +
+	"\rTYPE_FILEREAD\x10\x06B\b\n" +
 	"\x06configB;Z9github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1b\beditionsp\xe8\a"
 
 var (
@@ -268,6 +314,8 @@ var file_settings_v1alpha1_apps_proto_goTypes = []any{
 	(*v1.CompositeScriptApp)(nil), // 3: settings.v1alpha1.apps.v1.CompositeScriptApp
 	(*v1.EchoApp)(nil),            // 4: settings.v1alpha1.apps.v1.EchoApp
 	(*v1.McpApp)(nil),             // 5: settings.v1alpha1.apps.v1.McpApp
+	(*v1.CalculationApp)(nil),     // 6: settings.v1alpha1.apps.v1.CalculationApp
+	(*v1.FileReadApp)(nil),        // 7: settings.v1alpha1.apps.v1.FileReadApp
 }
 var file_settings_v1alpha1_apps_proto_depIdxs = []int32{
 	0, // 0: settings.v1alpha1.AppDefinition.type:type_name -> settings.v1alpha1.AppDefinition.Type
@@ -275,11 +323,13 @@ var file_settings_v1alpha1_apps_proto_depIdxs = []int32{
 	3, // 2: settings.v1alpha1.AppDefinition.composite_script:type_name -> settings.v1alpha1.apps.v1.CompositeScriptApp
 	4, // 3: settings.v1alpha1.AppDefinition.echo:type_name -> settings.v1alpha1.apps.v1.EchoApp
 	5, // 4: settings.v1alpha1.AppDefinition.mcp:type_name -> settings.v1alpha1.apps.v1.McpApp
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	6, // 5: settings.v1alpha1.AppDefinition.calculation:type_name -> settings.v1alpha1.apps.v1.CalculationApp
+	7, // 6: settings.v1alpha1.AppDefinition.fileread:type_name -> settings.v1alpha1.apps.v1.FileReadApp
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_settings_v1alpha1_apps_proto_init() }
@@ -292,6 +342,8 @@ func file_settings_v1alpha1_apps_proto_init() {
 		(*AppDefinition_CompositeScript)(nil),
 		(*AppDefinition_Echo)(nil),
 		(*AppDefinition_Mcp)(nil),
+		(*AppDefinition_Calculation)(nil),
+		(*AppDefinition_Fileread)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

@@ -7,8 +7,10 @@ import (
 
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
+	configCalculation "github.com/atlanticdynamic/firelynx/internal/config/apps/calculation"
 	configComposite "github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	configFileRead "github.com/atlanticdynamic/firelynx/internal/config/apps/fileread"
 	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcpserver"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
@@ -17,6 +19,8 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
+	serverCalculation "github.com/atlanticdynamic/firelynx/internal/server/apps/calculation"
+	serverFileRead "github.com/atlanticdynamic/firelynx/internal/server/apps/fileread"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcpserver"
 	"github.com/robbyt/go-polyscript/platform"
 	"github.com/stretchr/testify/assert"
@@ -298,6 +302,40 @@ func TestConvertMCPConfig(t *testing.T) {
 	})
 }
 
+func TestConvertTypedAppConfigs(t *testing.T) {
+	t.Run("calculation", func(t *testing.T) {
+		result, err := convertCalculationConfig("calc", &configCalculation.App{ID: "calc"})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "calc", result.ID)
+	})
+
+	t.Run("calculation nil config", func(t *testing.T) {
+		result, err := convertCalculationConfig("calc", nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrConfigNil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("fileread", func(t *testing.T) {
+		result, err := convertFileReadConfig(
+			"files",
+			&configFileRead.App{ID: "files", BaseDirectory: "/tmp/files"},
+		)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "files", result.ID)
+		assert.Equal(t, "/tmp/files", result.BaseDirectory)
+	})
+
+	t.Run("fileread nil config", func(t *testing.T) {
+		result, err := convertFileReadConfig("files", nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrConfigNil)
+		assert.Nil(t, result)
+	})
+}
+
 func TestConvertDomainToServerApp(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -343,6 +381,20 @@ func TestConvertDomainToServerApp(t *testing.T) {
 			config:     &configMCP.App{},
 			wantErr:    false,
 			wantAppStr: "mcp-test",
+		},
+		{
+			name:       "calculation app",
+			id:         "calc-test",
+			config:     &configCalculation.App{ID: "calc-test"},
+			wantErr:    false,
+			wantAppStr: "calc-test",
+		},
+		{
+			name:       "fileread app",
+			id:         "files-test",
+			config:     &configFileRead.App{ID: "files-test", BaseDirectory: "/tmp/files"},
+			wantErr:    false,
+			wantAppStr: "files-test",
 		},
 		{
 			name: "mcp app with tools config",
@@ -396,6 +448,21 @@ func TestConvertDomainToServerApp(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConvertDomainToServerApp_TypedAppInstances(t *testing.T) {
+	calcApp, err := convertDomainToServerApp("calc", &configCalculation.App{ID: "calc"})
+	require.NoError(t, err)
+	_, ok := calcApp.(*serverCalculation.App)
+	assert.True(t, ok)
+
+	fileApp, err := convertDomainToServerApp(
+		"files",
+		&configFileRead.App{ID: "files", BaseDirectory: "/tmp/files"},
+	)
+	require.NoError(t, err)
+	_, ok = fileApp.(*serverFileRead.App)
+	assert.True(t, ok)
 }
 
 func TestConvertAndCreateApps_DuplicateIDs(t *testing.T) {
