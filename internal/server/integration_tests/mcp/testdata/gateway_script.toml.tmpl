@@ -1,0 +1,54 @@
+# Gateway integration fixture: an MCP server exposing a Risor script app
+# as a raw tool. Script apps implement MCPRawToolProvider so the schema
+# must be supplied by the user via input_schema.
+#
+# The Tool.ID override lets the user pick a friendly tool name ("add")
+# distinct from the underlying app_id ("calc-script").
+
+[[listeners]]
+id = "test-listener"
+address = ":{{.Port}}"
+type = "http"
+
+[[endpoints]]
+id = "test-endpoint"
+listener_id = "test-listener"
+
+[[endpoints.routes]]
+app_id = "mcp-server"
+[endpoints.routes.http]
+path_prefix = "/mcp"
+method = "*"
+
+[[apps]]
+id = "calc-script"
+type = "script"
+[apps.script.risor]
+timeout = "5s"
+code = '''
+func add() {
+    args := ctx.get("args", {})
+    a := args.get("a", 0)
+    b := args.get("b", 0)
+    return {"sum": a + b}
+}
+add()
+'''
+
+[[apps]]
+id = "mcp-server"
+type = "mcp"
+
+[[apps.mcp.tools]]
+id = "add"
+app_id = "calc-script"
+input_schema = '''
+{
+  "type": "object",
+  "properties": {
+    "a": {"type": "number"},
+    "b": {"type": "number"}
+  },
+  "required": ["a", "b"]
+}
+'''

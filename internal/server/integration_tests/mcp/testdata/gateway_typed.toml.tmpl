@@ -1,0 +1,31 @@
+# Gateway integration fixture: an MCP server exposing the echo app as a typed tool.
+# The echo app implements MCPTypedToolProvider so mcp-io auto-derives its
+# input/output schemas from the EchoInput / EchoOutput Go types.
+
+[[listeners]]
+id = "test-listener"
+address = ":{{.Port}}"
+type = "http"
+
+[[endpoints]]
+id = "test-endpoint"
+listener_id = "test-listener"
+
+[[endpoints.routes]]
+app_id = "mcp-server"
+[endpoints.routes.http]
+path_prefix = "/mcp"
+method = "*"
+
+[[apps]]
+id = "echo-app"
+type = "echo"
+[apps.echo]
+response = "ack"
+
+[[apps]]
+id = "mcp-server"
+type = "mcp"
+
+[[apps.mcp.tools]]
+app_id = "echo-app"

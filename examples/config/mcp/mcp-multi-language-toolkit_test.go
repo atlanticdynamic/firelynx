@@ -63,7 +63,7 @@ func TestConfigLoading(t *testing.T) {
 
 	mcpApps := 0
 	for app := range cfg.Apps.All() {
-		if app.Config.Type() == "mcp" {
+		if app.Config.Type() == "mcpserver" {
 			mcpApps++
 		}
 	}
@@ -282,8 +282,10 @@ func TestUnitConverter(t *testing.T) {
 
 			if tc.expectedError != "" {
 				assert.True(t, result.IsError, "error responses should have IsError=true")
-				expectedErrorJSON := fmt.Sprintf(`{"error":"%s"}`, tc.expectedError)
-				assert.JSONEq(t, expectedErrorJSON, content.Text, "error should be returned as JSON object")
+				// Script-side {"error": "..."} is surfaced as a structured
+				// mcpio.ValidationError ("[VALIDATION_ERROR] <msg>"), not as
+				// inline JSON in the success channel.
+				assert.Contains(t, content.Text, tc.expectedError, "validation error text should contain expected message")
 			} else {
 				assert.False(t, result.IsError, "success responses should have IsError=false")
 				assert.Contains(t, content.Text, tc.expectedText, "response should contain expected text")
@@ -437,7 +439,7 @@ func TestSchemaValidator(t *testing.T) {
 					"id": "123",
 				},
 			},
-			expectedJSON: `{"error":"Unknown schema: nonexistent. Available: product, user"}`,
+			expectedJSON: `Unknown schema: nonexistent. Available: product, user`,
 			checkError:   true,
 		},
 		{
@@ -476,7 +478,7 @@ func TestSchemaValidator(t *testing.T) {
 				"schema": "user",
 				// no data field
 			},
-			expectedJSON: `{"error":"No data provided for validation"}`,
+			expectedJSON: `No data provided for validation`,
 			checkError:   true,
 		},
 		{
@@ -487,7 +489,7 @@ func TestSchemaValidator(t *testing.T) {
 				},
 				// no schema or custom_schema
 			},
-			expectedJSON: `{"error":"Please specify either a 'schema' name or 'custom_schema' definition"}`,
+			expectedJSON: `Please specify either a 'schema' name or 'custom_schema' definition`,
 			checkError:   true,
 		},
 	}
@@ -525,7 +527,9 @@ func TestSchemaValidator(t *testing.T) {
 
 			if tc.checkError {
 				assert.True(t, result.IsError, "error responses should have IsError=true")
-				assert.JSONEq(t, tc.expectedJSON, content.Text, "should match expected error JSON")
+				// Script {"error": "..."} surfaces as mcpio.ValidationError
+				// text content, not as JSON.
+				assert.Contains(t, content.Text, tc.expectedJSON, "validation error text should contain expected message")
 			} else {
 				assert.JSONEq(t, tc.expectedJSON, content.Text, "should match expected JSON response")
 			}

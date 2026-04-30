@@ -9,11 +9,11 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	configComposite "github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
-	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
+	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcpserver"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	serverApps "github.com/atlanticdynamic/firelynx/internal/server/apps"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcp"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcpserver"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/script"
 )
 
@@ -85,22 +85,43 @@ func convertScriptConfig(id string, domainConfig *configScripts.AppScript) (*scr
 	}, nil
 }
 
-// convertMCPConfig converts domain MCP config to MCP DTO
-func convertMCPConfig(id string, domainConfig *configMCP.App) (*mcp.Config, error) {
+// convertMCPConfig converts domain MCP config to mcpserver DTO. The returned
+// Config preserves the per-primitive references (Tool/Prompt/Resource) so the
+// runtime can register them with mcp-io without losing any user-supplied
+// schema overrides or ID fields.
+func convertMCPConfig(id string, domainConfig *configMCP.App) (*mcpserver.Config, error) {
 	if domainConfig == nil {
 		return nil, fmt.Errorf("failed to convert MCP config: %w", ErrConfigNil)
 	}
 
-	// Get compiled server from domain config
-	compiledServer := domainConfig.GetCompiledServer()
-	if compiledServer == nil {
-		return nil, fmt.Errorf("%w for app %s", mcp.ErrServerNotCompiled, id)
+	cfg := &mcpserver.Config{ID: id}
+
+	for _, t := range domainConfig.Tools {
+		cfg.Tools = append(cfg.Tools, mcpserver.ToolRef{
+			ID:           t.ID,
+			AppID:        t.AppID,
+			InputSchema:  t.Schema.Input,
+			OutputSchema: t.Schema.Output,
+		})
 	}
 
-	return &mcp.Config{
-		ID:             id,
-		CompiledServer: compiledServer,
-	}, nil
+	for _, p := range domainConfig.Prompts {
+		cfg.Prompts = append(cfg.Prompts, mcpserver.PromptRef{
+			ID:          p.ID,
+			AppID:       p.AppID,
+			InputSchema: p.Schema.Input,
+		})
+	}
+
+	for _, r := range domainConfig.Resources {
+		cfg.Resources = append(cfg.Resources, mcpserver.ResourceRef{
+			ID:          r.ID,
+			AppID:       r.AppID,
+			URITemplate: r.URITemplate,
+		})
+	}
+
+	return cfg, nil
 }
 
 // convertAndCreateApps collects apps from domain config, converts them to DTOs, and creates instances
@@ -141,7 +162,43 @@ func convertAndCreateApps(cfg *config.Config) (*serverApps.AppInstances, error) 
 		appInstances = append(appInstances, serverApp)
 	}
 
-	return serverApps.NewAppInstances(appInstances)
+	instances, err := serverApps.NewAppInstances(appInstances)
+	if err != nil {
+		return nil, err
+	}
+
+	// Cross-component validation: every MCP server's Tool/Prompt/Resource
+	// references must resolve to an app that implements the matching
+	// provider interface. Wire each MCP server's AppLookup once it passes.
+	if err := wireMCPServers(instances); err != nil {
+		return nil, err
+	}
+
+	return instances, nil
+}
+
+// wireMCPServers validates each *mcpserver.App in the registry against the
+// other apps and, on success, calls Build to install the AppLookup. Per
+// transaction/CLAUDE.md, cross-component reference checks live here rather
+// than in domain validation.
+func wireMCPServers(instances *serverApps.AppInstances) error {
+	lookup := mcpserver.AppLookup(instances.GetApp)
+
+	var errs []error
+	for app := range instances.All() {
+		mcpApp, ok := app.(*mcpserver.App)
+		if !ok {
+			continue
+		}
+		if err := mcpApp.ValidateRefs(lookup); err != nil {
+			errs = append(errs, fmt.Errorf("mcp server %q: %w", mcpApp.String(), err))
+			continue
+		}
+		if err := mcpApp.Build(lookup); err != nil {
+			errs = append(errs, fmt.Errorf("mcp server %q: %w", mcpApp.String(), err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // convertDomainToServerApp converts a domain app config to a server app instance
@@ -166,7 +223,7 @@ func convertDomainToServerApp(id string, domainConfig apps.AppConfig) (serverApp
 		if err != nil {
 			return nil, err
 		}
-		return mcp.New(dto)
+		return mcpserver.New(dto), nil
 
 	case *configComposite.CompositeScript:
 		return nil, fmt.Errorf("failed to convert composite app %s: %w", id, ErrCompositeNotSupported)
