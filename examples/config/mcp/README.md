@@ -1,15 +1,23 @@
 # MCP (Model Context Protocol) Example
 
-This directory contains a comprehensive MCP server configuration demonstrating multi-language scripting capabilities.
+This directory contains an MCP server configuration that exposes ordinary
+firelynx apps as MCP tools. firelynx's MCP support uses a **gateway model**:
+apps are defined once, and the MCP server references them by `app_id` to expose
+supported providers via
+[mcp-io](https://github.com/robbyt/mcp-io) +
+[modelcontextprotocol/go-sdk](https://github.com/modelcontextprotocol/go-sdk).
 
 ## Configuration
 
-**`mcp-multi-language-toolkit.toml`** - Multi-language toolkit combining Risor and Starlark for different types of operations.
+**`mcp-multi-language-toolkit.toml`** - Risor + Starlark script apps fronted by
+a single MCP server.
 
 ### Tools Provided
 
-- **`unit_converter`** (Risor) - Convert between units (length, weight) with built-in conversion tables
-- **`validate_schema`** (Starlark) - Validate JSON data against predefined schemas
+- **`unit_converter`** (Risor) - Convert between units (length, weight) with
+  built-in conversion tables.
+- **`validate_schema`** (Starlark) - Validate JSON data against predefined
+  schemas.
 
 ## Quick Start
 
@@ -23,46 +31,85 @@ This directory contains a comprehensive MCP server configuration demonstrating m
    ./bin/firelynx server -c examples/config/mcp/mcp-multi-language-toolkit.toml
    ```
 
-3. Test with an MCP client at `http://localhost:8083/mcp`
+3. Connect any MCP client to `http://localhost:8083/mcp` (e.g. via
+   `mcp-cli`, the `modelcontextprotocol/go-sdk` client, or Claude Desktop).
 
-## Language Strategy
+## Configuration Pattern
 
-- **Risor**: Mathematical operations, unit conversions, string manipulation
-- **Starlark**: Data processing, schema validation, complex workflows
+The gateway model separates the *tool implementation* (a script app) from the
+*MCP server* that exposes it. A script app is a normal firelynx app and is
+defined exactly the same way you would for HTTP serving:
 
-## Configuration Patterns
-
-### Tool Structure
 ```toml
-[[apps.mcp.tools]]
-name = "tool_name"
-description = "What this tool does"
+[[apps]]
+id = "unit-converter-app"
+type = "script"
 
-[apps.mcp.tools.script.static_data]
-config_key = "config_value"
+[apps.script.static_data]
+# any static config the script can read via ctx.get("data", {})
 
-[apps.mcp.tools.script.risor]  # or .starlark
-code = '''/* script implementation */'''
+[apps.script.risor]
+code = '''
+func convert() {
+    args := ctx.get("args", {})    # runtime input from the MCP client
+    static := ctx.get("data", {})  # static_data above
+    # ... return a map; {"error": "..."} surfaces as a tool error
+}
+convert()
+'''
 ```
 
-### Script Interface
-- **Input**: `args.get("param_name", default)`
-- **Static Data**: `ctx.get("data", {}).get("config_key", default)`
-- **Output**: `{"text": "result"}` or `{"error": "message"}`
+Then the MCP server app references it by `app_id`:
 
-### Error Handling
-Scripts can return various types:
-- **Map with error**: `{"error": "message"}` - Treated as tool error
-- **Map with success**: `{"text": "result", "value": 42}` - Structured success response
-- **String/bytes**: Returned as plain text content
-- **Other types**: Converted to text representation
+```toml
+[[apps]]
+id = "multi-toolkit"
+type = "mcp"
+
+[[apps.mcp.tools]]
+id = "unit_converter"               # MCP tool name shown to clients
+app_id = "unit-converter-app"       # firelynx app that backs it
+input_schema = '''
+{ "type": "object", "properties": { ... }, "required": [...] }
+'''
+```
+
+Notes:
+
+- `id` is optional. When empty, the gateway falls back to the backing app's
+  `MCPToolName()` (which for script apps is just the `app_id`).
+- `input_schema` is **required** for script-backed tools because mcp-io's raw
+  registration path needs an explicit schema. Typed provider apps such as
+  `echo` let mcp-io derive schemas automatically, so those can omit
+  `input_schema`/`output_schema`.
+- `input_schema` is rejected for typed-only providers because mcp-io derives
+  typed tool schemas from Go input/output structs.
+- `output_schema` is accepted and JSON-validated for future compatibility, but
+  it is not currently forwarded to MCP clients.
+- Prompt and resource config fields exist in the schema, but runtime support is
+  intentionally tool-only today. Configuring prompts or resources fails
+  validation with an unsupported-primitive error.
+
+### Script ↔ MCP Contract
+
+Inside a script app exposed as an MCP tool:
+
+- **Input** is namespaced under `ctx.get("args", {})`.
+- **Static data** is namespaced under `ctx.get("data", {})`.
+- **Output** is whatever the script returns:
+  - A map containing `{"error": "..."}` is surfaced as a structured tool error
+    (`mcpio.ValidationError`).
+  - Any other JSON-serializable value becomes the tool's structured result.
+
+This matches the namespacing in `internal/server/apps/script/CLAUDE.md`.
 
 ## Development Tips
 
-1. Start with simple tools and add complexity gradually
-2. Use static data for configuration instead of hardcoded values
-3. Test each tool individually before combining
-4. Choose the right language for each specific task
-5. Always validate inputs and handle errors gracefully
-
-For detailed implementation examples, see the header comments in each TOML file.
+1. Iterate on the script app first using the HTTP path; once it works there it
+   will work as an MCP tool.
+2. Keep configuration in `static_data` instead of hardcoding it inside the
+   script.
+3. Set `id` on each `[[apps.mcp.tools]]` block to give clients a friendly tool
+   name independent of the underlying app id.
+4. Use Risor for math/string-heavy work and Starlark for structured data
+   validation — the toolkit example demonstrates both.

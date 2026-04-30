@@ -1,16 +1,19 @@
-# firelynx - Model Context Protocol Server
+# firelynx - Scriptable App Gateway
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/atlanticdynamic/firelynx.svg)](https://pkg.go.dev/github.com/atlanticdynamic/firelynx)
 [![Go Report Card](https://goreportcard.com/badge/github.com/atlanticdynamic/firelynx)](https://goreportcard.com/report/github.com/atlanticdynamic/firelynx)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=atlanticdynamic_firelynx&metric=coverage)](https://sonarcloud.io/summary/new_code?id=atlanticdynamic_firelynx)
 [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 
-firelynx is a scriptable implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server. It enables AI assistants like Claude to interact with custom tools, prompts, and resources powered by a scripting environment.
+firelynx runs scriptable applications behind configurable listeners and routes.
+It includes a gateway-style [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
+server app: ordinary firelynx apps are defined once, then an MCP server app
+references them by `app_id` and exposes supported app providers as MCP tools.
 
 ## Features
 
-- **MCP Protocol Support**: Implements the standardized [Model Context Protocol](https://modelcontextprotocol.io/)
-- **Scriptable Tools and Prompts**: Create custom tools and prompt templates using multiple scripting languages
+- **MCP Gateway Support**: Expose existing firelynx apps through the standardized [Model Context Protocol](https://modelcontextprotocol.io/)
+- **Scriptable Tools**: Create custom tool implementations using multiple scripting languages
 - **Hot-Reloadable Configuration**: Update server configuration via gRPC or file reload without stopping the server
 - **Modular Architecture**: Separation between listeners, endpoints, and applications
 - **Multiple Script Engines**: Powered by [go-polyscript](https://github.com/robbyt/go-polyscript)
@@ -59,13 +62,13 @@ firelynx uses TOML configuration files with the following structure:
 
 firelynx follows a three-layer architecture:
 
-1. **Listeners**: Protocol-specific entry points (MCP, HTTP, gRPC)
+1. **Listeners**: Protocol-specific entry points such as HTTP and gRPC
 2. **Endpoints**: Connection mapping between listeners and applications
-3. **Applications**: Functional components including script apps and MCP implementations
+3. **Applications**: Functional components including script apps, echo apps, and MCP gateway apps
 
 ## Development
 
-Requires Go 1.24 or later to compile.
+Requires Go 1.26.2 or later to compile.
 
 ```bash
 # Clone the repository

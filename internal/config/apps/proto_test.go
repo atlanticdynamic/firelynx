@@ -9,7 +9,7 @@ import (
 	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
-	"github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
+	mcpserver "github.com/atlanticdynamic/firelynx/internal/config/apps/mcpserver"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
@@ -324,10 +324,7 @@ func TestFromProtoConversions(t *testing.T) {
 			Id:   proto.String("test-mcp-app"),
 			Type: &mcpType,
 			Config: &pb.AppDefinition_Mcp{
-				Mcp: &pbApps.McpApp{
-					ServerName:    proto.String("test-server"),
-					ServerVersion: proto.String("1.0.0"),
-				},
+				Mcp: &pbApps.McpApp{},
 			},
 		}
 
@@ -633,10 +630,13 @@ func TestToProtoConversions(t *testing.T) {
 	})
 
 	t.Run("MCPApp", func(t *testing.T) {
-		// Create a domain App with MCP config
-		mcpApp := mcp.NewApp("mcp-test-app")
-		mcpApp.ServerName = "test-server"
-		mcpApp.ServerVersion = "1.0.0"
+		// Create a domain App with MCP config using new primitive structure
+		mcpApp := mcpserver.NewApp("mcp-test-app")
+		// Note: Cannot directly construct the private schemaDefinition in tests
+		// This test would need to use the FromProto function to create proper instances
+		// For now, testing empty structure to verify protobuf conversion works
+		mcpApp.Tools = []mcpserver.Tool{}
+		mcpApp.Prompts = []mcpserver.Prompt{}
 
 		app := App{
 			ID:     "test-mcp-app",
@@ -651,8 +651,11 @@ func TestToProtoConversions(t *testing.T) {
 		assert.Equal(t, "test-mcp-app", pbApp.GetId())
 		assert.Equal(t, pb.AppDefinition_TYPE_MCP, pbApp.GetType(), "AppType should be MCP")
 		assert.NotNil(t, pbApp.GetMcp(), "Expected MCP field to be set")
-		assert.Equal(t, "test-server", pbApp.GetMcp().GetServerName())
-		assert.Equal(t, "1.0.0", pbApp.GetMcp().GetServerVersion())
+
+		mcpConfig := pbApp.GetMcp()
+		assert.Empty(t, mcpConfig.GetTools(), "Expected empty tools")
+		assert.Empty(t, mcpConfig.GetPrompts(), "Expected empty prompts")
+		assert.Empty(t, mcpConfig.GetResources(), "Expected empty resources")
 	})
 
 	t.Run("UnknownAppType", func(t *testing.T) {
@@ -777,9 +780,7 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 			Id:   proto.String("mismatch-app"),
 			Type: &scriptType,
 			Config: &pb.AppDefinition_Mcp{
-				Mcp: &pbApps.McpApp{
-					ServerName: proto.String("test-server"),
-				},
+				Mcp: &pbApps.McpApp{},
 			},
 		}
 

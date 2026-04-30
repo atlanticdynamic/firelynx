@@ -9,7 +9,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps"
 	configComposite "github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	configEcho "github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
-	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcp"
+	configMCP "github.com/atlanticdynamic/firelynx/internal/config/apps/mcpserver"
 	configScripts "github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
@@ -17,7 +17,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
-	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcp"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/mcpserver"
 	"github.com/robbyt/go-polyscript/platform"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -232,76 +232,70 @@ func TestConvertScriptConfig(t *testing.T) {
 }
 
 func TestConvertMCPConfig(t *testing.T) {
-	tests := []struct {
-		name        string
-		id          string
-		config      *configMCP.App
-		setupMock   func(*configMCP.App)
-		wantErr     bool
-		expectedErr error
-	}{
-		{
-			name:        "nil config",
-			id:          "test-id",
-			config:      nil,
-			wantErr:     true,
-			expectedErr: ErrConfigNil,
-		},
-		{
-			name:   "nil compiled server",
-			id:     "test-id",
-			config: &configMCP.App{},
-			setupMock: func(cfg *configMCP.App) {
-				// Default behavior returns nil compiled server
+	t.Run("nil config", func(t *testing.T) {
+		result, err := convertMCPConfig("test-id", nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrConfigNil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("empty config", func(t *testing.T) {
+		result, err := convertMCPConfig("test-id", &configMCP.App{})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "test-id", result.ID)
+		assert.Empty(t, result.Tools)
+		assert.Empty(t, result.Prompts)
+		assert.Empty(t, result.Resources)
+	})
+
+	t.Run("preserves per-primitive refs and schema overrides", func(t *testing.T) {
+		domain := &configMCP.App{
+			ID: "mcp",
+			Tools: []configMCP.Tool{
+				{
+					ID:    "calculate",
+					AppID: "calc-app",
+				},
+				{
+					AppID: "unit-converter-app",
+				},
 			},
-			wantErr:     true,
-			expectedErr: mcp.ErrServerNotCompiled,
-		},
-		{
-			name:   "successful conversion",
-			id:     "test-id",
-			config: &configMCP.App{},
-			setupMock: func(cfg *configMCP.App) {
-				// Create a mock MCP server and set it in the config
-				// We need to first validate the config to compile the server
-				cfg.ID = "test-id"
-				cfg.ServerName = "Test Server"
-				cfg.ServerVersion = "1.0.0"
-				cfg.Transport = &configMCP.Transport{}
-				cfg.Tools = []*configMCP.Tool{}
-				cfg.Resources = []*configMCP.Resource{}
-				cfg.Prompts = []*configMCP.Prompt{}
-				cfg.Middlewares = []*configMCP.Middleware{}
-
-				err := cfg.Validate()
-				require.NoError(t, err)
+			Prompts: []configMCP.Prompt{
+				{
+					ID:    "greeting",
+					AppID: "echo-app",
+				},
 			},
-			wantErr: false,
-		},
-	}
+			Resources: []configMCP.Resource{
+				{
+					ID:          "workspace",
+					AppID:       "file-reader",
+					URITemplate: "file://{path}",
+				},
+			},
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.setupMock != nil {
-				tt.setupMock(tt.config)
-			}
+		result, err := convertMCPConfig("mcp", domain)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, "mcp", result.ID)
 
-			result, err := convertMCPConfig(tt.id, tt.config)
+		require.Len(t, result.Tools, 2)
+		assert.Equal(t, "calculate", result.Tools[0].ID)
+		assert.Equal(t, "calc-app", result.Tools[0].AppID)
+		assert.Empty(t, result.Tools[1].ID)
+		assert.Equal(t, "unit-converter-app", result.Tools[1].AppID)
 
-			if tt.wantErr {
-				require.Error(t, err)
-				if tt.expectedErr != nil {
-					require.ErrorIs(t, err, tt.expectedErr)
-				}
-				assert.Nil(t, result)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, result)
-				assert.Equal(t, tt.id, result.ID)
-				assert.NotNil(t, result.CompiledServer)
-			}
-		})
-	}
+		require.Len(t, result.Prompts, 1)
+		assert.Equal(t, "greeting", result.Prompts[0].ID)
+		assert.Equal(t, "echo-app", result.Prompts[0].AppID)
+
+		require.Len(t, result.Resources, 1)
+		assert.Equal(t, "workspace", result.Resources[0].ID)
+		assert.Equal(t, "file-reader", result.Resources[0].AppID)
+		assert.Equal(t, "file://{path}", result.Resources[0].URITemplate)
+	})
 }
 
 func TestConvertDomainToServerApp(t *testing.T) {
@@ -344,28 +338,21 @@ func TestConvertDomainToServerApp(t *testing.T) {
 			wantAppStr: "script-test",
 		},
 		{
-			name:        "mcp app with nil server",
-			id:          "mcp-test",
-			config:      &configMCP.App{},
-			wantErr:     true,
-			expectedErr: mcp.ErrServerNotCompiled,
+			name:       "mcp app basic config",
+			id:         "mcp-test",
+			config:     &configMCP.App{},
+			wantErr:    false,
+			wantAppStr: "mcp-test",
 		},
 		{
-			name: "mcp app with valid server",
+			name: "mcp app with tools config",
 			id:   "mcp-test",
 			setupMock: func() apps.AppConfig {
 				mcpConfig := &configMCP.App{}
 				mcpConfig.ID = "mcp-test"
-				mcpConfig.ServerName = "Test Server"
-				mcpConfig.ServerVersion = "1.0.0"
-				mcpConfig.Transport = &configMCP.Transport{}
-				mcpConfig.Tools = []*configMCP.Tool{}
-				mcpConfig.Resources = []*configMCP.Resource{}
-				mcpConfig.Prompts = []*configMCP.Prompt{}
-				mcpConfig.Middlewares = []*configMCP.Middleware{}
-
-				err := mcpConfig.Validate()
-				require.NoError(t, err)
+				mcpConfig.Tools = []configMCP.Tool{
+					{AppID: "calc-app"},
+				}
 				return mcpConfig
 			},
 			wantErr:    false,
@@ -480,6 +467,77 @@ func TestConvertAndCreateApps_DuplicateIDs(t *testing.T) {
 				require.NoError(t, err)
 				assert.NotNil(t, result)
 			}
+		})
+	}
+}
+
+func TestConvertAndCreateApps_MCPCrossRefValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		apps        []apps.App
+		expectedErr error
+		errSubstr   string
+	}{
+		{
+			name: "mcp tool ref to existing typed-tool provider succeeds",
+			apps: []apps.App{
+				{ID: "calc-app", Config: &configEcho.EchoApp{Response: "calc"}}, // echo implements MCPTypedToolProvider
+				{ID: "mcp-server", Config: &configMCP.App{
+					ID: "mcp-server",
+					Tools: []configMCP.Tool{
+						{AppID: "calc-app"},
+					},
+				}},
+			},
+		},
+		{
+			name: "mcp tool ref to missing app fails with ErrUnknownAppRef",
+			apps: []apps.App{
+				{ID: "mcp-server", Config: &configMCP.App{
+					ID: "mcp-server",
+					Tools: []configMCP.Tool{
+						{AppID: "ghost"},
+					},
+				}},
+			},
+			expectedErr: mcpserver.ErrUnknownAppRef,
+			errSubstr:   "ghost",
+		},
+		{
+			name: "mcp prompt ref fails as unsupported primitive",
+			apps: []apps.App{
+				{ID: "echo-app", Config: &configEcho.EchoApp{Response: "hi"}},
+				{ID: "mcp-server", Config: &configMCP.App{
+					ID: "mcp-server",
+					Prompts: []configMCP.Prompt{
+						{ID: "greeting", AppID: "echo-app"},
+					},
+				}},
+			},
+			expectedErr: mcpserver.ErrMCPPrimitiveNotSupported,
+			errSubstr:   "prompt registration is not implemented",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.Config{
+				Apps: createAppCollection(t, tt.apps),
+			}
+
+			result, err := convertAndCreateApps(cfg)
+
+			if tt.expectedErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tt.expectedErr)
+				if tt.errSubstr != "" {
+					assert.Contains(t, err.Error(), tt.errSubstr)
+				}
+				assert.Nil(t, result)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, result)
 		})
 	}
 }

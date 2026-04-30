@@ -6,7 +6,7 @@ The `apps` package contains app implementations that process HTTP requests.
 
 This package provides:
 
-1. App implementations (Echo, Script, MCP)
+1. App implementations (Echo, Script, MCP gateway)
 2. App interface definition
 3. Map-based app storage by ID
 
@@ -30,7 +30,7 @@ All apps implement two methods:
 **Currently implemented:**
 - **Echo**: Returns request information for testing and debugging
 - **Script**: Executes scripts using Risor, Starlark, or WebAssembly engines
-- **MCP**: Executes Model Context Protocol tools and functions
+- **MCP gateway**: Exposes app-backed tool providers over the Model Context Protocol
 
 **Planned:**
 - **Composite**: Chains multiple script apps in sequence
