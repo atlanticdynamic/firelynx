@@ -4,6 +4,7 @@ package mcp
 
 import (
 	_ "embed"
+	"encoding/json"
 	"testing"
 
 	mcpsdk "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -69,7 +70,10 @@ func (s *GatewayTypedSuite) TestCallCalculationToolReturnsResult() {
 	s.Require().NotEmpty(result.Content)
 	text, ok := result.Content[0].(*mcpsdk.TextContent)
 	s.Require().True(ok, "first content should be text")
-	s.Contains(text.Text, `"result":3`)
+
+	var got map[string]any
+	s.Require().NoError(json.Unmarshal([]byte(text.Text), &got))
+	s.InDelta(3, got["result"], 0.0001, "calculation tool should return result=3: %s", text.Text)
 }
 
 func TestGatewayTypedSuite(t *testing.T) {
