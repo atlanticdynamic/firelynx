@@ -14,6 +14,11 @@ import (
 type App struct {
 	ID            string `env_interpolation:"no"`
 	BaseDirectory string `env_interpolation:"yes"`
+
+	// AllowExternalSymlinks lets the runtime serve files reached through
+	// symlinks that resolve outside BaseDirectory. Defaults to false; the
+	// sandbox blocks symlink escapes unless this is explicitly enabled.
+	AllowExternalSymlinks bool `env_interpolation:"no"`
 }
 
 // New creates a new fileread app configuration with the specified ID.
@@ -51,6 +56,12 @@ func (a *App) Validate() error {
 
 // String returns a string representation of the fileread app.
 func (a *App) String() string {
+	if a.AllowExternalSymlinks {
+		return fmt.Sprintf(
+			"FileRead App (base_directory: %s, allow_external_symlinks: true)",
+			a.BaseDirectory,
+		)
+	}
 	return fmt.Sprintf("FileRead App (base_directory: %s)", a.BaseDirectory)
 }
 
@@ -59,5 +70,8 @@ func (a *App) ToTree() *fancy.ComponentTree {
 	tree := fancy.NewComponentTree("FileRead App")
 	tree.AddChild("Type: fileread")
 	tree.AddChild(fmt.Sprintf("BaseDirectory: %s", a.BaseDirectory))
+	if a.AllowExternalSymlinks {
+		tree.AddChild("AllowExternalSymlinks: true")
+	}
 	return tree
 }

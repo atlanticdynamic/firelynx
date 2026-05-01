@@ -26,8 +26,14 @@ type FileReadApp struct {
 	// Base directory for relative file reads
 	// env_interpolation: yes
 	BaseDirectory *string `protobuf:"bytes,1,opt,name=base_directory,json=baseDirectory" json:"base_directory,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// When true, the sandbox allows reads through symlinks that resolve
+	// outside base_directory. Disabled by default; enable only when the
+	// base directory is intentionally exposing curated symlinks to other
+	// locations and you trust their destinations.
+	// env_interpolation: n/a (non-string)
+	AllowExternalSymlinks *bool `protobuf:"varint,2,opt,name=allow_external_symlinks,json=allowExternalSymlinks" json:"allow_external_symlinks,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *FileReadApp) Reset() {
@@ -67,13 +73,21 @@ func (x *FileReadApp) GetBaseDirectory() string {
 	return ""
 }
 
+func (x *FileReadApp) GetAllowExternalSymlinks() bool {
+	if x != nil && x.AllowExternalSymlinks != nil {
+		return *x.AllowExternalSymlinks
+	}
+	return false
+}
+
 var File_settings_v1alpha1_apps_v1_fileread_proto protoreflect.FileDescriptor
 
 const file_settings_v1alpha1_apps_v1_fileread_proto_rawDesc = "" +
 	"\n" +
-	"(settings/v1alpha1/apps/v1/fileread.proto\x12\x19settings.v1alpha1.apps.v1\"4\n" +
+	"(settings/v1alpha1/apps/v1/fileread.proto\x12\x19settings.v1alpha1.apps.v1\"l\n" +
 	"\vFileReadApp\x12%\n" +
-	"\x0ebase_directory\x18\x01 \x01(\tR\rbaseDirectoryBCZAgithub.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1b\beditionsp\xe8\a"
+	"\x0ebase_directory\x18\x01 \x01(\tR\rbaseDirectory\x126\n" +
+	"\x17allow_external_symlinks\x18\x02 \x01(\bR\x15allowExternalSymlinksBCZAgithub.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1b\beditionsp\xe8\a"
 
 var (
 	file_settings_v1alpha1_apps_v1_fileread_proto_rawDescOnce sync.Once

@@ -39,6 +39,25 @@ func TestApp_Validate(t *testing.T) {
 	}
 }
 
+// TestApp_Validate_BaseDirIsSymlinkToFile documents that pointing
+// BaseDirectory at a symlink whose target is a regular file (not a
+// directory) is rejected by domain validation. os.Stat follows the symlink
+// to its target, so the IsDir() check catches the misuse before the runtime
+// ever calls readFile.
+func TestApp_Validate_BaseDirIsSymlinkToFile(t *testing.T) {
+	scratch := t.TempDir()
+	regularFile := filepath.Join(scratch, "regular.txt")
+	require.NoError(t, os.WriteFile(regularFile, []byte("hi"), 0o600))
+
+	linkPath := filepath.Join(scratch, "base_link")
+	require.NoError(t, os.Symlink(regularFile, linkPath))
+
+	app := &App{ID: "files", BaseDirectory: linkPath}
+	err := app.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "fileread base_directory is not a directory")
+}
+
 func TestApp_Interpolation(t *testing.T) {
 	baseDir := t.TempDir()
 	require.NoError(t, os.Setenv("FILEREAD_TEST_DIR", baseDir))

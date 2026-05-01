@@ -150,8 +150,9 @@ func convertFileReadConfig(
 	}
 
 	return &fileread.Config{
-		ID:            id,
-		BaseDirectory: domainConfig.BaseDirectory,
+		ID:                    id,
+		BaseDirectory:         domainConfig.BaseDirectory,
+		AllowExternalSymlinks: domainConfig.AllowExternalSymlinks,
 	}, nil
 }
 

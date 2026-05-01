@@ -43,11 +43,17 @@ type = "calculation"
 
 # base_directory resolves relative to the server's working directory at runtime.
 # Point this at a real directory you want exposed to MCP clients.
+#
+# allow_external_symlinks (default false) controls whether symlinks inside
+# base_directory that resolve OUTSIDE it are followed. Leave it off unless
+# you have intentionally curated such symlinks and trust their targets;
+# enabling it lets clients escape the sandbox via planted symlinks.
 [[apps]]
 id = "workspace-reader"
 type = "fileread"
 [apps.fileread]
 base_directory = "."
+# allow_external_symlinks = true
 
 [[apps]]
 id = "typed-tools"

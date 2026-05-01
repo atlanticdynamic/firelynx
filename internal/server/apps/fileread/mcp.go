@@ -2,6 +2,7 @@ package fileread
 
 import (
 	"context"
+	"errors"
 
 	mcpio "github.com/robbyt/mcp-io"
 )
@@ -26,6 +27,17 @@ func (a *App) MCPToolOption(name string) mcpio.Option {
 	)
 }
 
+// inputErrors are the readFile sentinel errors caused by bad client input;
+// everything else (missing/unusable base directory, generic I/O failures)
+// is a server-side problem that the LLM cannot fix by adjusting its call.
+var inputErrors = []error{
+	errMissingPath,
+	errAbsolutePath,
+	errDirectoryTraversal,
+	errSymlinkEscape,
+	errFileNotFound,
+}
+
 func (a *App) filereadToolFunc(
 	_ context.Context,
 	_ mcpio.RequestContext,
@@ -33,7 +45,12 @@ func (a *App) filereadToolFunc(
 ) (Response, error) {
 	content, err := a.readFile(input.Path)
 	if err != nil {
-		return Response{}, mcpio.ValidationError(err.Error())
+		for _, sentinel := range inputErrors {
+			if errors.Is(err, sentinel) {
+				return Response{}, mcpio.ValidationError(err.Error())
+			}
+		}
+		return Response{}, mcpio.ProcessingError(err.Error())
 	}
 
 	return Response{Content: content}, nil

@@ -9,12 +9,14 @@ func FromProto(id string, proto *pbApps.FileReadApp) *App {
 	}
 	app := New(id)
 	app.BaseDirectory = proto.GetBaseDirectory()
+	app.AllowExternalSymlinks = proto.GetAllowExternalSymlinks()
 	return app
 }
 
 // ToProto converts the App configuration to its protocol buffer representation.
 func (a *App) ToProto() any {
 	return &pbApps.FileReadApp{
-		BaseDirectory: &a.BaseDirectory,
+		BaseDirectory:         &a.BaseDirectory,
+		AllowExternalSymlinks: &a.AllowExternalSymlinks,
 	}
 }

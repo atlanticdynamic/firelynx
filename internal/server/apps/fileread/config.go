@@ -8,4 +8,9 @@ type Config struct {
 
 	// BaseDirectory is the root directory for file read operations.
 	BaseDirectory string
+
+	// AllowExternalSymlinks disables the "symlinks must resolve under
+	// BaseDirectory" check. Defaults to false; the sandbox blocks reads
+	// through escaping symlinks unless this is explicitly enabled.
+	AllowExternalSymlinks bool
 }

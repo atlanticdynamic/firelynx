@@ -7,4 +7,11 @@ message FileReadApp {
   // Base directory for relative file reads
   // env_interpolation: yes
   string base_directory = 1;
+
+  // When true, the sandbox allows reads through symlinks that resolve
+  // outside base_directory. Disabled by default; enable only when the
+  // base directory is intentionally exposing curated symlinks to other
+  // locations and you trust their destinations.
+  // env_interpolation: n/a (non-string)
+  bool allow_external_symlinks = 2;
 }

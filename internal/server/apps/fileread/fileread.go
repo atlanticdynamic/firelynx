@@ -19,12 +19,15 @@ var (
 	errMissingPath        = errors.New("path parameter is required")
 	errAbsolutePath       = errors.New("absolute paths not allowed")
 	errDirectoryTraversal = errors.New("directory traversal not allowed")
+	errSymlinkEscape      = errors.New("symlink escapes base directory")
+	errFileNotFound       = errors.New("file not found")
 )
 
 // App is a file reading application that reads files from a configured base directory.
 type App struct {
-	id            string
-	baseDirectory string
+	id                    string
+	baseDirectory         string
+	allowExternalSymlinks bool
 }
 
 // Request defines the typed input parameters for file read requests.
@@ -41,8 +44,9 @@ type Response struct {
 // New creates a new fileread app from a Config DTO.
 func New(cfg *Config) *App {
 	return &App{
-		id:            cfg.ID,
-		baseDirectory: cfg.BaseDirectory,
+		id:                    cfg.ID,
+		baseDirectory:         cfg.BaseDirectory,
+		allowExternalSymlinks: cfg.AllowExternalSymlinks,
 	}
 }
 
@@ -114,20 +118,44 @@ func (a *App) readFile(requestedPath string) (string, error) {
 		return "", fmt.Errorf("failed to resolve base directory: %w", err)
 	}
 
-	fullPath := filepath.Join(absBase, cleanPath)
-	absTarget, err := filepath.Abs(fullPath)
+	// Resolve symlinks in the configured base so the prefix check below
+	// compares canonical paths. Otherwise base_directory itself being a
+	// symlink trivially defeats the prefix test.
+	realBase, err := filepath.EvalSymlinks(absBase)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve target path: %w", err)
+		return "", errUnusableBaseDirectory
 	}
 
-	if absTarget != absBase && !strings.HasPrefix(absTarget, absBase+string(os.PathSeparator)) {
-		return "", errDirectoryTraversal
+	absTarget := filepath.Join(realBase, cleanPath)
+
+	// Resolve symlinks on the requested target so we detect any escape via
+	// symlinks living inside the base directory (e.g. base/escape -> /etc).
+	// If the file does not yet exist, fall back to resolving its parent so
+	// a legitimate "missing file" still surfaces a clean not-found error.
+	realTarget, err := filepath.EvalSymlinks(absTarget)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("failed to resolve target path: %w", err)
+		}
+		parent, perr := filepath.EvalSymlinks(filepath.Dir(absTarget))
+		if perr != nil {
+			return "", fmt.Errorf("%w: %s", errFileNotFound, requestedPath)
+		}
+		realTarget = filepath.Join(parent, filepath.Base(absTarget))
 	}
 
-	contentBytes, err := os.ReadFile(absTarget)
+	// When the operator has opted in, symlinks pointing outside the
+	// resolved base are intentionally trusted; skip the prefix check.
+	if !a.allowExternalSymlinks {
+		if realTarget != realBase && !strings.HasPrefix(realTarget, realBase+string(os.PathSeparator)) {
+			return "", errSymlinkEscape
+		}
+	}
+
+	contentBytes, err := os.ReadFile(realTarget)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", fmt.Errorf("file not found: %s", requestedPath)
+			return "", fmt.Errorf("%w: %s", errFileNotFound, requestedPath)
 		}
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}

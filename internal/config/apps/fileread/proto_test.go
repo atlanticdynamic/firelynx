@@ -16,8 +16,23 @@ func TestProtoRoundTrip(t *testing.T) {
 	require.NotNil(t, app)
 	assert.Equal(t, "files", app.ID)
 	assert.Equal(t, "/tmp/files", app.BaseDirectory)
+	assert.False(t, app.AllowExternalSymlinks, "default must be safe (no escapes)")
 
 	protoApp, ok := app.ToProto().(*pbApps.FileReadApp)
 	require.True(t, ok)
 	assert.Equal(t, "/tmp/files", protoApp.GetBaseDirectory())
+	assert.False(t, protoApp.GetAllowExternalSymlinks())
+}
+
+func TestProtoRoundTrip_AllowExternalSymlinks(t *testing.T) {
+	app := FromProto("files", &pbApps.FileReadApp{
+		BaseDirectory:         proto.String("/tmp/files"),
+		AllowExternalSymlinks: proto.Bool(true),
+	})
+	require.NotNil(t, app)
+	assert.True(t, app.AllowExternalSymlinks)
+
+	protoApp, ok := app.ToProto().(*pbApps.FileReadApp)
+	require.True(t, ok)
+	assert.True(t, protoApp.GetAllowExternalSymlinks())
 }
