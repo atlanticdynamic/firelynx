@@ -156,7 +156,7 @@ func TestFileRead_ToolFunc_PermissionDeniedIsProcessingError(t *testing.T) {
 // inputErrors sentinel set in mcp.go. For every sentinel entry the table must
 // contain a row that:
 //
-//  1. Drives readFile down a path that returns that sentinel (errors.Is
+//  1. Drives ResolveFile down a path that returns that sentinel (errors.Is
 //     match) — confirms the sentinel is reachable from a real client input.
 //  2. Routes through filereadToolFunc as VALIDATION_ERROR — confirms the
 //     classifier still treats that sentinel as input-class.
@@ -165,12 +165,13 @@ func TestFileRead_ToolFunc_PermissionDeniedIsProcessingError(t *testing.T) {
 // add a row, the closing seen[]-vs-inputErrors check fails. The split is
 // deliberate: mcpio.ToolError doesn't implement Unwrap, so the wrapped error
 // returned by the tool func cannot be matched with errors.Is once it has
-// been recoded — we have to test the underlying readFile separately.
+// been recoded — we have to test the underlying ResolveFile separately.
 func TestFileRead_ToolFunc_InputErrorsAllValidation(t *testing.T) {
 	outside := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("x"), 0o600))
 	baseDir := t.TempDir()
 	require.NoError(t, os.Symlink(outside, filepath.Join(baseDir, "escape")))
+	require.NoError(t, os.MkdirAll(filepath.Join(baseDir, "subdir"), 0o700))
 	app := New(&Config{ID: "files", BaseDirectory: baseDir})
 
 	cases := []struct {
@@ -182,16 +183,20 @@ func TestFileRead_ToolFunc_InputErrorsAllValidation(t *testing.T) {
 		{errDirectoryTraversal, Request{Path: "../x"}},
 		{errSymlinkEscape, Request{Path: "escape/secret.txt"}},
 		{errFileNotFound, Request{Path: "missing.txt"}},
+		{errTargetIsDirectory, Request{Path: "subdir"}},
 	}
 
 	seen := map[error]bool{}
 	for _, c := range cases {
 		t.Run(c.sentinel.Error(), func(t *testing.T) {
-			// (1) readFile produces the expected sentinel.
-			_, rawErr := app.readFile(c.input.Path)
+			// (1) ResolveFile produces the expected sentinel.
+			f, rawErr := ResolveFile(baseDir, c.input.Path, false)
+			if f != nil {
+				require.NoError(t, f.Close())
+			}
 			require.Error(t, rawErr)
 			require.ErrorIs(t, rawErr, c.sentinel,
-				"row meant to trigger %v but readFile produced %v", c.sentinel, rawErr)
+				"row meant to trigger %v but ResolveFile produced %v", c.sentinel, rawErr)
 
 			// (2) filereadToolFunc classifies it as VALIDATION_ERROR.
 			_, toolErr := app.filereadToolFunc(t.Context(), nil, c.input)
