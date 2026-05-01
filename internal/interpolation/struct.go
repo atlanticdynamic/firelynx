@@ -25,7 +25,7 @@ func InterpolateStruct(v any) error {
 	}
 
 	// Handle pointer to struct
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
 		}
@@ -120,7 +120,7 @@ func InterpolateStruct(v any) error {
 					}
 				}
 
-			case reflect.Ptr:
+			case reflect.Pointer:
 				if elemType.Elem().Kind() == reflect.Struct {
 					for j := 0; j < field.Len(); j++ {
 						elem := field.Index(j)
@@ -143,7 +143,7 @@ func InterpolateStruct(v any) error {
 				errs = append(errs, fmt.Errorf("field %s: %w", fieldType.Name, err))
 			}
 
-		case reflect.Ptr:
+		case reflect.Pointer:
 			// Handle *SomeStruct fields
 			if field.Type().Elem().Kind() == reflect.Struct && !field.IsNil() {
 				if err := InterpolateStruct(field.Interface()); err != nil {
