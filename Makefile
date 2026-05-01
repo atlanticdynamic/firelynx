@@ -45,7 +45,8 @@ protogen: clean
 ## test: Run tests with race detection and coverage
 .PHONY: test
 test:
-	@no_test_pkgs=$$(go list -f '{{if not (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}' ./... | sed '/^$$/d'); \
+	@set -e; \
+	no_test_pkgs=$$(go list -f '{{if not (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}' ./... | sed '/^$$/d'); \
 	test_pkgs=$$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | sed '/^$$/d'); \
 	if [ -n "$$no_test_pkgs" ]; then go test -race -timeout 2m $$no_test_pkgs; fi; \
 	if [ -n "$$test_pkgs" ]; then go test -race -cover -timeout 2m $$test_pkgs; fi
@@ -68,7 +69,8 @@ test-integration:
 ## test-all: Run all tests (unit, integration, and e2e)
 .PHONY: test-all
 test-all:
-	@no_test_pkgs=$$(go list -tags $(ALL_BUILD_TAGS) -f '{{if not (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}' ./... | sed '/^$$/d'); \
+	@set -e; \
+	no_test_pkgs=$$(go list -tags $(ALL_BUILD_TAGS) -f '{{if not (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}' ./... | sed '/^$$/d'); \
 	test_pkgs=$$(go list -tags $(ALL_BUILD_TAGS) -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | sed '/^$$/d'); \
 	if [ -n "$$no_test_pkgs" ]; then go test -race -timeout 5m -tags $(ALL_BUILD_TAGS) $$no_test_pkgs; fi; \
 	if [ -n "$$test_pkgs" ]; then go test -race -cover -timeout 5m -tags $(ALL_BUILD_TAGS) $$test_pkgs; fi
