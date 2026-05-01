@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -73,7 +72,7 @@ func TestFileRead_HandleHTTP_MissingBaseDirectory(t *testing.T) {
 	err := app.HandleHTTP(t.Context(), rr, req)
 
 	require.Error(t, err)
-	assert.Equal(t, http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(t, http.StatusInternalServerError, rr.Result().StatusCode)
 	assert.Contains(t, rr.Body.String(), "base_directory is required")
 }
 
@@ -322,17 +321,16 @@ func TestFileRead_readFile_SymlinkLoop(t *testing.T) {
 
 // TestFileRead_readFile_TargetIsDirectory documents the behavior when the
 // resolved target is a directory: os.ReadFile fails and the error is wrapped
-// as "failed to read file" (a server-side fault, not errFileNotFound).
+// with errReadFile (a server-side fault, not errFileNotFound).
 func TestFileRead_readFile_TargetIsDirectory(t *testing.T) {
 	baseDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(baseDir, "subdir"), 0o700))
 
 	app := New(&Config{ID: "files", BaseDirectory: baseDir})
 	got, err := app.readFile("subdir")
-	require.Error(t, err)
-	assert.Empty(t, got)
-	assert.Contains(t, err.Error(), "failed to read file")
+	require.ErrorIs(t, err, errReadFile)
 	assert.NotErrorIs(t, err, errFileNotFound)
+	assert.Empty(t, got)
 }
 
 // TestFileRead_readFile_EmptyFile proves an empty file reads cleanly as the
@@ -379,13 +377,13 @@ func TestFileRead_readFile_PermissionDenied(t *testing.T) {
 
 	app := New(&Config{ID: "files", BaseDirectory: baseDir})
 	got, err := app.readFile("locked.txt")
-	require.Error(t, err)
-	assert.Empty(t, got)
-	assert.Contains(t, err.Error(), "failed to read file")
+	require.ErrorIs(t, err, errReadFile)
 	require.NotErrorIs(t, err, errFileNotFound)
-	// Sanity that the underlying cause is permission-related.
-	assert.Contains(t, strings.ToLower(err.Error()), "permission",
-		"expected permission error, got %v", err)
+	assert.Empty(t, got)
+	// Sanitization: the user-facing message must not leak the resolved
+	// host path or the raw OS-level cause string.
+	assert.NotContains(t, err.Error(), baseDir,
+		"err must not leak resolved host path: %v", err)
 }
 
 // --- §C. allow_external_symlinks gating ------------------------------------
@@ -465,4 +463,37 @@ func TestFileRead_HandleHTTP_SymlinkEscapeReturns400(t *testing.T) {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&got))
 	assert.Empty(t, got.Content)
 	assert.Contains(t, got.Error, "symlink escapes base directory")
+}
+
+// TestFileRead_HandleHTTP_TargetIsDirectoryReturns500 proves that server-side
+// I/O failures (here: target resolves to a directory) map to 500, not 400 —
+// and that the response body does not leak the resolved host path.
+func TestFileRead_HandleHTTP_TargetIsDirectoryReturns500(t *testing.T) {
+	baseDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(baseDir, "subdir"), 0o700))
+
+	app := New(&Config{ID: "files", BaseDirectory: baseDir})
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/files",
+		bytes.NewBufferString(`{"path":"subdir"}`),
+	)
+	rr := httptest.NewRecorder()
+
+	err := app.HandleHTTP(t.Context(), rr, req)
+	require.Error(t, err)
+
+	res := rr.Result()
+	defer func() { require.NoError(t, res.Body.Close()) }()
+
+	assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
+	assert.Equal(t, "application/json", res.Header.Get("Content-Type"))
+
+	var got Response
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&got))
+	assert.Empty(t, got.Content)
+	assert.Contains(t, got.Error, "failed to read file")
+	assert.NotContains(t, got.Error, baseDir,
+		"response must not leak resolved host path: %s", got.Error)
 }

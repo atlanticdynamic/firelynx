@@ -21,6 +21,7 @@ var (
 	errDirectoryTraversal = errors.New("directory traversal not allowed")
 	errSymlinkEscape      = errors.New("symlink escapes base directory")
 	errFileNotFound       = errors.New("file not found")
+	errReadFile           = errors.New("failed to read file")
 )
 
 // App is a file reading application that reads files from a configured base directory.
@@ -78,7 +79,14 @@ func (a *App) HandleHTTP(
 
 	content, err := a.readFile(req.Path)
 	if err != nil {
-		if writeErr := writeFileReadError(w, http.StatusBadRequest, err.Error()); writeErr != nil {
+		status := http.StatusInternalServerError
+		for _, sentinel := range inputErrors {
+			if errors.Is(err, sentinel) {
+				status = http.StatusBadRequest
+				break
+			}
+		}
+		if writeErr := writeFileReadError(w, status, err.Error()); writeErr != nil {
 			return writeErr
 		}
 		return fmt.Errorf("file read failed: %w", err)
@@ -157,7 +165,9 @@ func (a *App) readFile(requestedPath string) (string, error) {
 		if os.IsNotExist(err) {
 			return "", fmt.Errorf("%w: %s", errFileNotFound, requestedPath)
 		}
-		return "", fmt.Errorf("failed to read file: %w", err)
+		// Drop the underlying *PathError so we don't leak the resolved
+		// host path (realTarget) to clients via err.Error().
+		return "", fmt.Errorf("%w: %s", errReadFile, requestedPath)
 	}
 
 	return string(contentBytes), nil
