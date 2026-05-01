@@ -56,8 +56,9 @@ func (a *App) HandleHTTP(
 	r *http.Request,
 ) error {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return fmt.Errorf("invalid method %s", r.Method)
+		w.Header().Set("Allow", "POST")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return nil
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -67,7 +68,7 @@ func (a *App) HandleHTTP(
 		if writeErr := writeCalculationError(w, http.StatusBadRequest, "invalid JSON request"); writeErr != nil {
 			return writeErr
 		}
-		return fmt.Errorf("failed to decode request: %w", err)
+		return nil
 	}
 
 	result, err := calculate(req)
@@ -75,7 +76,7 @@ func (a *App) HandleHTTP(
 		if writeErr := writeCalculationError(w, http.StatusBadRequest, err.Error()); writeErr != nil {
 			return writeErr
 		}
-		return fmt.Errorf("calculation failed: %w", err)
+		return nil
 	}
 
 	if err := json.NewEncoder(w).Encode(Response{Result: result}); err != nil {

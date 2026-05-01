@@ -35,7 +35,8 @@ func TestCalculation_HandleHTTP(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/calc", bytes.NewBufferString(tt.body))
 			rr := httptest.NewRecorder()
 
-			err := app.HandleHTTP(t.Context(), rr, req)
+			require.NoError(t, app.HandleHTTP(t.Context(), rr, req),
+				"HandleHTTP must return nil after writing the response — non-nil triggers a double-write 500 in the adapter")
 
 			res := rr.Result()
 			defer func() {
@@ -47,11 +48,9 @@ func TestCalculation_HandleHTTP(t *testing.T) {
 			var got Response
 			require.NoError(t, json.NewDecoder(res.Body).Decode(&got))
 			if tt.wantError == "" {
-				require.NoError(t, err)
 				assert.InEpsilon(t, tt.wantResult, got.Result, 0.000001)
 				assert.Empty(t, got.Error)
 			} else {
-				require.Error(t, err)
 				assert.Contains(t, got.Error, tt.wantError)
 			}
 		})
@@ -63,10 +62,15 @@ func TestCalculation_HandleHTTP_MethodNotAllowed(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/calc", nil)
 	rr := httptest.NewRecorder()
 
-	err := app.HandleHTTP(t.Context(), rr, req)
+	require.NoError(t, app.HandleHTTP(t.Context(), rr, req),
+		"HandleHTTP must return nil after writing the 405 response")
 
-	require.Error(t, err)
-	assert.Equal(t, http.StatusMethodNotAllowed, rr.Result().StatusCode)
+	res := rr.Result()
+	defer func() {
+		require.NoError(t, res.Body.Close())
+	}()
+	assert.Equal(t, http.StatusMethodNotAllowed, res.StatusCode)
+	assert.Equal(t, "POST", res.Header.Get("Allow"))
 }
 
 func TestCalculation_String(t *testing.T) {
@@ -78,8 +82,8 @@ func TestCalculation_HandleHTTP_InvalidJSON(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/calc", bytes.NewBufferString("{not json"))
 	rr := httptest.NewRecorder()
 
-	err := app.HandleHTTP(t.Context(), rr, req)
-	require.Error(t, err)
+	require.NoError(t, app.HandleHTTP(t.Context(), rr, req),
+		"HandleHTTP must return nil after writing the 400 response")
 
 	res := rr.Result()
 	defer func() {
