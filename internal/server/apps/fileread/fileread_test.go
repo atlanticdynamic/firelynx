@@ -77,6 +77,41 @@ func TestFileRead_HandleHTTP_MissingBaseDirectory(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), "base_directory is required")
 }
 
+func TestFileRead_String(t *testing.T) {
+	app := New(&Config{ID: "files", BaseDirectory: t.TempDir()})
+	assert.Equal(t, "files", app.String())
+}
+
+func TestFileRead_HandleHTTP_MethodNotAllowed(t *testing.T) {
+	app := New(&Config{ID: "files", BaseDirectory: t.TempDir()})
+	req := httptest.NewRequest(http.MethodGet, "/files", nil)
+	rr := httptest.NewRecorder()
+
+	err := app.HandleHTTP(t.Context(), rr, req)
+
+	require.Error(t, err)
+	assert.Equal(t, http.StatusMethodNotAllowed, rr.Result().StatusCode)
+}
+
+func TestFileRead_HandleHTTP_InvalidJSON(t *testing.T) {
+	app := New(&Config{ID: "files", BaseDirectory: t.TempDir()})
+	req := httptest.NewRequest(http.MethodPost, "/files", bytes.NewBufferString("{not json"))
+	rr := httptest.NewRecorder()
+
+	err := app.HandleHTTP(t.Context(), rr, req)
+	require.Error(t, err)
+
+	res := rr.Result()
+	defer func() {
+		require.NoError(t, res.Body.Close())
+	}()
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+	var got Response
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&got))
+	assert.Contains(t, got.Error, "invalid JSON request")
+}
+
 func TestFileRead_readFile_SymlinkSandbox(t *testing.T) {
 	// outside is a sibling tempdir holding a "secret" file the sandbox
 	// must never expose, even via a symlink planted inside the base dir.

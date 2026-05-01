@@ -17,3 +17,7 @@ func TestProtoRoundTrip(t *testing.T) {
 	require.True(t, ok)
 	assert.NotNil(t, protoApp)
 }
+
+func TestFromProto_Nil(t *testing.T) {
+	assert.Nil(t, FromProto("calc", nil))
+}

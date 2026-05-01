@@ -58,6 +58,82 @@ func TestApp_Validate_BaseDirIsSymlinkToFile(t *testing.T) {
 	assert.Contains(t, err.Error(), "fileread base_directory is not a directory")
 }
 
+func TestApp_Type(t *testing.T) {
+	assert.Equal(t, "fileread", (&App{ID: "f"}).Type())
+}
+
+func TestApp_String(t *testing.T) {
+	tests := []struct {
+		name string
+		app  *App
+		want string
+	}{
+		{
+			name: "default",
+			app:  &App{ID: "f", BaseDirectory: "/tmp"},
+			want: "FileRead App (base_directory: /tmp)",
+		},
+		{
+			name: "allow external symlinks",
+			app:  &App{ID: "f", BaseDirectory: "/tmp", AllowExternalSymlinks: true},
+			want: "FileRead App (base_directory: /tmp, allow_external_symlinks: true)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.app.String())
+		})
+	}
+}
+
+func TestApp_ToTree(t *testing.T) {
+	tests := []struct {
+		name            string
+		app             *App
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:            "default",
+			app:             &App{ID: "f", BaseDirectory: "/tmp"},
+			wantContains:    []string{"FileRead App", "BaseDirectory: /tmp"},
+			wantNotContains: []string{"AllowExternalSymlinks"},
+		},
+		{
+			name:         "allow external symlinks",
+			app:          &App{ID: "f", BaseDirectory: "/tmp", AllowExternalSymlinks: true},
+			wantContains: []string{"FileRead App", "BaseDirectory: /tmp", "AllowExternalSymlinks: true"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := tt.app.ToTree()
+			require.NotNil(t, tree)
+			rendered := tree.Tree().String()
+			for _, want := range tt.wantContains {
+				assert.Contains(t, rendered, want)
+			}
+			for _, notWant := range tt.wantNotContains {
+				assert.NotContains(t, rendered, notWant)
+			}
+		})
+	}
+}
+
+// TestApp_Validate_InterpolationFailure exercises the interpolation
+// error-wrapping branch by referencing an env var guaranteed not to exist.
+func TestApp_Validate_InterpolationFailure(t *testing.T) {
+	app := &App{
+		ID:            "f",
+		BaseDirectory: "${FIREREAD_TEST_UNDEFINED_VAR_XYZ_42}",
+	}
+	err := app.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "interpolation failed for fileread app")
+}
+
 func TestApp_Interpolation(t *testing.T) {
 	baseDir := t.TempDir()
 	require.NoError(t, os.Setenv("FILEREAD_TEST_DIR", baseDir))

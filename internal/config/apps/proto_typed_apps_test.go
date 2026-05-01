@@ -58,6 +58,72 @@ func TestFromProto_TypedApps(t *testing.T) {
 	})
 }
 
+func TestFromProto_TypedApps_Errors(t *testing.T) {
+	t.Run("calculation type mismatch", func(t *testing.T) {
+		echoType := pb.AppDefinition_TYPE_ECHO
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("calc"),
+			Type: &echoType,
+			Config: &pb.AppDefinition_Calculation{
+				Calculation: &pbApps.CalculationApp{},
+			},
+		}
+
+		_, err := fromProto(pbApp)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrTypeMismatch)
+		assert.Contains(t, err.Error(), "calculation config")
+	})
+
+	t.Run("calculation nil inner config", func(t *testing.T) {
+		appType := pb.AppDefinition_TYPE_CALCULATION
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("calc"),
+			Type: &appType,
+			Config: &pb.AppDefinition_Calculation{
+				Calculation: nil,
+			},
+		}
+
+		_, err := fromProto(pbApp)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "calculation app 'calc' config is nil")
+	})
+
+	t.Run("fileread type mismatch", func(t *testing.T) {
+		echoType := pb.AppDefinition_TYPE_ECHO
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("files"),
+			Type: &echoType,
+			Config: &pb.AppDefinition_Fileread{
+				Fileread: &pbApps.FileReadApp{
+					BaseDirectory: proto.String("/tmp"),
+				},
+			},
+		}
+
+		_, err := fromProto(pbApp)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrTypeMismatch)
+		assert.Contains(t, err.Error(), "fileread config")
+	})
+
+	t.Run("fileread nil inner config", func(t *testing.T) {
+		appType := pb.AppDefinition_TYPE_FILEREAD
+		pbApp := &pb.AppDefinition{
+			Id:   proto.String("files"),
+			Type: &appType,
+			Config: &pb.AppDefinition_Fileread{
+				Fileread: nil,
+			},
+		}
+
+		_, err := fromProto(pbApp)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "fileread app 'files' config is nil")
+	})
+}
+
 func TestToProto_TypedApps(t *testing.T) {
 	collection := NewAppCollection(
 		App{ID: "calc", Config: calculation.New("calc")},

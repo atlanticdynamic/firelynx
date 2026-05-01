@@ -68,3 +68,26 @@ func TestCalculation_HandleHTTP_MethodNotAllowed(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, http.StatusMethodNotAllowed, rr.Result().StatusCode)
 }
+
+func TestCalculation_String(t *testing.T) {
+	assert.Equal(t, "calc", New(&Config{ID: "calc"}).String())
+}
+
+func TestCalculation_HandleHTTP_InvalidJSON(t *testing.T) {
+	app := New(&Config{ID: "calc"})
+	req := httptest.NewRequest(http.MethodPost, "/calc", bytes.NewBufferString("{not json"))
+	rr := httptest.NewRecorder()
+
+	err := app.HandleHTTP(t.Context(), rr, req)
+	require.Error(t, err)
+
+	res := rr.Result()
+	defer func() {
+		require.NoError(t, res.Body.Close())
+	}()
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
+
+	var got Response
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&got))
+	assert.Contains(t, got.Error, "invalid JSON request")
+}

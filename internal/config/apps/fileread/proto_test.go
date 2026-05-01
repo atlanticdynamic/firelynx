@@ -24,6 +24,10 @@ func TestProtoRoundTrip(t *testing.T) {
 	assert.False(t, protoApp.GetAllowExternalSymlinks())
 }
 
+func TestFromProto_Nil(t *testing.T) {
+	assert.Nil(t, FromProto("f", nil))
+}
+
 func TestProtoRoundTrip_AllowExternalSymlinks(t *testing.T) {
 	app := FromProto("files", &pbApps.FileReadApp{
 		BaseDirectory:         proto.String("/tmp/files"),
