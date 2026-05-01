@@ -329,7 +329,7 @@ func TestFileRead_readFile_TargetIsDirectory(t *testing.T) {
 	app := New(&Config{ID: "files", BaseDirectory: baseDir})
 	got, err := app.readFile("subdir")
 	require.ErrorIs(t, err, errReadFile)
-	assert.NotErrorIs(t, err, errFileNotFound)
+	require.NotErrorIs(t, err, errFileNotFound)
 	assert.Empty(t, got)
 }
 
