@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/calculation"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/composite"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/config/apps/fileread"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts"
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/scripts/evaluators"
 	"github.com/atlanticdynamic/firelynx/internal/config/staticdata"
@@ -85,6 +87,22 @@ func TestAppString(t *testing.T) {
 				},
 			},
 			expectedString: "App composite-app [CompositeScript with 2 scripts]",
+		},
+		{
+			name: "Calculation app",
+			app: App{
+				ID:     "calc-app",
+				Config: &calculation.App{ID: "calc-app"},
+			},
+			expectedString: "App calc-app [Calculation]",
+		},
+		{
+			name: "FileRead app",
+			app: App{
+				ID:     "files-app",
+				Config: &fileread.App{ID: "files-app", BaseDirectory: "/tmp"},
+			},
+			expectedString: "App files-app [FileRead]",
 		},
 		{
 			name: "Unknown app type",
@@ -190,6 +208,20 @@ func TestAppToTree(t *testing.T) {
 					Config: echoApp,
 				}
 			}(),
+		},
+		{
+			name: "Calculation app",
+			app: App{
+				ID:     "calc-app",
+				Config: &calculation.App{ID: "calc-app"},
+			},
+		},
+		{
+			name: "FileRead app",
+			app: App{
+				ID:     "files-app",
+				Config: &fileread.App{ID: "files-app", BaseDirectory: "/tmp"},
+			},
 		},
 	}
 

@@ -536,7 +536,8 @@ func processApps(config *pbSettings.ServerConfig, configMap map[string]any) []er
 				errs := processMcpAppConfig(app, appMap)
 				errList = append(errList, errs...)
 			}
-			// Echo and composite_script apps don't need special post-processing
+			// Echo, calculation, fileread, and composite_script apps don't need
+			// special post-processing beyond enum conversion.
 		}
 	}
 
@@ -557,6 +558,10 @@ func processAppType(app *pbSettings.AppDefinition, typeVal string) []error {
 		appType = pbSettings.AppDefinition_TYPE_ECHO
 	case "mcp":
 		appType = pbSettings.AppDefinition_TYPE_MCP
+	case "calculation":
+		appType = pbSettings.AppDefinition_TYPE_CALCULATION
+	case "fileread":
+		appType = pbSettings.AppDefinition_TYPE_FILEREAD
 	default:
 		appType = pbSettings.AppDefinition_TYPE_UNSPECIFIED
 		errList = append(errList, fmt.Errorf("unsupported app type: %s", typeVal))

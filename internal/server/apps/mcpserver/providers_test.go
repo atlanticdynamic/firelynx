@@ -3,20 +3,24 @@ package mcpserver
 import (
 	"testing"
 
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/calculation"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/echo"
+	"github.com/atlanticdynamic/firelynx/internal/server/apps/fileread"
 	"github.com/atlanticdynamic/firelynx/internal/server/apps/script"
 	"github.com/stretchr/testify/assert"
 )
 
-// TestEchoApp_SatisfiesMCPTypedToolProvider verifies that echo satisfies the
-// typed provider contract structurally. Apps live in sibling packages and do
-// not import this one, so this test guards the consumer-defined contract.
-func TestEchoApp_SatisfiesMCPTypedToolProvider(t *testing.T) {
+// TestApps_SatisfyMCPTypedToolProvider verifies that first-class typed apps
+// satisfy the provider contract structurally. Apps live in sibling packages
+// and do not import this one, so this test guards the consumer-defined contract.
+func TestApps_SatisfyMCPTypedToolProvider(t *testing.T) {
 	cases := []struct {
 		name string
 		app  any
 	}{
 		{name: "echo", app: &echo.App{}},
+		{name: "calculation", app: &calculation.App{}},
+		{name: "fileread", app: &fileread.App{}},
 	}
 
 	for _, tc := range cases {

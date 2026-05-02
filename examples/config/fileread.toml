@@ -1,0 +1,83 @@
+# FileRead App Example Configuration
+# Serves files from a sandboxed directory as a simple HTTP file server.
+#
+# Files are returned as raw bytes with an auto-detected Content-Type, so
+# dropping `index.html`, `app.json`, or `logo.png` on disk just works
+# against `<img>`, `<link>`, `fetch()`, or `curl`. Range requests and
+# If-Modified-Since are supported. GET and HEAD only.
+#
+# Request the file by relative path via the `path` query parameter:
+#   curl http://localhost:8080/files?path=index.html
+#
+# Paths are resolved under `base_directory`. Lexical traversal (`..`,
+# absolute paths) and symlinks that escape the base are rejected.
+
+version = "v1"
+
+[[listeners]]
+id = "http"
+address = ":8080"
+type = "http"
+
+[[endpoints]]
+id = "static-files"
+listener_id = "http"
+
+# Mount one fileread app at /files (general-purpose root).
+[[endpoints.routes]]
+app_id = "files"
+[endpoints.routes.http]
+path_prefix = "/files"
+
+# Mount a second fileread app at /static (separate root, separate app).
+# Multiple file-server roots are supported via separate apps + routes.
+[[endpoints.routes]]
+app_id = "static-assets"
+[endpoints.routes.http]
+path_prefix = "/static"
+
+# Headers middleware applies to EVERY route on this endpoint. Use it for
+# common policy headers (cache, security). Split endpoints if you need
+# different header policy per route.
+#
+# Primary use case: shipping security and cache-control headers alongside
+# the served files. The app gets common Content-Types right itself; if
+# you ever need to override Content-Type for a misdetected file, see the
+# commented `set_headers` block below — but that's an exception, not the
+# recommended pattern.
+[[endpoints.middlewares]]
+id = "static-policy"
+type = "headers"
+
+[endpoints.middlewares.headers.response]
+remove_headers = ["Server"]
+
+[endpoints.middlewares.headers.response.set_headers]
+"Cache-Control" = "public, max-age=3600"
+"X-Content-Type-Options" = "nosniff"
+"X-Served-By" = "firelynx"
+
+# Escape hatch: force a specific Content-Type for everything served by
+# this endpoint. Applies endpoint-wide, so split endpoints if you only
+# want it for one route.
+#
+# [endpoints.middlewares.headers.response.set_headers]
+# "Content-Type" = "application/json"
+
+[[apps]]
+id = "files"
+type = "fileread"
+[apps.fileread]
+# Resolved relative to the server's working directory at runtime.
+# Point this at a real directory you want exposed (e.g. "./public").
+# `.` is used here so this example loads under the config-validation
+# tests; replace it for production.
+base_directory = "."
+# allow_external_symlinks = true   # only flip this on if you trust the
+                                   # symlinks planted under base_directory.
+
+[[apps]]
+id = "static-assets"
+type = "fileread"
+[apps.fileread]
+base_directory = "."

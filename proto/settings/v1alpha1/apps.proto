@@ -4,6 +4,8 @@ package settings.v1alpha1;
 
 import "settings/v1alpha1/apps/v1/composite.proto";
 import "settings/v1alpha1/apps/v1/echo.proto";
+import "settings/v1alpha1/apps/v1/calculation.proto";
+import "settings/v1alpha1/apps/v1/fileread.proto";
 import "settings/v1alpha1/apps/v1/mcp.proto";
 import "settings/v1alpha1/apps/v1/script.proto";
 
@@ -17,6 +19,8 @@ message AppDefinition {
     TYPE_COMPOSITE_SCRIPT = 2;
     TYPE_ECHO = 3;
     TYPE_MCP = 4;
+    TYPE_CALCULATION = 5;
+    TYPE_FILEREAD = 6;
   }
 
   // Unique identifier for the application
@@ -44,5 +48,13 @@ message AppDefinition {
     // MCP application configuration
     // env_interpolation: n/a (non-string)
     settings.v1alpha1.apps.v1.McpApp mcp = 103;
+
+    // Calculation application configuration
+    // env_interpolation: n/a (non-string)
+    settings.v1alpha1.apps.v1.CalculationApp calculation = 104;
+
+    // FileRead application configuration
+    // env_interpolation: n/a (non-string)
+    settings.v1alpha1.apps.v1.FileReadApp fileread = 105;
   }
 }

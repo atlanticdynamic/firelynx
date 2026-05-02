@@ -104,6 +104,54 @@ func TestProcessAppsCoverageGaps(t *testing.T) {
 		// Should only process the first app since config only has one
 		assert.Equal(t, pbSettings.AppDefinition_TYPE_SCRIPT, config.Apps[0].GetType())
 	})
+
+	t.Run("TypedAppTypes", func(t *testing.T) {
+		config := &pbSettings.ServerConfig{
+			Apps: []*pbSettings.AppDefinition{
+				{Id: proto.String("calc")},
+				{Id: proto.String("files")},
+			},
+		}
+
+		configMap := map[string]any{
+			"apps": []any{
+				map[string]any{"id": "calc", "type": "calculation"},
+				map[string]any{"id": "files", "type": "fileread"},
+			},
+		}
+
+		errs := processApps(config, configMap)
+		require.Empty(t, errs)
+		assert.Equal(t, pbSettings.AppDefinition_TYPE_CALCULATION, config.Apps[0].GetType())
+		assert.Equal(t, pbSettings.AppDefinition_TYPE_FILEREAD, config.Apps[1].GetType())
+	})
+}
+
+func TestTomlLoader_TypedApps(t *testing.T) {
+	baseDir := t.TempDir()
+	loader := NewTomlLoader([]byte(`
+version = "v1"
+
+[[apps]]
+id = "calc"
+type = "calculation"
+[apps.calculation]
+
+[[apps]]
+id = "files"
+type = "fileread"
+[apps.fileread]
+base_directory = "` + baseDir + `"
+`))
+
+	config, err := loader.LoadProto()
+	require.NoError(t, err)
+	require.Len(t, config.Apps, 2)
+	assert.Equal(t, pbSettings.AppDefinition_TYPE_CALCULATION, config.Apps[0].GetType())
+	assert.NotNil(t, config.Apps[0].GetCalculation())
+	assert.Equal(t, pbSettings.AppDefinition_TYPE_FILEREAD, config.Apps[1].GetType())
+	require.NotNil(t, config.Apps[1].GetFileread())
+	assert.Equal(t, baseDir, config.Apps[1].GetFileread().GetBaseDirectory())
 }
 
 // TestProcessScriptAppConfigCoverageGaps focuses on coverage gaps in script app processing
