@@ -265,8 +265,61 @@ func TestRunner_Reload(t *testing.T) {
 
 		h := newTestHarness(t, configPath)
 
-		require.Error(t, h.runner.Reload(h.ctx))
+		err = h.runner.Reload(h.ctx)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "loading config:")
 		assert.Nil(t, h.runner.getConfig())
+	})
+
+	t.Run("reload with validation failure returns wrapped error", func(t *testing.T) {
+		// TOML parses fine, but the route references an app that does not exist —
+		// validation rejects it.
+		const badConfig = `
+version = "v1"
+
+[[listeners]]
+id = "test"
+address = ":8080"
+type = "http"
+
+[[endpoints]]
+id = "test-endpoint"
+listener_id = "test"
+
+[[endpoints.routes]]
+app_id = "missing-app"
+[endpoints.routes.http]
+path_prefix = "/test"
+`
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "validation_fails.toml")
+		require.NoError(t, os.WriteFile(configPath, []byte(badConfig), 0o644))
+
+		h := newTestHarness(t, configPath)
+
+		err := h.runner.Reload(h.ctx)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "validating config:")
+		assert.Nil(t, h.runner.getConfig())
+	})
+
+	t.Run("reload returns ctx.Err when context cancelled before send", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "valid_for_ctx_test.toml")
+		require.NoError(t, os.WriteFile(configPath, validConfigTOML, 0o644))
+
+		// Unbuffered siphon with no consumer + already-cancelled ctx forces
+		// the select to take the <-ctx.Done() branch.
+		txSiphon := make(chan *transaction.ConfigTransaction)
+		runner, err := NewRunner(configPath, txSiphon)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		err = runner.Reload(ctx)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
 	})
 
 	t.Run("reload while running sends transactions", func(t *testing.T) {

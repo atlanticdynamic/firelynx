@@ -728,3 +728,53 @@ func TestFinalizeSuccessfulTransaction_TriggerReloadFails(t *testing.T) {
 
 	participant.AssertExpectations(t)
 }
+
+// TestFinalizeSuccessfulTransaction_TriggerReloadWaitForReadyFails covers the
+// path inside TriggerReload where CommitConfig succeeds but the participant
+// never reports IsReady. This exercises the waitForReady-fail branch
+// (reloadErrors append + Error log) inside the reload loop.
+func TestFinalizeSuccessfulTransaction_TriggerReloadWaitForReadyFails(t *testing.T) {
+	handler := slog.NewTextHandler(os.Stdout, nil)
+	storage := txstorage.NewMemoryStorage()
+	orchestrator := NewSagaOrchestrator(storage, handler)
+
+	// Short context timeout so waitForReady's <-ctx.Done() fires before
+	// DefaultReloadTimeout (30s).
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+
+	cfg, err := config.NewFromProto(&pb.ServerConfig{})
+	require.NoError(t, err, "unable to create empty config")
+	tx, err := transaction.New(transaction.SourceTest, "test", "req-123", cfg, handler)
+	require.NoError(t, err, "unable to create transaction")
+
+	err = tx.RunValidation()
+	require.NoError(t, err, "transaction validation should succeed")
+	err = tx.BeginExecution()
+	require.NoError(t, err, "transaction should begin execution")
+
+	participant := &MockNotRunningParticipant{
+		MockParticipant: *NewMockParticipant("not-ready-after-commit"),
+	}
+	// CommitConfig succeeds; the participant just never reports ready.
+	participant.On("CommitConfig", mock.Anything).Return(nil)
+
+	err = orchestrator.RegisterParticipant(participant)
+	require.NoError(t, err, "participant registration should succeed")
+
+	err = tx.RegisterParticipant("not-ready-after-commit")
+	require.NoError(t, err, "participant registration should succeed")
+	participantState, err := tx.GetParticipants().GetOrCreate("not-ready-after-commit")
+	require.NoError(t, err, "participant state creation should succeed")
+	err = participantState.Execute()
+	require.NoError(t, err, "participant execution should start")
+	err = participantState.MarkSucceeded()
+	require.NoError(t, err, "participant should be marked as succeeded")
+
+	err = orchestrator.finalizeSuccessfulTransaction(ctx, tx)
+	require.Error(t, err, "finalizeSuccessfulTransaction should fail when waitForReady times out")
+	require.ErrorContains(t, err, "failed to return to ready state",
+		"error should mention readiness failure from TriggerReload")
+
+	participant.AssertExpectations(t)
+}

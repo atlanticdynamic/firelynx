@@ -199,9 +199,6 @@ func (r *Runner) Reload(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("loading config: %w", err)
 	}
-	if newCfg == nil {
-		return errors.New("no config loaded")
-	}
 
 	oldCfg := r.getConfig()
 	if oldCfg != nil && oldCfg.Equals(newCfg) {
@@ -212,9 +209,6 @@ func (r *Runner) Reload(ctx context.Context) error {
 	tx, err := r.validate(newCfg)
 	if err != nil {
 		return fmt.Errorf("validating config: %w", err)
-	}
-	if tx == nil {
-		return errors.New("no valid transaction created")
 	}
 
 	r.lastValidTransaction.Store(tx)

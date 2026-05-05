@@ -88,7 +88,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	err := r.waitForClusterReady(ctx, r.clusterReadyTimeout)
 	if err != nil {
-		return fmt.Errorf("failed to wait for HTTP cluster to start running: %w", err)
+		return fmt.Errorf("failed to wait for HTTP cluster to become ready: %w", err)
 	}
 
 	// unlock now that the cluster is running
@@ -143,16 +143,16 @@ func (r *Runner) waitForClusterReady(ctx context.Context, timeout time.Duration)
 		select {
 		case <-timeoutCtx.Done():
 			if timeoutCtx.Err() == context.DeadlineExceeded {
-				logger.Warn("Timeout waiting for HTTP cluster to start running")
+				logger.Warn("Timeout waiting for HTTP cluster to become ready")
 			}
 			return timeoutCtx.Err()
 		case <-ctx.Done():
 			logger.Debug("Run context canceled")
 			return ctx.Err()
 		case <-ticker.C:
-			// every N check if the cluster is running, and continue
+			// periodically check if the cluster is ready
 			if r.cluster.IsReady() {
-				logger.Debug("HTTP cluster is now running")
+				logger.Debug("HTTP cluster is now ready")
 				return nil
 			}
 		}

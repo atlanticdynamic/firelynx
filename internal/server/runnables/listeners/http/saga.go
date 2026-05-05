@@ -98,7 +98,7 @@ func (r *Runner) sendConfigToCluster(ctx context.Context, cfg *cfg.Adapter) erro
 		return fmt.Errorf("timeout sending configuration to cluster after %v", r.siphonTimeout)
 	}
 
-	// Wait for cluster to finish processing and return to running state
+	// Wait for cluster to finish processing and become ready
 	err := r.waitForClusterReady(ctx, r.clusterReadyTimeout)
 	if err != nil {
 		return err

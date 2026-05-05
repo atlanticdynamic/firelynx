@@ -365,7 +365,7 @@ func (o *SagaOrchestrator) waitForReady(
 	ticker := time.NewTicker(retryInterval)
 	defer ticker.Stop()
 
-	o.logger.Debug("Waiting for participant to be running after reload",
+	o.logger.Debug("Waiting for participant to be ready after reload",
 		"name", name, "timeout", reloadTimeout)
 
 	for {

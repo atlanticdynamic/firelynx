@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/server/runnables/listeners/http/cfg"
+	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/robbyt/go-supervisor/runnables/httpcluster"
 	"github.com/robbyt/go-supervisor/runnables/httpserver"
 	"github.com/stretchr/testify/assert"
@@ -371,5 +372,49 @@ func TestRunner_SendConfigToCluster(t *testing.T) {
 		err = runner.sendConfigToCluster(ctx, adapter)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "timeout sending configuration to cluster")
+	})
+
+	t.Run("happy path through running cluster", func(t *testing.T) {
+		runner, err := NewRunner()
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		// Boot the runner so the cluster is alive and ready to consume the
+		// siphon. This also makes waitForClusterReady return immediately.
+		runErr := make(chan error, 1)
+		go func() { runErr <- runner.Run(ctx) }()
+		assert.Eventually(t, func() bool { return runner.IsReady() },
+			2*time.Second, 10*time.Millisecond, "runner should become ready")
+
+		testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+		route1, err := httpserver.NewRouteFromHandlerFunc("route1", "/test", testHandler)
+		require.NoError(t, err)
+
+		adapter := &cfg.Adapter{
+			TxID: "test-tx-happy",
+			Listeners: map[string]cfg.ListenerConfig{
+				"listener1": {
+					ID:      "listener1",
+					Address: testutil.GetRandomListeningPort(t),
+				},
+			},
+			Routes: map[string][]httpserver.Route{
+				"listener1": {*route1},
+			},
+		}
+
+		require.NoError(t, runner.sendConfigToCluster(ctx, adapter))
+
+		runner.Stop()
+		select {
+		case err := <-runErr:
+			require.NoError(t, err)
+		case <-time.After(2 * time.Second):
+			t.Fatal("runner did not stop within timeout")
+		}
 	})
 }
