@@ -42,7 +42,7 @@ func TestValidateConfigShutdownTimeout(t *testing.T) {
 
 	// Wait for config service to start
 	require.Eventually(t, func() bool {
-		return cfgServiceRunner.IsRunning()
+		return cfgServiceRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "gRPC config service should start")
 
 	// Create client
@@ -93,7 +93,7 @@ func TestValidateConfigShutdownTimeout(t *testing.T) {
 	shutdownComplete := make(chan bool, 1)
 	go func() {
 		assert.Eventually(t, func() bool {
-			return !cfgServiceRunner.IsRunning()
+			return !cfgServiceRunner.IsReady()
 		}, 3*time.Second, 10*time.Millisecond, "gRPC config service should stop")
 		shutdownComplete <- true
 	}()
@@ -148,7 +148,7 @@ func TestValidateConfigMultipleCallsShutdown(t *testing.T) {
 
 	// Wait for config service to start
 	require.Eventually(t, func() bool {
-		return cfgServiceRunner.IsRunning()
+		return cfgServiceRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "gRPC config service should start")
 
 	// Create client
@@ -196,7 +196,7 @@ func TestValidateConfigMultipleCallsShutdown(t *testing.T) {
 	shutdownComplete := make(chan bool, 1)
 	go func() {
 		assert.Eventually(t, func() bool {
-			return !cfgServiceRunner.IsRunning()
+			return !cfgServiceRunner.IsReady()
 		}, 3*time.Second, 10*time.Millisecond, "gRPC config service should stop")
 		shutdownComplete <- true
 	}()

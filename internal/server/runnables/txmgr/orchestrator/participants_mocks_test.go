@@ -40,7 +40,7 @@ func (m *mockSagaParticipant) GetState() string {
 	return args.String(0)
 }
 
-func (m *mockSagaParticipant) IsRunning() bool {
+func (m *mockSagaParticipant) IsReady() bool {
 	args := m.Called()
 	return args.Bool(0)
 }
@@ -87,7 +87,7 @@ func (p *ConflictingParticipant) String() string                { return p.name 
 func (p *ConflictingParticipant) Run(ctx context.Context) error { return nil }
 func (p *ConflictingParticipant) Stop()                         {}
 func (p *ConflictingParticipant) GetState() string              { return "running" }
-func (p *ConflictingParticipant) IsRunning() bool               { return true }
+func (p *ConflictingParticipant) IsReady() bool                 { return true }
 func (p *ConflictingParticipant) GetStateChan(ctx context.Context) <-chan string {
 	ch := make(chan string, 1)
 	ch <- "running"
@@ -110,7 +110,7 @@ func (p *ConflictingParticipant) CompensateConfig(
 }
 func (p *ConflictingParticipant) CommitConfig(ctx context.Context) error { return nil }
 
-func (p *ConflictingParticipant) Reload() {} // This causes the conflict
+func (p *ConflictingParticipant) Reload(ctx context.Context) error { return nil } // This causes the conflict
 
 // MockReloadParticipant is a mock implementation of SagaParticipant that can be configured to fail reload
 type MockReloadParticipant struct {
@@ -169,8 +169,8 @@ func (m *MockReloadParticipant) CommitConfig(ctx context.Context) error {
 	return args.Error(0)
 }
 
-// IsRunning implements supervisor.Readiness
-func (m *MockReloadParticipant) IsRunning() bool {
+// IsReady implements supervisor.Readiness
+func (m *MockReloadParticipant) IsReady() bool {
 	m.Called()
 	return m.running
 }

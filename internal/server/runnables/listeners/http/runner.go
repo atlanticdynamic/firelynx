@@ -33,6 +33,7 @@ type Runner struct {
 var (
 	_ supervisor.Runnable          = (*Runner)(nil)
 	_ supervisor.Stateable         = (*Runner)(nil)
+	_ supervisor.Readiness         = (*Runner)(nil)
 	_ orchestrator.SagaParticipant = (*Runner)(nil)
 )
 
@@ -85,13 +86,11 @@ func (r *Runner) Run(ctx context.Context) error {
 		}
 	}()
 
-	err := r.waitForClusterRunning(ctx, r.clusterReadyTimeout)
-	if err != nil {
-		return fmt.Errorf("failed to wait for HTTP cluster to start running: %w", err)
-	}
-
-	// unlock now that the cluster is running
+	err := r.waitForClusterReady(ctx, r.clusterReadyTimeout)
 	r.mutex.Unlock()
+	if err != nil {
+		return fmt.Errorf("failed to wait for HTTP cluster to become ready: %w", err)
+	}
 
 	// block here until the run context is canceled
 	<-ctx.Done()
@@ -128,9 +127,9 @@ func (r *Runner) shutdown() error {
 	return nil
 }
 
-// waitForClusterRunning waits for the cluster to return a positive IsRunning()
-func (r *Runner) waitForClusterRunning(ctx context.Context, timeout time.Duration) error {
-	logger := r.logger.WithGroup("waitForClusterRunning")
+// waitForClusterReady waits for the cluster to return a positive IsReady()
+func (r *Runner) waitForClusterReady(ctx context.Context, timeout time.Duration) error {
+	logger := r.logger.WithGroup("waitForClusterReady")
 
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
@@ -142,16 +141,16 @@ func (r *Runner) waitForClusterRunning(ctx context.Context, timeout time.Duratio
 		select {
 		case <-timeoutCtx.Done():
 			if timeoutCtx.Err() == context.DeadlineExceeded {
-				logger.Warn("Timeout waiting for HTTP cluster to start running")
+				logger.Warn("Timeout waiting for HTTP cluster to become ready")
 			}
 			return timeoutCtx.Err()
 		case <-ctx.Done():
 			logger.Debug("Run context canceled")
 			return ctx.Err()
 		case <-ticker.C:
-			// every N check if the cluster is running, and continue
-			if r.cluster.IsRunning() {
-				logger.Debug("HTTP cluster is now running")
+			// periodically check if the cluster is ready
+			if r.cluster.IsReady() {
+				logger.Debug("HTTP cluster is now ready")
 				return nil
 			}
 		}

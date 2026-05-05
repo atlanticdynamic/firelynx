@@ -17,6 +17,7 @@ var (
 	_ supervisor.Runnable   = (*Runner)(nil)
 	_ supervisor.Reloadable = (*Runner)(nil)
 	_ supervisor.Stateable  = (*Runner)(nil)
+	_ supervisor.Readiness  = (*Runner)(nil)
 )
 
 type Runner struct {
@@ -185,47 +186,29 @@ func (r *Runner) shutdown() error {
 }
 
 // Reload implements the supervisor.Reloadable interface
-func (r *Runner) Reload() {
+func (r *Runner) Reload(ctx context.Context) error {
 	r.logger.Debug("Starting Reload...")
-	defer func() {
-		r.logger.Debug("Reload completed")
-	}()
+	defer r.logger.Debug("Reload completed")
 
 	if r.filePath == "" {
 		r.logger.Warn("No config path set, skipping reload")
-		return
+		return nil
 	}
 
 	newCfg, err := r.loadConfigFromDisk()
 	if err != nil {
-		r.logger.Error("Failed to reload config", "error", err)
-		return
+		return fmt.Errorf("loading config: %w", err)
 	}
 
-	if newCfg == nil {
-		r.logger.Error("No config loaded, skipping reload")
-		return
-	}
-
-	// Only broadcast if config has changed
-	reloadNeeded := true
 	oldCfg := r.getConfig()
-	if oldCfg != nil {
-		reloadNeeded = !oldCfg.Equals(newCfg)
-	}
-	if !reloadNeeded {
+	if oldCfg != nil && oldCfg.Equals(newCfg) {
 		r.logger.Debug("Config unchanged, skipping broadcast")
-		return
+		return nil
 	}
 
 	tx, err := r.validate(newCfg)
 	if err != nil {
-		r.logger.Error("Failed to validate config", "error", err)
-		return
-	}
-	if tx == nil {
-		r.logger.Error("No valid transaction created, skipping broadcast")
-		return
+		return fmt.Errorf("validating config: %w", err)
 	}
 
 	r.lastValidTransaction.Store(tx)
@@ -233,8 +216,11 @@ func (r *Runner) Reload() {
 	select {
 	case r.txSiphon <- tx:
 		r.logger.Debug("Config changed, transaction sent to siphon", "id", tx.ID)
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	case <-r.ctx.Done():
-		r.logger.Debug("Context cancelled while sending transaction")
+		return r.ctx.Err()
 	}
 }
 

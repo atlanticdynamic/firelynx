@@ -97,7 +97,7 @@ func TestRunner_RunAndStop(t *testing.T) {
 
 	// Wait for the runner to start
 	assert.Eventually(t, func() bool {
-		return runner.IsRunning()
+		return runner.IsReady()
 	}, 1*time.Second, 10*time.Millisecond)
 
 	// Stop the runner
@@ -113,6 +113,47 @@ func TestRunner_RunAndStop(t *testing.T) {
 
 	// Verify it's stopped
 	assert.Eventually(t, func() bool {
-		return !runner.IsRunning()
+		return !runner.IsReady()
 	}, 1*time.Second, 10*time.Millisecond, "runner should stop")
+}
+
+// TestRunner_Run_StartupTimeoutReleasesMutex regression test: when
+// waitForClusterReady returns an error during Run, the mutex acquired
+// at the start of Run must still be released. Otherwise Stop() and the
+// SagaParticipant methods deadlock forever on r.mutex.Lock().
+func TestRunner_Run_StartupTimeoutReleasesMutex(t *testing.T) {
+	runner, err := NewRunner()
+	require.NoError(t, err)
+	// Force waitForClusterReady to time out before the cluster can become ready.
+	runner.clusterReadyTimeout = time.Microsecond
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	runErr := make(chan error, 1)
+	go func() { runErr <- runner.Run(ctx) }()
+
+	select {
+	case err := <-runErr:
+		require.Error(t, err)
+		require.ErrorContains(
+			t,
+			err,
+			"failed to wait for HTTP cluster to become ready",
+		)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after readiness timeout")
+	}
+
+	stopDone := make(chan struct{})
+	go func() {
+		runner.Stop()
+		close(stopDone)
+	}()
+	select {
+	case <-stopDone:
+	case <-time.After(time.Second):
+		t.Fatal("Stop deadlocked — Run() leaked the mutex on its error path")
+	}
 }

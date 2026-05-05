@@ -43,7 +43,7 @@ func TestHTTPListenerMinimalSaga(t *testing.T) {
 
 	// Wait for runner to start
 	assert.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// Create a minimal configuration using string
@@ -71,7 +71,7 @@ func TestHTTPListenerMinimalSaga(t *testing.T) {
 
 	// Wait a moment for the runner state to stabilize
 	assert.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, 100*time.Millisecond, 10*time.Millisecond, "HTTP runner should be running after transaction completes")
 
 	// Stop the HTTP runner
@@ -79,7 +79,7 @@ func TestHTTPListenerMinimalSaga(t *testing.T) {
 
 	// Wait for runner to stop
 	assert.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
+		return !httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// Check for any unexpected runner errors (with timeout)
@@ -119,7 +119,7 @@ func TestHTTPListenerConfigUpdate(t *testing.T) {
 
 	// Wait for runner to start
 	assert.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// First configuration - empty
@@ -159,7 +159,7 @@ address = "127.0.0.1:0"
 
 	// Verify runner is still running
 	assert.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// Stop the HTTP runner
@@ -167,6 +167,6 @@ address = "127.0.0.1:0"
 
 	// Wait for runner to stop
 	assert.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
+		return !httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 }

@@ -85,11 +85,11 @@ func TestSagaTimingVsHTTPServerReadiness(t *testing.T) {
 
 	// Wait for both runners to start
 	require.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	require.Eventually(t, func() bool {
-		return cfgServiceRunner.IsRunning()
+		return cfgServiceRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// Process transactions from siphon
@@ -175,7 +175,7 @@ func TestHTTPRunnerRequiresInitialConfig(t *testing.T) {
 
 	// Wait for txmgr to be running
 	require.Eventually(t, func() bool {
-		return txMan.IsRunning()
+		return txMan.IsReady()
 	}, time.Second, 10*time.Millisecond, "txmgr should start and be ready to process transactions")
 
 	// Start the HTTP runner

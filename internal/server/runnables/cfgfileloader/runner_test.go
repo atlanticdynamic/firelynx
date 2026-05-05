@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
@@ -226,7 +227,7 @@ func TestRunner_Reload(t *testing.T) {
 	t.Run("reload with default config", func(t *testing.T) {
 		h := newTestHarness(t, "")
 
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		// Now that we create a valid config file by default, it should load successfully
 		assert.NotNil(t, h.runner.getConfig())
 	})
@@ -242,7 +243,7 @@ func TestRunner_Reload(t *testing.T) {
 		assert.Nil(t, h.runner.getConfig())
 
 		// Reload when not running - config should be stored but no transaction sent
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		cfg := h.runner.getConfig()
 		assert.NotNil(t, cfg)
 
@@ -251,13 +252,13 @@ func TestRunner_Reload(t *testing.T) {
 		require.NoError(t, err)
 
 		// Reload again - config should be updated but still no transaction
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		newCfg := h.runner.getConfig()
 		assert.NotNil(t, newCfg)
 		assert.NotSame(t, cfg, newCfg)
 	})
 
-	t.Run("reload with invalid config file logs error", func(t *testing.T) {
+	t.Run("reload with invalid config file returns error", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "invalid_config.toml")
 		err := os.WriteFile(configPath, invalidConfigTOML, 0o644)
@@ -265,8 +266,61 @@ func TestRunner_Reload(t *testing.T) {
 
 		h := newTestHarness(t, configPath)
 
-		h.runner.Reload()
+		err = h.runner.Reload(h.ctx)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "loading config:")
 		assert.Nil(t, h.runner.getConfig())
+	})
+
+	t.Run("reload with validation failure returns wrapped error", func(t *testing.T) {
+		// TOML parses fine, but the route references an app that does not exist —
+		// validation rejects it.
+		const badConfig = `
+version = "v1"
+
+[[listeners]]
+id = "test"
+address = ":8080"
+type = "http"
+
+[[endpoints]]
+id = "test-endpoint"
+listener_id = "test"
+
+[[endpoints.routes]]
+app_id = "missing-app"
+[endpoints.routes.http]
+path_prefix = "/test"
+`
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "validation_fails.toml")
+		require.NoError(t, os.WriteFile(configPath, []byte(badConfig), 0o644))
+
+		h := newTestHarness(t, configPath)
+
+		err := h.runner.Reload(h.ctx)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "validating config:")
+		assert.Nil(t, h.runner.getConfig())
+	})
+
+	t.Run("reload returns ctx.Err when context cancelled before send", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "valid_for_ctx_test.toml")
+		require.NoError(t, os.WriteFile(configPath, validConfigTOML, 0o644))
+
+		// Unbuffered siphon with no consumer + already-cancelled ctx forces
+		// the select to take the <-ctx.Done() branch.
+		txSiphon := make(chan *transaction.ConfigTransaction)
+		runner, err := NewRunner(configPath, txSiphon)
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		err = runner.Reload(ctx)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
 	})
 
 	t.Run("reload while running sends transactions", func(t *testing.T) {
@@ -295,7 +349,7 @@ func TestRunner_Reload(t *testing.T) {
 		err = os.WriteFile(configPath, updatedConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		tx2 := h.receiveTransaction()
 		assert.NotNil(t, tx2)
 
@@ -329,7 +383,7 @@ func TestRunner_GetConfig(t *testing.T) {
 
 		h := newTestHarness(t, configPath)
 
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		cfg := h.runner.getConfig()
 		assert.NotNil(t, cfg)
 		// No transaction expected when not running
@@ -350,7 +404,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		stateCh := h.runner.GetStateChan(ctx)
 		assert.NotNil(t, stateCh)
 
-		assert.False(t, h.runner.IsRunning())
+		assert.False(t, h.runner.IsReady())
 	})
 
 	t.Run("state changes during lifecycle", func(t *testing.T) {
@@ -394,7 +448,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		}
 
 		// Verify runner is now running
-		assert.True(t, h.runner.IsRunning())
+		assert.True(t, h.runner.IsReady())
 
 		// Trigger shutdown
 		runCancel()
@@ -425,7 +479,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 
 		// Final verification
 		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
-		assert.False(t, h.runner.IsRunning())
+		assert.False(t, h.runner.IsReady())
 	})
 }
 
@@ -447,7 +501,7 @@ func TestRunner_Shutdown(t *testing.T) {
 		require.NoError(t, err)
 
 		// Load a config to verify it gets cleared
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		assert.NotNil(t, h.runner.getConfig())
 
 		// Call shutdown directly
@@ -497,7 +551,7 @@ func TestRunner_Shutdown(t *testing.T) {
 		assert.Equal(t, finitestate.StatusNew, h.runner.GetState())
 
 		// Load a config to verify it gets cleared even when FSM transition fails
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		assert.NotNil(t, h.runner.getConfig())
 
 		// Call shutdown from New state - this will fail FSM transitions but should still clear config
@@ -541,8 +595,8 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 	for range 10 {
 		go func() {
 			defer func() { done <- true }()
-			for j := 0; j < 100; j++ {
-				h.runner.Reload()
+			for range 100 {
+				_ = h.runner.Reload(h.ctx) //nolint:errcheck // concurrent-access stress test, per-call error not meaningful
 				cfg := h.runner.getConfig()
 				if cfg != nil {
 					_ = cfg.String()
@@ -569,4 +623,46 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("Runner did not complete within timeout")
 	}
+}
+
+// TestRunner_Reload_ReturnsWhenRctxCanceledButCallerCtxAlive regression test:
+// the v0.0.21 supervisor migration changed Reload's siphon-send select to only
+// observe the caller-supplied ctx, dropping the previous r.ctx.Done() case. If
+// the runner has been Stopped (r.ctx canceled) but the caller passes an
+// independent live ctx, the unbuffered siphon send blocks forever when no
+// receiver is present. Reload must fall through to r.ctx and return.
+func TestRunner_Reload_ReturnsWhenRctxCanceledButCallerCtxAlive(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "valid.toml")
+		require.NoError(t, os.WriteFile(configPath, validConfigTOML, 0o644))
+
+		// Unbuffered siphon with no consumer — the send must block.
+		txSiphon := make(chan *transaction.ConfigTransaction)
+		runner, err := NewRunner(configPath, txSiphon)
+		require.NoError(t, err)
+
+		// Simulate post-Stop state directly: r.ctx canceled, caller ctx independent and alive.
+		canceledCtx, cancelRctx := context.WithCancel(context.Background())
+		cancelRctx()
+		runner.ctx = canceledCtx
+
+		callerCtx := context.Background()
+		reloadDone := make(chan error, 1)
+		go func() { reloadDone <- runner.Reload(callerCtx) }()
+
+		// synctest.Wait returns only when every goroutine in the bubble is
+		// durably blocked. Without the r.ctx case, the Reload goroutine sits
+		// on the siphon send forever; with it, Reload returns and reloadDone
+		// is filled before this point.
+		synctest.Wait()
+
+		select {
+		case err := <-reloadDone:
+			require.Error(t, err)
+			require.ErrorIs(t, err, context.Canceled)
+		default:
+			t.Fatal("Reload hangs when r.ctx is canceled but caller ctx is alive")
+		}
+	})
 }

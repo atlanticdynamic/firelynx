@@ -92,7 +92,7 @@ func TestConfigChannels_BasicFlow(t *testing.T) {
 
 	// Wait for txmgr to be ready
 	assert.Eventually(t, func() bool {
-		return h.txmgr.IsRunning()
+		return h.txmgr.IsReady()
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Create cfgservice runner with siphon
@@ -104,7 +104,7 @@ func TestConfigChannels_BasicFlow(t *testing.T) {
 
 	// Wait for cfgservice runner to be ready
 	assert.Eventually(t, func() bool {
-		return cfgServiceRunner.IsRunning()
+		return cfgServiceRunner.IsReady()
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Test a simple config update to verify the flow works
@@ -144,7 +144,7 @@ func TestConfigChannels_CfgFileLoaderIntegration(t *testing.T) {
 
 	// Wait for txmgr to be ready
 	assert.Eventually(t, func() bool {
-		return h.txmgr.IsRunning()
+		return h.txmgr.IsReady()
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Create temporary config file
@@ -167,7 +167,7 @@ func TestConfigChannels_CfgFileLoaderIntegration(t *testing.T) {
 
 	// Wait for runner to reach running state and process initial config
 	assert.Eventually(t, func() bool {
-		return fileLoader.IsRunning()
+		return fileLoader.IsReady()
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Update config file to trigger reload
@@ -175,11 +175,11 @@ func TestConfigChannels_CfgFileLoaderIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Trigger reload
-	fileLoader.Reload()
+	require.NoError(t, fileLoader.Reload(h.ctx))
 
 	// Verify config was updated (simple check that reload worked)
 	assert.Eventually(t, func() bool {
-		return fileLoader.IsRunning() // Still running after reload
+		return fileLoader.IsReady() // Still running after reload
 	}, 1*time.Second, 10*time.Millisecond)
 }
 
@@ -196,7 +196,7 @@ func TestConfigChannels_MultipleUpdates(t *testing.T) {
 
 	// Wait for txmgr to be ready
 	assert.Eventually(t, func() bool {
-		return h.txmgr.IsRunning()
+		return h.txmgr.IsReady()
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Create cfgservice runner with siphon
@@ -208,7 +208,7 @@ func TestConfigChannels_MultipleUpdates(t *testing.T) {
 
 	// Wait for cfgservice runner to be ready
 	assert.Eventually(t, func() bool {
-		return cfgServiceRunner.IsRunning()
+		return cfgServiceRunner.IsReady()
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Test multiple sequential config updates

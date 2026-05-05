@@ -60,7 +60,7 @@ func (h *testHarness) start() {
 
 	// Wait for runner to be in Running state
 	assert.Eventually(h.t, func() bool {
-		return h.runner.IsRunning()
+		return h.runner.IsReady()
 	}, 5*time.Second, 10*time.Millisecond, "runner should reach Running state")
 }
 
@@ -159,7 +159,7 @@ func TestRunnerRunLifecycle(t *testing.T) {
 		return h.runner.GetState() == finitestate.StatusRunning
 	}, time.Second, 10*time.Millisecond)
 
-	assert.True(t, h.runner.IsRunning())
+	assert.True(t, h.runner.IsReady())
 
 	cancel()
 
@@ -173,7 +173,7 @@ func TestRunnerRunLifecycle(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		return h.runner.GetState() == finitestate.StatusStopped
 	}, time.Second, 10*time.Millisecond, "runner should reach Stopped state")
-	assert.False(t, h.runner.IsRunning())
+	assert.False(t, h.runner.IsReady())
 }
 
 func TestRunnerConfigUpdate(t *testing.T) {
@@ -244,7 +244,7 @@ func TestRunnerStateChan(t *testing.T) {
 		}
 
 		// Verify runner is now running
-		assert.True(t, runner.IsRunning())
+		assert.True(t, runner.IsReady())
 
 		// Trigger shutdown
 		runCancel()
@@ -277,7 +277,7 @@ func TestRunnerStateChan(t *testing.T) {
 		assert.Eventually(t, func() bool {
 			return runner.GetState() == finitestate.StatusStopped
 		}, time.Second, 10*time.Millisecond, "runner should reach Stopped state")
-		assert.False(t, runner.IsRunning())
+		assert.False(t, runner.IsReady())
 	})
 }
 
@@ -295,7 +295,7 @@ func TestRunnerMultipleConcurrentTransactions(t *testing.T) {
 
 	// Wait for runner to start
 	assert.Eventually(t, func() bool {
-		return runner.IsRunning()
+		return runner.IsReady()
 	}, 5*time.Second, 10*time.Millisecond)
 
 	txSiphon := runner.GetTransactionSiphon()
@@ -403,7 +403,7 @@ func TestRunnerErrorHandling(t *testing.T) {
 
 	// Runner should continue running despite error
 	assert.Eventually(t, func() bool {
-		return h.runner.IsRunning()
+		return h.runner.IsReady()
 	}, 5*time.Second, 10*time.Millisecond, "runner should continue running")
 
 	// Clean shutdown

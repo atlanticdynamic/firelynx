@@ -193,7 +193,7 @@ func TestHTTPRunnerStartupTiming(t *testing.T) {
 
 	// Wait for txmgr to be running
 	require.Eventually(t, func() bool {
-		return txMan.IsRunning()
+		return txMan.IsReady()
 	}, 2*time.Second, 50*time.Millisecond, "Transaction manager should be running")
 
 	// HTTP runner should be Running immediately
