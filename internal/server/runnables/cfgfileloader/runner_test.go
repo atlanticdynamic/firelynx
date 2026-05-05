@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/transaction"
@@ -622,4 +623,46 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("Runner did not complete within timeout")
 	}
+}
+
+// TestRunner_Reload_ReturnsWhenRctxCanceledButCallerCtxAlive regression test:
+// the v0.0.21 supervisor migration changed Reload's siphon-send select to only
+// observe the caller-supplied ctx, dropping the previous r.ctx.Done() case. If
+// the runner has been Stopped (r.ctx canceled) but the caller passes an
+// independent live ctx, the unbuffered siphon send blocks forever when no
+// receiver is present. Reload must fall through to r.ctx and return.
+func TestRunner_Reload_ReturnsWhenRctxCanceledButCallerCtxAlive(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "valid.toml")
+		require.NoError(t, os.WriteFile(configPath, validConfigTOML, 0o644))
+
+		// Unbuffered siphon with no consumer — the send must block.
+		txSiphon := make(chan *transaction.ConfigTransaction)
+		runner, err := NewRunner(configPath, txSiphon)
+		require.NoError(t, err)
+
+		// Simulate post-Stop state directly: r.ctx canceled, caller ctx independent and alive.
+		canceledCtx, cancelRctx := context.WithCancel(context.Background())
+		cancelRctx()
+		runner.ctx = canceledCtx
+
+		callerCtx := context.Background()
+		reloadDone := make(chan error, 1)
+		go func() { reloadDone <- runner.Reload(callerCtx) }()
+
+		// synctest.Wait returns only when every goroutine in the bubble is
+		// durably blocked. Without the r.ctx case, the Reload goroutine sits
+		// on the siphon send forever; with it, Reload returns and reloadDone
+		// is filled before this point.
+		synctest.Wait()
+
+		select {
+		case err := <-reloadDone:
+			require.Error(t, err)
+			require.ErrorIs(t, err, context.Canceled)
+		default:
+			t.Fatal("Reload hangs when r.ctx is canceled but caller ctx is alive")
+		}
+	})
 }

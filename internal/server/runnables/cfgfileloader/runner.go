@@ -219,6 +219,8 @@ func (r *Runner) Reload(ctx context.Context) error {
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-r.ctx.Done():
+		return r.ctx.Err()
 	}
 }
 

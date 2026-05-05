@@ -87,12 +87,10 @@ func (r *Runner) Run(ctx context.Context) error {
 	}()
 
 	err := r.waitForClusterReady(ctx, r.clusterReadyTimeout)
+	r.mutex.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to wait for HTTP cluster to become ready: %w", err)
 	}
-
-	// unlock now that the cluster is running
-	r.mutex.Unlock()
 
 	// block here until the run context is canceled
 	<-ctx.Done()
