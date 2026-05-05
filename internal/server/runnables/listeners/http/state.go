@@ -7,9 +7,9 @@ func (r *Runner) GetState() string {
 	return r.cluster.GetState()
 }
 
-// IsRunning returns whether the runner is running
-func (r *Runner) IsRunning() bool {
-	return r.cluster.IsRunning()
+// IsReady returns whether the runner is running
+func (r *Runner) IsReady() bool {
+	return r.cluster.IsReady()
 }
 
 // GetStateChan returns a channel that emits state changes

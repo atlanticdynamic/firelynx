@@ -99,7 +99,7 @@ func (r *Runner) sendConfigToCluster(ctx context.Context, cfg *cfg.Adapter) erro
 	}
 
 	// Wait for cluster to finish processing and return to running state
-	err := r.waitForClusterRunning(ctx, r.clusterReadyTimeout)
+	err := r.waitForClusterReady(ctx, r.clusterReadyTimeout)
 	if err != nil {
 		return err
 	}

@@ -97,7 +97,7 @@ func TestRunner_RunAndStop(t *testing.T) {
 
 	// Wait for the runner to start
 	assert.Eventually(t, func() bool {
-		return runner.IsRunning()
+		return runner.IsReady()
 	}, 1*time.Second, 10*time.Millisecond)
 
 	// Stop the runner
@@ -113,6 +113,6 @@ func TestRunner_RunAndStop(t *testing.T) {
 
 	// Verify it's stopped
 	assert.Eventually(t, func() bool {
-		return !runner.IsRunning()
+		return !runner.IsReady()
 	}, 1*time.Second, 10*time.Millisecond, "runner should stop")
 }

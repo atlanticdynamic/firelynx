@@ -24,13 +24,14 @@ const (
 )
 
 // SagaParticipant defines the interface for components participating
-// in configuration transactions. It extends Runnable and Stateable from supervisor
-// to ensure components have the necessary lifecycle management capabilities.
-// Note that SagaParticipant SHOULD NOT implement supervisor.Reloadable to avoid
-// conflicts with the CommitConfig method.
+// in configuration transactions. It extends Runnable, Stateable, and Readiness
+// from supervisor to ensure components have the necessary lifecycle management
+// capabilities. Note that SagaParticipant SHOULD NOT implement
+// supervisor.Reloadable to avoid conflicts with the CommitConfig method.
 type SagaParticipant interface {
 	supervisor.Runnable
 	supervisor.Stateable
+	supervisor.Readiness
 
 	// StageConfig processes a validated configuration transaction
 	// by preparing the component to apply the changes. This is called
@@ -179,7 +180,7 @@ func (o *SagaOrchestrator) registerAndExecuteParticipants(
 		}
 
 		// Check if participant is ready
-		if err := o.waitForRunning(ctx, participant, name); err != nil {
+		if err := o.waitForReady(ctx, participant, name); err != nil {
 			errz = append(errz, fmt.Errorf("participant %s not ready: %w", name, err))
 
 			// Mark participant as failed
@@ -347,11 +348,12 @@ func (o *SagaOrchestrator) GetTransactionStatus(txID string) (map[string]any, er
 	return status, nil
 }
 
-// waitForRunning waits for the given participant to return to running state
-// or until the timeout is reached. Returns an error if the timeout expires.
-func (o *SagaOrchestrator) waitForRunning(
+// waitForReady waits for the given participant to become ready (post-startup
+// phase complete) or until the timeout is reached. Returns an error if the
+// timeout expires.
+func (o *SagaOrchestrator) waitForReady(
 	ctx context.Context,
-	stateable supervisor.Stateable,
+	readiness supervisor.Readiness,
 	name string,
 ) error {
 	// Use default values
@@ -367,15 +369,15 @@ func (o *SagaOrchestrator) waitForRunning(
 		"name", name, "timeout", reloadTimeout)
 
 	for {
-		// Check if participant is running
-		if stateable.IsRunning() {
-			o.logger.Debug("Participant is now running after reload", "name", name)
+		// Check if participant is ready
+		if readiness.IsReady() {
+			o.logger.Debug("Participant is now ready after reload", "name", name)
 			return nil
 		}
 
 		// Check if we've reached the deadline
 		if time.Now().After(deadline) {
-			return fmt.Errorf("timeout waiting for participant to be running after reload")
+			return fmt.Errorf("timeout waiting for participant to be ready after reload")
 		}
 
 		// Check if context is done
@@ -492,19 +494,20 @@ func (o *SagaOrchestrator) TriggerReload(ctx context.Context) error {
 		// Log post-reload state if available
 		if stateable, ok := participant.(supervisor.Stateable); ok {
 			logger.Debug("Post-reload state", "state", stateable.GetState())
+		}
 
-			// Wait for participant to be running again
-			if err := o.waitForRunning(ctx, stateable, name); err != nil {
-				logger.Error(
-					"Participant failed to return to running state after reload",
-					"error", err,
-				)
-				reloadErrors = append(
-					reloadErrors,
-					fmt.Errorf("participant %s failed to return to running state: %w", name, err),
-				)
-				// Continue with other participants despite errors
-			}
+		// Wait for participant to be ready again. SagaParticipant embeds
+		// supervisor.Readiness, so this is statically satisfied.
+		if err := o.waitForReady(ctx, participant, name); err != nil {
+			logger.Error(
+				"Participant failed to return to ready state after reload",
+				"error", err,
+			)
+			reloadErrors = append(
+				reloadErrors,
+				fmt.Errorf("participant %s failed to return to ready state: %w", name, err),
+			)
+			// Continue with other participants despite errors
 		}
 	}
 

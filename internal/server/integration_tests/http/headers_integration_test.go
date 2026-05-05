@@ -86,7 +86,7 @@ func (s *HeadersIntegrationTestSuite) SetupSuite() {
 			s.T().Fatalf("HTTP runner failed to start: %v", err)
 			return false
 		default:
-			return s.httpRunner.IsRunning()
+			return s.httpRunner.IsReady()
 		}
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
@@ -120,7 +120,7 @@ func (s *HeadersIntegrationTestSuite) TearDownSuite() {
 		s.httpRunner.Stop()
 
 		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
+			return !s.httpRunner.IsReady()
 		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
 
 		select {

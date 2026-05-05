@@ -123,14 +123,14 @@ func TestValidateRemote(t *testing.T) {
 
 	// Wait for server to start
 	require.Eventually(t, func() bool {
-		return cfgServiceRunner.IsRunning()
+		return cfgServiceRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "gRPC config service should start")
 
 	// Cleanup function
 	defer func() {
 		cfgServiceRunner.Stop()
 		assert.Eventually(t, func() bool {
-			return !cfgServiceRunner.IsRunning()
+			return !cfgServiceRunner.IsReady()
 		}, time.Second, 10*time.Millisecond, "gRPC config service should stop")
 	}()
 
@@ -360,7 +360,7 @@ func TestValidateRemoteShutdownTiming(t *testing.T) {
 
 			// Wait for server to start
 			require.Eventually(t, func() bool {
-				return cfgServiceRunner.IsRunning()
+				return cfgServiceRunner.IsReady()
 			}, time.Second, 10*time.Millisecond, "gRPC config service should start")
 
 			configPath := createTempConfigFile(t, validConfigContent)
@@ -385,7 +385,7 @@ func TestValidateRemoteShutdownTiming(t *testing.T) {
 
 			// Verify shutdown completes quickly using assert.Eventually
 			assert.Eventually(func() bool {
-				return !cfgServiceRunner.IsRunning()
+				return !cfgServiceRunner.IsReady()
 			}, 2*time.Second, 10*time.Millisecond, "gRPC config service should stop")
 
 			// Check for any unexpected server errors (with timeout)

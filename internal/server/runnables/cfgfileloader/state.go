@@ -17,6 +17,6 @@ func (r *Runner) GetStateChan(ctx context.Context) <-chan string {
 	return r.fsm.GetStateChan(ctx)
 }
 
-func (r *Runner) IsRunning() bool {
+func (r *Runner) IsReady() bool {
 	return r.fsm.GetState() == finitestate.StatusRunning
 }

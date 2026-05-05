@@ -177,7 +177,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 
 	// Wait for runner to start
 	require.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// Test 1: Start with no listeners
@@ -252,7 +252,7 @@ func TestHTTPClusterDynamicListeners(t *testing.T) {
 	// Stop the HTTP runner
 	httpRunner.Stop()
 	assert.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
+		return !httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 }
 
@@ -280,7 +280,7 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 
 	// Wait for runner to start
 	require.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// Create configuration with listener, endpoint, route and app
@@ -329,7 +329,7 @@ func TestHTTPClusterWithRoutesAndApps(t *testing.T) {
 	// Stop the HTTP runner
 	httpRunner.Stop()
 	assert.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
+		return !httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 }
 
@@ -360,7 +360,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 
 	// Wait for runner to start
 	require.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	port := fmt.Sprintf("%d", testutil.GetRandomPort(t))
@@ -469,7 +469,7 @@ func TestHTTPClusterRouteUpdates(t *testing.T) {
 	// Stop the HTTP runner
 	httpRunner.Stop()
 	assert.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
+		return !httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 }
 
@@ -498,7 +498,7 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 
 	// Wait for runner to start
 	require.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// Get a random port for testing
@@ -554,7 +554,7 @@ func TestHTTPClusterErrorHandling(t *testing.T) {
 		// Stop the HTTP runner
 		httpRunner.Stop()
 		assert.Eventually(t, func() bool {
-			return !httpRunner.IsRunning()
+			return !httpRunner.IsReady()
 		}, time.Second, 10*time.Millisecond)
 	})
 }
@@ -590,7 +590,7 @@ func TestHTTPClusterSagaCompensation(t *testing.T) {
 
 	// Wait for runner to start
 	require.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	// Create configuration
@@ -620,7 +620,7 @@ func TestHTTPClusterSagaCompensation(t *testing.T) {
 	// Stop the HTTP runner
 	httpRunner.Stop()
 	assert.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
+		return !httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 }
 
@@ -644,7 +644,7 @@ func (m *MockFailingParticipant) GetState() string {
 	return "running"
 }
 
-func (m *MockFailingParticipant) IsRunning() bool {
+func (m *MockFailingParticipant) IsReady() bool {
 	return true
 }
 

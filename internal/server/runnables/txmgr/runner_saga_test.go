@@ -84,7 +84,7 @@ func TestRunnerShutdownTimeout(t *testing.T) {
 
 		// Wait for runner to start
 		assert.Eventually(t, func() bool {
-			return runner.IsRunning()
+			return runner.IsReady()
 		}, 5*time.Second, 10*time.Millisecond)
 
 		// Cancel context to trigger shutdown
@@ -127,7 +127,7 @@ func TestRunnerShutdownTimeout(t *testing.T) {
 
 		// Wait for runner to start
 		assert.Eventually(t, func() bool {
-			return runner.IsRunning()
+			return runner.IsReady()
 		}, 5*time.Second, 10*time.Millisecond)
 
 		// Cancel context to trigger shutdown

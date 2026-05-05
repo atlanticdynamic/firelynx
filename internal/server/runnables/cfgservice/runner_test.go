@@ -153,7 +153,7 @@ func TestStop(t *testing.T) {
 
 		// Wait for the server to start (it will transition to Running state)
 		require.Eventually(t, func() bool {
-			return r.IsRunning()
+			return r.IsReady()
 		}, 1*time.Second, 10*time.Millisecond, "Server should reach Running state")
 
 		// Now replace the gRPC server with a mock to test GracefulStop

@@ -14,7 +14,7 @@ func TestRunner_GetState(t *testing.T) {
 
 	// Initial state should be "New" based on the implementation
 	assert.Equal(t, "New", runner.GetState())
-	assert.False(t, runner.IsRunning())
+	assert.False(t, runner.IsReady())
 }
 
 func TestRunner_GetStateChan(t *testing.T) {

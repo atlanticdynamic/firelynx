@@ -165,11 +165,11 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 
 	// Wait for both runners to start
 	require.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
 	require.Eventually(t, func() bool {
-		return cfgServiceRunner.IsRunning()
+		return cfgServiceRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "gRPC config service should start")
 
 	// Process transactions from siphon
@@ -403,11 +403,11 @@ func TestGRPCConfigServiceHTTPIntegration(t *testing.T) {
 	httpRunner.Stop()
 
 	assert.Eventually(t, func() bool {
-		return !cfgServiceRunner.IsRunning()
+		return !cfgServiceRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "gRPC config service should stop")
 
 	assert.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
+		return !httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
 }
 
@@ -432,7 +432,7 @@ func TestValidateConfigIntegration(t *testing.T) {
 
 	// Wait for config service to start
 	require.Eventually(t, func() bool {
-		return cfgServiceRunner.IsRunning()
+		return cfgServiceRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "gRPC config service should start")
 
 	// Create client
@@ -496,6 +496,6 @@ func TestValidateConfigIntegration(t *testing.T) {
 	cfgServiceRunner.Stop()
 
 	assert.Eventually(t, func() bool {
-		return !cfgServiceRunner.IsRunning()
+		return !cfgServiceRunner.IsReady()
 	}, time.Second, 10*time.Millisecond, "gRPC config service should stop")
 }

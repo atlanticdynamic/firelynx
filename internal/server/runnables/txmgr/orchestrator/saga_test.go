@@ -79,7 +79,7 @@ func (m *MockParticipant) GetStateChan(ctx context.Context) <-chan string {
 	return stateCh
 }
 
-func (m *MockParticipant) IsRunning() bool {
+func (m *MockParticipant) IsReady() bool {
 	return true
 }
 
@@ -149,7 +149,7 @@ func (p *conflictingParticipant) String() string                { return p.name 
 func (p *conflictingParticipant) Run(ctx context.Context) error { return nil }
 func (p *conflictingParticipant) Stop()                         {}
 func (p *conflictingParticipant) GetState() string              { return "running" }
-func (p *conflictingParticipant) IsRunning() bool               { return true }
+func (p *conflictingParticipant) IsReady() bool                 { return true }
 func (p *conflictingParticipant) GetStateChan(ctx context.Context) <-chan string {
 	ch := make(chan string, 1)
 	ch <- "running"
@@ -171,7 +171,7 @@ func (p *conflictingParticipant) CompensateConfig(
 }
 func (p *conflictingParticipant) CommitConfig(ctx context.Context) error { return nil }
 
-func (p *conflictingParticipant) Reload() {} // This causes the conflict
+func (p *conflictingParticipant) Reload(ctx context.Context) error { return nil } // This causes the conflict
 
 func TestProcessTransaction_Success(t *testing.T) {
 	handler := slog.NewTextHandler(os.Stdout, nil)
@@ -559,7 +559,7 @@ type MockNotRunningParticipant struct {
 	MockParticipant
 }
 
-func (m *MockNotRunningParticipant) IsRunning() bool {
+func (m *MockNotRunningParticipant) IsReady() bool {
 	return false
 }
 
@@ -573,8 +573,8 @@ func TestWaitForRunning_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel() // Cancel immediately
 
-	err := orchestrator.waitForRunning(ctx, participant, "test")
-	require.Error(t, err, "waitForRunning should fail when context is cancelled")
+	err := orchestrator.waitForReady(ctx, participant, "test")
+	require.Error(t, err, "waitForReady should fail when context is cancelled")
 	assert.Equal(t, context.Canceled, err, "error should be context.Canceled")
 }
 
@@ -590,8 +590,8 @@ func TestWaitForRunning_Timeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), time.Millisecond)
 	defer cancel()
 
-	err := orchestrator.waitForRunning(ctx, participant, "test")
-	require.Error(t, err, "waitForRunning should fail when context times out")
+	err := orchestrator.waitForReady(ctx, participant, "test")
+	require.Error(t, err, "waitForReady should fail when context times out")
 	assert.ErrorIs(t, err, context.DeadlineExceeded, "error should be context deadline exceeded")
 }
 

@@ -256,7 +256,7 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 		runner.cluster = cluster
 
 		ctx := t.Context()
-		err = runner.waitForClusterRunning(ctx, 50*time.Millisecond)
+		err = runner.waitForClusterReady(ctx, 50*time.Millisecond)
 		require.Error(t, err)
 		assert.Equal(t, context.DeadlineExceeded, err)
 	})
@@ -269,7 +269,7 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		cancel() // Cancel immediately
 
-		err = runner.waitForClusterRunning(ctx, 1*time.Second)
+		err = runner.waitForClusterReady(ctx, 1*time.Second)
 		require.Error(t, err)
 		assert.Equal(t, context.Canceled, err)
 	})
@@ -289,11 +289,11 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 
 		// Use assert.Eventually to wait for cluster to be ready
 		assert.Eventually(t, func() bool {
-			return runner.cluster.IsRunning()
+			return runner.cluster.IsReady()
 		}, 1*time.Second, 10*time.Millisecond)
 
-		// Now waitForClusterRunning should succeed immediately
-		err = runner.waitForClusterRunning(ctx, 100*time.Millisecond)
+		// Now waitForClusterReady should succeed immediately
+		err = runner.waitForClusterReady(ctx, 100*time.Millisecond)
 		require.NoError(t, err)
 
 		// Clean shutdown

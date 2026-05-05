@@ -147,7 +147,7 @@ func setupScriptSuiteWithEndpoint(t *testing.T, templateName, templateContent st
 			t.Fatalf("HTTP runner failed to start: %v", err)
 			return false
 		default:
-			return fields.httpRunner.IsRunning()
+			return fields.httpRunner.IsReady()
 		}
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
@@ -240,7 +240,7 @@ func setupScriptSuiteWithFile(t *testing.T, templateName, templateContent, scrip
 			t.Fatalf("HTTP runner failed to start: %v", err)
 			return false
 		default:
-			return fields.httpRunner.IsRunning()
+			return fields.httpRunner.IsReady()
 		}
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
@@ -334,7 +334,7 @@ func setupScriptSuiteWithHTTPS(t *testing.T, templateName, templateContent, scri
 			t.Fatalf("HTTP runner failed to start: %v", err)
 			return false
 		default:
-			return fields.httpRunner.IsRunning()
+			return fields.httpRunner.IsReady()
 		}
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
@@ -383,7 +383,7 @@ func teardownScriptSuite(t *testing.T, fields *scriptSuiteFields) {
 
 		// Wait for runner to stop
 		require.Eventually(t, func() bool {
-			return !fields.httpRunner.IsRunning()
+			return !fields.httpRunner.IsReady()
 		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
 	}
 }
@@ -756,7 +756,7 @@ _ = result`
 			s.T().Fatalf("HTTP runner failed to start: %v", err)
 			return false
 		default:
-			return s.httpRunner.IsRunning()
+			return s.httpRunner.IsReady()
 		}
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
@@ -798,7 +798,7 @@ func (s *StarlarkFileURIIntegrationTestSuite) TearDownSuite() {
 
 		// Wait for runner to stop
 		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
+			return !s.httpRunner.IsReady()
 		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
 	}
 }
@@ -912,7 +912,7 @@ func (s *ExtismIntegrationTestSuite) SetupSuite() {
 			s.T().Fatalf("HTTP runner failed to start: %v", err)
 			return false
 		default:
-			return s.httpRunner.IsRunning()
+			return s.httpRunner.IsReady()
 		}
 	}, time.Second, 10*time.Millisecond, "HTTP runner should start")
 
@@ -954,7 +954,7 @@ func (s *ExtismIntegrationTestSuite) TearDownSuite() {
 
 		// Wait for runner to stop
 		s.Require().Eventually(func() bool {
-			return !s.httpRunner.IsRunning()
+			return !s.httpRunner.IsReady()
 		}, time.Second, 10*time.Millisecond, "HTTP runner should stop")
 	}
 }

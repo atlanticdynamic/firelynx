@@ -226,7 +226,7 @@ func TestRunner_Reload(t *testing.T) {
 	t.Run("reload with default config", func(t *testing.T) {
 		h := newTestHarness(t, "")
 
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		// Now that we create a valid config file by default, it should load successfully
 		assert.NotNil(t, h.runner.getConfig())
 	})
@@ -242,7 +242,7 @@ func TestRunner_Reload(t *testing.T) {
 		assert.Nil(t, h.runner.getConfig())
 
 		// Reload when not running - config should be stored but no transaction sent
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		cfg := h.runner.getConfig()
 		assert.NotNil(t, cfg)
 
@@ -251,13 +251,13 @@ func TestRunner_Reload(t *testing.T) {
 		require.NoError(t, err)
 
 		// Reload again - config should be updated but still no transaction
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		newCfg := h.runner.getConfig()
 		assert.NotNil(t, newCfg)
 		assert.NotSame(t, cfg, newCfg)
 	})
 
-	t.Run("reload with invalid config file logs error", func(t *testing.T) {
+	t.Run("reload with invalid config file returns error", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "invalid_config.toml")
 		err := os.WriteFile(configPath, invalidConfigTOML, 0o644)
@@ -265,7 +265,7 @@ func TestRunner_Reload(t *testing.T) {
 
 		h := newTestHarness(t, configPath)
 
-		h.runner.Reload()
+		require.Error(t, h.runner.Reload(h.ctx))
 		assert.Nil(t, h.runner.getConfig())
 	})
 
@@ -295,7 +295,7 @@ func TestRunner_Reload(t *testing.T) {
 		err = os.WriteFile(configPath, updatedConfigTOML, 0o644)
 		require.NoError(t, err)
 
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		tx2 := h.receiveTransaction()
 		assert.NotNil(t, tx2)
 
@@ -329,7 +329,7 @@ func TestRunner_GetConfig(t *testing.T) {
 
 		h := newTestHarness(t, configPath)
 
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		cfg := h.runner.getConfig()
 		assert.NotNil(t, cfg)
 		// No transaction expected when not running
@@ -350,7 +350,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		stateCh := h.runner.GetStateChan(ctx)
 		assert.NotNil(t, stateCh)
 
-		assert.False(t, h.runner.IsRunning())
+		assert.False(t, h.runner.IsReady())
 	})
 
 	t.Run("state changes during lifecycle", func(t *testing.T) {
@@ -394,7 +394,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 		}
 
 		// Verify runner is now running
-		assert.True(t, h.runner.IsRunning())
+		assert.True(t, h.runner.IsReady())
 
 		// Trigger shutdown
 		runCancel()
@@ -425,7 +425,7 @@ func TestRunner_StateInterfaces(t *testing.T) {
 
 		// Final verification
 		assert.Equal(t, finitestate.StatusStopped, h.runner.GetState())
-		assert.False(t, h.runner.IsRunning())
+		assert.False(t, h.runner.IsReady())
 	})
 }
 
@@ -447,7 +447,7 @@ func TestRunner_Shutdown(t *testing.T) {
 		require.NoError(t, err)
 
 		// Load a config to verify it gets cleared
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		assert.NotNil(t, h.runner.getConfig())
 
 		// Call shutdown directly
@@ -497,7 +497,7 @@ func TestRunner_Shutdown(t *testing.T) {
 		assert.Equal(t, finitestate.StatusNew, h.runner.GetState())
 
 		// Load a config to verify it gets cleared even when FSM transition fails
-		h.runner.Reload()
+		require.NoError(t, h.runner.Reload(h.ctx))
 		assert.NotNil(t, h.runner.getConfig())
 
 		// Call shutdown from New state - this will fail FSM transitions but should still clear config
@@ -541,8 +541,8 @@ func TestRunner_ConcurrentAccess(t *testing.T) {
 	for range 10 {
 		go func() {
 			defer func() { done <- true }()
-			for j := 0; j < 100; j++ {
-				h.runner.Reload()
+			for range 100 {
+				_ = h.runner.Reload(h.ctx) //nolint:errcheck // concurrent-access stress test, per-call error not meaningful
 				cfg := h.runner.getConfig()
 				if cfg != nil {
 					_ = cfg.String()

@@ -30,6 +30,7 @@ const (
 var (
 	_ supervisor.Runnable  = (*Runner)(nil)
 	_ supervisor.Stateable = (*Runner)(nil)
+	_ supervisor.Readiness = (*Runner)(nil)
 )
 
 // Runner implements the transaction manager using a siphon pattern

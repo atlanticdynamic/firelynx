@@ -6,8 +6,8 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/server/finitestate"
 )
 
-// IsRunning returns true if the runner is in the Running state
-func (r *Runner) IsRunning() bool {
+// IsReady returns true if the runner is in the Running state
+func (r *Runner) IsReady() bool {
 	return r.fsm.GetState() == finitestate.StatusRunning
 }
 

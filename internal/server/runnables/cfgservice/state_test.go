@@ -72,7 +72,7 @@ func TestRunner_IsRunning(t *testing.T) {
 		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
 		r := h.runner
 
-		assert.False(t, r.IsRunning())
+		assert.False(t, r.IsReady())
 	})
 
 	t.Run("not running in booting state", func(t *testing.T) {
@@ -82,7 +82,7 @@ func TestRunner_IsRunning(t *testing.T) {
 		err := r.fsm.Transition(finitestate.StatusBooting)
 		require.NoError(t, err)
 
-		assert.False(t, r.IsRunning())
+		assert.False(t, r.IsReady())
 	})
 
 	t.Run("running after transition to running state", func(t *testing.T) {
@@ -90,7 +90,7 @@ func TestRunner_IsRunning(t *testing.T) {
 		r := h.runner
 
 		h.transitionToRunning()
-		assert.True(t, r.IsRunning())
+		assert.True(t, r.IsReady())
 	})
 
 	t.Run("not running in stopping state", func(t *testing.T) {
@@ -98,12 +98,12 @@ func TestRunner_IsRunning(t *testing.T) {
 		r := h.runner
 
 		h.transitionToRunning()
-		require.True(t, r.IsRunning())
+		require.True(t, r.IsReady())
 
 		err := r.fsm.Transition(finitestate.StatusStopping)
 		require.NoError(t, err)
 
-		assert.False(t, r.IsRunning())
+		assert.False(t, r.IsReady())
 	})
 
 	t.Run("not running in stopped state", func(t *testing.T) {
@@ -116,7 +116,7 @@ func TestRunner_IsRunning(t *testing.T) {
 		err = r.fsm.Transition(finitestate.StatusStopped)
 		require.NoError(t, err)
 
-		assert.False(t, r.IsRunning())
+		assert.False(t, r.IsReady())
 	})
 
 	t.Run("running state during full lifecycle", func(t *testing.T) {
@@ -125,7 +125,7 @@ func TestRunner_IsRunning(t *testing.T) {
 		defer h.cancel()
 
 		// Initially not running
-		assert.False(t, r.IsRunning())
+		assert.False(t, r.IsReady())
 
 		// Start runner in background
 		runErrCh := make(chan error, 1)
@@ -135,7 +135,7 @@ func TestRunner_IsRunning(t *testing.T) {
 
 		// Wait for runner to become running
 		require.Eventually(t, func() bool {
-			return r.IsRunning()
+			return r.IsReady()
 		}, 1*time.Second, 10*time.Millisecond, "Runner should be running")
 
 		// Stop the runner
@@ -143,7 +143,7 @@ func TestRunner_IsRunning(t *testing.T) {
 
 		// Wait for runner to stop being running
 		require.Eventually(t, func() bool {
-			return !r.IsRunning()
+			return !r.IsReady()
 		}, 200*time.Millisecond, 10*time.Millisecond, "Runner should stop running")
 
 		// Wait for Run to complete
@@ -155,7 +155,7 @@ func TestRunner_IsRunning(t *testing.T) {
 		}
 
 		// Finally not running
-		assert.False(t, r.IsRunning())
+		assert.False(t, r.IsReady())
 	})
 }
 
@@ -295,7 +295,7 @@ func TestRunner_GetStateChan(t *testing.T) {
 
 		// Wait for runner to start
 		require.Eventually(t, func() bool {
-			return r.IsRunning()
+			return r.IsReady()
 		}, 1*time.Second, 10*time.Millisecond, "Runner should be running")
 
 		// Stop the runner
@@ -334,7 +334,7 @@ func TestRunner_GetStateChan(t *testing.T) {
 }
 
 func TestRunner_StateConsistency(t *testing.T) {
-	t.Run("GetState and IsRunning consistency", func(t *testing.T) {
+	t.Run("GetState and IsReady consistency", func(t *testing.T) {
 		h := newRunnerTestHarness(t, testutil.GetRandomListeningPort(t))
 		r := h.runner
 
@@ -356,9 +356,9 @@ func TestRunner_StateConsistency(t *testing.T) {
 			assert.Equal(t, expectedState, actualState)
 
 			expectedRunning := (expectedState == finitestate.StatusRunning)
-			actualRunning := r.IsRunning()
+			actualRunning := r.IsReady()
 			assert.Equal(t, expectedRunning, actualRunning,
-				"IsRunning() should return %t when state is %s", expectedRunning, expectedState)
+				"IsReady() should return %t when state is %s", expectedRunning, expectedState)
 		}
 	})
 
@@ -424,7 +424,7 @@ func (h *stateTestHarness) startRunner() {
 
 func (h *stateTestHarness) waitForRunningState() {
 	require.Eventually(h.t, func() bool {
-		return h.runner.IsRunning()
+		return h.runner.IsReady()
 	}, 1*time.Second, 10*time.Millisecond, "Runner should reach Running state")
 }
 
@@ -462,7 +462,7 @@ func TestRunner_StateIntegration(t *testing.T) {
 
 		// Initial state verification
 		assert.Equal(t, finitestate.StatusNew, r.GetState())
-		assert.False(t, r.IsRunning())
+		assert.False(t, r.IsReady())
 
 		// Start the runner
 		h.startRunner()
@@ -470,14 +470,14 @@ func TestRunner_StateIntegration(t *testing.T) {
 		// Wait for running state
 		h.waitForRunningState()
 		assert.Equal(t, finitestate.StatusRunning, r.GetState())
-		assert.True(t, r.IsRunning())
+		assert.True(t, r.IsReady())
 
 		// Stop and wait for completion
 		h.stopAndWaitForCompletion()
 
 		// Final state verification
 		assert.Equal(t, finitestate.StatusStopped, r.GetState())
-		assert.False(t, r.IsRunning())
+		assert.False(t, r.IsReady())
 
 		// Wait for all 5 expected states to be collected
 		require.Eventually(t, func() bool {

@@ -49,7 +49,7 @@ func TestSagaParticipantInterface_ApplyPendingConfigFromMocks(t *testing.T) {
 	// Setup expectations
 	participant.On("CommitConfig", mock.Anything).Return(nil)
 	participant.On("GetState").Return("running")
-	participant.On("IsRunning").Return(true)
+	participant.On("IsReady").Return(true)
 
 	// Register participant
 	err := orchestrator.RegisterParticipant(participant)
@@ -117,8 +117,8 @@ func TestTriggerReload_SuccessFromMocks(t *testing.T) {
 	participant2.On("CommitConfig", mock.Anything).Return(nil)
 	participant1.On("GetState").Return("running")
 	participant2.On("GetState").Return("running")
-	participant1.On("IsRunning").Return(true)
-	participant2.On("IsRunning").Return(true)
+	participant1.On("IsReady").Return(true)
+	participant2.On("IsReady").Return(true)
 
 	// Register participants
 	err = orchestrator.RegisterParticipant(participant1)
@@ -177,8 +177,8 @@ func TestTriggerReload_FailureFromMocks(t *testing.T) {
 		Return(fmt.Errorf("failed to apply pending config"))
 	participant1.On("GetState").Return("running")
 	participant2.On("GetState").Maybe().Return("failed")
-	participant1.On("IsRunning").Maybe().Return(true)
-	participant2.On("IsRunning").Maybe().Return(false)
+	participant1.On("IsReady").Maybe().Return(true)
+	participant2.On("IsReady").Maybe().Return(false)
 
 	// Register participants
 	err = orchestrator.RegisterParticipant(participant1)

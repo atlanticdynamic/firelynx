@@ -72,7 +72,7 @@ func TestSingleLoggerFileOutput(t *testing.T) {
 	}()
 
 	require.Eventually(t, func() bool {
-		return httpRunner.IsRunning()
+		return httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 
 	tx, err := transaction.FromTest(t.Name(), cfg, nil)
@@ -106,6 +106,6 @@ func TestSingleLoggerFileOutput(t *testing.T) {
 
 	httpRunner.Stop()
 	require.Eventually(t, func() bool {
-		return !httpRunner.IsRunning()
+		return !httpRunner.IsReady()
 	}, time.Second, 10*time.Millisecond)
 }
