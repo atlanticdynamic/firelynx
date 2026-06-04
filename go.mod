@@ -17,7 +17,7 @@ require (
 	github.com/robbyt/mcp-io v0.0.1
 	github.com/robbyt/protobaggins v0.2.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/net v0.54.0
+	golang.org/x/net v0.55.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
 )
@@ -53,7 +53,7 @@ require (
 	go.starlark.net v0.0.0-20260102030733-3fee463870c9 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2 // indirect
