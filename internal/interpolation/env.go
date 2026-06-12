@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 )
 
 // Pattern for ${VAR_NAME} and ${VAR_NAME:default} syntax - captures colon explicitly
@@ -21,26 +22,36 @@ func ExpandEnvVars(input string) (string, error) {
 		return "", nil
 	}
 
-	var missingVars []error
-	result := envVarWithDefaultPattern.ReplaceAllStringFunc(input, func(match string) string {
-		submatches := envVarWithDefaultPattern.FindStringSubmatch(match)
-		// submatches will be: [full_match, varName, colon, defaultValue]
+	// Single regex pass: index layout per match (3 groups -> 8 ints) is
+	// [fullStart, fullEnd, varStart, varEnd, colonStart, colonEnd, defStart, defEnd].
+	matches := envVarWithDefaultPattern.FindAllStringSubmatchIndex(input, -1)
+	if matches == nil {
+		return input, nil
+	}
 
-		varName := submatches[1]
-		// Check if the colon was captured to see if a default was intended.
-		colonIsPresent := submatches[2] == ":"
-		defaultValue := submatches[3]
+	var missingVars []error
+	var b strings.Builder
+	b.Grow(len(input)) // output length is close to input; avoids reallocation churn
+	last := 0
+	for _, m := range matches {
+		b.WriteString(input[last:m[0]])
+		last = m[1]
+
+		varName := input[m[2]:m[3]]
+		// The colon group is [-1,-1] when absent, signalling no default was intended.
+		colonIsPresent := m[4] != -1
 
 		// Use the value from the environment if it exists.
-		value, exists := os.LookupEnv(varName)
-		if exists {
-			return value
+		if value, exists := os.LookupEnv(varName); exists {
+			b.WriteString(value)
+			continue
 		}
 
 		// If not in env, use the default if one was provided.
 		// This correctly handles cases like ${VAR:} where the default is an empty string.
 		if colonIsPresent {
-			return defaultValue
+			b.WriteString(input[m[6]:m[7]])
+			continue
 		}
 
 		// Otherwise, the variable is missing.
@@ -48,8 +59,9 @@ func ExpandEnvVars(input string) (string, error) {
 			missingVars,
 			fmt.Errorf("environment variable not defined: %s", varName),
 		)
-		return match // Return the original string for the missing variable
-	})
+		b.WriteString(input[m[0]:m[1]]) // Keep the original string for the missing variable
+	}
+	b.WriteString(input[last:])
 
-	return result, errors.Join(missingVars...)
+	return b.String(), errors.Join(missingVars...)
 }
