@@ -125,6 +125,13 @@ func TestExpandEnvVarsWithDefaults(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name:        "multiple missing required vars - errors accumulate",
+			input:       "${MISSING_A}:${MISSING_B}",
+			envVars:     nil,
+			expected:    "${MISSING_A}:${MISSING_B}",
+			expectError: true,
+		},
+		{
 			name:     "multiple vars with defaults",
 			input:    "${HOST:localhost}:${PORT:8080}",
 			envVars:  map[string]string{"HOST": "server1"},
