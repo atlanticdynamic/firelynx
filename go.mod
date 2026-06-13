@@ -1,6 +1,6 @@
 module github.com/atlanticdynamic/firelynx
 
-go 1.26.2
+go 1.26.4
 
 require github.com/urfave/cli/v3 v3.9.1
 
@@ -10,7 +10,7 @@ require (
 	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/modelcontextprotocol/go-sdk v1.6.0
 	github.com/pelletier/go-toml/v2 v2.3.1
-	github.com/robbyt/go-fsm/v2 v2.3.0
+	github.com/robbyt/go-fsm/v2 v2.4.0
 	github.com/robbyt/go-loglater v0.2.0
 	github.com/robbyt/go-polyscript v0.6.0
 	github.com/robbyt/go-supervisor v0.0.21
