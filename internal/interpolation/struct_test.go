@@ -3,7 +3,6 @@ package interpolation
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -376,46 +375,52 @@ func TestInterpolationWithUnicodeAndSpecialChars(t *testing.T) {
 	assert.Equal(t, "value:with$pecial{chars}:8080", config.Host)
 }
 
-func TestInterpolationPerformanceWithLargeStructs(t *testing.T) {
-	require.NoError(t, os.Setenv("PERF_VAR", "performance_test"))
-	t.Cleanup(func() {
-		require.NoError(t, os.Unsetenv("PERF_VAR"))
-	})
+// LargeConfig holds a slice of pointers to exercise the slice-of-pointers recursion path.
+type LargeConfig struct {
+	Configs []*TestConfig `env_interpolation:"yes"`
+}
 
-	// Create a large nested structure
-	type LargeConfig struct {
-		Configs []*TestConfig `env_interpolation:"yes"`
-	}
-
-	// Create 1000 configs to test performance
-	configs := make([]*TestConfig, 1000)
-	for i := range 1000 {
+// buildLargeConfig builds a LargeConfig with n entries referencing PERF_VAR. Shared between the
+// correctness test and the benchmark so they cannot drift.
+func buildLargeConfig(n int) *LargeConfig {
+	configs := make([]*TestConfig, n)
+	for i := range n {
 		configs[i] = &TestConfig{
 			Name: "config-${PERF_VAR}",
 			Host: "${PERF_VAR}.example.com",
 			Path: "/data/${PERF_VAR}/logs",
 		}
 	}
+	return &LargeConfig{Configs: configs}
+}
 
-	largeConfig := &LargeConfig{Configs: configs}
+func TestInterpolateStructLargeConfig(t *testing.T) {
+	t.Setenv("PERF_VAR", "performance_test")
 
-	// Test that interpolation completes quickly even with large structures
-	start := time.Now()
-	err := InterpolateStruct(largeConfig)
-	duration := time.Since(start)
+	largeConfig := buildLargeConfig(1000)
+	require.NoError(t, InterpolateStruct(largeConfig))
 
-	require.NoError(t, err)
-	assert.Less(
-		t,
-		duration,
-		200*time.Millisecond,
-		"interpolation should complete quickly even with large structures",
-	)
+	for i, c := range largeConfig.Configs {
+		assert.Equal(t, "config-performance_test", c.Name, "Name at index %d", i)
+		assert.Equal(t, "performance_test.example.com", c.Host, "Host at index %d", i)
+		assert.Equal(t, "/data/performance_test/logs", c.Path, "Path at index %d", i)
+	}
+}
 
-	// Verify a few random configs were interpolated correctly
-	assert.Equal(t, "config-performance_test", largeConfig.Configs[0].Name)
-	assert.Equal(t, "performance_test.example.com", largeConfig.Configs[500].Host)
-	assert.Equal(t, "/data/performance_test/logs", largeConfig.Configs[999].Path)
+func BenchmarkInterpolateStructLargeConfig(b *testing.B) {
+	b.Setenv("PERF_VAR", "performance_test")
+
+	for b.Loop() {
+		// Rebuild each iteration: interpolation mutates in place, so reusing one struct would
+		// benchmark already-interpolated (no-op) strings.
+		b.StopTimer()
+		largeConfig := buildLargeConfig(1000)
+		b.StartTimer()
+
+		if err := InterpolateStruct(largeConfig); err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 func TestInterpolateStructEdgeCases(t *testing.T) {
