@@ -78,8 +78,8 @@ github.com/robbyt/go-loglater v0.2.0 h1:9ci8njlgoiqqx+zfpr3F8uOBeORLSDDY+u+L0frC
 github.com/robbyt/go-loglater v0.2.0/go.mod h1:JTuKjCRdC6dsOs3k70zgJVkZVk+OT4cCsgUfw15B6dk=
 github.com/robbyt/go-polyscript v0.8.0 h1:mOZJfs7BWZI3wm2L01+pP1HffRHW/OZx1FAjRPhP61Y=
 github.com/robbyt/go-polyscript v0.8.0/go.mod h1:a4gqthRRwKM8XnY4K+TMLIL4mYtN3Ph3toONt894LLc=
-github.com/robbyt/go-supervisor v0.0.21 h1:EnfkcbS3vrJwgNg//4MmwWpuHSeqdUTa1OlkcjxMaUk=
-github.com/robbyt/go-supervisor v0.0.21/go.mod h1:TSmuA1z2zwlq6esWMjAxy5/VXuWAmR/4bYBOz9sQasg=
+github.com/robbyt/go-supervisor v0.0.22 h1:DZN7DL4MxHDZzU3ADRDTs90bPOMqpTYZUxjRQC1s9t0=
+github.com/robbyt/go-supervisor v0.0.22/go.mod h1:jRGGTG7uMqKcOr3zlgiFqYpxIxw+HSwo80JymtEStes=
 github.com/robbyt/mcp-io v0.0.1 h1:4c5mP6GiM1xtFiUztg6GqC0dx/HdQK4KLMZnAc38JC0=
 github.com/robbyt/mcp-io v0.0.1/go.mod h1:Mj4NIozkg6DfyRlgduknsKZr8LL/siy3phLeFDW8MxY=
 github.com/robbyt/protobaggins v0.2.0 h1:M5XaeEAXTrp9Jke6jpmy4HJAw3lhtVNflDKdWErkXUM=
