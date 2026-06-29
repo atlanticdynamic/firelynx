@@ -1,51 +1,44 @@
 // Example MCP tool implemented in Risor
 
-func process() {
+function process() {
   // Get defaults from static config, then allow runtime args to override
-  defaultOperation := ctx.get("data", {}).get("default_operation", "echo")
-  maxInputLength := ctx.get("data", {}).get("max_input_length", 1000)
-  allowUppercase := ctx.get("data", {}).get("allow_uppercase", true)
+  let defaultOperation = ctx.get("data", {}).get("default_operation", "echo")
+  let maxInputLength = ctx.get("data", {}).get("max_input_length", 1000)
+  let allowUppercase = ctx.get("data", {}).get("allow_uppercase", true)
 
   // Runtime args override static defaults
-  args := ctx.get("args", {})
-  operation := args.get("operation", defaultOperation)  // Falls back to static default
-  input := args.get("input", "")
+  let args = ctx.get("args", {})
+  let operation = args.get("operation", defaultOperation)  // Falls back to static default
+  let input = args.get("input", "")
 
   // Validate input length using config
-  if len(input) > maxInputLength {
+  if (len(input) > maxInputLength) {
     return {
       "isError": true,
       "content": "Input exceeds maximum length of " + string(maxInputLength)
     }
   }
 
-  if operation == "" {
+  if (operation == "") {
     return {
       "isError": true,
       "content": "Operation is required"
     }
   }
 
-  if operation == "echo" {
+  if (operation == "echo") {
     return {
       "isError": false,
       "content": input
     }
-  } else if operation == "reverse" {
-    // Reverse a string
-    chars := strings.split(input, "")
-    reversed := ""
-    
-    for i := len(chars) - 1; i >= 0; i-- {
-      reversed += chars[i]
-    }
-    
+  } else if (operation == "reverse") {
+    // Reverse a string by splitting into characters and reversing the list
     return {
       "isError": false,
-      "content": reversed
+      "content": "".join(input.split("").reverse())
     }
-  } else if operation == "uppercase" {
-    if !allowUppercase {
+  } else if (operation == "uppercase") {
+    if (!allowUppercase) {
       return {
         "isError": true,
         "content": "Uppercase operation disabled by configuration"
@@ -53,12 +46,12 @@ func process() {
     }
     return {
       "isError": false,
-      "content": strings.to_upper(input)
+      "content": input.to_upper()
     }
-  } else if operation == "lowercase" {
+  } else if (operation == "lowercase") {
     return {
       "isError": false,
-      "content": strings.to_lower(input)
+      "content": input.to_lower()
     }
   } else {
     return {

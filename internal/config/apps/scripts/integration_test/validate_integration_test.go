@@ -51,7 +51,7 @@ func (s *ScriptValidationIntegrationSuite) TearDownSuite() {
 func (s *ScriptValidationIntegrationSuite) createScriptFiles() {
 	s.scriptFiles = map[string]string{
 		"valid_risor.risor": `
-func process() {
+function process() {
 	return {
 		"message": "Hello from Risor",
 		"status": "success"

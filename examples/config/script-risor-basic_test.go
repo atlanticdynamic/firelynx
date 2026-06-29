@@ -61,21 +61,19 @@ func (s *ScriptRisorBasicTestSuite) TestDataNamespaceUsage() {
 func (s *ScriptRisorBasicTestSuite) TestScriptExecution() {
 	s.AssertScriptContains("risor-demo",
 		"Hello from Risor!",
-		"func process()",
-		"process()",
-		"time.Now().Format(time.RFC3339)",
+		`"message":`,
+		`"request_info":`,
+		"user_agent_values[0]",
 	)
 }
 
 // TestScriptStructure verifies the script follows expected patterns
 func (s *ScriptRisorBasicTestSuite) TestScriptStructure() {
 	s.AssertScriptContains("risor-demo",
-		"func process() {",
-		"service_name :=",
-		"version :=",
-		"environment :=",
-		"request :=",
-		"return result",
+		"let service_name =",
+		"let version =",
+		"let environment =",
+		"let request =",
 	)
 }
 

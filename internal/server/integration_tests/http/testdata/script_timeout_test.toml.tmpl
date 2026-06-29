@@ -24,10 +24,9 @@ type = "script"
 [apps.script]
 [apps.script.risor]
 code = '''
-// Infinite loop to force timeout
-for i := 0; i < 100000000; i++ {
-    x := i * i
-}
+// Long-running loop to force timeout
+let sum = 0
+list(range(1000000)).each(function(i) { sum = sum + i })
 {
     "message": "This should never be reached",
     "status": 200

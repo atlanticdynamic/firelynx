@@ -631,7 +631,7 @@ func (s *RisorFileURIIntegrationTestSuite) SetupSuite() {
 {
     "message": "Hello from Risor file URI!",
     "source": "file://",
-    "timestamp": time.now().format("2006-01-02T15:04:05Z07:00")
+    "timestamp": "generated-at-runtime"
 }`
 	setupScriptSuiteWithFile(s.T(), "script_risor_file_uri", scriptRisorFileURITemplate, "example_risor_script.risor", scriptContent, &s.scriptSuiteFields)
 }
@@ -1067,7 +1067,7 @@ func setupHTTPTestServer() *httptest.Server {
   "message": "Hello from HTTPS Risor!",
   "source": "https",
   "evaluator": "risor",
-  "timestamp": time.now().format("2006-01-02T15:04:05Z07:00")
+  "timestamp": "generated-at-runtime"
 }`
 		if _, err := w.Write([]byte(script)); err != nil {
 			panic(err) // Test server write should not fail
