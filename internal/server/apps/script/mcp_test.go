@@ -33,23 +33,20 @@ func buildRisorScriptApp(t *testing.T, id, code string, staticDataMap map[string
 }
 
 func TestScriptApp_MCPToolName(t *testing.T) {
-	app := buildRisorScriptApp(t, "unit-converter-app", `func tool() { return {"ok": true} }; tool()`, nil)
+	app := buildRisorScriptApp(t, "unit-converter-app", `{"ok": true}`, nil)
 	assert.Equal(t, "unit-converter-app", app.MCPToolName())
 }
 
 func TestScriptApp_MCPToolDescription(t *testing.T) {
-	app := buildRisorScriptApp(t, "tool-app", `func tool() { return {"ok": true} }; tool()`, nil)
+	app := buildRisorScriptApp(t, "tool-app", `{"ok": true}`, nil)
 	assert.Contains(t, app.MCPToolDescription(), "tool-app")
 }
 
 func TestScriptApp_MCPRawToolFunc_Success(t *testing.T) {
 	const code = `
-func tool() {
-    args := ctx.get("args", {})
-    name := args.get("name", "stranger")
-    return {"greeting": "Hello, " + name}
-}
-tool()
+let args = ctx.get("args", {})
+let name = args.get("name", "stranger")
+{"greeting": "Hello, " + name}
 `
 	app := buildRisorScriptApp(t, "greeter", code, nil)
 	fn := app.MCPRawToolFunc()
@@ -62,13 +59,10 @@ tool()
 
 func TestScriptApp_MCPRawToolFunc_StaticDataAvailable(t *testing.T) {
 	const code = `
-func tool() {
-    factor := ctx.get("data", {}).get("factor", 0)
-    args := ctx.get("args", {})
-    n := args.get("n", 0)
-    return {"result": n * factor}
-}
-tool()
+let factor = ctx.get("data", {}).get("factor", 0)
+let args = ctx.get("args", {})
+let n = args.get("n", 0)
+{"result": n * factor}
 `
 	app := buildRisorScriptApp(t, "multiplier", code, map[string]any{"factor": 3})
 	fn := app.MCPRawToolFunc()
@@ -80,14 +74,12 @@ tool()
 
 func TestScriptApp_MCPRawToolFunc_ScriptErrorBecomesValidationError(t *testing.T) {
 	const code = `
-func tool() {
-    args := ctx.get("args", {})
-    if args.get("name", "") == "" {
-        return {"error": "name is required"}
-    }
-    return {"ok": true}
+let args = ctx.get("args", {})
+if (args.get("name", "") == "") {
+    {"error": "name is required"}
+} else {
+    {"ok": true}
 }
-tool()
 `
 	app := buildRisorScriptApp(t, "tool-app", code, nil)
 	fn := app.MCPRawToolFunc()
@@ -101,7 +93,7 @@ tool()
 }
 
 func TestScriptApp_MCPRawToolFunc_InvalidJSONInput(t *testing.T) {
-	const code = `func tool() { return {"ok": true} }; tool()`
+	const code = `{"ok": true}`
 	app := buildRisorScriptApp(t, "tool-app", code, nil)
 	fn := app.MCPRawToolFunc()
 
@@ -115,11 +107,8 @@ func TestScriptApp_MCPRawToolFunc_InvalidJSONInput(t *testing.T) {
 
 func TestScriptApp_MCPRawToolFunc_EmptyInputAllowed(t *testing.T) {
 	const code = `
-func tool() {
-    args := ctx.get("args", {})
-    return {"got": args}
-}
-tool()
+let args = ctx.get("args", {})
+{"got": args}
 `
 	app := buildRisorScriptApp(t, "tool-app", code, nil)
 	fn := app.MCPRawToolFunc()
@@ -134,12 +123,9 @@ func TestScriptApp_MCPRawToolFunc_RuntimeError_ProcessingError(t *testing.T) {
 	// compiles successfully (types are dynamic) but evaluation fails when
 	// the operation is attempted.
 	const code = `
-func tool() {
-    args := ctx.get("args", {})
-    s := args.get("s", "")
-    return {"bad": s + 1}
-}
-tool()
+let args = ctx.get("args", {})
+let s = args.get("s", "")
+{"bad": s + 1}
 `
 	app := buildRisorScriptApp(t, "type-error-app", code, nil)
 	fn := app.MCPRawToolFunc()

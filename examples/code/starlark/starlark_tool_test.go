@@ -149,7 +149,7 @@ func TestStarlarkToolExample(t *testing.T) {
 			require.NoError(t, err, "Should be able to create script loader")
 
 			// Create Starlark evaluator
-			starlarkEval, err := starlark.FromStarlarkLoader(nil, scriptLoader)
+			starlarkEval, err := starlark.FromStarlarkLoader(t.Context(), scriptLoader)
 			require.NoError(t, err, "Should be able to create Starlark evaluator")
 
 			// Create script data that matches the namespace pattern:
@@ -207,7 +207,7 @@ func TestStarlarkToolDataAccess(t *testing.T) {
 	scriptLoader, err := loader.NewFromDisk(scriptPath)
 	require.NoError(t, err, "Should be able to create script loader")
 
-	starlarkEval, err := starlark.FromStarlarkLoader(nil, scriptLoader)
+	starlarkEval, err := starlark.FromStarlarkLoader(t.Context(), scriptLoader)
 	require.NoError(t, err, "Should be able to create Starlark evaluator")
 
 	// Create script data with namespace structure

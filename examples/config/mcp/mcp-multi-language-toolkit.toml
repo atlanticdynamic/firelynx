@@ -82,64 +82,59 @@ ton = 1000.0
 
 [apps.script.risor]
 code = '''
-func convertUnits() {
-    args := ctx.get("args", {})
-    value := args.get("value", 0.0)
-    fromUnit := args.get("from", "")
-    toUnit := args.get("to", "")
-    category := args.get("category", "length")
+function convertUnits() {
+    let args = ctx.get("args", {})
+    let value = args.get("value", 0.0)
+    let fromUnit = args.get("from", "")
+    let toUnit = args.get("to", "")
+    let category = args.get("category", "length")
 
-    if value == 0.0 {
+    if (value == 0.0) {
         return {"error": "Please provide a numeric value to convert"}
     }
 
-    if fromUnit == "" || toUnit == "" {
+    if (fromUnit == "" || toUnit == "") {
         return {"error": "Please specify both 'from' and 'to' units"}
     }
 
-    conversions := {}
-    unit := ""
+    let conversions = {}
+    let unit = ""
 
-    switch category {
-    case "length":
+    if (category == "length") {
         conversions = ctx.get("data", {}).get("length_conversions", {})
         unit = "meters"
-    case "weight":
+    } else if (category == "weight") {
         conversions = ctx.get("data", {}).get("weight_conversions", {})
         unit = "kilograms"
-    default:
+    } else {
         return {"error": "Unknown category: " + category + ". Supported: length, weight"}
     }
 
-    fromFactor := conversions.get(fromUnit, nil)
-    toFactor := conversions.get(toUnit, nil)
-    fromOk := fromFactor != nil
-    toOk := toFactor != nil
+    let fromFactor = conversions.get(fromUnit, nil)
+    let toFactor = conversions.get(toUnit, nil)
+    let fromOk = fromFactor != nil
+    let toOk = toFactor != nil
 
-    if !fromOk {
+    if (!fromOk) {
         return {"error": "Unknown source unit: " + fromUnit}
     }
-    if !toOk {
+    if (!toOk) {
         return {"error": "Unknown target unit: " + toUnit}
     }
 
     // Convert: input → base unit → target unit
-    baseValue := value * fromFactor
-    result := baseValue / toFactor
+    let baseValue = value * fromFactor
+    let result = baseValue / toFactor
 
     // Format result for display - round to 2 decimal places for most cases
-    displayResult := result
-    if result != math.round(result) {
+    let displayResult = result
+    if (result != math.round(result)) {
         // Round to 2 decimal places by multiplying by 100, rounding, then dividing
         displayResult = math.round(result * 100) / 100
     }
 
     // Format input value for display
-    displayValue := value
-    if value >= 1000000 {
-        // Use scientific notation for large numbers
-        displayValue = value
-    }
+    let displayValue = value
 
     return {
         "text": string(displayValue) + " " + fromUnit + " = " + string(displayResult) + " " + toUnit,

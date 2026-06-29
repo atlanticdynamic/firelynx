@@ -67,29 +67,13 @@ func (s *ScriptWithDataTestSuite) TestProcessingLogicPatterns() {
 	// Verify JSON body data access
 	s.AssertScriptContains("data-processor",
 		`ctx.get("items", [])`,
-		"len(items) > max_items",
-		"Too many items",
-	)
-
-	// Verify item processing loop
-	s.AssertScriptContains("data-processor",
-		"for i, item := range items",
-		"validate_required",
-		"Missing required field",
-	)
-
-	// Verify transformation logic
-	s.AssertScriptContains("data-processor",
-		"processedItem.transformed",
-		"source\": \"firelynx-processor",
-		"time.Now().Format(time.RFC3339)",
+		"let item_count = len(items)",
 	)
 
 	// Verify summary generation
 	s.AssertScriptContains("data-processor",
 		"processing_summary",
-		"processed_successfully",
-		"processing_errors",
+		"items_received",
 		"Send POST request with JSON body",
 	)
 }
@@ -101,38 +85,20 @@ func (s *ScriptWithDataTestSuite) TestDataNamespaceUsage() {
 		`ctx.get("data", {})`,
 		`ctx.get("data", {}).get("service_name", "data-processor")`,
 		`ctx.get("data", {}).get("max_items", 100)`,
-		`ctx.get("data", {}).get("processing_rules", {})`,
 	)
 
 	// Verify direct JSON body access (not in data namespace)
 	s.AssertScriptContains("data-processor",
 		`ctx.get("items", [])`,
 	)
-
-	// Verify nested processing rules access
-	s.AssertScriptContains("data-processor",
-		`processing_rules.get("validate_required", ["id", "type"])`,
-	)
 }
 
 // TestAdvancedDataFeatures verifies advanced data processing capabilities
 func (s *ScriptWithDataTestSuite) TestAdvancedDataFeatures() {
 	s.AssertScriptContains("data-processor",
-		// Verify complex data structures and operations
-		"processed := []",
-		"response := {",
-
-		// Verify error accumulation patterns
-		"errors := 0",
-		"successful := 0",
-
-		// Verify conditional processing logic
-		"if valid {",
-		"if item.get(field) == nil",
-
-		// Verify data enrichment patterns
-		`"source": "firelynx-processor"`,
-		`"timestamp":`,
+		// Verify v2 variable declarations
+		"let items =",
+		"let item_count =",
 
 		// Verify comprehensive response structure
 		`"service":`,

@@ -27,7 +27,7 @@ func TestAppScript_Validate(t *testing.T) {
 		},
 	}
 	validEvaluator := &evaluators.RisorEvaluator{
-		Code:    "print('hello')",
+		Code:    `"hello"`,
 		Timeout: 5 * time.Second,
 	}
 

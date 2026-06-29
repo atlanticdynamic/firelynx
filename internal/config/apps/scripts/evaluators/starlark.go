@@ -1,6 +1,7 @@
 package evaluators
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -89,7 +90,7 @@ func (s *StarlarkEvaluator) build() {
 
 		// Compile script using go-polyscript
 		logger := slog.Default()
-		s.compiledEvaluator, err = starlark.FromStarlarkLoader(logger.Handler(), scriptLoader)
+		s.compiledEvaluator, err = starlark.FromStarlarkLoader(context.Background(), scriptLoader, starlark.WithLogHandler(logger.Handler()))
 		if err != nil {
 			s.buildErr = fmt.Errorf(
 				"%w: starlark script compilation failed: %w",

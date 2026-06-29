@@ -1,6 +1,7 @@
 package evaluators
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -106,7 +107,7 @@ func (r *RisorEvaluator) build() {
 
 		// Compile script using go-polyscript
 		logger := slog.Default()
-		r.compiledEvaluator, err = risor.FromRisorLoader(logger.Handler(), scriptLoader)
+		r.compiledEvaluator, err = risor.FromRisorLoader(context.Background(), scriptLoader, risor.WithLogHandler(logger.Handler()))
 		if err != nil {
 			r.buildErr = fmt.Errorf(
 				"%w: risor script compilation failed: %w",

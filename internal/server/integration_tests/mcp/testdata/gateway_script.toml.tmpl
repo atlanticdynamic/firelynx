@@ -26,13 +26,10 @@ type = "script"
 [apps.script.risor]
 timeout = "5s"
 code = '''
-func add() {
-    args := ctx.get("args", {})
-    a := args.get("a", 0)
-    b := args.get("b", 0)
-    return {"sum": a + b}
-}
-add()
+let args = ctx.get("args", {})
+let a = args.get("a", 0)
+let b = args.get("b", 0)
+{"sum": a + b}
 '''
 
 [[apps]]

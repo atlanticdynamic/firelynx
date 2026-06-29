@@ -131,7 +131,7 @@ func TestScriptApp_HandleHTTP_RisorScript(t *testing.T) {
 		Code: `{
 			"status": 200,
 			"headers": {"Content-Type": "application/json"},
-			"body": json.marshal({"message": "Hello from Risor!"})
+			"body": "{\"message\":\"Hello from Risor!\"}"
 		}`,
 		Timeout: 5 * time.Second,
 	}
@@ -170,7 +170,7 @@ func TestScriptApp_HandleHTTP_WithStaticData(t *testing.T) {
 				Code: `{
 					"status": 200,
 					"headers": {"Content-Type": "application/json"}, 
-					"body": json.marshal({"message": "Hello", "static": ctx.get("data", {}).get("test_key", "not_found")})
+					"body": "Hello " + ctx.get("data", {}).get("test_key", "not_found")
 				}`,
 				Timeout: 5 * time.Second,
 			},
@@ -245,9 +245,8 @@ func TestScriptApp_HandleHTTP_Timeout(t *testing.T) {
 	risorEval := &evaluators.RisorEvaluator{
 		Code: `
 		// Infinite loop to force timeout
-		for i := 0; i < 10000000; i++ {
-			x := i * i
-		}
+		let sum = 0
+		list(range(1000000)).each(function(i) { sum = sum + i })
 		{
 			"status": 200,
 			"body": "This should timeout"
@@ -425,7 +424,7 @@ func TestScriptApp_HandleHTTP_ExecutionError(t *testing.T) {
 	risorEval := &evaluators.RisorEvaluator{
 		Code: `
 		// This will cause a runtime error by invalid array access
-		arr := []
+		let arr = []
 		arr[100]`,
 		Timeout: 5 * time.Second,
 	}
