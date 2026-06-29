@@ -66,7 +66,7 @@ func (m *mockPlatformEvaluator) Eval(ctx context.Context) (platform.EvaluatorRes
 	return args.Get(0).(platform.EvaluatorResponse), args.Error(1)
 }
 
-func (m *mockPlatformEvaluator) AddDataToContext(ctx context.Context, data ...map[string]any) (context.Context, error) {
+func (m *mockPlatformEvaluator) AddDataToContext(ctx context.Context, data map[string]any) (context.Context, error) {
 	args := m.Called(ctx, data)
 	return args.Get(0).(context.Context), args.Error(1)
 }

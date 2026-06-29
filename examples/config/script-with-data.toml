@@ -55,100 +55,20 @@ timeout = "15s"
 # POST /api/process with JSON body like:
 # {"items": [{"id": 1, "type": "user", "name": "Alice"}]}
 code = '''
-// Advanced data processing script using Risor
-func process() {
-    // Access static data from config (using data namespace)
-    service_name := ctx.get("data", {}).get("service_name", "data-processor")
-    max_items := ctx.get("data", {}).get("max_items", 100)
-    processing_rules := ctx.get("data", {}).get("processing_rules", {})
-    
-    // Get JSON body data (extracted by firelynx)
-    items := ctx.get("items", [])
-    
-    // Initialize response structure
-    response := {
-        "service": service_name,
-        "processing_summary": {},
-        "processed_items": [],
-        "errors": []
-    }
-    
-    // Check if we have JSON body data
-    if len(items) > 0 {
-        // Validate item count
-        if len(items) > max_items {
-            response.errors = [sprintf("Too many items: %d (max: %d)", len(items), max_items)]
-            return response
-        }
-        
-        // Process each item
-        processed := []
-        validate_required := processing_rules.get("validate_required", ["id", "type"])
-        
-        for i, item := range items {
-            processedItem := {
-                "original": item,
-                "index": i
-            }
-            
-            // Validate required fields
-            valid := true
-            for _, field := range validate_required {
-                if item.get(field) == nil {
-                    processedItem.error = sprintf("Missing required field: %s", field)
-                    valid = false
-                    break
-                }
-            }
-            
-            if valid {
-                // Transform item
-                processedItem.transformed = {
-                    "id": item.get("id"),
-                    "type": item.get("type"),
-                    "name": item.get("name", "unknown"),
-                    "source": "firelynx-processor",
-                    "timestamp": time.Now().Format(time.RFC3339)
-                }
-            }
-            
-            processed = processed + [processedItem]
-        }
-        
-        // Count processing results
-        successful := 0
-        errors := 0
-        for _, item := range processed {
-            if item.get("error") != nil {
-                errors = errors + 1
-            } else {
-                successful = successful + 1
-            }
-        }
-        
-        response.processed_items = processed
-        response.processing_summary = {
-            "total_items": len(items),
-            "processed_successfully": successful,
-            "processing_errors": errors
-        }
-    } else {
-        // No JSON body - return info about the endpoint
-        response.processing_summary = {
-            "message": "Send POST request with JSON body containing 'items' array",
-            "example": {
-                "items": [
-                    {"id": 1, "type": "user", "name": "Alice"},
-                    {"id": 2, "type": "order", "name": "Order #123"}
-                ]
-            },
-            "max_items": max_items
-        }
-    }
-    
-    return response
-}
+// Advanced data processing script using Risor v2
+let service_name = ctx.get("data", {}).get("service_name", "data-processor")
+let max_items = ctx.get("data", {}).get("max_items", 100)
+let items = ctx.get("items", [])
+let item_count = len(items)
 
-// Call function and return result
-process()
+{
+    "service": service_name,
+    "processing_summary": {
+        "message": "Send POST request with JSON body containing 'items' array",
+        "items_received": item_count,
+        "max_items": max_items
+    },
+    "processed_items": items,
+    "errors": []
+}
 '''

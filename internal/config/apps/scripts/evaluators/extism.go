@@ -1,6 +1,7 @@
 package evaluators
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -129,9 +130,10 @@ func (e *ExtismEvaluator) build() {
 		// Compile WASM module using go-polyscript
 		logger := slog.Default()
 		e.compiledEvaluator, err = extism.FromExtismLoader(
-			logger.Handler(),
+			context.Background(),
 			scriptLoader,
-			e.Entrypoint,
+			extism.WithEntryPoint(e.Entrypoint),
+			extism.WithLogHandler(logger.Handler()),
 		)
 		if err != nil {
 			e.buildErr = fmt.Errorf(

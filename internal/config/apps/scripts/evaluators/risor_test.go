@@ -33,10 +33,10 @@ func TestRisorEvaluator_String(t *testing.T) {
 		{
 			name: "with code and timeout",
 			evaluator: &RisorEvaluator{
-				Code:    "print('hello')",
+				Code:    `"hello"`,
 				Timeout: 5 * time.Second,
 			},
-			want: "Risor(code=14 chars, timeout=5s)",
+			want: "Risor(code=7 chars, timeout=5s)",
 		},
 	}
 
@@ -51,7 +51,7 @@ func TestRisorEvaluator_String(t *testing.T) {
 func TestRisorEvaluator_Validate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		evaluator := &RisorEvaluator{
-			Code:    "print('hello')",
+			Code:    `"hello"`,
 			Timeout: 5 * time.Second,
 		}
 		err := evaluator.Validate()
@@ -70,7 +70,7 @@ func TestRisorEvaluator_Validate(t *testing.T) {
 
 	t.Run("negative timeout", func(t *testing.T) {
 		evaluator := &RisorEvaluator{
-			Code:    "print('hello')",
+			Code:    `"hello"`,
 			Timeout: -5 * time.Second,
 		}
 		err := evaluator.Validate()
@@ -91,7 +91,7 @@ func TestRisorEvaluator_Validate(t *testing.T) {
 
 	t.Run("both code and uri", func(t *testing.T) {
 		evaluator := &RisorEvaluator{
-			Code:    "print('hello')",
+			Code:    `"hello"`,
 			URI:     "file://script.risor",
 			Timeout: 5 * time.Second,
 		}

@@ -45,48 +45,27 @@ timeout = "10s"
 # - Static data defined above (service_name, version, environment)
 # - Request data (method, path, headers, body if JSON)
 code = '''
-// Risor script with proper data access patterns
-func process() {
-    // Access static data from config with fallbacks (using data namespace)
-    service_name := ctx.get("data", {}).get("service_name", "unknown")
-    version := ctx.get("data", {}).get("version", "1.0.0")
-    environment := ctx.get("data", {}).get("environment", "example")
-    
-    // Access request data if available
-    request := ctx.get("request", {})
-    method := ""
-    path := ""
-    user_agent := ""
-    
-    if len(request) > 0 {
-        method = request.get("Method", "")
-        url := request.get("URL", {})
-        if len(url) > 0 {
-            path = url.get("Path", "")
-        }
-        headers := request.get("Header", {})
-        if len(headers) > 0 {
-            user_agent = headers.get("User-Agent", [""])[0]
-        }
-    }
-    
-    // Build response
-    result := {
-        "message": "Hello from Risor!",
-        "service": service_name,
-        "version": version,
-        "environment": environment,
-        "request_info": {
-            "method": method,
-            "path": path,
-            "user_agent": user_agent
-        },
-        "timestamp": time.Now().Format(time.RFC3339)
-    }
-    
-    return result
-}
+// Risor v2 script with data access patterns
+let service_name = ctx.get("data", {}).get("service_name", "unknown")
+let version = ctx.get("data", {}).get("version", "1.0.0")
+let environment = ctx.get("data", {}).get("environment", "example")
+let request = ctx.get("request", {})
+let method = request.get("Method", "")
+let url = request.get("URL", {})
+let path = url.get("Path", "")
+let headers = request.get("Header", {})
+let user_agent_values = headers.get("User-Agent", [""])
 
-// Call function and return result
-process()
+{
+    "message": "Hello from Risor!",
+    "service": service_name,
+    "version": version,
+    "environment": environment,
+    "request_info": {
+        "method": method,
+        "path": path,
+        "user_agent": user_agent_values[0]
+    },
+    "timestamp": "generated-at-runtime"
+}
 '''

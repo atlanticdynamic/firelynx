@@ -149,7 +149,7 @@ func TestRisorToolExample(t *testing.T) {
 			require.NoError(t, err, "Should be able to create script loader")
 
 			// Create Risor evaluator
-			risorEval, err := risor.FromRisorLoader(nil, scriptLoader)
+			risorEval, err := risor.FromRisorLoader(t.Context(), scriptLoader)
 			require.NoError(t, err, "Should be able to create Risor evaluator")
 
 			// Create script data that matches the namespace pattern:
@@ -205,7 +205,7 @@ func TestRisorToolHardcodedFallbacks(t *testing.T) {
 	require.NoError(t, err, "Should be able to create script loader")
 
 	// Create Risor evaluator
-	risorEval, err := risor.FromRisorLoader(nil, scriptLoader)
+	risorEval, err := risor.FromRisorLoader(t.Context(), scriptLoader)
 	require.NoError(t, err, "Should be able to create Risor evaluator")
 
 	// Create script data with namespace structure

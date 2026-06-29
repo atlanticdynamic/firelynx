@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	validRisorCode42 = "func handler() { return 42 }\nhandler()"
-	validRisorCode43 = "func handler() { return 43 }\nhandler()"
+	validRisorCode42 = "42"
+	validRisorCode43 = "43"
 )
 
 func TestAppValidate(t *testing.T) {
