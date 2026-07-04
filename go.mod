@@ -13,7 +13,7 @@ require (
 	github.com/robbyt/go-fsm/v2 v2.5.0
 	github.com/robbyt/go-loglater v0.2.0
 	github.com/robbyt/go-polyscript v0.8.0
-	github.com/robbyt/go-supervisor v0.0.21
+	github.com/robbyt/go-supervisor v0.0.22
 	github.com/robbyt/mcp-io v0.0.1
 	github.com/robbyt/protobaggins v0.2.0
 	github.com/stretchr/testify v1.11.1
