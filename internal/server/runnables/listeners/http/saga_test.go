@@ -297,12 +297,14 @@ func TestRunner_WaitForClusterRunning(t *testing.T) {
 		err = runner.waitForClusterReady(ctx, 100*time.Millisecond)
 		require.NoError(t, err)
 
-		// Clean shutdown
+		// Clean shutdown. httpcluster's shutdown phase drains the config
+		// siphon with a ~100ms quiescence window before Run returns, so
+		// allow generous headroom beyond that to avoid racing the drain.
 		cancel()
 		select {
 		case err := <-clusterErr:
 			require.NoError(t, err)
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(2 * time.Second):
 			t.Fatal("cluster.Run should have returned after context cancellation")
 		}
 	})
