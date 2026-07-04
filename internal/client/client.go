@@ -227,6 +227,10 @@ func (c *Client) ValidateConfig(ctx context.Context, config *pb.ServerConfig) (b
 
 // SaveConfig saves a configuration to a file
 func (c *Client) SaveConfig(config *pb.ServerConfig, outputPath string) error {
+	if config == nil {
+		return ErrNilConfig
+	}
+
 	// Convert to TOML
 	tomlBytes, err := toml.Marshal(config)
 	if err != nil {
@@ -244,6 +248,10 @@ func (c *Client) SaveConfig(config *pb.ServerConfig, outputPath string) error {
 
 // FormatConfig formats a configuration as a TOML string
 func (c *Client) FormatConfig(config *pb.ServerConfig) (string, error) {
+	if config == nil {
+		return "", ErrNilConfig
+	}
+
 	// Convert to TOML
 	tomlBytes, err := toml.Marshal(config)
 	if err != nil {

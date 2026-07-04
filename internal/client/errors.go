@@ -8,4 +8,5 @@ var (
 	ErrUnsupportedNetwork   = errors.New("unsupported network type")
 	ErrConnectionFailed     = errors.New("failed to connect to server")
 	ErrConfigRejected       = errors.New("server rejected configuration")
+	ErrNilConfig            = errors.New("config is nil")
 )

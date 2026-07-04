@@ -211,7 +211,7 @@ func TestFormatConfig(t *testing.T) {
 		{
 			name:    "nil config",
 			config:  nil,
-			wantErr: false, // TOML can marshal nil as empty
+			wantErr: true, // nil config cannot be encoded to TOML
 		},
 	}
 
