@@ -1,7 +1,7 @@
 package fancy
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // Common styles that can be used across the application
@@ -43,54 +43,66 @@ var (
 			Foreground(ColorRed)
 )
 
+// render applies a style to text, returning an empty string for empty input.
+// lipgloss v2's Render always emits the ANSI escape wrapper (downsampling now
+// happens at write time, not in Render), so styling an empty string would
+// otherwise produce stray escape codes; short-circuiting keeps the "empty in,
+// empty out" contract these helpers have always had.
+func render(style lipgloss.Style, text string) string {
+	if text == "" {
+		return ""
+	}
+	return style.Render(text)
+}
+
 // EndpointText styles an endpoint text
 func EndpointText(text string) string {
-	return EndpointStyle.Render(text)
+	return render(EndpointStyle, text)
 }
 
 // RouteText styles a route text
 func RouteText(text string) string {
-	return RouteStyle.Render(text)
+	return render(RouteStyle, text)
 }
 
 // ListenerText styles a listener text
 func ListenerText(text string) string {
-	return ListenerStyle.Render(text)
+	return render(ListenerStyle, text)
 }
 
 // AppText styles an app text
 func AppText(text string) string {
-	return AppStyle.Render(text)
+	return render(AppStyle, text)
 }
 
 // MiddlewareText styles a middleware text
 func MiddlewareText(text string) string {
-	return MiddlewareStyle.Render(text)
+	return render(MiddlewareStyle, text)
 }
 
 // Validation-specific styling functions
 
 // ValidText styles valid status text (green)
 func ValidText(text string) string {
-	return AppStyle.Render(text)
+	return render(AppStyle, text)
 }
 
 // ErrorText styles error text (red)
 func ErrorText(text string) string {
-	return ErrorStyle.Render(text)
+	return render(ErrorStyle, text)
 }
 
 // PathText styles file paths (gray)
 func PathText(text string) string {
-	return InfoStyle.Render(text)
+	return render(InfoStyle, text)
 }
 
 // SummaryText styles summary information (dark gray)
 func SummaryText(text string) string {
-	return BranchStyle.Render(text)
+	return render(BranchStyle, text)
 }
 
 // CountText styles count numbers (cyan)
 func CountText(text string) string {
-	return ComponentStyle.Render(text)
+	return render(ComponentStyle, text)
 }

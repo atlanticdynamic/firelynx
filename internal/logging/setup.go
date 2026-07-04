@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 )
 
 // SetupHandlerText configures a text slog handler with the provided writer and log level

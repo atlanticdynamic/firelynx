@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/atlanticdynamic/firelynx/internal/client"
 	"github.com/atlanticdynamic/firelynx/internal/config"
 	"github.com/atlanticdynamic/firelynx/internal/config/loader"
@@ -194,14 +195,14 @@ func validateAction(ctx context.Context, cmd *cli.Command) error {
 		for _, result := range results {
 			if !result.Valid {
 				// Always show errors with consistent format
-				fmt.Println(formatInvalidResult(result, noColor))
+				fmt.Println(lipgloss.Sprint(formatInvalidResult(result, noColor)))
 			} else if !quiet {
 				// Show success with config summary on single line
 				if treeView {
-					fmt.Println(formatValidResult(result, true, noColor))
-					fmt.Println(result.Config)
+					fmt.Println(lipgloss.Sprint(formatValidResult(result, true, noColor)))
+					fmt.Println(lipgloss.Sprint(result.Config))
 				} else {
-					fmt.Println(formatValidResult(result, false, noColor))
+					fmt.Println(lipgloss.Sprint(formatValidResult(result, false, noColor)))
 				}
 			}
 		}
@@ -212,7 +213,7 @@ func validateAction(ctx context.Context, cmd *cli.Command) error {
 	totalFiles := len(results)
 
 	if summaryOnly || totalFiles > 1 || failedCount > 0 {
-		fmt.Println(formatSummary(totalFiles, passedCount, failedCount, duration, noColor))
+		fmt.Println(lipgloss.Sprint(formatSummary(totalFiles, passedCount, failedCount, duration, noColor)))
 	}
 
 	// Return appropriate exit code

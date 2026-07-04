@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // Resource type styling constants

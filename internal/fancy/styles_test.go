@@ -109,6 +109,36 @@ func TestStyleHelperFunctions(t *testing.T) {
 	appStyled := fancy.AppText(sampleText)
 	assert.Contains(t, appStyled, sampleText)
 	assert.Equal(t, fancy.AppStyle.Render(sampleText), appStyled)
+
+	// Test MiddlewareText function
+	middlewareStyled := fancy.MiddlewareText(sampleText)
+	assert.Contains(t, middlewareStyled, sampleText)
+	assert.Equal(t, fancy.MiddlewareStyle.Render(sampleText), middlewareStyled)
+
+	// Test ValidText function (uses AppStyle)
+	validStyled := fancy.ValidText(sampleText)
+	assert.Contains(t, validStyled, sampleText)
+	assert.Equal(t, fancy.AppStyle.Render(sampleText), validStyled)
+
+	// Test ErrorText function
+	errorStyled := fancy.ErrorText(sampleText)
+	assert.Contains(t, errorStyled, sampleText)
+	assert.Equal(t, fancy.ErrorStyle.Render(sampleText), errorStyled)
+
+	// Test PathText function (uses InfoStyle)
+	pathStyled := fancy.PathText(sampleText)
+	assert.Contains(t, pathStyled, sampleText)
+	assert.Equal(t, fancy.InfoStyle.Render(sampleText), pathStyled)
+
+	// Test SummaryText function (uses BranchStyle)
+	summaryStyled := fancy.SummaryText(sampleText)
+	assert.Contains(t, summaryStyled, sampleText)
+	assert.Equal(t, fancy.BranchStyle.Render(sampleText), summaryStyled)
+
+	// Test CountText function (uses ComponentStyle)
+	countStyled := fancy.CountText(sampleText)
+	assert.Contains(t, countStyled, sampleText)
+	assert.Equal(t, fancy.ComponentStyle.Render(sampleText), countStyled)
 }
 
 // TestStyleFunctionNullSafety tests that style functions handle empty strings safely

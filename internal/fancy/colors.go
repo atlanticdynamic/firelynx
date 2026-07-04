@@ -1,7 +1,7 @@
 package fancy
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // Common colors for different types of elements
