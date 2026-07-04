@@ -14,6 +14,7 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners"
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/atlanticdynamic/firelynx/internal/config/version"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -179,10 +180,15 @@ func TestConfigString(t *testing.T) {
 			// Verify the result is not empty
 			require.NotEmpty(t, result)
 
+			// lipgloss v2 always emits ANSI styling (downsampling happens at
+			// the print layer, not in Render), so strip escape codes before
+			// asserting on the visible tree text.
+			visible := ansi.Strip(result)
+
 			// Verify it contains all expected substrings
 			for _, substr := range tc.expectedSubstr {
 				assert.Contains(t,
-					result, substr,
+					visible, substr,
 					"Expected string representation to contain '%s', but got:\n%s",
 					substr, result)
 			}
