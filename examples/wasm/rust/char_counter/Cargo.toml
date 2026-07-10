@@ -16,3 +16,13 @@ base64-serde = "0.7"
 base64 = "0.21"
 
 [workspace]
+
+# Optimize the release build for small WASM output. The plugin is shipped as a
+# committed binary (base64) so size matters more than raw speed.
+[profile.release]
+opt-level = "z"   # optimize aggressively for size
+lto = true        # cross-crate dead-code elimination
+codegen-units = 1 # let the optimizer see the whole crate
+panic = "abort"   # no unwinding tables; a panic traps the plugin
+strip = true      # drop symbols and debug info
+

@@ -1,6 +1,11 @@
 # Variables
 PLUGIN_NAME := plugin
 VERSION := 0.1.0
+WASM := target/wasm32-wasip1/release/$(PLUGIN_NAME).wasm
+# wasm-opt (from binaryen) needs the features rustc's wasm32-wasip1 target
+# enables spelled out explicitly.
+WASM_OPT_FLAGS := -Oz --enable-bulk-memory --enable-nontrapping-float-to-int \
+	--enable-sign-ext --enable-mutable-globals --strip-producers
 
 .PHONY: all
 all: help
@@ -22,10 +27,21 @@ help: Makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' | sed -e 's/^/ /'
 	@echo
 
-## build: Build the WASM plugin
+## build: Build the WASM plugin (size-optimized; runs wasm-opt if available)
 .PHONY: build
 build: setup
 	xtp plugin build
+	@if command -v wasm-opt >/dev/null 2>&1; then \
+		echo "Shrinking $(WASM) with wasm-opt..."; \
+		wasm-opt $(WASM_OPT_FLAGS) -o $(WASM) $(WASM); \
+	else \
+		echo "wasm-opt not found (install binaryen, e.g. 'brew install binaryen') - skipping size pass"; \
+	fi
+
+## out: Regenerate the committed base64 plugin artifact (out)
+.PHONY: out
+out: build
+	base64 -i $(WASM) | tr -d '\n' > out
 
 ## format: Format the Rust code
 .PHONY: format
@@ -65,7 +81,7 @@ test-verbose: build
 ## build-base64: Build WASM and output base64 encoding
 .PHONY: build-base64
 build-base64: build
-	@base64 -i target/wasm32-wasip1/release/$(PLUGIN_NAME).wasm 2>/dev/null
+	@base64 -i $(WASM) 2>/dev/null
 
 ## clean: Clean build artifacts
 .PHONY: clean
