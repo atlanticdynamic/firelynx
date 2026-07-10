@@ -4,10 +4,10 @@ This example demonstrates creating a WebAssembly plugin using the Extism PDK tha
 
 ## Overview
 
-This Rust-based WASM plugin implements a vowel counting function that:
-- Takes a string input
-- Counts vowels (both uppercase and lowercase)
-- Returns a JSON response with count and metadata
+This Rust-based WASM plugin implements a configurable character-counting function that:
+- Reads the request body from the request context
+- Counts occurrences of a configurable set of characters (default: vowels, case-insensitive)
+- Returns a JSON response with the count and the character set used
 
 ## Building
 
@@ -46,21 +46,21 @@ id = "main"
 listener_id = "http"
 
 [[endpoints.routes]]
-app_id = "vowel-counter"
+app_id = "char-counter"
 [endpoints.routes.http]
-path_prefix = "/api/vowels"
+path_prefix = "/api/characters"
 
 [[apps]]
-id = "vowel-counter"
+id = "char-counter"
 
 [apps.script]
 [apps.script.static_data]
-service_name = "vowel-counter-wasm"
+service_name = "char-counter-wasm"
 version = "1.0.0"
 
 [apps.script.extism]
 uri = "file://examples/wasm/rust/char_counter/target/wasm32-wasip1/release/plugin.wasm"
-entrypoint = "CountVowels"
+entrypoint = "CountCharacters"
 timeout = "5s"
 ```
 
@@ -70,7 +70,7 @@ timeout = "5s"
 
 [apps.script.extism]
 code = "AGFzbQEAAAA...your-base64-here..."
-entrypoint = "CountVowels"
+entrypoint = "CountCharacters"
 timeout = "5s"
 ```
 
@@ -78,12 +78,12 @@ See `examples/config/script-extism-basic.toml` for a complete working example.
 
 ## API
 
-**Function**: `CountVowels`
-- **Input**: Plain text string
-- **Output**: JSON object with:
-  - `count`: Number of vowels found
-  - `total`: Cumulative count (same as count in this implementation)
-  - `vowels`: Vowel characters used for matching
+**Function**: `CountCharacters`
+- **Input**: the request context as JSON; the plugin counts characters in the request body.
+  Optional `static_data.search_characters` and `static_data.case_sensitive` override the defaults.
+- **Output**: JSON object matching `schema.yaml`'s `CharacterReport`:
+  - `count`: number of matching characters found (int32)
+  - `characters`: the set of characters used for matching (default `"aeiouAEIOU"`)
 
 ## Development
 
