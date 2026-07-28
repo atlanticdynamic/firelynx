@@ -9,7 +9,7 @@ require (
 	charm.land/log/v2 v2.0.0
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/gofrs/uuid/v5 v5.4.0
-	github.com/modelcontextprotocol/go-sdk v1.6.1
+	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/robbyt/go-fsm/v2 v2.5.0
 	github.com/robbyt/go-loglater v0.2.0
@@ -60,6 +60,7 @@ require (
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.6.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
