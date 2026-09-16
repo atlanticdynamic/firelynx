@@ -6,7 +6,7 @@ require github.com/urfave/cli/v3 v3.12.0
 
 require (
 	charm.land/lipgloss/v2 v2.0.6
-	charm.land/log/v2 v2.0.0
+	charm.land/log/v2 v2.0.1
 	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/gofrs/uuid/v5 v5.5.1
 	github.com/modelcontextprotocol/go-sdk v1.7.0
@@ -35,7 +35,7 @@ require (
 	github.com/deepnoodle-ai/wonton v0.0.33 // indirect
 	github.com/dylibso/observe-sdk/go v0.0.0-20240828172851-9145d8ad07e1 // indirect
 	github.com/extism/go-sdk v1.7.1 // indirect
-	github.com/go-logfmt/logfmt v0.6.0 // indirect
+	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20260502231528-600b0e508b8c // indirect
