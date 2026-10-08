@@ -7,7 +7,7 @@ require github.com/urfave/cli/v3 v3.13.0
 require (
 	charm.land/lipgloss/v2 v2.0.6
 	charm.land/log/v2 v2.0.1
-	github.com/charmbracelet/x/ansi v0.11.8
+	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/gofrs/uuid/v5 v5.5.1
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/pelletier/go-toml/v2 v2.4.3
@@ -40,7 +40,7 @@ require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20260502231528-600b0e508b8c // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
-	github.com/mattn/go-runewidth v0.0.24 // indirect
+	github.com/mattn/go-runewidth v0.0.27 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
