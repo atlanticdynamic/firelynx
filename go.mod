@@ -18,7 +18,7 @@ require (
 	github.com/robbyt/mcp-io v0.0.1
 	github.com/robbyt/protobaggins v0.2.0
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	google.golang.org/grpc v1.84.0
 	google.golang.org/protobuf v1.36.12
 )
