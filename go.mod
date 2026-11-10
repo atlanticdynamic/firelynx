@@ -1,11 +1,11 @@
 module github.com/atlanticdynamic/firelynx
 
-go 1.26.5
+go 1.26.7
 
 require github.com/urfave/cli/v3 v3.13.0
 
 require (
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.0
 	charm.land/log/v2 v2.0.1
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/gofrs/uuid/v5 v5.5.1
