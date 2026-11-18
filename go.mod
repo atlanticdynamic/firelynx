@@ -7,7 +7,7 @@ require github.com/urfave/cli/v3 v3.13.0
 require (
 	charm.land/lipgloss/v2 v2.0.6
 	charm.land/log/v2 v2.0.1
-	github.com/charmbracelet/x/ansi v0.11.9
+	github.com/charmbracelet/x/ansi v0.11.10
 	github.com/gofrs/uuid/v5 v5.5.1
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/pelletier/go-toml/v2 v2.4.3
