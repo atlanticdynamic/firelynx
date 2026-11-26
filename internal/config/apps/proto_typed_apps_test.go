@@ -9,7 +9,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/apps/fileread"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestAppTypeConversions_TypedApps(t *testing.T) {
@@ -23,7 +22,7 @@ func TestFromProto_TypedApps(t *testing.T) {
 	t.Run("calculation", func(t *testing.T) {
 		appType := pb.AppDefinition_TYPE_CALCULATION
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("calc"),
+			Id:   new("calc"),
 			Type: &appType,
 			Config: &pb.AppDefinition_Calculation{
 				Calculation: &pbApps.CalculationApp{},
@@ -40,11 +39,11 @@ func TestFromProto_TypedApps(t *testing.T) {
 	t.Run("fileread", func(t *testing.T) {
 		appType := pb.AppDefinition_TYPE_FILEREAD
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("files"),
+			Id:   new("files"),
 			Type: &appType,
 			Config: &pb.AppDefinition_Fileread{
 				Fileread: &pbApps.FileReadApp{
-					BaseDirectory: proto.String("/tmp/files"),
+					BaseDirectory: new("/tmp/files"),
 				},
 			},
 		}
@@ -62,7 +61,7 @@ func TestFromProto_TypedApps_Errors(t *testing.T) {
 	t.Run("calculation type mismatch", func(t *testing.T) {
 		echoType := pb.AppDefinition_TYPE_ECHO
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("calc"),
+			Id:   new("calc"),
 			Type: &echoType,
 			Config: &pb.AppDefinition_Calculation{
 				Calculation: &pbApps.CalculationApp{},
@@ -78,7 +77,7 @@ func TestFromProto_TypedApps_Errors(t *testing.T) {
 	t.Run("calculation nil inner config", func(t *testing.T) {
 		appType := pb.AppDefinition_TYPE_CALCULATION
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("calc"),
+			Id:   new("calc"),
 			Type: &appType,
 			Config: &pb.AppDefinition_Calculation{
 				Calculation: nil,
@@ -93,11 +92,11 @@ func TestFromProto_TypedApps_Errors(t *testing.T) {
 	t.Run("fileread type mismatch", func(t *testing.T) {
 		echoType := pb.AppDefinition_TYPE_ECHO
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("files"),
+			Id:   new("files"),
 			Type: &echoType,
 			Config: &pb.AppDefinition_Fileread{
 				Fileread: &pbApps.FileReadApp{
-					BaseDirectory: proto.String("/tmp"),
+					BaseDirectory: new("/tmp"),
 				},
 			},
 		}
@@ -111,7 +110,7 @@ func TestFromProto_TypedApps_Errors(t *testing.T) {
 	t.Run("fileread nil inner config", func(t *testing.T) {
 		appType := pb.AppDefinition_TYPE_FILEREAD
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("files"),
+			Id:   new("files"),
 			Type: &appType,
 			Config: &pb.AppDefinition_Fileread{
 				Fileread: nil,

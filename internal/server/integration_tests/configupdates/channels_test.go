@@ -19,7 +19,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 //go:embed testdata/initial_config.toml
@@ -113,8 +112,8 @@ func TestConfigChannels_BasicFlow(t *testing.T) {
 		Version: &version,
 		Listeners: []*pb.Listener{
 			{
-				Id:      proto.String("test_listener"),
-				Address: proto.String(":8080"),
+				Id:      new("test_listener"),
+				Address: new(":8080"),
 				Type:    pb.Listener_TYPE_HTTP.Enum(),
 				ProtocolOptions: &pb.Listener_Http{
 					Http: &pb.HttpListenerOptions{},
@@ -213,13 +212,13 @@ func TestConfigChannels_MultipleUpdates(t *testing.T) {
 
 	// Test multiple sequential config updates
 	version := "v1"
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		testConfig := &pb.ServerConfig{
 			Version: &version,
 			Listeners: []*pb.Listener{
 				{
-					Id:      proto.String("test_listener_" + string(rune('1'+i))),
-					Address: proto.String(":808" + string(rune('0'+i))),
+					Id:      new("test_listener_" + string(rune('1'+i))),
+					Address: new(":808" + string(rune('0'+i))),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{},

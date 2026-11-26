@@ -473,8 +473,8 @@ func (c *Client) parseServerAddr(serverAddr string) (network string, address str
 	}
 
 	// Handle legacy "unix:" prefix (without //)
-	if strings.HasPrefix(serverAddr, "unix:") {
-		address = strings.TrimPrefix(serverAddr, "unix:")
+	if after, ok := strings.CutPrefix(serverAddr, "unix:"); ok {
+		address = after
 		if address == "" {
 			return "", "", fmt.Errorf("unix scheme requires path after unix")
 		}

@@ -13,7 +13,6 @@ import (
 	"github.com/robbyt/go-loglater/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -112,7 +111,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			},
 			want: &pb.LogRecord{
 				Level:   pb.LogRecord_LEVEL_DEBUG.Enum(),
-				Message: proto.String("debug message"),
+				Message: new("debug message"),
 				Attrs: map[string]*structpb.Value{
 					"key1": structpb.NewStringValue("value1"),
 					"key2": structpb.NewNumberValue(42),
@@ -131,7 +130,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			},
 			want: &pb.LogRecord{
 				Level:   pb.LogRecord_LEVEL_INFO.Enum(),
-				Message: proto.String("info message"),
+				Message: new("info message"),
 				Attrs: map[string]*structpb.Value{
 					"success": structpb.NewBoolValue(true),
 				},
@@ -147,7 +146,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			},
 			want: &pb.LogRecord{
 				Level:   pb.LogRecord_LEVEL_WARN.Enum(),
-				Message: proto.String("warning message"),
+				Message: new("warning message"),
 				Attrs:   map[string]*structpb.Value{},
 			},
 		},
@@ -163,7 +162,7 @@ func TestConvertStorageRecordToProto(t *testing.T) {
 			},
 			want: &pb.LogRecord{
 				Level:   pb.LogRecord_LEVEL_ERROR.Enum(),
-				Message: proto.String("error message"),
+				Message: new("error message"),
 				Attrs: map[string]*structpb.Value{
 					"duration": structpb.NewNumberValue(123.456),
 				},

@@ -7,7 +7,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 // TestProcessEndpoints tests the processEndpoints function
@@ -20,15 +19,15 @@ func TestProcessEndpoints(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Routes: []*pbSettings.Route{
 						{
-							AppId: proto.String("app1"),
+							AppId: new("app1"),
 						},
 					},
 				},
 				{
-					Id: proto.String("endpoint2"),
+					Id: new("endpoint2"),
 					// No routes initially
 					Routes: []*pbSettings.Route{},
 				},
@@ -104,7 +103,7 @@ func TestProcessEndpoints(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}
@@ -129,7 +128,7 @@ func TestProcessEndpoints(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}
@@ -167,7 +166,7 @@ func TestProcessEndpoints(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}

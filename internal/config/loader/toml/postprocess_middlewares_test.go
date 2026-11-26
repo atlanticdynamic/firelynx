@@ -7,7 +7,6 @@ import (
 	pbMiddleware "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 // TestProcessMiddlewareType tests the processMiddlewareType function
@@ -93,21 +92,21 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("logger1"),
+							Id: new("logger1"),
 						},
 						{
-							Id: proto.String("logger2"),
+							Id: new("logger2"),
 						},
 					},
 				},
 				{
-					Id: proto.String("endpoint2"),
+					Id: new("endpoint2"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("logger3"),
+							Id: new("logger3"),
 						},
 					},
 				},
@@ -173,10 +172,10 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("logger1"),
+							Id: new("logger1"),
 						},
 					},
 				},
@@ -207,10 +206,10 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("logger1"),
+							Id: new("logger1"),
 						},
 					},
 				},
@@ -252,7 +251,7 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}
@@ -278,10 +277,10 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("logger1"),
+							Id: new("logger1"),
 						},
 					},
 				},
@@ -326,10 +325,10 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("logger1"),
+							Id: new("logger1"),
 						},
 					},
 				},
@@ -379,10 +378,10 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("logger1"),
+							Id: new("logger1"),
 						},
 					},
 				},
@@ -413,10 +412,10 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("logger1"),
+							Id: new("logger1"),
 						},
 					},
 				},
@@ -482,10 +481,10 @@ func TestProcessMiddlewares(t *testing.T) {
 				config := &pbSettings.ServerConfig{
 					Endpoints: []*pbSettings.Endpoint{
 						{
-							Id: proto.String("endpoint1"),
+							Id: new("endpoint1"),
 							Middlewares: []*pbMiddleware.Middleware{
 								{
-									Id:   proto.String("logger1"),
+									Id:   new("logger1"),
 									Type: pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
 									Config: &pbMiddleware.Middleware_ConsoleLogger{
 										ConsoleLogger: &pbMiddleware.ConsoleLoggerConfig{
@@ -539,10 +538,10 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("limiter1"),
+							Id: new("limiter1"),
 						},
 					},
 				},
@@ -591,10 +590,10 @@ func TestProcessMiddlewares(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("headers-middleware"),
+							Id: new("headers-middleware"),
 						},
 					},
 				},
@@ -640,10 +639,10 @@ func TestProcessMiddlewares(t *testing.T) {
 				config := &pbSettings.ServerConfig{
 					Endpoints: []*pbSettings.Endpoint{
 						{
-							Id: proto.String("endpoint1"),
+							Id: new("endpoint1"),
 							Middlewares: []*pbMiddleware.Middleware{
 								{
-									Id:   proto.String("logger1"),
+									Id:   new("logger1"),
 									Type: pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
 									Config: &pbMiddleware.Middleware_ConsoleLogger{
 										ConsoleLogger: &pbMiddleware.ConsoleLoggerConfig{},
@@ -726,10 +725,10 @@ func TestProcessMiddlewares(t *testing.T) {
 				config := &pbSettings.ServerConfig{
 					Endpoints: []*pbSettings.Endpoint{
 						{
-							Id: proto.String("endpoint1"),
+							Id: new("endpoint1"),
 							Middlewares: []*pbMiddleware.Middleware{
 								{
-									Id:   proto.String("logger1"),
+									Id:   new("logger1"),
 									Type: pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
 									Config: &pbMiddleware.Middleware_ConsoleLogger{
 										ConsoleLogger: &pbMiddleware.ConsoleLoggerConfig{},
@@ -779,10 +778,10 @@ func TestProcessMiddlewares(t *testing.T) {
 			config := &pbSettings.ServerConfig{
 				Endpoints: []*pbSettings.Endpoint{
 					{
-						Id: proto.String("endpoint1"),
+						Id: new("endpoint1"),
 						Middlewares: []*pbMiddleware.Middleware{
 							{
-								Id:   proto.String("logger1"),
+								Id:   new("logger1"),
 								Type: pbMiddleware.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
 								Config: &pbMiddleware.Middleware_ConsoleLogger{
 									ConsoleLogger: &pbMiddleware.ConsoleLoggerConfig{},

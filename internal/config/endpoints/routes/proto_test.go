@@ -7,7 +7,6 @@ import (
 	pbData "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/data/v1"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -41,7 +40,6 @@ func TestRouteCollection_ToProto(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -79,10 +77,10 @@ func TestRouteCollectionFromProto(t *testing.T) {
 			pbRoutes: []*pb.Route{
 				nil,
 				{
-					AppId: proto.String("app1"),
+					AppId: new("app1"),
 					Rule: &pb.Route_Http{
 						Http: &pb.HttpRule{
-							PathPrefix: proto.String("/api"),
+							PathPrefix: new("/api"),
 						},
 					},
 				},
@@ -94,18 +92,18 @@ func TestRouteCollectionFromProto(t *testing.T) {
 			name: "valid routes",
 			pbRoutes: []*pb.Route{
 				{
-					AppId: proto.String("app1"),
+					AppId: new("app1"),
 					Rule: &pb.Route_Http{
 						Http: &pb.HttpRule{
-							PathPrefix: proto.String("/api/v1"),
+							PathPrefix: new("/api/v1"),
 						},
 					},
 				},
 				{
-					AppId: proto.String("app2"),
+					AppId: new("app2"),
 					Rule: &pb.Route_Http{
 						Http: &pb.HttpRule{
-							PathPrefix: proto.String("/api/v2"),
+							PathPrefix: new("/api/v2"),
 						},
 					},
 				},
@@ -124,7 +122,6 @@ func TestRouteCollectionFromProto(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -153,10 +150,10 @@ func TestRoute_ToProto(t *testing.T) {
 				Condition: conditions.NewHTTP("/api/v1", ""),
 			},
 			expected: &pb.Route{
-				AppId: proto.String("app1"),
+				AppId: new("app1"),
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
-						PathPrefix: proto.String("/api/v1"),
+						PathPrefix: new("/api/v1"),
 					},
 				},
 			},
@@ -168,11 +165,11 @@ func TestRoute_ToProto(t *testing.T) {
 				Condition: conditions.NewHTTP("/api/v1", "GET"),
 			},
 			expected: &pb.Route{
-				AppId: proto.String("app1"),
+				AppId: new("app1"),
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
-						PathPrefix: proto.String("/api/v1"),
-						Method:     proto.String("GET"),
+						PathPrefix: new("/api/v1"),
+						Method:     new("GET"),
 					},
 				},
 			},
@@ -188,11 +185,11 @@ func TestRoute_ToProto(t *testing.T) {
 				},
 			},
 			expected: &pb.Route{
-				AppId: proto.String("app3"),
+				AppId: new("app3"),
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
-						PathPrefix: proto.String("/api/v2"),
-						Method:     proto.String("POST"),
+						PathPrefix: new("/api/v2"),
+						Method:     new("POST"),
 					},
 				},
 				StaticData: &pbData.StaticData{
@@ -206,7 +203,6 @@ func TestRoute_ToProto(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			actual := tc.route.ToProto()
@@ -257,10 +253,10 @@ func TestFromProto(t *testing.T) {
 		{
 			name: "HTTP Path",
 			pbRoute: &pb.Route{
-				AppId: proto.String("app1"),
+				AppId: new("app1"),
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
-						PathPrefix: proto.String("/api/v1"),
+						PathPrefix: new("/api/v1"),
 					},
 				},
 			},
@@ -272,11 +268,11 @@ func TestFromProto(t *testing.T) {
 		{
 			name: "HTTP Path with Method",
 			pbRoute: &pb.Route{
-				AppId: proto.String("app1"),
+				AppId: new("app1"),
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
-						PathPrefix: proto.String("/api/v1"),
-						Method:     proto.String("GET"),
+						PathPrefix: new("/api/v1"),
+						Method:     new("GET"),
 					},
 				},
 			},
@@ -288,11 +284,11 @@ func TestFromProto(t *testing.T) {
 		{
 			name: "With Static Data",
 			pbRoute: &pb.Route{
-				AppId: proto.String("app3"),
+				AppId: new("app3"),
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
-						PathPrefix: proto.String("/api/v2"),
-						Method:     proto.String("POST"),
+						PathPrefix: new("/api/v2"),
+						Method:     new("POST"),
 					},
 				},
 				StaticData: &pbData.StaticData{
@@ -314,7 +310,6 @@ func TestFromProto(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			actual := RouteFromProto(tc.pbRoute)

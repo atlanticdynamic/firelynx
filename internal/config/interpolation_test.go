@@ -12,7 +12,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/listeners/options"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestEndToEndInterpolation(t *testing.T) {
@@ -105,7 +104,7 @@ func TestEndToEndInterpolation(t *testing.T) {
 		route := &pb.Route{
 			Rule: &pb.Route_Http{
 				Http: &pb.HttpRule{
-					PathPrefix: proto.String("${API_PREFIX}/users"),
+					PathPrefix: new("${API_PREFIX}/users"),
 				},
 			},
 		}
@@ -250,7 +249,7 @@ func TestFieldRulesCompliance(t *testing.T) {
 		route := &pb.Route{
 			Rule: &pb.Route_Http{
 				Http: &pb.HttpRule{
-					PathPrefix: proto.String("/api/${TEST_VALUE}"),
+					PathPrefix: new("/api/${TEST_VALUE}"),
 				},
 			},
 		}
@@ -300,7 +299,7 @@ func TestProtobufRoundTripWithInterpolation(t *testing.T) {
 		route := &pb.Route{
 			Rule: &pb.Route_Http{
 				Http: &pb.HttpRule{
-					PathPrefix: proto.String("/apps/${APP_NAME}"),
+					PathPrefix: new("/apps/${APP_NAME}"),
 				},
 			},
 		}

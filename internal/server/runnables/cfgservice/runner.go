@@ -283,8 +283,8 @@ func (r *Runner) ValidateConfig(
 
 	if req.Config == nil {
 		return &pb.ValidateConfigResponse{
-			Valid: proto.Bool(false),
-			Error: proto.String("No configuration provided"),
+			Valid: new(false),
+			Error: new("No configuration provided"),
 		}, nil
 	}
 
@@ -293,8 +293,8 @@ func (r *Runner) ValidateConfig(
 	if err != nil {
 		logger.Warn("Failed to convert protobuf to domain config", "error", err)
 		return &pb.ValidateConfigResponse{
-			Valid: proto.Bool(false),
-			Error: proto.String(fmt.Sprintf("conversion error: %v", err)),
+			Valid: new(false),
+			Error: new(fmt.Sprintf("conversion error: %v", err)),
 		}, nil
 	}
 
@@ -303,14 +303,14 @@ func (r *Runner) ValidateConfig(
 	if err := domainConfig.Validate(); err != nil {
 		logger.Debug("Configuration validation failed", "error", err)
 		return &pb.ValidateConfigResponse{
-			Valid: proto.Bool(false),
-			Error: proto.String(fmt.Sprintf("validation failed: %v", err)),
+			Valid: new(false),
+			Error: new(fmt.Sprintf("validation failed: %v", err)),
 		}, nil
 	}
 
 	logger.Debug("Config validated successfully", "request_id", server.ExtractRequestID(ctx))
 	return &pb.ValidateConfigResponse{
-		Valid: proto.Bool(true),
+		Valid: new(true),
 	}, nil
 }
 
@@ -334,7 +334,7 @@ func (r *Runner) UpdateConfig(
 		success := false
 		return &pb.UpdateConfigResponse{
 			Success: &success,
-			Error:   proto.String(fmt.Sprintf("conversion error: %v", err)),
+			Error:   new(fmt.Sprintf("conversion error: %v", err)),
 			Config:  req.Config, // Return the invalid submitted config to help with corrections
 		}, nil
 	}
@@ -346,7 +346,7 @@ func (r *Runner) UpdateConfig(
 		success := false
 		return &pb.UpdateConfigResponse{
 			Success: &success,
-			Error:   proto.String(fmt.Sprintf("transaction creation failed: %v", err)),
+			Error:   new(fmt.Sprintf("transaction creation failed: %v", err)),
 			Config:  req.Config, // Return the invalid submitted config
 		}, nil
 	}
@@ -357,9 +357,9 @@ func (r *Runner) UpdateConfig(
 		success := false
 		return &pb.UpdateConfigResponse{
 			Success:       &success,
-			Error:         proto.String(fmt.Sprintf("transaction validation failed: %v", err)),
+			Error:         new(fmt.Sprintf("transaction validation failed: %v", err)),
 			Config:        req.Config, // Return the invalid submitted config
-			TransactionId: proto.String(tx.ID.String()),
+			TransactionId: new(tx.ID.String()),
 		}, nil
 	}
 
@@ -372,9 +372,9 @@ func (r *Runner) UpdateConfig(
 		success := false
 		return &pb.UpdateConfigResponse{
 			Success:       &success,
-			Error:         proto.String("service shutting down"),
+			Error:         new("service shutting down"),
 			Config:        req.Config,
-			TransactionId: proto.String(tx.ID.String()),
+			TransactionId: new(tx.ID.String()),
 		}, nil
 	}
 
@@ -383,7 +383,7 @@ func (r *Runner) UpdateConfig(
 	return &pb.UpdateConfigResponse{
 		Success:       &success,
 		Config:        tx.GetConfig().ToProto(), // convert back to pb to get defaults
-		TransactionId: proto.String(tx.ID.String()),
+		TransactionId: new(tx.ID.String()),
 	}, nil
 }
 
@@ -515,14 +515,11 @@ func (r *Runner) ListConfigTransactions(
 		// Beyond available data
 		return &pb.ListConfigTransactionsResponse{
 			Transactions:  []*pb.ConfigTransaction{},
-			NextPageToken: proto.String(""),
+			NextPageToken: new(""),
 		}, nil
 	}
 
-	end := offset + pageSize
-	if end > totalCount {
-		end = totalCount
-	}
+	end := min(offset+pageSize, totalCount)
 
 	paginatedTxs := filteredTxs[offset:end]
 
@@ -553,7 +550,7 @@ func (r *Runner) ListConfigTransactions(
 
 	return &pb.ListConfigTransactionsResponse{
 		Transactions:  pbTxs,
-		NextPageToken: proto.String(nextPageToken),
+		NextPageToken: new(nextPageToken),
 	}, nil
 }
 
@@ -606,8 +603,8 @@ func (r *Runner) ClearConfigTransactions(
 	if err != nil {
 		logger.Error("Failed to clear transactions", "error", err)
 		return &pb.ClearConfigTransactionsResponse{
-			Success:      proto.Bool(false),
-			Error:        proto.String(fmt.Sprintf("failed to clear transactions: %v", err)),
+			Success:      new(false),
+			Error:        new(fmt.Sprintf("failed to clear transactions: %v", err)),
 			ClearedCount: proto.Int32(0),
 		}, nil
 	}
@@ -615,7 +612,7 @@ func (r *Runner) ClearConfigTransactions(
 	logger.Info("Cleared transactions", "cleared", cleared)
 
 	return &pb.ClearConfigTransactionsResponse{
-		Success:      proto.Bool(true),
-		ClearedCount: proto.Int32(int32(cleared)),
+		Success:      new(true),
+		ClearedCount: new(int32(cleared)),
 	}, nil
 }

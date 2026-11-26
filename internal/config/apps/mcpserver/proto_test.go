@@ -38,9 +38,9 @@ func TestFromProto(t *testing.T) {
 		proto := &pbApps.McpApp{
 			Tools: []*pbApps.McpTool{
 				{
-					AppId:        proto.String("calc-app"),
-					InputSchema:  proto.String(`{"type": "object"}`),
-					OutputSchema: proto.String(`{"type": "number"}`),
+					AppId:        new("calc-app"),
+					InputSchema:  new(`{"type": "object"}`),
+					OutputSchema: new(`{"type": "number"}`),
 				},
 			},
 		}
@@ -59,9 +59,9 @@ func TestFromProto(t *testing.T) {
 		proto := &pbApps.McpApp{
 			Prompts: []*pbApps.McpPrompt{
 				{
-					Id:          proto.String("greeting"),
-					AppId:       proto.String("echo-app"),
-					InputSchema: proto.String(`{"type": "string"}`),
+					Id:          new("greeting"),
+					AppId:       new("echo-app"),
+					InputSchema: new(`{"type": "string"}`),
 				},
 			},
 		}
@@ -80,9 +80,9 @@ func TestFromProto(t *testing.T) {
 		proto := &pbApps.McpApp{
 			Resources: []*pbApps.McpResource{
 				{
-					Id:          proto.String("workspace"),
-					AppId:       proto.String("file-reader"),
-					UriTemplate: proto.String("file://{path}"),
+					Id:          new("workspace"),
+					AppId:       new("file-reader"),
+					UriTemplate: new("file://{path}"),
 				},
 			},
 		}
@@ -101,23 +101,23 @@ func TestFromProto(t *testing.T) {
 		proto := &pbApps.McpApp{
 			Tools: []*pbApps.McpTool{
 				{
-					AppId:        proto.String("calc-app"),
-					InputSchema:  proto.String(`{"type": "object"}`),
-					OutputSchema: proto.String(`{"type": "number"}`),
+					AppId:        new("calc-app"),
+					InputSchema:  new(`{"type": "object"}`),
+					OutputSchema: new(`{"type": "number"}`),
 				},
 			},
 			Prompts: []*pbApps.McpPrompt{
 				{
-					Id:          proto.String("greeting"),
-					AppId:       proto.String("echo-app"),
-					InputSchema: proto.String(`{"type": "string"}`),
+					Id:          new("greeting"),
+					AppId:       new("echo-app"),
+					InputSchema: new(`{"type": "string"}`),
 				},
 			},
 			Resources: []*pbApps.McpResource{
 				{
-					Id:          proto.String("workspace"),
-					AppId:       proto.String("file-reader"),
-					UriTemplate: proto.String("file://{path}"),
+					Id:          new("workspace"),
+					AppId:       new("file-reader"),
+					UriTemplate: new("file://{path}"),
 				},
 			},
 		}

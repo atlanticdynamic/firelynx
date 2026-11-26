@@ -459,7 +459,6 @@ func TestLogFilter_skipPath(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := logger.NewConsoleLogger()
 			cfg.IncludeOnlyPaths = tt.includeOnlyPaths
@@ -520,7 +519,6 @@ func TestLogFilter_skipMethod(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := logger.NewConsoleLogger()
 			cfg.IncludeOnlyMethods = tt.includeOnlyMethods
@@ -636,7 +634,6 @@ func TestGetClientIP(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/test", nil)
 			req.RemoteAddr = tt.remoteAddr
@@ -695,7 +692,6 @@ func TestLogFilter_filterHeaders(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := logger.NewConsoleLogger()
 			cfg.Fields.Request.IncludeHeaders = tt.include
@@ -769,7 +765,6 @@ func TestConsoleLogger_Log(t *testing.T) {
 		}
 
 		for _, tt := range tests {
-			tt := tt
 			t.Run(fmt.Sprintf("status_%d", tt.statusCode), func(t *testing.T) {
 				cfg := logger.NewConsoleLogger()
 				mockLogger := &MockLogger{

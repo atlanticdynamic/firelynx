@@ -7,7 +7,7 @@ type ScriptResponse struct {
 	Version     string      `json:"version"`
 	Environment string      `json:"environment,omitempty"`
 	Features    []string    `json:"features,omitempty"`
-	RequestInfo RequestInfo `json:"requestInfo,omitempty"`
+	RequestInfo RequestInfo `json:"requestInfo"`
 	Timestamp   string      `json:"timestamp,omitempty"`
 }
 
@@ -40,16 +40,16 @@ type ScriptStarlarkBasicResponse struct {
 
 // ScriptWithDataResponse represents the expected response structure from advanced data processing scripts
 type ScriptWithDataResponse struct {
-	Service           string                 `json:"service"`
-	ProcessingSummary map[string]interface{} `json:"processingSummary"`
-	ProcessedItems    []interface{}          `json:"processedItems"`
-	Errors            []string               `json:"errors"`
+	Service           string         `json:"service"`
+	ProcessingSummary map[string]any `json:"processingSummary"`
+	ProcessedItems    []any          `json:"processedItems"`
+	Errors            []string       `json:"errors"`
 }
 
 // ProcessedItem represents a single processed item structure
 type ProcessedItem struct {
-	Original    map[string]interface{} `json:"original"`
-	Index       int                    `json:"index"`
-	Transformed map[string]interface{} `json:"transformed,omitempty"`
-	Error       string                 `json:"error,omitempty"`
+	Original    map[string]any `json:"original"`
+	Index       int            `json:"index"`
+	Transformed map[string]any `json:"transformed,omitempty"`
+	Error       string         `json:"error,omitempty"`
 }

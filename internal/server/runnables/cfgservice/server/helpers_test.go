@@ -339,7 +339,7 @@ func TestExtractRequestID(t *testing.T) {
 		ctx := t.Context()
 
 		// Generate multiple UUIDs to verify they follow v6 pattern
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			requestID := ExtractRequestID(ctx)
 			require.NotEmpty(t, requestID)
 

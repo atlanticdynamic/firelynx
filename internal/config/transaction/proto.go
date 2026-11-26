@@ -6,7 +6,6 @@ import (
 
 	pb "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1"
 	"github.com/robbyt/go-loglater/storage"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -44,13 +43,13 @@ func (tx *ConfigTransaction) ToProto() *pb.ConfigTransaction {
 	}
 
 	return &pb.ConfigTransaction{
-		Id:           proto.String(tx.ID.String()),
+		Id:           new(tx.ID.String()),
 		Source:       &source,
-		SourceDetail: proto.String(tx.SourceDetail),
-		RequestId:    proto.String(tx.RequestID),
+		SourceDetail: new(tx.SourceDetail),
+		RequestId:    new(tx.RequestID),
 		CreatedAt:    timestamppb.New(tx.CreatedAt),
-		State:        proto.String(tx.GetState()),
-		IsValid:      proto.Bool(tx.IsValid.Load()),
+		State:        new(tx.GetState()),
+		IsValid:      new(tx.IsValid.Load()),
 		Logs:         logs,
 		Config:       config,
 	}
@@ -101,7 +100,7 @@ func convertStorageRecordToProto(record storage.Record) *pb.LogRecord {
 	return &pb.LogRecord{
 		Time:    timestamppb.New(record.Time),
 		Level:   &level,
-		Message: proto.String(record.Message),
+		Message: new(record.Message),
 		Attrs:   attrs,
 	}
 }

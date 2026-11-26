@@ -38,7 +38,7 @@ func TestNewFromProtoWithNonEmptyApps(t *testing.T) {
 		Version: proto.String(version.Version),
 		Apps: []*pb.AppDefinition{
 			{
-				Id:   proto.String("echo_app"),
+				Id:   new("echo_app"),
 				Type: &echoType,
 				Config: &pb.AppDefinition_Echo{
 					Echo: &pbApps.EchoApp{
@@ -76,11 +76,11 @@ func TestNewFromProto_ErrorHandling(t *testing.T) {
 			Version: proto.String(version.Version),
 			Apps: []*pb.AppDefinition{
 				{
-					Id:   proto.String("malformed_app"),
+					Id:   new("malformed_app"),
 					Type: nil, // This should cause conversion issues
 					Config: &pb.AppDefinition_Echo{
 						Echo: &pbApps.EchoApp{
-							Response: proto.String("test"),
+							Response: new("test"),
 						},
 					},
 				},

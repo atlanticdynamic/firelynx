@@ -2,6 +2,7 @@ package logger
 
 import (
 	"log/slog"
+	"maps"
 	"net/http"
 	"strings"
 	"time"
@@ -243,9 +244,7 @@ func (lf *logFilter) buildResponseAttrs(rw httpserver.ResponseWriter, responseBo
 func (lf *logFilter) filterHeaders(headers http.Header) map[string][]string {
 	if len(lf.headerInclude) == 0 && len(lf.headerExclude) == 0 {
 		result := make(map[string][]string, len(headers))
-		for k, v := range headers {
-			result[k] = v
-		}
+		maps.Copy(result, headers)
 		return result
 	}
 
@@ -288,8 +287,8 @@ func (lf *logFilter) MaxResponseBodyLogSize() int {
 // getClientIP extracts client IP from request headers
 func getClientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if idx := strings.Index(xff, ","); idx != -1 {
-			return strings.TrimSpace(xff[:idx])
+		if before, _, ok := strings.Cut(xff, ","); ok {
+			return strings.TrimSpace(before)
 		}
 		return xff
 	}

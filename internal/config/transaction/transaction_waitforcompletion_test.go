@@ -203,16 +203,14 @@ func TestWaitForCompletion(t *testing.T) {
 		var wg sync.WaitGroup
 		waitersStarted := make(chan struct{})
 
-		for i := 0; i < numWaiters; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+		for i := range numWaiters {
+			wg.Go(func() {
 				// Signal when all waiters have started
 				if i == numWaiters-1 {
 					close(waitersStarted)
 				}
 				waitDone <- tx.WaitForCompletion(ctx)
-			}()
+			})
 		}
 
 		// Wait for all waiters to start
@@ -239,7 +237,7 @@ func TestWaitForCompletion(t *testing.T) {
 
 		// Verify all waiters completed successfully
 		assert.Eventually(t, func() bool {
-			for i := 0; i < numWaiters; i++ {
+			for i := range numWaiters {
 				select {
 				case err := <-waitDone:
 					require.NoError(t, err, "Waiter %d should have completed successfully", i)
@@ -403,7 +401,7 @@ func TestWaitForCompletion(t *testing.T) {
 		var wg sync.WaitGroup
 
 		// Start waiters
-		for i := 0; i < numWaiters; i++ {
+		for i := range numWaiters {
 			wg.Add(1)
 			go func(idx int) {
 				defer wg.Done()
@@ -412,9 +410,7 @@ func TestWaitForCompletion(t *testing.T) {
 		}
 
 		// Start state transition after a short delay
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// Let waiters start
 			time.Sleep(20 * time.Millisecond)
 
@@ -422,7 +418,7 @@ func TestWaitForCompletion(t *testing.T) {
 			assert.NoError(t, tx.MarkSucceeded())
 			assert.NoError(t, tx.BeginReload())
 			assert.NoError(t, tx.MarkCompleted())
-		}()
+		})
 
 		// Wait for all operations to complete
 		wg.Wait()

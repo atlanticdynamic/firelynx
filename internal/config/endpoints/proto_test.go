@@ -9,7 +9,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -29,8 +28,8 @@ func TestEndpoint_ToProto(t *testing.T) {
 				Routes:     []routes.Route{},
 			},
 			expected: &pb.Endpoint{
-				Id:         proto.String("empty"),
-				ListenerId: proto.String("http1"),
+				Id:         new("empty"),
+				ListenerId: new("http1"),
 				Routes:     nil,
 			},
 		},
@@ -47,14 +46,14 @@ func TestEndpoint_ToProto(t *testing.T) {
 				},
 			},
 			expected: &pb.Endpoint{
-				Id:         proto.String("complete"),
-				ListenerId: proto.String("http1"),
+				Id:         new("complete"),
+				ListenerId: new("http1"),
 				Routes: []*pb.Route{
 					{
-						AppId: proto.String("app1"),
+						AppId: new("app1"),
 						Rule: &pb.Route_Http{
 							Http: &pb.HttpRule{
-								PathPrefix: proto.String("/api/v1"),
+								PathPrefix: new("/api/v1"),
 							},
 						},
 					},
@@ -64,7 +63,6 @@ func TestEndpoint_ToProto(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			actual := tc.endpoint.ToProto()
@@ -108,10 +106,10 @@ func TestRoute_ToProto(t *testing.T) {
 				Condition: conditions.NewHTTP("/api/v1", ""),
 			},
 			expected: &pb.Route{
-				AppId: proto.String("app1"),
+				AppId: new("app1"),
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
-						PathPrefix: proto.String("/api/v1"),
+						PathPrefix: new("/api/v1"),
 					},
 				},
 			},
@@ -127,10 +125,10 @@ func TestRoute_ToProto(t *testing.T) {
 				},
 			},
 			expected: &pb.Route{
-				AppId: proto.String("app3"),
+				AppId: new("app3"),
 				Rule: &pb.Route_Http{
 					Http: &pb.HttpRule{
-						PathPrefix: proto.String("/api/v2"),
+						PathPrefix: new("/api/v2"),
 					},
 				},
 				StaticData: &pbData.StaticData{
@@ -144,7 +142,6 @@ func TestRoute_ToProto(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			actual := tc.route.ToProto()
@@ -204,28 +201,28 @@ func TestEndpoints_ToProto(t *testing.T) {
 
 	expected := []*pb.Endpoint{
 		{
-			Id:         proto.String("endpoint1"),
-			ListenerId: proto.String("http1"),
+			Id:         new("endpoint1"),
+			ListenerId: new("http1"),
 			Routes: []*pb.Route{
 				{
-					AppId: proto.String("app1"),
+					AppId: new("app1"),
 					Rule: &pb.Route_Http{
 						Http: &pb.HttpRule{
-							PathPrefix: proto.String("/api/v1"),
+							PathPrefix: new("/api/v1"),
 						},
 					},
 				},
 			},
 		},
 		{
-			Id:         proto.String("endpoint2"),
-			ListenerId: proto.String("http2"),
+			Id:         new("endpoint2"),
+			ListenerId: new("http2"),
 			Routes: []*pb.Route{
 				{
-					AppId: proto.String("app2"),
+					AppId: new("app2"),
 					Rule: &pb.Route_Http{
 						Http: &pb.HttpRule{
-							PathPrefix: proto.String("/api/v2"),
+							PathPrefix: new("/api/v2"),
 						},
 					},
 				},
@@ -283,14 +280,14 @@ func TestFromProto(t *testing.T) {
 			name: "Single Endpoint",
 			pbEndpoints: []*pb.Endpoint{
 				{
-					Id:         proto.String("endpoint1"),
-					ListenerId: proto.String("http1"),
+					Id:         new("endpoint1"),
+					ListenerId: new("http1"),
 					Routes: []*pb.Route{
 						{
-							AppId: proto.String("app1"),
+							AppId: new("app1"),
 							Rule: &pb.Route_Http{
 								Http: &pb.HttpRule{
-									PathPrefix: proto.String("/api/v1"),
+									PathPrefix: new("/api/v1"),
 								},
 							},
 						},
@@ -315,28 +312,28 @@ func TestFromProto(t *testing.T) {
 			name: "Multiple Endpoints",
 			pbEndpoints: []*pb.Endpoint{
 				{
-					Id:         proto.String("endpoint1"),
-					ListenerId: proto.String("http1"),
+					Id:         new("endpoint1"),
+					ListenerId: new("http1"),
 					Routes: []*pb.Route{
 						{
-							AppId: proto.String("app1"),
+							AppId: new("app1"),
 							Rule: &pb.Route_Http{
 								Http: &pb.HttpRule{
-									PathPrefix: proto.String("/api/v1"),
+									PathPrefix: new("/api/v1"),
 								},
 							},
 						},
 					},
 				},
 				{
-					Id:         proto.String("endpoint2"),
-					ListenerId: proto.String("http2"),
+					Id:         new("endpoint2"),
+					ListenerId: new("http2"),
 					Routes: []*pb.Route{
 						{
-							AppId: proto.String("app2"),
+							AppId: new("app2"),
 							Rule: &pb.Route_Http{
 								Http: &pb.HttpRule{
-									PathPrefix: proto.String("/api/v2"),
+									PathPrefix: new("/api/v2"),
 								},
 							},
 						},
@@ -371,8 +368,8 @@ func TestFromProto(t *testing.T) {
 			name: "Empty ID",
 			pbEndpoints: []*pb.Endpoint{
 				{
-					Id:         proto.String(""),
-					ListenerId: proto.String("http1"),
+					Id:         new(""),
+					ListenerId: new("http1"),
 				},
 			},
 			expected:    nil,
@@ -382,7 +379,7 @@ func TestFromProto(t *testing.T) {
 			name: "No Listener ID",
 			pbEndpoints: []*pb.Endpoint{
 				{
-					Id:         proto.String("endpoint1"),
+					Id:         new("endpoint1"),
 					ListenerId: nil,
 				},
 			},
@@ -392,7 +389,6 @@ func TestFromProto(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			actual, err := FromProto(tc.pbEndpoints)

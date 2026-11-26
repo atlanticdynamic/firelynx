@@ -19,7 +19,7 @@ func createEchoConfig(t *testing.T, response string) *Config {
 		Version: proto.String(version.Version),
 		Apps: []*pb.AppDefinition{
 			{
-				Id:   proto.String("test_app"),
+				Id:   new("test_app"),
 				Type: &echoType,
 				Config: &pb.AppDefinition_Echo{
 					Echo: &pbApps.EchoApp{
@@ -66,7 +66,7 @@ func TestConfigEquals(t *testing.T) {
 			name: "configs with different versions should not be equal",
 			config1: func() *Config {
 				pbConfig := &pb.ServerConfig{
-					Version: proto.String("v1"),
+					Version: new("v1"),
 				}
 				cfg, err := NewFromProto(pbConfig)
 				require.NoError(t, err)
@@ -74,7 +74,7 @@ func TestConfigEquals(t *testing.T) {
 			},
 			config2: func() *Config {
 				pbConfig := &pb.ServerConfig{
-					Version: proto.String("v2"),
+					Version: new("v2"),
 				}
 				cfg, err := NewFromProto(pbConfig)
 				require.NoError(t, err)

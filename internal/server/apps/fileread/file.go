@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 )
@@ -177,12 +178,7 @@ func resolveSafePath(
 }
 
 func hasTraversalSegment(path string) bool {
-	for _, segment := range strings.FieldsFunc(path, func(r rune) bool {
+	return slices.Contains(strings.FieldsFunc(path, func(r rune) bool {
 		return r == '/' || r == '\\'
-	}) {
-		if segment == ".." {
-			return true
-		}
-	}
-	return false
+	}), "..")
 }

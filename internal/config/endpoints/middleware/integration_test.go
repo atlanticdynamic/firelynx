@@ -7,7 +7,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/middleware/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestMiddleware_ProtoRoundTrip(t *testing.T) {
@@ -126,7 +125,7 @@ func TestMiddlewareFromProto_ErrorCases(t *testing.T) {
 
 	t.Run("EmptyID", func(t *testing.T) {
 		pbMiddleware := &pb.Middleware{
-			Id:   proto.String(""),
+			Id:   new(""),
 			Type: pb.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
 		}
 
@@ -137,7 +136,7 @@ func TestMiddlewareFromProto_ErrorCases(t *testing.T) {
 
 	t.Run("ConsoleLoggerMissingConfig", func(t *testing.T) {
 		pbMiddleware := &pb.Middleware{
-			Id:   proto.String("test-logger"),
+			Id:   new("test-logger"),
 			Type: pb.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
 		}
 
@@ -148,7 +147,7 @@ func TestMiddlewareFromProto_ErrorCases(t *testing.T) {
 
 	t.Run("UnspecifiedType", func(t *testing.T) {
 		pbMiddleware := &pb.Middleware{
-			Id:   proto.String("test-unspecified"),
+			Id:   new("test-unspecified"),
 			Type: pb.Middleware_TYPE_UNSPECIFIED.Enum(),
 		}
 
@@ -159,7 +158,7 @@ func TestMiddlewareFromProto_ErrorCases(t *testing.T) {
 
 	t.Run("UnknownType", func(t *testing.T) {
 		pbMiddleware := &pb.Middleware{
-			Id:   proto.String("test-unknown"),
+			Id:   new("test-unknown"),
 			Type: pb.Middleware_Type(999).Enum(), // Unknown type value
 		}
 
@@ -174,14 +173,14 @@ func TestFromProto_ErrorPropagation(t *testing.T) {
 
 	pbMiddlewares := []*pb.Middleware{
 		{
-			Id:   proto.String("valid-logger"),
+			Id:   new("valid-logger"),
 			Type: pb.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
 			Config: &pb.Middleware_ConsoleLogger{
 				ConsoleLogger: &pb.ConsoleLoggerConfig{},
 			},
 		},
 		{
-			Id:   proto.String(""), // Invalid empty ID
+			Id:   new(""), // Invalid empty ID
 			Type: pb.Middleware_TYPE_CONSOLE_LOGGER.Enum(),
 		},
 	}

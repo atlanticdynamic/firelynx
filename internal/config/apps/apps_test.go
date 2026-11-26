@@ -99,7 +99,6 @@ func TestAppValidate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.app.Validate()
 
@@ -316,7 +315,6 @@ func TestAppCollectionValidate(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.apps.Validate()
 
@@ -396,7 +394,6 @@ func TestAppCollectionFindByID(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			app, found := apps.FindByID(tc.id)
 
@@ -485,7 +482,6 @@ func TestAppCollection_Get(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			app := apps.Get(tc.index)
 			assert.Equal(t, tc.expectedID, app.ID, "App ID should match expected")
@@ -582,7 +578,6 @@ func TestAppCollection_ValidateRouteAppReferences(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			err := apps.ValidateRouteAppReferences(tc.routes)
 

@@ -6,12 +6,11 @@ import (
 	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestProtoRoundTrip(t *testing.T) {
 	app := FromProto("files", &pbApps.FileReadApp{
-		BaseDirectory: proto.String("/tmp/files"),
+		BaseDirectory: new("/tmp/files"),
 	})
 	require.NotNil(t, app)
 	assert.Equal(t, "files", app.ID)
@@ -30,8 +29,8 @@ func TestFromProto_Nil(t *testing.T) {
 
 func TestProtoRoundTrip_AllowExternalSymlinks(t *testing.T) {
 	app := FromProto("files", &pbApps.FileReadApp{
-		BaseDirectory:         proto.String("/tmp/files"),
-		AllowExternalSymlinks: proto.Bool(true),
+		BaseDirectory:         new("/tmp/files"),
+		AllowExternalSymlinks: new(true),
 	})
 	require.NotNil(t, app)
 	assert.True(t, app.AllowExternalSymlinks)
