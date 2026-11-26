@@ -144,7 +144,8 @@ func TestWaitForCompletion(t *testing.T) {
 		// Verify it's waiting
 		assert.Never(t, func() bool {
 			select {
-			case <-waitDone:
+			case err := <-waitDone:
+				t.Errorf("WaitForCompletion returned before cancellation: %v", err)
 				return true
 			default:
 				return false
@@ -220,7 +221,8 @@ func TestWaitForCompletion(t *testing.T) {
 		// Ensure waiters are waiting
 		assert.Never(t, func() bool {
 			select {
-			case <-waitDone:
+			case err := <-waitDone:
+				t.Errorf("WaitForCompletion returned before completion: %v", err)
 				return true
 			default:
 				return false
@@ -320,7 +322,8 @@ func TestWaitForCompletion(t *testing.T) {
 				// Let waiter establish itself
 				assert.Never(t, func() bool {
 					select {
-					case <-waitDone:
+					case err := <-waitDone:
+						t.Errorf("WaitForCompletion returned before terminal state: %v", err)
 						return true
 					default:
 						return false
