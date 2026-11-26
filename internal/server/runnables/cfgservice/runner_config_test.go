@@ -365,8 +365,8 @@ func TestUpdateConfig(t *testing.T) {
 				Version: &version,
 				Listeners: []*pb.Listener{
 					{
-						Id:      proto.String("listener_A"),
-						Address: proto.String(":8080"),
+						Id:      new("listener_A"),
+						Address: new(":8080"),
 						Type:    pb.Listener_TYPE_HTTP.Enum(),
 						ProtocolOptions: &pb.Listener_Http{
 							Http: &pb.HttpListenerOptions{},
@@ -378,8 +378,8 @@ func TestUpdateConfig(t *testing.T) {
 				Version: &version,
 				Listeners: []*pb.Listener{
 					{
-						Id:      proto.String("listener_B"),
-						Address: proto.String(":8081"),
+						Id:      new("listener_B"),
+						Address: new(":8081"),
 						Type:    pb.Listener_TYPE_HTTP.Enum(),
 						ProtocolOptions: &pb.Listener_Http{
 							Http: &pb.HttpListenerOptions{},
@@ -591,8 +591,8 @@ func TestUpdateConfigWithLogger(t *testing.T) {
 		Version: &version,
 		Listeners: []*pb.Listener{
 			{
-				Id:      proto.String("test_listener"),
-				Address: proto.String(":8080"),
+				Id:      new("test_listener"),
+				Address: new(":8080"),
 				Type:    pb.Listener_TYPE_HTTP.Enum(),
 				ProtocolOptions: &pb.Listener_Http{
 					Http: &pb.HttpListenerOptions{},
@@ -733,7 +733,7 @@ func TestValidateConfig(t *testing.T) {
 			Listeners: []*pb.Listener{
 				{
 					Id:      &duplicateId,
-					Address: proto.String(":8080"),
+					Address: new(":8080"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{},
@@ -741,7 +741,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 				{
 					Id:      &duplicateId,
-					Address: proto.String(":8081"),
+					Address: new(":8081"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{},
@@ -779,8 +779,8 @@ func TestValidateConfig(t *testing.T) {
 					Version: &version,
 					Listeners: []*pb.Listener{
 						{
-							Id:      proto.String("listener_A"),
-							Address: proto.String(":8080"),
+							Id:      new("listener_A"),
+							Address: new(":8080"),
 							Type:    pb.Listener_TYPE_HTTP.Enum(),
 							ProtocolOptions: &pb.Listener_Http{
 								Http: &pb.HttpListenerOptions{},
@@ -793,7 +793,7 @@ func TestValidateConfig(t *testing.T) {
 			{
 				name: "invalid_config",
 				config: &pb.ServerConfig{
-					Version: proto.String("v2"),
+					Version: new("v2"),
 				},
 				expectValid: false,
 			},
@@ -803,8 +803,8 @@ func TestValidateConfig(t *testing.T) {
 					Version: &version,
 					Listeners: []*pb.Listener{
 						{
-							Id:      proto.String("listener_B"),
-							Address: proto.String(":8081"),
+							Id:      new("listener_B"),
+							Address: new(":8081"),
 							Type:    pb.Listener_TYPE_HTTP.Enum(),
 							ProtocolOptions: &pb.Listener_Http{
 								Http: &pb.HttpListenerOptions{},
@@ -856,8 +856,8 @@ func TestValidateConfigDoesNotModifyState(t *testing.T) {
 		Version: &version,
 		Listeners: []*pb.Listener{
 			{
-				Id:      proto.String("initial_listener"),
-				Address: proto.String(":9000"),
+				Id:      new("initial_listener"),
+				Address: new(":9000"),
 				Type:    pb.Listener_TYPE_HTTP.Enum(),
 				ProtocolOptions: &pb.Listener_Http{
 					Http: &pb.HttpListenerOptions{},
@@ -878,8 +878,8 @@ func TestValidateConfigDoesNotModifyState(t *testing.T) {
 		Version: &version,
 		Listeners: []*pb.Listener{
 			{
-				Id:      proto.String("new_listener"),
-				Address: proto.String(":8080"),
+				Id:      new("new_listener"),
+				Address: new(":8080"),
 				Type:    pb.Listener_TYPE_HTTP.Enum(),
 				ProtocolOptions: &pb.Listener_Http{
 					Http: &pb.HttpListenerOptions{},
@@ -1143,7 +1143,7 @@ func TestListConfigTransactions_Pagination(t *testing.T) {
 
 		// Request second page using token
 		secondReq := &pb.ListConfigTransactionsRequest{
-			PageToken: proto.String(firstResp.GetNextPageToken()),
+			PageToken: new(firstResp.GetNextPageToken()),
 			PageSize:  proto.Int32(10),
 		}
 
@@ -1173,7 +1173,7 @@ func TestListConfigTransactions_Pagination(t *testing.T) {
 		require.NoError(t, err)
 
 		req := &pb.ListConfigTransactionsRequest{
-			PageToken: proto.String(token),
+			PageToken: new(token),
 			PageSize:  proto.Int32(10),
 		}
 
@@ -1203,7 +1203,7 @@ func TestListConfigTransactions_Pagination(t *testing.T) {
 		require.NoError(t, err)
 
 		req := &pb.ListConfigTransactionsRequest{
-			PageToken: proto.String(token),
+			PageToken: new(token),
 			PageSize:  proto.Int32(10),
 		}
 
@@ -1245,7 +1245,7 @@ func TestListConfigTransactions_Pagination(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				req := &pb.ListConfigTransactionsRequest{}
 				if tt.requestSize != 0 {
-					req.PageSize = proto.Int32(tt.requestSize)
+					req.PageSize = new(tt.requestSize)
 				}
 
 				resp, err := r.ListConfigTransactions(t.Context(), req)
@@ -1279,7 +1279,7 @@ func TestListConfigTransactions_FilterConsistency(t *testing.T) {
 
 		// Request with matching state filter should succeed
 		req := &pb.ListConfigTransactionsRequest{
-			PageToken: proto.String(token),
+			PageToken: new(token),
 			State:     proto.String(txstate.StateSucceeded),
 			PageSize:  proto.Int32(5),
 		}
@@ -1289,7 +1289,7 @@ func TestListConfigTransactions_FilterConsistency(t *testing.T) {
 
 		// Request with mismatched state filter should fail
 		mismatchedReq := &pb.ListConfigTransactionsRequest{
-			PageToken: proto.String(token),
+			PageToken: new(token),
 			State:     proto.String(txstate.StateFailed),
 			PageSize:  proto.Int32(5),
 		}
@@ -1319,8 +1319,8 @@ func TestListConfigTransactions_FilterConsistency(t *testing.T) {
 
 		// Request with matching source filter should succeed
 		req := &pb.ListConfigTransactionsRequest{
-			PageToken: proto.String(token),
-			Source:    proto.String("api"),
+			PageToken: new(token),
+			Source:    new("api"),
 			PageSize:  proto.Int32(5),
 		}
 		resp, err := r.ListConfigTransactions(t.Context(), req)
@@ -1329,8 +1329,8 @@ func TestListConfigTransactions_FilterConsistency(t *testing.T) {
 
 		// Request with mismatched source filter should fail
 		mismatchedReq := &pb.ListConfigTransactionsRequest{
-			PageToken: proto.String(token),
-			Source:    proto.String("file"),
+			PageToken: new(token),
+			Source:    new("file"),
 			PageSize:  proto.Int32(5),
 		}
 		_, err = r.ListConfigTransactions(t.Context(), mismatchedReq)
@@ -1347,7 +1347,7 @@ func TestListConfigTransactions_EdgeCases(t *testing.T) {
 		h.transitionToRunning()
 
 		req := &pb.ListConfigTransactionsRequest{
-			PageToken: proto.String("invalid-token"),
+			PageToken: new("invalid-token"),
 			PageSize:  proto.Int32(10),
 		}
 
@@ -1386,7 +1386,7 @@ func TestListConfigTransactions_EdgeCases(t *testing.T) {
 
 		// Request transactions with a state that doesn't exist
 		req := &pb.ListConfigTransactionsRequest{
-			State:    proto.String("nonexistent"),
+			State:    new("nonexistent"),
 			PageSize: proto.Int32(10),
 		}
 

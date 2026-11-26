@@ -27,12 +27,10 @@ func TestGetRandomPortConcurrency(t *testing.T) {
 	portChan := make(chan int, 20)
 
 	for range 20 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			port := GetRandomPort(t)
 			portChan <- port
-		}()
+		})
 	}
 
 	wg.Wait()

@@ -302,7 +302,6 @@ func TestConfigWithInvalidComponents(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc // Capture variable for parallel testing
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

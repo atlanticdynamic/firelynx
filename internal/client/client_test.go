@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 // MockLoader is a mock implementation of the loader.Loader interface
@@ -421,7 +420,7 @@ func TestApplyConfigFromTransactionValidation(t *testing.T) {
 			name: "transaction has no config",
 			setupMockTx: func() *pb.ConfigTransaction {
 				return &pb.ConfigTransaction{
-					Id: proto.String("test-id"),
+					Id: new("test-id"),
 					// Config is nil
 				}
 			},
@@ -431,13 +430,13 @@ func TestApplyConfigFromTransactionValidation(t *testing.T) {
 			name: "invalid protobuf config",
 			setupMockTx: func() *pb.ConfigTransaction {
 				return &pb.ConfigTransaction{
-					Id: proto.String("test-id"),
+					Id: new("test-id"),
 					Config: &pb.ServerConfig{
 						// Invalid config that will fail NewFromProto
 						Listeners: []*pb.Listener{
 							{
-								Id:      proto.String(""), // Invalid: empty ID
-								Address: proto.String(""), // Invalid: empty address
+								Id:      new(""), // Invalid: empty ID
+								Address: new(""), // Invalid: empty address
 								Type:    pb.Listener_TYPE_HTTP.Enum(),
 							},
 						},

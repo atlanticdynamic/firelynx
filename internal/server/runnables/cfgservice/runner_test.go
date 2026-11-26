@@ -662,12 +662,10 @@ func TestConcurrentAccess(t *testing.T) {
 
 		// Launch multiple GetConfig calls concurrently
 		for range numGoroutines {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				_, err := r.GetConfig(t.Context(), &pb.GetConfigRequest{})
 				results <- err
-			}()
+			})
 		}
 
 		wg.Wait()

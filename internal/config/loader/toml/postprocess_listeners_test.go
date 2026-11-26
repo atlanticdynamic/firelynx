@@ -7,7 +7,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/config/errz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 // TestProcessListenerType tests the processListenerType function
@@ -86,12 +85,12 @@ func TestProcessListeners(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 				{
-					Id:      proto.String("listener2"),
-					Address: proto.String(":8081"),
+					Id:      new("listener2"),
+					Address: new(":8081"),
 				},
 			},
 		}
@@ -137,8 +136,8 @@ func TestProcessListeners(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 			},
 		}
@@ -163,8 +162,8 @@ func TestProcessListeners(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 			},
 		}
@@ -199,8 +198,8 @@ func TestProcessListeners(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 			},
 		}
@@ -240,8 +239,8 @@ func TestProcessListeners(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 			},
 		}

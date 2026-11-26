@@ -16,7 +16,6 @@ import (
 	"github.com/atlanticdynamic/firelynx/internal/fancy"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -114,7 +113,7 @@ func TestFromProtoConversions(t *testing.T) {
 		// Create a protobuf AppDefinition with a script app
 		scriptType := pb.AppDefinition_TYPE_SCRIPT
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("test-script-app"),
+			Id:   new("test-script-app"),
 			Type: &scriptType,
 			Config: &pb.AppDefinition_Script{
 				Script: &pbApps.ScriptApp{
@@ -151,7 +150,7 @@ func TestFromProtoConversions(t *testing.T) {
 		// Create a protobuf AppDefinition with a composite script app
 		compositeType := pb.AppDefinition_TYPE_COMPOSITE_SCRIPT
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("test-composite-app"),
+			Id:   new("test-composite-app"),
 			Type: &compositeType,
 			Config: &pb.AppDefinition_CompositeScript{
 				CompositeScript: &pbApps.CompositeScriptApp{
@@ -178,11 +177,11 @@ func TestFromProtoConversions(t *testing.T) {
 		// Create a protobuf AppDefinition with an echo app
 		echoType := pb.AppDefinition_TYPE_ECHO
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("test-echo-app"),
+			Id:   new("test-echo-app"),
 			Type: &echoType,
 			Config: &pb.AppDefinition_Echo{
 				Echo: &pbApps.EchoApp{
-					Response: proto.String("Hello, world!"),
+					Response: new("Hello, world!"),
 				},
 			},
 		}
@@ -206,7 +205,7 @@ func TestFromProtoConversions(t *testing.T) {
 		// Create a protobuf AppDefinition with mismatched type and config
 		echoType := pb.AppDefinition_TYPE_ECHO
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("mismatched-app"),
+			Id:   new("mismatched-app"),
 			Type: &echoType,
 			Config: &pb.AppDefinition_Script{
 				Script: &pbApps.ScriptApp{
@@ -233,7 +232,7 @@ func TestFromProtoConversions(t *testing.T) {
 
 	t.Run("EmptyAppConfig", func(t *testing.T) {
 		pbApp := &pb.AppDefinition{
-			Id: proto.String("empty-config-app"),
+			Id: new("empty-config-app"),
 			// No AppConfig set
 		}
 
@@ -250,7 +249,7 @@ func TestFromProtoConversions(t *testing.T) {
 
 		pbApps := []*pb.AppDefinition{
 			{
-				Id:   proto.String("script-app"),
+				Id:   new("script-app"),
 				Type: &scriptType,
 				Config: &pb.AppDefinition_Script{
 					Script: &pbApps.ScriptApp{
@@ -263,7 +262,7 @@ func TestFromProtoConversions(t *testing.T) {
 				},
 			},
 			{
-				Id:   proto.String("composite-app"),
+				Id:   new("composite-app"),
 				Type: &compositeType,
 				Config: &pb.AppDefinition_CompositeScript{
 					CompositeScript: &pbApps.CompositeScriptApp{
@@ -272,11 +271,11 @@ func TestFromProtoConversions(t *testing.T) {
 				},
 			},
 			{
-				Id:   proto.String("echo-app"),
+				Id:   new("echo-app"),
 				Type: &echoType,
 				Config: &pb.AppDefinition_Echo{
 					Echo: &pbApps.EchoApp{
-						Response: proto.String("Echo response"),
+						Response: new("Echo response"),
 					},
 				},
 			},
@@ -321,7 +320,7 @@ func TestFromProtoConversions(t *testing.T) {
 		// Create a protobuf AppDefinition with an MCP app
 		mcpType := pb.AppDefinition_TYPE_MCP
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("test-mcp-app"),
+			Id:   new("test-mcp-app"),
 			Type: &mcpType,
 			Config: &pb.AppDefinition_Mcp{
 				Mcp: &pbApps.McpApp{},
@@ -348,11 +347,11 @@ func TestFromProtoConversions(t *testing.T) {
 
 		pbApps := []*pb.AppDefinition{
 			{
-				Id:   proto.String("valid-echo"),
+				Id:   new("valid-echo"),
 				Type: &echoType,
 				Config: &pb.AppDefinition_Echo{
 					Echo: &pbApps.EchoApp{
-						Response: proto.String("valid"),
+						Response: new("valid"),
 					},
 				},
 			},
@@ -372,7 +371,7 @@ func TestFromProtoConversions(t *testing.T) {
 		// This tests the default case in fromProto switch statement
 		unkType := pb.AppDefinition_Type(999) // Invalid enum value
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("unknown-config-app"),
+			Id:   new("unknown-config-app"),
 			Type: &unkType,
 			// Don't set any Config field - this will trigger the nil case in switch
 		}
@@ -719,7 +718,7 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		// Create app with ECHO type but script config
 		echoType := pb.AppDefinition_TYPE_ECHO
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("mismatch-app"),
+			Id:   new("mismatch-app"),
 			Type: &echoType,
 			Config: &pb.AppDefinition_Script{
 				Script: &pbApps.ScriptApp{
@@ -741,7 +740,7 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		// Create app with ECHO type but composite config
 		echoType := pb.AppDefinition_TYPE_ECHO
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("mismatch-app"),
+			Id:   new("mismatch-app"),
 			Type: &echoType,
 			Config: &pb.AppDefinition_CompositeScript{
 				CompositeScript: &pbApps.CompositeScriptApp{
@@ -759,11 +758,11 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		// Create app with SCRIPT type but echo config
 		scriptType := pb.AppDefinition_TYPE_SCRIPT
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("mismatch-app"),
+			Id:   new("mismatch-app"),
 			Type: &scriptType,
 			Config: &pb.AppDefinition_Echo{
 				Echo: &pbApps.EchoApp{
-					Response: proto.String("hello"),
+					Response: new("hello"),
 				},
 			},
 		}
@@ -777,7 +776,7 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		// Create app with SCRIPT type but MCP config
 		scriptType := pb.AppDefinition_TYPE_SCRIPT
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("mismatch-app"),
+			Id:   new("mismatch-app"),
 			Type: &scriptType,
 			Config: &pb.AppDefinition_Mcp{
 				Mcp: &pbApps.McpApp{},
@@ -794,7 +793,7 @@ func TestFromProtoTypeMismatchErrors(t *testing.T) {
 		// This tests the default case in the switch statement
 		scriptType := pb.AppDefinition_TYPE_SCRIPT
 		pbApp := &pb.AppDefinition{
-			Id:   proto.String("unknown-config-app"),
+			Id:   new("unknown-config-app"),
 			Type: &scriptType,
 		}
 

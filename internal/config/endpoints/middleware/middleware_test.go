@@ -51,7 +51,6 @@ func TestMiddleware_Validate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -109,7 +108,6 @@ func TestMiddlewareCollection_Validate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -257,7 +255,7 @@ func TestMiddlewareCollection_String(t *testing.T) {
 		t.Parallel()
 
 		var collection MiddlewareCollection
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			collection = append(collection, Middleware{
 				ID:     fmt.Sprintf("logger%d", i),
 				Config: logger.NewConsoleLogger(),
@@ -267,7 +265,7 @@ func TestMiddlewareCollection_String(t *testing.T) {
 		result := collection.String()
 
 		// Verify all middlewares are included
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			assert.Contains(t, result, fmt.Sprintf("logger%d", i))
 		}
 

@@ -7,7 +7,6 @@ import (
 	pbApps "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/apps/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -224,7 +223,7 @@ func TestExtismEvaluatorFromProto(t *testing.T) {
 
 	t.Run("with entrypoint", func(t *testing.T) {
 		proto := &pbApps.ExtismEvaluator{
-			Entrypoint: proto.String("handle_request"),
+			Entrypoint: new("handle_request"),
 		}
 		got := ExtismEvaluatorFromProto(proto)
 		want := &ExtismEvaluator{Code: "", Entrypoint: "handle_request"}
@@ -234,7 +233,7 @@ func TestExtismEvaluatorFromProto(t *testing.T) {
 	t.Run("with code and entrypoint", func(t *testing.T) {
 		proto := &pbApps.ExtismEvaluator{
 			Source:     &pbApps.ExtismEvaluator_Code{Code: "base64content"},
-			Entrypoint: proto.String("handle_request"),
+			Entrypoint: new("handle_request"),
 		}
 		got := ExtismEvaluatorFromProto(proto)
 		want := &ExtismEvaluator{Code: "base64content", Entrypoint: "handle_request"}
@@ -334,7 +333,7 @@ func TestEvaluatorFromProto(t *testing.T) {
 			Evaluator: &pbApps.ScriptApp_Extism{
 				Extism: &pbApps.ExtismEvaluator{
 					Source:     &pbApps.ExtismEvaluator_Code{Code: "base64content"},
-					Entrypoint: proto.String("handle_request"),
+					Entrypoint: new("handle_request"),
 				},
 			},
 		}

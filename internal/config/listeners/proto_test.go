@@ -9,7 +9,6 @@ import (
 	"github.com/robbyt/protobaggins"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -43,8 +42,8 @@ func TestToProto(t *testing.T) {
 			},
 			expected: []*pb.Listener{
 				{
-					Id:      proto.String("http-listener"),
-					Address: proto.String("127.0.0.1:8080"),
+					Id:      new("http-listener"),
+					Address: new("127.0.0.1:8080"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
@@ -81,8 +80,8 @@ func TestToProto(t *testing.T) {
 			},
 			expected: []*pb.Listener{
 				{
-					Id:      proto.String("http-listener-1"),
-					Address: proto.String("127.0.0.1:8080"),
+					Id:      new("http-listener-1"),
+					Address: new("127.0.0.1:8080"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
@@ -92,8 +91,8 @@ func TestToProto(t *testing.T) {
 					},
 				},
 				{
-					Id:      proto.String("http-listener-2"),
-					Address: proto.String("127.0.0.1:8081"),
+					Id:      new("http-listener-2"),
+					Address: new("127.0.0.1:8081"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
@@ -107,7 +106,6 @@ func TestToProto(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			result := tc.listeners.ToProto()
@@ -187,8 +185,8 @@ func TestFromProto(t *testing.T) {
 			name: "Single HTTP listener",
 			pbListeners: []*pb.Listener{
 				{
-					Id:      proto.String("http-listener"),
-					Address: proto.String("127.0.0.1:8080"),
+					Id:      new("http-listener"),
+					Address: new("127.0.0.1:8080"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
@@ -219,8 +217,8 @@ func TestFromProto(t *testing.T) {
 			name: "Multiple HTTP listeners",
 			pbListeners: []*pb.Listener{
 				{
-					Id:      proto.String("http-listener-1"),
-					Address: proto.String("127.0.0.1:8080"),
+					Id:      new("http-listener-1"),
+					Address: new("127.0.0.1:8080"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
@@ -230,8 +228,8 @@ func TestFromProto(t *testing.T) {
 					},
 				},
 				{
-					Id:      proto.String("http-listener-2"),
-					Address: proto.String("127.0.0.1:8081"),
+					Id:      new("http-listener-2"),
+					Address: new("127.0.0.1:8081"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					ProtocolOptions: &pb.Listener_Http{
 						Http: &pb.HttpListenerOptions{
@@ -271,8 +269,8 @@ func TestFromProto(t *testing.T) {
 			name: "Listener with missing protocol options gets defaults",
 			pbListeners: []*pb.Listener{
 				{
-					Id:      proto.String("listener-with-defaults"),
-					Address: proto.String("127.0.0.1:8080"),
+					Id:      new("listener-with-defaults"),
+					Address: new("127.0.0.1:8080"),
 					Type:    pb.Listener_TYPE_HTTP.Enum(),
 					// No protocol options set - should get defaults
 				},
@@ -312,7 +310,6 @@ func TestFromProto(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			result, err := FromProto(tc.pbListeners)
@@ -373,18 +370,17 @@ func TestStringFromProto(t *testing.T) {
 		},
 		{
 			name:     "Empty string",
-			input:    proto.String(""),
+			input:    new(""),
 			expected: "",
 		},
 		{
 			name:     "Non-empty string",
-			input:    proto.String("test"),
+			input:    new("test"),
 			expected: "test",
 		},
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			result := protobaggins.StringFromProto(tc.input)

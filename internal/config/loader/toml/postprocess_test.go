@@ -8,7 +8,6 @@ import (
 	pbMiddleware "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 // TestPostProcessConfig tests the main postProcessConfig orchestration function
@@ -23,16 +22,16 @@ func TestPostProcessConfig(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 			},
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("middleware1"),
+							Id: new("middleware1"),
 						},
 					},
 				},
@@ -95,16 +94,16 @@ func TestPostProcessConfig(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 			},
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("middleware1"),
+							Id: new("middleware1"),
 						},
 					},
 				},
@@ -166,8 +165,8 @@ func TestPostProcessConfig(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 			},
 		}
@@ -204,7 +203,7 @@ func TestPostProcessConfig(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}
@@ -240,10 +239,10 @@ func TestPostProcessConfig(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("middleware1"),
+							Id: new("middleware1"),
 						},
 					},
 				},
@@ -286,8 +285,8 @@ func TestPostProcessConfig(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Listeners: []*pbSettings.Listener{
 				{
-					Id:      proto.String("listener1"),
-					Address: proto.String(":8080"),
+					Id:      new("listener1"),
+					Address: new(":8080"),
 				},
 			},
 		}
@@ -355,7 +354,7 @@ func TestProcessAppType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := &pbSettings.AppDefinition{
-				Id: proto.String("test-app"),
+				Id: new("test-app"),
 			}
 
 			errs := processAppType(app, tt.appType)
@@ -715,7 +714,7 @@ func TestProcessEndpointsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Routes: []*pbSettings.Route{
 						{},
 					},
@@ -751,7 +750,7 @@ func TestProcessEndpointsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}
@@ -771,7 +770,7 @@ func TestProcessEndpointsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Routes: []*pbSettings.Route{
 						{},
 					},
@@ -798,7 +797,7 @@ func TestProcessEndpointsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}
@@ -833,7 +832,7 @@ func TestProcessEndpointsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}
@@ -862,7 +861,7 @@ func TestProcessEndpointsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Routes: []*pbSettings.Route{
 						{},
 					},
@@ -907,7 +906,7 @@ func TestProcessAppsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Apps: []*pbSettings.AppDefinition{
 				{
-					Id: proto.String("app1"),
+					Id: new("app1"),
 				},
 			},
 		}
@@ -927,7 +926,7 @@ func TestProcessAppsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Apps: []*pbSettings.AppDefinition{
 				{
-					Id: proto.String("app1"),
+					Id: new("app1"),
 				},
 			},
 		}
@@ -944,7 +943,7 @@ func TestProcessAppsEdgeCases(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Apps: []*pbSettings.AppDefinition{
 				{
-					Id: proto.String("app1"),
+					Id: new("app1"),
 				},
 			},
 		}
@@ -976,7 +975,7 @@ func TestProcessScriptAppConfigEdgeCases(t *testing.T) {
 
 	t.Run("InvalidScriptConfig", func(t *testing.T) {
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("app1"),
+			Id: new("app1"),
 		}
 
 		appMap := map[string]any{
@@ -989,7 +988,7 @@ func TestProcessScriptAppConfigEdgeCases(t *testing.T) {
 
 	t.Run("NoScriptConfig", func(t *testing.T) {
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("app1"),
+			Id: new("app1"),
 		}
 
 		appMap := map[string]any{
@@ -1002,7 +1001,7 @@ func TestProcessScriptAppConfigEdgeCases(t *testing.T) {
 
 	t.Run("NilScriptApp", func(t *testing.T) {
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("app1"),
+			Id: new("app1"),
 		}
 
 		appMap := map[string]any{

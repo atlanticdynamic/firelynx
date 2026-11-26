@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints"
 	"github.com/atlanticdynamic/firelynx/internal/config/endpoints/routes/conditions"
@@ -199,14 +200,7 @@ func (c *Config) validateRouteTypesMatchListenerType(
 
 		// Check if the condition type is compatible with the listener type
 		validTypes := compatibleTypes[listenerType]
-		isCompatible := false
-
-		for _, validType := range validTypes {
-			if condType == validType {
-				isCompatible = true
-				break
-			}
-		}
+		isCompatible := slices.Contains(validTypes, condType)
 
 		if !isCompatible {
 			errs = append(errs, fmt.Errorf(

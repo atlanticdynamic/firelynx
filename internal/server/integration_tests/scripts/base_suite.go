@@ -80,7 +80,7 @@ func (s *ScriptIntegrationTestSuite) ValidateEvaluator(appID string, expectedTyp
 }
 
 // ValidateStaticData validates that app static data matches expected values
-func (s *ScriptIntegrationTestSuite) ValidateStaticData(appID string, expected map[string]interface{}) {
+func (s *ScriptIntegrationTestSuite) ValidateStaticData(appID string, expected map[string]any) {
 	scriptApp := s.GetScriptApp(appID)
 	s.NotNil(scriptApp.StaticData, "App %s should have static data", appID)
 
@@ -93,7 +93,7 @@ func (s *ScriptIntegrationTestSuite) ValidateStaticData(appID string, expected m
 }
 
 // ValidateRouteStaticData validates route-level static data configuration
-func (s *ScriptIntegrationTestSuite) ValidateRouteStaticData(routeIndex int, expected map[string]interface{}) {
+func (s *ScriptIntegrationTestSuite) ValidateRouteStaticData(routeIndex int, expected map[string]any) {
 	s.Require().Len(s.cfg.Endpoints, 1, "Should have one endpoint for route validation")
 	endpoint := s.cfg.Endpoints[0]
 
@@ -154,16 +154,16 @@ func (s *ScriptIntegrationTestSuite) AssertDataNamespaceUsage(appID string) {
 }
 
 // ValidateProcessingRules validates nested processing rules in static data
-func (s *ScriptIntegrationTestSuite) ValidateProcessingRules(appID string, expectedRules map[string][]interface{}) {
+func (s *ScriptIntegrationTestSuite) ValidateProcessingRules(appID string, expectedRules map[string][]any) {
 	scriptApp := s.GetScriptApp(appID)
 	s.NotNil(scriptApp.StaticData, "App %s should have static data", appID)
 
 	actualStaticData := scriptApp.StaticData.Data
-	processingRules, ok := actualStaticData["processing_rules"].(map[string]interface{})
+	processingRules, ok := actualStaticData["processing_rules"].(map[string]any)
 	s.True(ok, "App %s should have processing_rules as map", appID)
 
 	for ruleName, expectedFields := range expectedRules {
-		actualFields, ok := processingRules[ruleName].([]interface{})
+		actualFields, ok := processingRules[ruleName].([]any)
 		s.True(ok, "App %s should have %s as array", appID, ruleName)
 		s.Equal(expectedFields, actualFields, "App %s should have expected %s fields", appID, ruleName)
 	}

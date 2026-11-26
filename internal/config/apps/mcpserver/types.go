@@ -26,7 +26,7 @@ func (s *schemaDefinition) ValidateInput() error {
 	}
 
 	// Parse JSON schema to validate structure
-	var schema map[string]interface{}
+	var schema map[string]any
 	if err := json.Unmarshal([]byte(s.Input), &schema); err != nil {
 		return fmt.Errorf("invalid input_schema JSON: %w", err)
 	}
@@ -43,7 +43,7 @@ func (s *schemaDefinition) ValidateOutput() error {
 	}
 
 	// Parse JSON schema to validate structure
-	var schema map[string]interface{}
+	var schema map[string]any
 	if err := json.Unmarshal([]byte(s.Output), &schema); err != nil {
 		return fmt.Errorf("invalid output_schema JSON: %w", err)
 	}

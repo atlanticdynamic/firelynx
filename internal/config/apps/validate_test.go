@@ -61,7 +61,6 @@ func TestNewValidationContext(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -151,7 +150,6 @@ func TestValidateAppReference(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -223,7 +221,6 @@ func TestValidateRouteReferences(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -315,7 +312,6 @@ func TestValidateCompositeAppReferences(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc // Capture range variable
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

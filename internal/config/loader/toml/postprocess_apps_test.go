@@ -8,7 +8,6 @@ import (
 	pbMiddleware "github.com/atlanticdynamic/firelynx/gen/settings/v1alpha1/middleware/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 )
 
 // TestProcessAppsCoverageGaps focuses on coverage gaps in app processing
@@ -19,7 +18,7 @@ func TestProcessAppsCoverageGaps(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Apps: []*pbSettings.AppDefinition{
 				{
-					Id: proto.String("app1"),
+					Id: new("app1"),
 				},
 			},
 		}
@@ -40,7 +39,7 @@ func TestProcessAppsCoverageGaps(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Apps: []*pbSettings.AppDefinition{
 				{
-					Id: proto.String("app1"),
+					Id: new("app1"),
 				},
 			},
 		}
@@ -63,7 +62,7 @@ func TestProcessAppsCoverageGaps(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Apps: []*pbSettings.AppDefinition{
 				{
-					Id: proto.String("app1"),
+					Id: new("app1"),
 				},
 			},
 		}
@@ -80,7 +79,7 @@ func TestProcessAppsCoverageGaps(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Apps: []*pbSettings.AppDefinition{
 				{
-					Id: proto.String("app1"),
+					Id: new("app1"),
 				},
 			},
 		}
@@ -108,8 +107,8 @@ func TestProcessAppsCoverageGaps(t *testing.T) {
 	t.Run("TypedAppTypes", func(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Apps: []*pbSettings.AppDefinition{
-				{Id: proto.String("calc")},
-				{Id: proto.String("files")},
+				{Id: new("calc")},
+				{Id: new("files")},
 			},
 		}
 
@@ -160,7 +159,7 @@ func TestProcessScriptAppConfigCoverageGaps(t *testing.T) {
 
 	t.Run("InvalidScriptConfig", func(t *testing.T) {
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("app1"),
+			Id: new("app1"),
 		}
 
 		appMap := map[string]any{
@@ -173,7 +172,7 @@ func TestProcessScriptAppConfigCoverageGaps(t *testing.T) {
 
 	t.Run("NoScriptConfig", func(t *testing.T) {
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("app1"),
+			Id: new("app1"),
 		}
 
 		appMap := map[string]any{
@@ -187,7 +186,7 @@ func TestProcessScriptAppConfigCoverageGaps(t *testing.T) {
 
 	t.Run("NilScriptApp", func(t *testing.T) {
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("app1"),
+			Id: new("app1"),
 			// No script app config set, so GetScript() returns nil
 		}
 
@@ -333,7 +332,7 @@ func TestProcessMiddlewaresCoverageGaps(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 				},
 			},
 		}
@@ -353,10 +352,10 @@ func TestProcessMiddlewaresCoverageGaps(t *testing.T) {
 		config := &pbSettings.ServerConfig{
 			Endpoints: []*pbSettings.Endpoint{
 				{
-					Id: proto.String("endpoint1"),
+					Id: new("endpoint1"),
 					Middlewares: []*pbMiddleware.Middleware{
 						{
-							Id: proto.String("middleware1"),
+							Id: new("middleware1"),
 						},
 					},
 				},
@@ -410,7 +409,7 @@ func TestProcessScriptAppConfigWithStaticDataNil(t *testing.T) {
 		}
 
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("app1"),
+			Id: new("app1"),
 			Config: &pbSettings.AppDefinition_Script{
 				Script: scriptApp,
 			},
@@ -443,22 +442,22 @@ func TestProcessMcpAppConfig(t *testing.T) {
 		mcpApp := &pbApps.McpApp{
 			Tools: []*pbApps.McpTool{
 				{
-					AppId:        proto.String("calc-app"),
-					InputSchema:  proto.String(`{"type": "object"}`),
-					OutputSchema: proto.String(`{"type": "number"}`),
+					AppId:        new("calc-app"),
+					InputSchema:  new(`{"type": "object"}`),
+					OutputSchema: new(`{"type": "number"}`),
 				},
 			},
 			Prompts: []*pbApps.McpPrompt{
 				{
-					Id:          proto.String("greeting"),
-					AppId:       proto.String("echo-app"),
-					InputSchema: proto.String(`{"type": "string"}`),
+					Id:          new("greeting"),
+					AppId:       new("echo-app"),
+					InputSchema: new(`{"type": "string"}`),
 				},
 			},
 		}
 
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("mcp-app"),
+			Id: new("mcp-app"),
 			Config: &pbSettings.AppDefinition_Mcp{
 				Mcp: mcpApp,
 			},
@@ -490,7 +489,7 @@ func TestProcessMcpAppConfig(t *testing.T) {
 	t.Run("NoPostprocessingRequired", func(t *testing.T) {
 		// Since MCP configuration is simplified, no TOML postprocessing is needed
 		app := &pbSettings.AppDefinition{
-			Id: proto.String("mcp-app"),
+			Id: new("mcp-app"),
 		}
 
 		appMap := map[string]any{

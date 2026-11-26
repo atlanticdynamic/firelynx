@@ -1,8 +1,6 @@
 module github.com/atlanticdynamic/firelynx
 
-go 1.26.5
-
-require github.com/urfave/cli/v3 v3.14.0
+go 1.27.4
 
 require (
 	charm.land/lipgloss/v2 v2.1.1
@@ -18,6 +16,7 @@ require (
 	github.com/robbyt/mcp-io v0.0.1
 	github.com/robbyt/protobaggins v0.2.0
 	github.com/stretchr/testify v1.12.1
+	github.com/urfave/cli/v3 v3.14.0
 	golang.org/x/net v0.63.0
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
